@@ -12,13 +12,9 @@ dependencies {
     examples 'org.codehaus.groovy:groovy:2.2.0-rc-1'
 }
 
-
 tasks.compileExamplesGroovy {
     classpath = classpath + files(compileGroovy.destinationDir) + (configurations.compile + configurations.examples)
 }
-
-
-
 
 jar {
     manifest {
