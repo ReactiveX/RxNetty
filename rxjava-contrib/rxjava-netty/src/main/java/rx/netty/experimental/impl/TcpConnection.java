@@ -9,7 +9,6 @@ import rx.Observable.OnSubscribeFunc;
 import rx.Observer;
 import rx.Subscription;
 import rx.subjects.PublishSubject;
-import rx.subscriptions.CompositeSubscription;
 import rx.subscriptions.Subscriptions;
 import rx.util.functions.Action0;
 import rx.util.functions.Action1;
@@ -18,7 +17,6 @@ public class TcpConnection<I, O> {
 
     private final PublishSubject<I> s;
     private final ChannelHandlerContext ctx;
-    private volatile CompositeSubscription subscriptions = new CompositeSubscription();
 
     protected TcpConnection(ChannelHandlerContext ctx, final PublishSubject<I> s) {
         this.ctx = ctx;
@@ -33,12 +31,10 @@ public class TcpConnection<I, O> {
         return new Observer<I>() {
             public synchronized void onCompleted() {
                 s.onCompleted();
-                subscriptions.unsubscribe();
             }
 
             public synchronized void onError(Throwable e) {
                 s.onError(e);
-                subscriptions.unsubscribe();
             }
 
             public void onNext(I o) {
@@ -49,15 +45,6 @@ public class TcpConnection<I, O> {
 
     public static <I, O> TcpConnection<I, O> create(ChannelHandlerContext ctx) {
         return new TcpConnection<I, O>(ctx, PublishSubject.<I> create());
-    }
-
-    public synchronized void unsubscribe() {
-        subscriptions.unsubscribe();
-        subscriptions = new CompositeSubscription();
-    }
-
-    public synchronized void addSubscription(Subscription s) {
-        subscriptions.add(s);
     }
 
     /**

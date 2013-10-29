@@ -18,10 +18,10 @@ import rx.util.functions.Action0;
 public class NettyServer<I, O> {
 
     public static <I, O> RemoteObservableServer<TcpConnection<I, O>> createServer(
-        final int port,
-        final EventLoopGroup acceptorEventLoops,
-        final EventLoopGroup workerEventLoops,
-        final ProtocolHandler<I, O> handler) {
+            final int port,
+            final EventLoopGroup acceptorEventLoops,
+            final EventLoopGroup workerEventLoops,
+            final ProtocolHandler<I, O> handler) {
 
         return RemoteObservableServer.create(new RemoteServerOnSubscribeFunc<TcpConnection<I, O>>() {
 
@@ -47,8 +47,6 @@ public class NettyServer<I, O> {
                     // start the server
                     final ChannelFuture f = b.bind(port).sync();
 
-                    System.out.println("server started");
-                    
                     // return a subscription that can shut down the server
                     return Subscriptions.create(new Action0() {
 
@@ -56,7 +54,6 @@ public class NettyServer<I, O> {
                         public void call() {
                             try {
                                 new RuntimeException("shutting down").printStackTrace();
-                                System.out.println("server shutdown");
                                 f.channel().close().sync();
                             } catch (InterruptedException e) {
                                 throw new RuntimeException("Failed to unsubscribe");
@@ -66,7 +63,6 @@ public class NettyServer<I, O> {
                     });
                 } catch (Throwable e) {
                     observer.onError(e);
-                    System.out.println("error in server");
                     return Subscriptions.empty();
                 }
             }
