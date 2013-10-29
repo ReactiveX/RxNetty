@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import rx.Observable;
 import rx.experimental.remote.RemoteObservableClient;
+import rx.experimental.remote.RemoteObservableServer;
 import rx.netty.experimental.impl.NettyClient;
 import rx.netty.experimental.impl.NettyServer;
 import rx.netty.experimental.impl.TcpConnection;
@@ -49,19 +50,19 @@ public class RxNetty {
         private static NioEventLoopGroup WORKER = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(), THREAD_FACTORY);
     }
 
-    public static Observable<TcpConnection<String, String>> createTcpServer(final int port, final EventLoopGroup acceptorEventLoops, final EventLoopGroup workerEventLoops) {
-        return NettyServer.createServer(port, acceptorEventLoops, workerEventLoops, ProtocolHandlers.stringCodec());
+    public static RemoteObservableServer<TcpConnection<String, String>> createTcpServer(final int port, final EventLoopGroup acceptorEventLoops, final EventLoopGroup workerEventLoops) {
+        return createTcpServer(port, acceptorEventLoops, workerEventLoops, ProtocolHandlers.stringCodec());
     }
 
-    public static Observable<TcpConnection<String, String>> createTcpServer(int port) {
+    public static RemoteObservableServer<TcpConnection<String, String>> createTcpServer(int port) {
         return createTcpServer(port, DEFAULT_EVENT_LOOPS.ACCEPTOR, DEFAULT_EVENT_LOOPS.WORKER);
     }
 
-    public static <I, O> Observable<TcpConnection<I, O>> createTcpServer(int port, ProtocolHandler<I, O> handler) {
+    public static <I, O> RemoteObservableServer<TcpConnection<I, O>> createTcpServer(int port, ProtocolHandler<I, O> handler) {
         return createTcpServer(port, DEFAULT_EVENT_LOOPS.ACCEPTOR, DEFAULT_EVENT_LOOPS.WORKER, handler);
     }
 
-    public static <I, O> Observable<TcpConnection<I, O>> createTcpServer(
+    public static <I, O> RemoteObservableServer<TcpConnection<I, O>> createTcpServer(
         final int port,
         final EventLoopGroup acceptorEventLoops,
         final EventLoopGroup workerEventLoops,

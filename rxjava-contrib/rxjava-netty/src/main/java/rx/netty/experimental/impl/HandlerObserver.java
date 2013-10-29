@@ -13,6 +13,8 @@ public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
         this.observer = observer;
     }
 
+    // suppressing because Netty uses Object but we have typed HandlerObserver to I and expect only I
+    @SuppressWarnings("unchecked")
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         connection.getChannelObserver().onNext((I) msg);
