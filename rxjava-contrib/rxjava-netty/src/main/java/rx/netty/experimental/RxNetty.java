@@ -23,6 +23,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import rx.Observable;
+import rx.experimental.remote.RemoteObservableClient;
 import rx.netty.experimental.impl.NettyClient;
 import rx.netty.experimental.impl.NettyServer;
 import rx.netty.experimental.impl.TcpConnection;
@@ -69,16 +70,16 @@ public class RxNetty {
         return NettyServer.createServer(port, acceptorEventLoops, workerEventLoops, handler);
     }
 
-    public static Observable<TcpConnection<ByteBuf, String>> createTcpClient(final String host, final int port, final EventLoopGroup eventLoops) {
+    public static RemoteObservableClient<TcpConnection<ByteBuf, String>> createTcpClient(final String host, final int port, final EventLoopGroup eventLoops) {
         return NettyClient.createClient(host, port, eventLoops, ProtocolHandlers.commandOnlyHandler());
     }
 
-    public static Observable<TcpConnection<ByteBuf, String>> createTcpClient(String host, int port) {
+    public static RemoteObservableClient<TcpConnection<ByteBuf, String>> createTcpClient(String host, int port) {
         return RxNetty.createTcpClient(host, port, DEFAULT_EVENT_LOOPS.WORKER);
 
     }
 
-    public static <I, O> Observable<TcpConnection<I, O>> createTcpClient(String host, int port, ProtocolHandler<I, O> handler) {
+    public static <I, O> RemoteObservableClient<TcpConnection<I, O>> createTcpClient(String host, int port, ProtocolHandler<I, O> handler) {
         return NettyClient.createClient(host, port, DEFAULT_EVENT_LOOPS.WORKER, handler);
     }
 }
