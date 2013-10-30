@@ -53,7 +53,6 @@ public class NettyServer<I, O> {
                         @Override
                         public void call() {
                             try {
-                                new RuntimeException("shutting down").printStackTrace();
                                 f.channel().close().sync();
                             } catch (InterruptedException e) {
                                 throw new RuntimeException("Failed to unsubscribe");

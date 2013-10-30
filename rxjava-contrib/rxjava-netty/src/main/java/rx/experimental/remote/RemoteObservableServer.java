@@ -4,6 +4,10 @@ import rx.Observable;
 import rx.Observable.OnSubscribeFunc;
 import rx.Observer;
 import rx.Subscription;
+import rx.operators.SafeObservableSubscription;
+import rx.subscriptions.CompositeSubscription;
+import rx.subscriptions.Subscriptions;
+import rx.util.functions.Action0;
 import rx.util.functions.Func1;
 import rx.util.functions.Function;
 
@@ -50,7 +54,9 @@ public class RemoteObservableServer<T> {
 
         @Override
         public Subscription onSubscribe(final Observer<? super R> observer) {
-            return remoteObservableServer.subscribe(new Observer<T>() {
+            final CompositeSubscription serverSubscription = new CompositeSubscription();
+
+            serverSubscription.add(remoteObservableServer.subscribe(new Observer<T>() {
 
                 @Override
                 public void onCompleted() {
@@ -63,17 +69,57 @@ public class RemoteObservableServer<T> {
                 }
 
                 @Override
-                public void onNext(T t) {
+                public void onNext(T connection) {
                     try {
-                        Observable<R> r = func.call(t);
+                        Observable<R> onConnectResponse = func.call(connection);
 
-                        // TODO may need SafeObserver wrapping this observer or assert onError/onCompleted/unsubscribe hasn't happened
-                        r.subscribe(observer);
+                        final SafeObservableSubscription connectionSubscription = new SafeObservableSubscription();
+                        serverSubscription.add(connectionSubscription);
+                        connectionSubscription.wrap(onConnectResponse.subscribe(new Observer<R>() {
+
+                            @Override
+                            public void onCompleted() {
+                                serverSubscription.remove(connectionSubscription);
+                                /*
+                                 * we don't call 'observer.onCompleted()' here because
+                                 * this is completion of a single connection not the server
+                                 * we don't want to shutdown the server
+                                 */
+                            }
+
+                            @Override
+                            public void onError(Throwable e) {
+                                /*
+                                 * If we get an error in the function processing connections we shut down the server
+                                 * This seems harsh but the connection handler function needs to handle errors correctly
+                                 * otherwise it ends up here and we have no choice but to propagate "to the top".
+                                 */
+                                observer.onError(e);
+                            }
+
+                            @Override
+                            public void onNext(R r) {
+                                // pass along the new connection for processing
+                                observer.onNext(r);
+                            }
+
+                        }));
                     } catch (Throwable e) {
                         observer.onError(e);
                     }
                 }
+            }));
+
+            return Subscriptions.create(new Action0() {
+
+                @Override
+                public void call() {
+                    System.out.println("received unsubscribe to SERVER - onConnect - shut down all connections");
+                    serverSubscription.unsubscribe();
+                }
+
             });
+
         }
 
     }

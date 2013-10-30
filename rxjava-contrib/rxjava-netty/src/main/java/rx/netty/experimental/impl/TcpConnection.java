@@ -93,8 +93,6 @@ public class TcpConnection<I, O> {
 
             @Override
             public void call(Throwable cause) {
-                cause.printStackTrace();
-                System.out.println("cached error: " + cause);
                 // do nothing, it will be cached for the other subscribers
             }
 

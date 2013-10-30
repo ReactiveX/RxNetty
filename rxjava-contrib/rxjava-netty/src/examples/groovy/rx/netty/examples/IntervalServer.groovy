@@ -53,6 +53,8 @@ class IntervalServer {
         return RxNetty.createTcpServer(port, ProtocolHandlers.stringCodec())
         .onConnect({ TcpConnection<String, String> connection ->
 
+            println("--- Connection Started ---")
+
             Observable<String> input = connection.getChannelObservable().map({ String m ->
                 return m.trim()
             });
@@ -62,8 +64,6 @@ class IntervalServer {
                 if (msg.startsWith("subscribe:")) {
                     System.out.println("-------------------------------------");
                     System.out.println("Received 'subscribe' from client so starting interval ...");
-                    // TODO how can we do this with startInterval returning an Observable instead of subscription?
-                    //                    connection.addSubscription(startInterval(connection));
                     return getIntervalObservable(connection).takeUntil(input.filter({ String m -> m.equals("unsubscribe:")}))
                 } else if (msg.startsWith("unsubscribe:")) {
                     // this is here just for verbose logging
@@ -77,7 +77,8 @@ class IntervalServer {
                     return Observable.empty();
                 }
 
-            });
+            }).finallyDo({ println("--- Connection Closed ---") });
+
 
         });
     }
