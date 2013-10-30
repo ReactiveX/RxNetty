@@ -30,7 +30,6 @@ import rx.netty.experimental.protocol.ProtocolHandlers
  */
 class EchoClient {
 
-
     def static void main(String[] args) {
 
         RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
