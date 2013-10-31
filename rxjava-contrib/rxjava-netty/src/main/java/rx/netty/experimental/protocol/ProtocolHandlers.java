@@ -54,6 +54,10 @@ public class ProtocolHandlers {
     }
 
 
+    public static ProtocolHandler<String, String> stringLineCodec() {
+        return new StringLineCodec();
+    }
+
     /**
      * The identity protocol handler. It does nothing, allowing any given
      * {@link io.netty.buffer.ByteBuf} object to reach {@link rx.netty.experimental.impl.HandlerObserver}

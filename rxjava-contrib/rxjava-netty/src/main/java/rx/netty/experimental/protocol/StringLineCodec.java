@@ -24,7 +24,10 @@ import io.netty.handler.codec.string.StringEncoder;
 import java.util.List;
 
 /**
- *
+ * The protocol handler encodes outgoing commands as strings, and breaks
+ * incoming strings into lines, with line delimiters being CR, LF, or CRLF.
+ * Consecutive new line delimiters will be treated as one, and will be
+ * stripped from decoded string lines.
  */
 public class StringLineCodec implements ProtocolHandler<String, String>{
     @Override
@@ -40,7 +43,10 @@ public class StringLineCodec implements ProtocolHandler<String, String>{
         END_OF_LINE
     }
 
-    public static class StringLineDecoder extends ReplayingDecoder<State> {
+    /**
+     * The decoder that breaks incoming strings into lines by new-line delimiters
+     */
+    private static class StringLineDecoder extends ReplayingDecoder<State> {
 
         public StringLineDecoder(){
             super(State.NEW_LINE);

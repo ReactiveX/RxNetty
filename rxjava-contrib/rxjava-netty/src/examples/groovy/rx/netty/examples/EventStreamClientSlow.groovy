@@ -20,7 +20,7 @@ class EventStreamClientSlow {
          * it as a string. We need the codec to properly tokenize events on CRLF and then the delay will
          * happen on each line and cause queueing with true "slow consumer" side-effects
          */
-        RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
+        RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringLineCodec())
                 .onConnect({ TcpConnection<String, String> connection ->
                     return connection.getChannelObservable().map({ String msg ->
                         // simulate slow processing

@@ -15,7 +15,7 @@ class EventStreamClientFast {
 
     def static void main(String[] args) {
 
-        RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
+        RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringLineCodec())
                 .onConnect({ TcpConnection<String, String> connection ->
                     return connection.getChannelObservable().map({ String msg ->
                         return msg.trim()
