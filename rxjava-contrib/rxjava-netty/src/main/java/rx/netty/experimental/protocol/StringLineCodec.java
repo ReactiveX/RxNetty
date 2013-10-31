@@ -58,6 +58,11 @@ public class StringLineCodec implements ProtocolHandler<String, String>{
             switch(state()) {
                 case NEW_LINE:
                     String line = readFullLine(in);
+
+                    // Immediately checkpoint the progress so that replaying decoder
+                    // will not start over from the beginning of the line when buffer overflows
+                    checkpoint();
+
                     out.add(line);
                     break;
                 case END_OF_LINE:
