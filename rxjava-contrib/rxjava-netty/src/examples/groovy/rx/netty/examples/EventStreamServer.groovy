@@ -17,18 +17,18 @@ class EventStreamServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, ProtocolHandlers.stringCodec())
+        return RxNetty.createTcpServer(port, ProtocolHandlers.stringLineCodec())
         .onConnect({ TcpConnection<String, String> connection ->
             return getEventStream(connection);
         });
     }
 
     public static Observable<Void> getEventStream(final TcpConnection<String, String> connection) {
-        return Observable.interval(200, TimeUnit.MILLISECONDS)
+        return Observable.interval(10, TimeUnit.MILLISECONDS)
         .flatMap({ Long interval ->
             System.out.println("Writing event: " + interval);
             // emit the interval to the output and return the notification received from it
-            return connection.write("data: {\"type\":\"Command\",\"name\":\"GetAccount\",,\"currentTime\":1376957348166,\"errorPercentage\":0,\"errorCount\":0,\"requestCount\":" + interval + "}\n").materialize();
+            return connection.write("data: {\"type\":\"Command\",\"name\":\"GetAccount\",\"currentTime\":1376957348166,\"errorPercentage\":0,\"errorCount\":0,\"requestCount\":" + interval + "}\n").materialize();
         })
         .takeWhile({ Notification<Void> n ->
             // unsubscribe from interval if we receive an error
