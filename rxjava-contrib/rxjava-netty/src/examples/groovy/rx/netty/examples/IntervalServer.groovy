@@ -28,28 +28,6 @@ class IntervalServer {
     }
 
     public static Observable<String> createServer(final int port) {
-<<<<<<< HEAD
-        return RxNetty.createTcpServer(port)
-        // process each connection in parallel
-        .parallel({ Observable<TcpConnection> o ->
-            // for each connection
-            return o.flatMap({ TcpConnection connection ->
-                // for each message we receive on the connection
-                return connection.getChannelObservable().map({ ByteBuf bb ->
-                    String msg = bb.toString(Charset.forName("UTF8")).trim();
-                    if (msg.startsWith("subscribe:")) {
-                        System.out.println("-------------------------------------");
-                        System.out.println("Received 'subscribe' from client so starting interval ...");
-                        // TODO how can we do this with startInterval returning an Observable instead of subscription?
-                        connection.addSubscription(startInterval(connection));
-                    } else if (msg.startsWith("unsubscribe:")) {
-                        System.out.println("Received 'unsubscribe' from client so stopping interval ...");
-                        connection.unsubscribe();
-                    } else {
-                        if (!msg.isEmpty()) {
-                            connection.write("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
-                        }
-=======
         return RxNetty.createTcpServer(port, ProtocolHandlers.stringCodec())
         .onConnect({ TcpConnection<String, String> connection ->
 
@@ -72,7 +50,6 @@ class IntervalServer {
                 } else {
                     if (!(msg.isEmpty() || "unsubscribe:".equals(msg))) {
                         connection.write("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
->>>>>>> IntervalServer example functional
                     }
                     return Observable.empty();
                 }
@@ -83,11 +60,7 @@ class IntervalServer {
         });
     }
 
-<<<<<<< HEAD
-    public static Subscription startInterval(final TcpConnection connection) {
-=======
     public static Observable<Void> getIntervalObservable(final TcpConnection<String, String> connection) {
->>>>>>> IntervalServer example functional
         return Observable.interval(1000, TimeUnit.MILLISECONDS)
         .flatMap({ Long interval ->
             System.out.println("Writing interval: " + interval);
