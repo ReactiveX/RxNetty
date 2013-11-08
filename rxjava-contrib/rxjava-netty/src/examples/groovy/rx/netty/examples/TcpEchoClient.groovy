@@ -5,8 +5,9 @@ import java.util.concurrent.TimeUnit
 import rx.Observable
 import rx.experimental.remote.RemoteSubscription
 import rx.netty.experimental.RxNetty
-import rx.netty.experimental.impl.TcpConnection
-import rx.netty.experimental.protocol.ProtocolHandlers
+import rx.netty.experimental.impl.ObservableConnection
+import rx.netty.experimental.protocol.tcp.ProtocolHandlers
+
 
 /**
  * Connects to EchoServer, awaits first "Welcome!" message then outputs 10 values and receives the echo responses.
@@ -28,17 +29,17 @@ import rx.netty.experimental.protocol.ProtocolHandlers
  *  </pre>
  *
  */
-class EchoClient {
+class TcpEchoClient {
 
     def static void main(String[] args) {
 
         RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
-                .onConnect({ TcpConnection<String, String> connection ->
+                .onConnect({ ObservableConnection<String, String> connection ->
                     // we expect the EchoServer to output a single value at the beginning
                     // so let's take the first value ... we can do this without it closing the connection
                     // because the unsubscribe will hit the ChannelObservable is a PublishSubject
                     // so we can re-subscribe to the 'hot' stream of data
-                    Observable<String> helloMessage = connection.getChannelObservable()
+                    Observable<String> helloMessage = connection.getInput()
                             .takeFirst().map({ String s -> s.trim() })
 
                     // output 10 values at intervals and receive the echo back
@@ -50,7 +51,7 @@ class EchoClient {
                             })
 
                     // capture the output from the server
-                    Observable<String> echo = connection.getChannelObservable().map({ String msg ->
+                    Observable<String> echo = connection.getInput().map({ String msg ->
                         return msg.trim()
                     });
 

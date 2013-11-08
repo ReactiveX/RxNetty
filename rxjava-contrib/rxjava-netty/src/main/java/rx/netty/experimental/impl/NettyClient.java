@@ -16,16 +16,16 @@ import rx.experimental.remote.RemoteMapProjection;
 import rx.experimental.remote.RemoteObservableClient;
 import rx.experimental.remote.RemoteObservableClient.RemoteClientOnSubscribeFunc;
 import rx.experimental.remote.RemoteSubscription;
-import rx.netty.experimental.protocol.ProtocolHandler;
+import rx.netty.experimental.protocol.tcp.ProtocolHandler;
 import rx.subscriptions.Subscriptions;
 
 public class NettyClient {
 
-    public static <I, O> RemoteObservableClient<TcpConnection<I, O>> createClient(final String host, final int port, final EventLoopGroup eventLoops, final ProtocolHandler<I, O> handler) {
-        return RemoteObservableClient.create(new RemoteClientOnSubscribeFunc<TcpConnection<I, O>>() {
+    public static <I, O> RemoteObservableClient<ObservableConnection<I, O>> createClient(final String host, final int port, final EventLoopGroup eventLoops, final ProtocolHandler<I, O> handler) {
+        return RemoteObservableClient.create(new RemoteClientOnSubscribeFunc<ObservableConnection<I, O>>() {
 
             @Override
-            public RemoteSubscription onSubscribe(final Observer<? super TcpConnection<I, O>> observer, RemoteFilterCriteria filterCriteria, RemoteMapProjection mapProjection) {
+            public RemoteSubscription onSubscribe(final Observer<? super ObservableConnection<I, O>> observer, RemoteFilterCriteria filterCriteria, RemoteMapProjection mapProjection) {
                 try {
                     Bootstrap b = new Bootstrap();
                     b.group(eventLoops)

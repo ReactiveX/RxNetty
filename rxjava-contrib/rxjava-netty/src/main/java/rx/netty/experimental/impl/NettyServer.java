@@ -1,6 +1,7 @@
 package rx.netty.experimental.impl;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -11,29 +12,29 @@ import rx.Observer;
 import rx.Subscription;
 import rx.experimental.remote.RemoteObservableServer;
 import rx.experimental.remote.RemoteObservableServer.RemoteServerOnSubscribeFunc;
-import rx.netty.experimental.protocol.ProtocolHandler;
+import rx.netty.experimental.protocol.tcp.ProtocolHandler;
 import rx.subscriptions.Subscriptions;
 import rx.util.functions.Action0;
 
 public class NettyServer<I, O> {
 
-    public static <I, O> RemoteObservableServer<TcpConnection<I, O>> createServer(
+    public static <I, O> RemoteObservableServer<ObservableConnection<I, O>> createServer(
             final int port,
             final EventLoopGroup acceptorEventLoops,
             final EventLoopGroup workerEventLoops,
             final ProtocolHandler<I, O> handler) {
 
-        return RemoteObservableServer.create(new RemoteServerOnSubscribeFunc<TcpConnection<I, O>>() {
+        return RemoteObservableServer.create(new RemoteServerOnSubscribeFunc<ObservableConnection<I, O>>() {
 
             @Override
-            public Subscription onSubscribe(final Observer<? super TcpConnection<I, O>> observer) {
+            public Subscription onSubscribe(final Observer<? super ObservableConnection<I, O>> observer) {
                 try {
                     ServerBootstrap b = new ServerBootstrap();
                     b.group(acceptorEventLoops, workerEventLoops)
                             .channel(NioServerSocketChannel.class)
                             // TODO allow ChannelOptions to be passed in
                             .option(ChannelOption.SO_BACKLOG, 100)
-                            .handler(new ParentHandler())
+                            .handler(new ChannelDuplexHandler())
                             .childHandler(new ChannelInitializer<SocketChannel>() {
                                 @Override
                                 public void initChannel(SocketChannel ch) throws Exception {

@@ -4,8 +4,8 @@ import java.util.concurrent.TimeUnit
 
 import rx.*
 import rx.netty.experimental.*
-import rx.netty.experimental.impl.TcpConnection
-import rx.netty.experimental.protocol.ProtocolHandlers
+import rx.netty.experimental.impl.ObservableConnection
+import rx.netty.experimental.protocol.tcp.ProtocolHandlers
 
 /**
  * When a client connects and sends "subscribe:" it will start emitting until it receives "unsubscribe:"
@@ -21,7 +21,7 @@ import rx.netty.experimental.protocol.ProtocolHandlers
  * Received 'unsubscribe' from client so stopping interval (or ignoring if nothing subscribed) ...
  * </pre>
  */
-class IntervalServer {
+class TcpIntervalServer {
 
     public static void main(String[] args) {
         createServer(8181).toBlockingObservable().last();
@@ -29,11 +29,11 @@ class IntervalServer {
 
     public static Observable<String> createServer(final int port) {
         return RxNetty.createTcpServer(port, ProtocolHandlers.stringCodec())
-        .onConnect({ TcpConnection<String, String> connection ->
+        .onConnect({ ObservableConnection<String, String> connection ->
 
             println("--- Connection Started ---")
 
-            Observable<String> input = connection.getChannelObservable().map({ String m ->
+            Observable<String> input = connection.getInput().map({ String m ->
                 return m.trim()
             });
 
@@ -60,7 +60,7 @@ class IntervalServer {
         });
     }
 
-    public static Observable<Void> getIntervalObservable(final TcpConnection<String, String> connection) {
+    public static Observable<Void> getIntervalObservable(final ObservableConnection<String, String> connection) {
         return Observable.interval(1000, TimeUnit.MILLISECONDS)
         .flatMap({ Long interval ->
             System.out.println("Writing interval: " + interval);

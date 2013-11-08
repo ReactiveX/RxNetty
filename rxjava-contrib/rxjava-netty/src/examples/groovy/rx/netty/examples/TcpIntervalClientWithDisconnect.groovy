@@ -6,19 +6,19 @@ import java.nio.charset.Charset;
 
 import rx.Observable;
 import rx.netty.experimental.RxNetty;
-import rx.netty.experimental.impl.TcpConnection;
+import rx.netty.experimental.impl.ObservableConnection;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
-public class IntervalClientWithDisconnect {
+public class TcpIntervalClientWithDisconnect {
 
     public static void main(String[] args) {
-        new IntervalClientWithDisconnect().run();
+        new TcpIntervalClientWithDisconnect().run();
     }
 
     public void run() {
         RxNetty.createTcpClient("localhost", 8181)
-                .flatMap({ TcpConnection connection ->
+                .flatMap({ ObservableConnection connection ->
                     System.out.println("received connection: " + connection);
 
                     Observable<String> subscribeMessage = connection.write("subscribe:")
@@ -29,7 +29,7 @@ public class IntervalClientWithDisconnect {
                                 return Observable.empty();
                             });
 
-                    Observable<String> messageHandling = connection.getChannelObservable().map({ ByteBuf bb ->
+                    Observable<String> messageHandling = connection.getInput().map({ ByteBuf bb ->
                         return bb.toString(Charset.forName("UTF8")).trim();
                     });
 

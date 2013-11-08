@@ -1,12 +1,12 @@
 /**
  * Copyright 2013 Netflix, Inc.
- *
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
+ * 
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,15 +17,32 @@ package rx.netty.experimental.protocol.http;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
+
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
@@ -35,13 +52,6 @@ import rx.util.functions.Action0;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-
-/**
- *
- */
 public class ObservableHttpClient {
     private EventLoopGroup eventLoopGroup;
 
@@ -68,16 +78,15 @@ public class ObservableHttpClient {
     private final EventExecutor eventExecutor;
 
     public ObservableHttpClient(
-        EventLoopGroup eventLoopGroup,
-        int maxChunkSize,
-        int maxInitialLineLength,
-        int maxHeaderSize,
-        boolean useCompression,
-        boolean followRedirects,
-        String userAgent,
-        Set<ChannelSetting> channelOptions,
-        EventExecutor eventExecutor
-    ) {
+            EventLoopGroup eventLoopGroup,
+            int maxChunkSize,
+            int maxInitialLineLength,
+            int maxHeaderSize,
+            boolean useCompression,
+            boolean followRedirects,
+            String userAgent,
+            Set<ChannelSetting> channelOptions,
+            EventExecutor eventExecutor) {
         this.eventLoopGroup = eventLoopGroup;
         this.maxChunkSize = maxChunkSize;
         this.maxInitialLineLength = maxInitialLineLength;
@@ -88,7 +97,7 @@ public class ObservableHttpClient {
         this.eventExecutor = eventExecutor;
 
         this.channelSettings = new HashSet<ChannelSetting>();
-        for(ChannelSetting setting: channelOptions) {
+        for (ChannelSetting setting : channelOptions) {
             this.channelSettings.add(setting);
         }
     }
@@ -96,16 +105,16 @@ public class ObservableHttpClient {
     private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo) {
         final ConnectionPromise<T, HttpRequest> connectionPromise = new ConnectionPromise<T, HttpRequest>(eventExecutor);
         bootstrap.connect(uriInfo.getHost(), uriInfo.getPort())
-            .addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    if(future.isSuccess()) {
-                        connectionPromise.onConnect(future.channel());
-                    } else {
-                        connectionPromise.tryFailure(future.cause());
+                .addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        if (future.isSuccess()) {
+                            connectionPromise.onConnect(future.channel());
+                        } else {
+                            connectionPromise.tryFailure(future.cause());
+                        }
                     }
-                }
-            });
+                });
 
         return connectionPromise;
     }
@@ -152,15 +161,16 @@ public class ObservableHttpClient {
     }
 
     private void tryUpdateUserAgent(ValidatedFullHttpRequest request) {
-        if(userAgent != null && request.headers().get(HttpHeaders.Names.USER_AGENT) == null) {
+        if (userAgent != null && request.headers().get(HttpHeaders.Names.USER_AGENT) == null) {
             request.headers().set(HttpHeaders.Names.USER_AGENT, userAgent);
         }
     }
 
-    private static class HttpResponseDecoder<T> extends MessageToMessageDecoder<HttpObject>{
+    private static class HttpResponseDecoder<T> extends MessageToMessageDecoder<HttpObject> {
         private final HttpProtocolHandler handler;
 
         private Observer<? super ObservableHttpResponse<T>> observer;
+
         public HttpResponseDecoder(HttpProtocolHandler handler, Observer<? super ObservableHttpResponse<T>> observer) {
             this.handler = handler;
             this.observer = observer;
@@ -168,24 +178,24 @@ public class ObservableHttpClient {
 
         @Override
         protected void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
-            if(msg instanceof HttpResponse) {
-                HttpResponse response = (HttpResponse)msg;
+            if (msg instanceof HttpResponse) {
+                HttpResponse response = (HttpResponse) msg;
 
                 String header = response.headers().get("Content-Type");
                 ContentType contentType = ContentType.fromHeader(header);
-                if(contentType.isSSE()){
+                if (contentType.isSSE()) {
                     ChannelPipeline p = ctx.channel().pipeline();
                     p.remove("http-codec");
                     p.replace("http-response-decoder", "http-sse-handler", new ServerSentEventDecoder());
-                }else {
+                } else {
                     ctx.channel()
-                        .pipeline()
-                        .replace("http-response-decoder", "http-aggregator", new HttpObjectAggregator(Integer.MAX_VALUE));
+                            .pipeline()
+                            .replace("http-response-decoder", "http-aggregator", new HttpObjectAggregator(Integer.MAX_VALUE));
 
                     out.add(msg);
                 }
 
-                final ObservableHttpResponse<T> httpResponse = new ObservableHttpResponse<T>(response, PublishSubject.<T>create());
+                final ObservableHttpResponse<T> httpResponse = new ObservableHttpResponse<T>(response, PublishSubject.<T> create());
                 observer.onNext(httpResponse);
                 ctx.channel().pipeline().addLast("content-handler", new HttpMessageObserver<T>(observer, httpResponse));
 
@@ -198,18 +208,18 @@ public class ObservableHttpClient {
 
         Bootstrap bootstrap = new Bootstrap();
         bootstrap
-            .group(this.eventLoopGroup)
-            .handler(new ChannelInitializer<SocketChannel>() {
-                @Override
-                protected void initChannel(SocketChannel ch) throws Exception {
-                    ch.pipeline()
-                        .addLast("http-codec", new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize))
-                        .addLast("http-response-decoder", new HttpResponseDecoder<T>(handler, observer));
-                }
-            })
-            .option(ChannelOption.TCP_NODELAY, true)
-            .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
-            .channel(NioSocketChannel.class);
+                .group(this.eventLoopGroup)
+                .handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) throws Exception {
+                        ch.pipeline()
+                                .addLast("http-codec", new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize))
+                                .addLast("http-response-decoder", new HttpResponseDecoder<T>(handler, observer));
+                    }
+                })
+                .option(ChannelOption.TCP_NODELAY, true)
+                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
+                .channel(NioSocketChannel.class);
 
         for (ChannelSetting setting : channelSettings) {
             bootstrap.option(setting.getOption(), setting.getValue());
@@ -241,19 +251,20 @@ public class ObservableHttpClient {
         }).subscribe(new Action1<Message>() {
             @Override
             public void call(Message message
-            ) {
+                    ) {
                 System.out.println(message);
             }
         });
 
         //group.shutdownGracefully();
     }
+
     /**
      * A class that captures a unique channel option value. This is class is necessary
      * because we can't declare a generic variable in a non-parametric class. That is,
      * we can't simply declare {@code Map<ChannelOption<T>, T> channelSettings} without
      * declaring the parameter {@code T}.
-     *
+     * 
      * Note this is a special class. It is intended to be used in a collection, and its
      * uniqueness is associated only to the option (so to keep the semantics of {@link io.netty.util.UniqueName},
      * which {@link io.netty.channel.ChannelOption} extends).
@@ -277,12 +288,15 @@ public class ObservableHttpClient {
 
         @Override
         public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
+            if (this == o)
+                return true;
+            if (o == null || getClass() != o.getClass())
+                return false;
 
             ChannelSetting that = (ChannelSetting) o;
 
-            if (option != null ? !option.equals(that.option) : that.option != null) return false;
+            if (option != null ? !option.equals(that.option) : that.option != null)
+                return false;
 
             return true;
         }
@@ -314,12 +328,11 @@ public class ObservableHttpClient {
         private boolean followRedirects = false;
 
         // Use Agent string sent with each request
-        private String userAgent = "Netflix/Netty Client";
+        private String userAgent = "RxNetty Client";
 
         private EventExecutor eventExecutor;
 
         private Set<ChannelSetting> channelOptions = new HashSet<ChannelSetting>();
-
 
         public HttpClientBuilder maxChunkSize(int maxChunkSize) {
             this.maxChunkSize = maxChunkSize;

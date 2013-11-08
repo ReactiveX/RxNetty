@@ -13,21 +13,30 @@ import rx.subscriptions.Subscriptions;
 import rx.util.functions.Action0;
 import rx.util.functions.Action1;
 
-public class TcpConnection<I, O> {
+public class ObservableConnection<I, O> {
 
     private final PublishSubject<I> s;
     private final ChannelHandlerContext ctx;
 
-    protected TcpConnection(ChannelHandlerContext ctx, final PublishSubject<I> s) {
+    protected ObservableConnection(ChannelHandlerContext ctx, final PublishSubject<I> s) {
         this.ctx = ctx;
         this.s = s;
     }
 
-    public Observable<I> getChannelObservable() {
+    public static <I, O> ObservableConnection<I, O> create(ChannelHandlerContext ctx) {
+        return new ObservableConnection<I, O>(ctx, PublishSubject.<I> create());
+    }
+
+    public Observable<I> getInput() {
         return s;
     }
 
-    /* package */Observer<I> getChannelObserver() {
+    /**
+     * The Observer used to write to the Input Observable.
+     * <p>
+     * This is an implementation detail within this package.
+     */
+    /* package */Observer<I> getInputObserver() {
         return new Observer<I>() {
             public synchronized void onCompleted() {
                 s.onCompleted();
@@ -41,10 +50,6 @@ public class TcpConnection<I, O> {
                 s.onNext(o);
             }
         };
-    }
-
-    public static <I, O> TcpConnection<I, O> create(ChannelHandlerContext ctx) {
-        return new TcpConnection<I, O>(ctx, PublishSubject.<I> create());
     }
 
     /**

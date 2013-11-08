@@ -2,15 +2,16 @@ package rx.netty.examples
 
 import java.util.concurrent.TimeUnit
 
-import rx.*
-import rx.netty.experimental.*
-import rx.netty.experimental.impl.TcpConnection
-import rx.netty.experimental.protocol.ProtocolHandlers
+import rx.Notification
+import rx.Observable
+import rx.netty.experimental.RxNetty
+import rx.netty.experimental.impl.ObservableConnection
+import rx.netty.experimental.protocol.tcp.ProtocolHandlers
 
 /**
  * When a client connects it will start emitting an infinite stream of events.
  */
-class EventStreamServer {
+class TcpEventStreamServer {
 
     public static void main(String[] args) {
         createServer(8181).toBlockingObservable().last();
@@ -18,12 +19,12 @@ class EventStreamServer {
 
     public static Observable<String> createServer(final int port) {
         return RxNetty.createTcpServer(port, ProtocolHandlers.stringLineCodec())
-        .onConnect({ TcpConnection<String, String> connection ->
+        .onConnect({ ObservableConnection<String, String> connection ->
             return getEventStream(connection);
         });
     }
 
-    public static Observable<Void> getEventStream(final TcpConnection<String, String> connection) {
+    public static Observable<Void> getEventStream(final ObservableConnection<String, String> connection) {
         return Observable.interval(10, TimeUnit.MILLISECONDS)
         .flatMap({ Long interval ->
             System.out.println("Writing event: " + interval);

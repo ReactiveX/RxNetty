@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.netty.experimental.protocol;
+package rx.netty.experimental.protocol.tcp;
 
 import io.netty.channel.ChannelPipeline;
 

@@ -58,9 +58,8 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
 
         public MessageBuffer setEventData(String eventData) {
             this.eventData.setLength(0);
-            this.eventData.append(eventData);
 
-            return this;
+            return appendEventData(eventData);
         }
 
         public MessageBuffer appendEventData(String eventData) {
@@ -95,10 +94,12 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
             this.eventName.append(DEFAULT_EVENT_NAME);
 
             this.eventData.setLength(0);
+
         }
     }
 
 
+    private boolean eventStarted = false;
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         switch (state()) {
@@ -118,6 +119,7 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
 
                 String type = line.substring(0, colonIndex).trim();
                 if(type.equals("data")){
+                    eventStarted = true;
                     eventBuffer.appendEventData(line.substring(colonIndex+1));
                 }
 
@@ -132,9 +134,10 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
                 break;
             case END_OF_LINE:
                 int skipped = skipLineDelimiters(in);
-                if(skipped > 0) {
+                if(skipped > 0 && eventStarted) {
                     out.add(eventBuffer.toMessage());
                     eventBuffer.reset();
+                    eventStarted = false;
                 }
                 break;
         }

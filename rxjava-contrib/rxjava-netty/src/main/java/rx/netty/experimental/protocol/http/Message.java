@@ -29,15 +29,15 @@ public class Message {
         this.eventData = eventData;
     }
 
-    private String getEventId() {
+    public String getEventId() {
         return eventId;
     }
 
-    private String getEventName() {
+    public String getEventName() {
         return eventName;
     }
 
-    private String getEventData() {
+    public String getEventData() {
         return eventData;
     }
 

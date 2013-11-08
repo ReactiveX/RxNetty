@@ -16,7 +16,6 @@
 package rx.netty.experimental.protocol.http;
 
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.FullHttpResponse;
 
 
 public class HttpProtocolHandlerAdapter<T> implements HttpProtocolHandler<T>{
@@ -26,7 +25,4 @@ public class HttpProtocolHandlerAdapter<T> implements HttpProtocolHandler<T>{
 
     }
 
-    public static final HttpProtocolHandler<Message> SSE_HANDLER = new HttpProtocolHandlerAdapter<Message>();
-
-    public static final HttpProtocolHandler<FullHttpResponse> FULL_HTTP_RESPONSE_HANDLER = new HttpProtocolHandlerAdapter<FullHttpResponse>();
 }

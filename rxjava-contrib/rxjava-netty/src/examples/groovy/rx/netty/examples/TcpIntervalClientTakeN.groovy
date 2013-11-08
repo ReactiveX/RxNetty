@@ -3,8 +3,9 @@ package rx.netty.examples
 import rx.Observable
 import rx.experimental.remote.RemoteSubscription
 import rx.netty.experimental.RxNetty
-import rx.netty.experimental.impl.TcpConnection
-import rx.netty.experimental.protocol.ProtocolHandlers
+import rx.netty.experimental.impl.ObservableConnection
+import rx.netty.experimental.protocol.tcp.ProtocolHandlers
+
 
 /**
  * Connects to IntervalServer, take N values and disconnects.
@@ -18,18 +19,18 @@ import rx.netty.experimental.protocol.ProtocolHandlers
  * </pre>
  *
  */
-class IntervalClientTakeN {
+class TcpIntervalClientTakeN {
 
     def static void main(String[] args) {
 
         RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
-                .onConnect({ TcpConnection<String, String> connection ->
+                .onConnect({ ObservableConnection<String, String> connection ->
 
                     // output 10 values at intervals and receive the echo back
                     Observable<String> subscribeWrite = connection.write("subscribe:").map({ return ""});
 
                     // capture the output from the server
-                    Observable<String> data = connection.getChannelObservable().map({ String msg ->
+                    Observable<String> data = connection.getInput().map({ String msg ->
                         return msg.trim()
                     }).take(3);
 

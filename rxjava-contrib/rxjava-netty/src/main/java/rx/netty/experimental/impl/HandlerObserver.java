@@ -6,10 +6,10 @@ import rx.Observer;
 
 public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
 
-    private final Observer<? super TcpConnection<I, O>> observer;
-    private volatile TcpConnection<I, O> connection;
+    private final Observer<? super ObservableConnection<I, O>> observer;
+    private volatile ObservableConnection<I, O> connection;
 
-    public HandlerObserver(Observer<? super TcpConnection<I, O>> observer) {
+    public HandlerObserver(Observer<? super ObservableConnection<I, O>> observer) {
         this.observer = observer;
     }
 
@@ -17,13 +17,13 @@ public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
     @SuppressWarnings("unchecked")
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        connection.getChannelObserver().onNext((I) msg);
+        connection.getInputObserver().onNext((I) msg);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
         if (connection != null) {
-            connection.getChannelObserver().onError(cause);
+            connection.getInputObserver().onError(cause);
         } else {
             observer.onError(new RuntimeException("Error occurred and connection does not exist: " + cause));
         }
@@ -32,7 +32,7 @@ public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         super.channelUnregistered(ctx);
-        connection.getChannelObserver().onCompleted();
+        connection.getInputObserver().onCompleted();
     }
 
     @Override
@@ -43,7 +43,7 @@ public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        connection = TcpConnection.create(ctx);
+        connection = ObservableConnection.create(ctx);
         observer.onNext(connection);
     }
 

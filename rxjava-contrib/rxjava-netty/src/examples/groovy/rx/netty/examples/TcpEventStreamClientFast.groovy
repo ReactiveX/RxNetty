@@ -1,23 +1,22 @@
 package rx.netty.examples
 
-import java.util.concurrent.TimeUnit
-
 import rx.Observable
 import rx.experimental.remote.RemoteSubscription
 import rx.netty.experimental.RxNetty
-import rx.netty.experimental.impl.TcpConnection
-import rx.netty.experimental.protocol.ProtocolHandlers
+import rx.netty.experimental.impl.ObservableConnection
+import rx.netty.experimental.protocol.tcp.ProtocolHandlers
+
 
 /**
  * Connects to EventStreamServer and processes events as fast as possible. This should not queue or require back-pressure.
  */
-class EventStreamClientFast {
+class TcpEventStreamClientFast {
 
     def static void main(String[] args) {
 
         RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringLineCodec())
-                .onConnect({ TcpConnection<String, String> connection ->
-                    return connection.getChannelObservable().map({ String msg ->
+                .onConnect({ ObservableConnection<String, String> connection ->
+                    return connection.getInput().map({ String msg ->
                         return msg.trim()
                     });
                 }).subscribe({ String o ->
