@@ -69,10 +69,10 @@ class TcpIntervalServer {
                     return Observable.empty();
                 }
 
-            }).finallyDo({ println("--- Connection Closed ---") });
+            }).finallyDo({ println("--- Connection Closed ---") }).subscribe({});
 
 
-        });
+        }).startAndAwait();
     }
 
     public static Observable<Void> getIntervalObservable(final ObservableConnection<String, String> connection) {

@@ -18,7 +18,7 @@ package rx.netty.examples
 import java.util.concurrent.TimeUnit
 
 import rx.Observable
-import rx.experimental.remote.RemoteSubscription
+import rx.Subscription;
 import rx.netty.RxNetty
 import rx.netty.impl.ObservableConnection
 import rx.netty.protocol.tcp.ProtocolHandlers
@@ -48,8 +48,9 @@ class TcpEchoClient {
 
     def static void main(String[] args) {
 
-        RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
-                .onConnect({ ObservableConnection<String, String> connection ->
+        RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
+                .flatMap({ ObservableConnection<String, String> connection ->
+                    
                     // we expect the EchoServer to output a single value at the beginning
                     // so let's take the first value ... we can do this without it closing the connection
                     // because the unsubscribe will hit the ChannelObservable is a PublishSubject
@@ -59,10 +60,10 @@ class TcpEchoClient {
 
                     // output 10 values at intervals and receive the echo back
                     Observable<String> intervalOutput = Observable.interval(500, TimeUnit.MILLISECONDS)
-                            .skip(1).take(10).flatMap({ long l ->
+                            .flatMap({ long l ->
                                 // write the output and convert from Void to String so it can merge with others
                                 // (nothing will be emitted since 'write' is Observable<Void>)
-                                return connection.write(String.valueOf(l)).map({ return ""});
+                                return connection.write(String.valueOf(l+1)).map({ return ""});
                             })
 
                     // capture the output from the server
@@ -72,20 +73,18 @@ class TcpEchoClient {
 
                     // wait for the helloMessage then start the output and receive echo input
                     return Observable.concat(helloMessage, Observable.merge(intervalOutput, echo));
-                }).subscribe({ String o ->
-                    println("onNext: " + o) },
-                {Throwable e ->
-                    println("error: " + e); e.printStackTrace() });
+                })
+                .take(10)
+                .doOnCompleted({
+                     println("COMPLETED!")   
+                })
+                .toBlockingObservable().forEach({ String o ->
+                    println("onNext: " + o)
+                });
 
-        /*
-         * one problem of having RemoteObservable/RemoteSubscription is that we lose the Observable
-         * extensions such as toBlockingObservable().
-         * 
-         * In other words, RemoteSubscription makes this non-composable with normal Observable/Subscription
-         */
-
-        // artificially waiting since the above is non-blocking
-        Thread.sleep(10000);
+            
+            
+            
     }
 
 

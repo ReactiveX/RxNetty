@@ -16,7 +16,6 @@
 package rx.netty.examples
 
 import rx.Observable
-import rx.experimental.remote.RemoteSubscription
 import rx.netty.RxNetty
 import rx.netty.impl.ObservableConnection
 import rx.netty.protocol.tcp.ProtocolHandlers
@@ -38,8 +37,8 @@ class TcpIntervalClientTakeN {
 
     def static void main(String[] args) {
 
-        RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
-                .onConnect({ ObservableConnection<String, String> connection ->
+        RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
+                .flatMap({ ObservableConnection<String, String> connection ->
 
                     // output 10 values at intervals and receive the echo back
                     Observable<String> subscribeWrite = connection.write("subscribe:").map({ return ""});
@@ -47,23 +46,15 @@ class TcpIntervalClientTakeN {
                     // capture the output from the server
                     Observable<String> data = connection.getInput().map({ String msg ->
                         return msg.trim()
-                    }).take(3);
+                    });
 
                     return Observable.concat(subscribeWrite, data);
-                }).subscribe({ String o ->
-                    println("onNext: " + o) },
-                {Throwable e ->
-                    println("error: " + e); e.printStackTrace() });
+                })
+                .take(3)
+                .toBlockingObservable().forEach({ String o ->
+                    println("onNext: " + o) }
+                );
 
-        /*
-         * one problem of having RemoteObservable/RemoteSubscription is that we lose the Observable
-         * extensions such as toBlockingObservable().
-         * 
-         * In other words, RemoteSubscription makes this non-composable with normal Observable/Subscription
-         */
-
-        // artificially waiting since the above is non-blocking
-        Thread.sleep(10000);
     }
 
 

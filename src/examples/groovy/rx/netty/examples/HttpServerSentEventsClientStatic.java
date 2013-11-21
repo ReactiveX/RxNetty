@@ -32,6 +32,8 @@ public class HttpServerSentEventsClientStatic {
 
                     @Override
                     public Observable<Message> call(ObservableHttpResponse<Message> response) {
+                        
+                        
                         System.out.println("Received connection: " + response.response().getStatus());
                         return response.content();
                     }
@@ -47,4 +49,26 @@ public class HttpServerSentEventsClientStatic {
 
                 });
     }
+    
+    
+    public static Message executeRequest(String url) {
+        return createRequest().toBlockingObservable().last();
+    }
+
+    public static Observable<Message> createRequest() {
+        return RxNetty.createHttpRequest("http://ec2-107-22-122-75.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca", HttpProtocolHandler.SSE_HANDLER)
+        .flatMap(new Func1<ObservableHttpResponse<Message>, Observable<Message>>() {
+
+            @Override
+            public Observable<Message> call(ObservableHttpResponse<Message> response) {
+                
+                
+                System.out.println("Received connection: " + response.response().getStatus());
+                return response.content();
+            }
+
+        });
+    }
+    
+    
 }
