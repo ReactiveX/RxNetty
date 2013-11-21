@@ -7,79 +7,102 @@ buildscript {
         mavenLocal()
         mavenCentral() // maven { url 'http://jcenter.bintray.com' }
     }
-    apply from: file('gradle/buildscript.gradle'), to: buildscript 
+    apply from: file('gradle/buildscript.gradle'), to: buildscript
 }
 
 allprojects {
-    repositories { 
+    repositories {
         mavenLocal()
         mavenCentral() // maven { url: 'http://jcenter.bintray.com' }
     }
 }
 
-subprojects {
-    apply plugin: 'java'
-    apply plugin: 'eclipse'
-    apply plugin: 'idea'
+apply from: file('gradle/convention.gradle')
+apply from: file('gradle/maven.gradle')
+apply from: file('gradle/license.gradle')
+apply from: file('gradle/release.gradle')
 
-    group = "com.netflix.rxjava"
-	
-	// make 'examples' use the same classpath
-	configurations {
-	    // add new configuration
-	    examples
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'osgi'
+apply plugin: 'groovy'
 
-	    //adding a configuration that extends existing configuration:
-	    //(testCompile was added by the java plugin)
-	    examples.extendsFrom(compile)
-	    examplesCompile.extendsFrom(compile)
-        examplesRuntime.extendsFrom runtime
-	}
+sourceCompatibility = JavaVersion.VERSION_1_6
+targetCompatibility = JavaVersion.VERSION_1_6
 
-    sourceSets.test.java.srcDir 'src/main/java'
+group = "com.netflix.rxnetty"
 
-    tasks.withType(Javadoc).each {
-        it.classpath = sourceSets.main.compileClasspath
+// make 'examples' use the same classpath
+configurations {
+    // add new configuration
+    examples
+
+    //adding a configuration that extends existing configuration:
+    //(testCompile was added by the java plugin)
+    examples.extendsFrom(compile)
+    examplesCompile.extendsFrom(compile)
+    examplesRuntime.extendsFrom runtime
+}
+
+sourceSets.test.java.srcDir 'src/main/java'
+
+tasks.withType(Javadoc).each {
+    it.classpath = sourceSets.main.compileClasspath
+}
+
+//include /src/examples folder
+sourceSets {
+    examples {
+        // no idea why this is needed
+        java.srcDirs = []
     }
+}
 
-    //include /src/examples folder
-	sourceSets {
-        examples {
-            // no idea why this is needed
-            java.srcDirs = []
-        }
-	}
-    
-    //include 'examples' in build task
-    tasks.build { 
-        dependsOn(examplesClasses)
+//include 'examples' in build task
+tasks.build { dependsOn(examplesClasses) }
+
+eclipse {
+    classpath {
+        // include 'provided' dependencies on the classpath
+        plusConfigurations += configurations.provided
+        plusConfigurations += configurations.examples
+
+        downloadSources = true
+        downloadJavadoc = true
     }
-    
-    eclipse {  
-        classpath {  
-            // include 'provided' dependencies on the classpath
-            plusConfigurations += configurations.provided
-            plusConfigurations += configurations.examples
-            
-            downloadSources = true
-            downloadJavadoc = true
-        }
-    }
-    
-    idea {
-        module {
-            // include 'provided' dependencies on the classpath
-            scopes.PROVIDED.plus += configurations.provided
-            scopes.PROVIDED.plus += configurations.provided
-        }
+}
+
+idea {
+    module {
+        // include 'provided' dependencies on the classpath
+        scopes.PROVIDED.plus += configurations.provided
+        scopes.PROVIDED.plus += configurations.provided
     }
 }
 
 dependencies {
-    compile 'javax.ws.rs:jsr311-api:1.1.1'
-    compile 'com.sun.jersey:jersey-core:1.11'
-    compile 'com.sun.jersey:jersey-server:1.11'
-    compile 'com.sun.jersey:jersey-servlet:1.11'
-    testCompile 'org.testng:testng:6.1.1'
-    testCompile 'org.mockito:mockito-core:1.8.5'
+    compile 'io.netty:netty-all:4.0.10.Final'
+    compile 'com.netflix.rxjava:rxjava-core:0.15.0'
+    // we only support Groovy in the /src/examples/ code
+    examples 'org.codehaus.groovy:groovy:2.2.0-rc-1'
+}
+
+
+apply plugin: 'osgi'
+apply plugin: 'groovy'
+
+
+
+tasks.compileExamplesGroovy {
+    classpath = classpath + files(compileGroovy.destinationDir) + (configurations.compile + configurations.examples)
+}
+
+jar {
+    manifest {
+        name = 'rx-netty'
+        instruction 'Bundle-Vendor', 'Netflix'
+        instruction 'Bundle-DocURL', 'https://github.com/Netflix/RxNetty'
+        instruction 'Import-Package', '!org.junit,!junit.framework,!org.mockito.*,*'
+    }
 }
