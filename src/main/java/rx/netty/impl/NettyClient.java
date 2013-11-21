@@ -26,21 +26,16 @@ import rx.Observable;
 import rx.Observable.OnSubscribeFunc;
 import rx.Observer;
 import rx.Subscription;
-import rx.experimental.remote.RemoteFilterCriteria;
-import rx.experimental.remote.RemoteMapProjection;
-import rx.experimental.remote.RemoteObservableClient;
-import rx.experimental.remote.RemoteObservableClient.RemoteClientOnSubscribeFunc;
-import rx.experimental.remote.RemoteSubscription;
 import rx.netty.protocol.tcp.ProtocolHandler;
 import rx.subscriptions.Subscriptions;
 
-public class NettyClient {
+public class NettyClient<I, O> {
 
-    public static <I, O> RemoteObservableClient<ObservableConnection<I, O>> createClient(final String host, final int port, final EventLoopGroup eventLoops, final ProtocolHandler<I, O> handler) {
-        return RemoteObservableClient.create(new RemoteClientOnSubscribeFunc<ObservableConnection<I, O>>() {
+    public static <I, O> Observable<ObservableConnection<I, O>> createClient(final String host, final int port, final EventLoopGroup eventLoops, final ProtocolHandler<I, O> handler) {
+        return Observable.create(new OnSubscribeFunc<ObservableConnection<I, O>>() {
 
             @Override
-            public RemoteSubscription onSubscribe(final Observer<? super ObservableConnection<I, O>> observer, RemoteFilterCriteria filterCriteria, RemoteMapProjection mapProjection) {
+            public Subscription onSubscribe(final Observer<? super ObservableConnection<I, O>> observer) {
                 try {
                     Bootstrap b = new Bootstrap();
                     b.group(eventLoops)
@@ -54,7 +49,7 @@ public class NettyClient {
 
                                     // add the handler that will emit responses to the observer
                                     ch.pipeline()
-                                            .addLast(new HandlerObserver<I, O>(observer));
+                                            .addLast(new ConnectionHandler<I, O>(observer));
                                 }
                             });
 
@@ -62,34 +57,20 @@ public class NettyClient {
                     final ChannelFuture f = b.connect(host, port).sync();
 
                     // return a subscription that can shut down the connection
-                    return new RemoteSubscription() {
+                    return new Subscription() {
 
                         @Override
-                        public Observable<Void> unsubscribe() {
-                            return Observable.create(new OnSubscribeFunc<Void>() {
-
-                                @Override
-                                public Subscription onSubscribe(Observer<? super Void> o) {
-                                    try {
-                                        f.channel().close().sync();
-                                        o.onCompleted();
-                                    } catch (InterruptedException e) {
-                                        o.onError(new RuntimeException("Failed to unsubscribe", e));
-                                    }
-                                    return Subscriptions.empty();
-                                }
-                            });
+                        public void unsubscribe() {
+                            try {
+                                f.channel().close().sync();
+                            } catch (InterruptedException e) {
+                                observer.onError(new RuntimeException("Failed to unsubscribe", e));
+                            }
                         }
                     };
                 } catch (Throwable e) {
                     observer.onError(e);
-                    return new RemoteSubscription() {
-
-                        @Override
-                        public Observable<Void> unsubscribe() {
-                            return null;
-                        }
-                    };
+                    return Subscriptions.empty();
                 }
             }
         });

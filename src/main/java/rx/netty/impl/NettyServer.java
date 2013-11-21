@@ -15,6 +15,8 @@
  */
 package rx.netty.impl;
 
+import java.util.concurrent.TimeUnit;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
@@ -24,63 +26,89 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import rx.Observer;
-import rx.Subscription;
-import rx.experimental.remote.RemoteObservableServer;
-import rx.experimental.remote.RemoteObservableServer.RemoteServerOnSubscribeFunc;
 import rx.netty.protocol.tcp.ProtocolHandler;
-import rx.subscriptions.Subscriptions;
-import rx.util.functions.Action0;
+import rx.util.functions.Action1;
 
 public class NettyServer<I, O> {
 
-    public static <I, O> RemoteObservableServer<ObservableConnection<I, O>> createServer(
-            final int port,
-            final EventLoopGroup acceptorEventLoops,
-            final EventLoopGroup workerEventLoops,
-            final ProtocolHandler<I, O> handler) {
-
-        return RemoteObservableServer.create(new RemoteServerOnSubscribeFunc<ObservableConnection<I, O>>() {
-
-            @Override
-            public Subscription onSubscribe(final Observer<? super ObservableConnection<I, O>> observer) {
-                try {
-                    ServerBootstrap b = new ServerBootstrap();
-                    b.group(acceptorEventLoops, workerEventLoops)
-                            .channel(NioServerSocketChannel.class)
-                            // TODO allow ChannelOptions to be passed in
-                            .option(ChannelOption.SO_BACKLOG, 100)
-                            .handler(new ChannelDuplexHandler())
-                            .childHandler(new ChannelInitializer<SocketChannel>() {
-                                @Override
-                                public void initChannel(SocketChannel ch) throws Exception {
-                                    handler.configure(ch.pipeline());
-
-                                    // add the handler that will emit responses to the observer
-                                    ch.pipeline().addLast(new HandlerObserver<I, O>(observer));
-                                }
-                            });
-
-                    // start the server
-                    final ChannelFuture f = b.bind(port).sync();
-
-                    // return a subscription that can shut down the server
-                    return Subscriptions.create(new Action0() {
-
-                        @Override
-                        public void call() {
-                            try {
-                                f.channel().close().sync();
-                            } catch (InterruptedException e) {
-                                throw new RuntimeException("Failed to unsubscribe");
-                            }
-                        }
-
-                    });
-                } catch (Throwable e) {
-                    observer.onError(e);
-                    return Subscriptions.empty();
-                }
-            }
-        });
+    public static <I, O> NettyServer<I, O> create(final int port,
+            EventLoopGroup acceptorEventLoops,
+            EventLoopGroup workerEventLoops,
+            ProtocolHandler<I, O> handler) {
+        return new NettyServer<I, O>(port, acceptorEventLoops, workerEventLoops, handler);
     }
+
+    private final int port;
+    private final EventLoopGroup acceptorEventLoops;
+    private final EventLoopGroup workerEventLoops;
+    private final ProtocolHandler<I, O> handler;
+    // protected by synchronized start/shutdown access
+    private ChannelFuture f;
+
+    private NettyServer(final int port,
+            EventLoopGroup acceptorEventLoops,
+            EventLoopGroup workerEventLoops,
+            ProtocolHandler<I, O> handler) {
+
+        this.port = port;
+        this.acceptorEventLoops = acceptorEventLoops;
+        this.workerEventLoops = workerEventLoops;
+        this.handler = handler;
+    }
+
+    public NettyServerInstance onConnect(Action1<ObservableConnection<I, O>> connection) {
+        return new NettyServerInstance(connection);
+    }
+
+    public class NettyServerInstance {
+
+        final Action1<ObservableConnection<I, O>> onConnect;
+
+        public NettyServerInstance(Action1<ObservableConnection<I, O>> onConnect) {
+            this.onConnect = onConnect;
+        }
+
+        public synchronized void start() {
+            if (f != null) {
+                throw new IllegalStateException("Server already started.");
+            }
+            ServerBootstrap b = new ServerBootstrap().group(acceptorEventLoops, workerEventLoops)
+                    .channel(NioServerSocketChannel.class)
+                    // TODO allow ChannelOptions to be passed in
+                    .option(ChannelOption.SO_BACKLOG, 100)
+                    .handler(new ChannelDuplexHandler())
+                    .childHandler(new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        public void initChannel(SocketChannel ch) throws Exception {
+                            handler.configure(ch.pipeline());
+
+                            // add the handler that will emit responses to the observer
+                            ch.pipeline().addLast(new ConnectionHandler<I, O>(onConnect));
+                        }
+                    });
+
+            // start the server
+            try {
+                f = b.bind(port).sync();
+            } catch (InterruptedException e) {
+                Thread.interrupted();
+                throw new RuntimeException("Interrupted while starting server.", e);
+            }
+        }
+        
+        public synchronized void startAndAwait() throws InterruptedException {
+            start();
+            acceptorEventLoops.awaitTermination(Long.MAX_VALUE, TimeUnit.DAYS);
+        }
+
+        public synchronized void shutdown() {
+            try {
+                f.channel().close().sync();
+            } catch (InterruptedException e) {
+                Thread.interrupted();
+                throw new RuntimeException("Interrupted while stopping server.", e);
+            }
+        }
+    }
+
 }

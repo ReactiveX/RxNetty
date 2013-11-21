@@ -18,14 +18,26 @@ package rx.netty.impl;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import rx.Observer;
+import rx.util.functions.Action1;
 
-public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
+public class ConnectionHandler<I, O> extends ChannelInboundHandlerAdapter {
 
-    private final Observer<? super ObservableConnection<I, O>> observer;
+    private final Action1<? super ObservableConnection<I, O>> onConnect;
     private volatile ObservableConnection<I, O> connection;
 
-    public HandlerObserver(Observer<? super ObservableConnection<I, O>> observer) {
-        this.observer = observer;
+    public ConnectionHandler(Action1<? super ObservableConnection<I, O>> onConnect) {
+        this.onConnect = onConnect;
+    }
+    
+    public ConnectionHandler(final Observer<? super ObservableConnection<I, O>> observer) {
+        this.onConnect = new Action1<ObservableConnection<I, O>>() {
+
+            @Override
+            public void call(ObservableConnection<I, O> connection) {
+                observer.onNext(connection);
+            }
+            
+        };
     }
 
     // suppressing because Netty uses Object but we have typed HandlerObserver to I and expect only I
@@ -40,7 +52,13 @@ public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
         if (connection != null) {
             connection.getInputObserver().onError(cause);
         } else {
-            observer.onError(new RuntimeException("Error occurred and connection does not exist: " + cause));
+            /**
+             * An exception occurred before a connection was activated in 'channelActive'
+             * so we need to create an ObservableConnection, pass it down and then emit the error
+             */
+            connection = ObservableConnection.create(ctx);
+            onConnect.call(connection);
+            connection.getInputObserver().onError(new RuntimeException("Error occurred and connection does not exist: " + cause));
         }
     }
 
@@ -59,7 +77,7 @@ public class HandlerObserver<I, O> extends ChannelInboundHandlerAdapter {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
         connection = ObservableConnection.create(ctx);
-        observer.onNext(connection);
+        onConnect.call(connection);
     }
 
 }

@@ -16,7 +16,6 @@
 package rx.netty.examples
 
 import rx.Observable
-import rx.experimental.remote.RemoteSubscription
 import rx.netty.RxNetty
 import rx.netty.impl.ObservableConnection
 import rx.netty.protocol.tcp.ProtocolHandlers
@@ -46,27 +45,16 @@ class TcpEventStreamClientSlow {
 
     def static void main(String[] args) {
 
-        RemoteSubscription s = RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringLineCodec())
-                .onConnect({ ObservableConnection<String, String> connection ->
+        RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringLineCodec())
+                .flatMap({ ObservableConnection<String, String> connection ->
                     return connection.getInput().map({ String msg ->
                         // simulate slow processing
                         Thread.sleep(1000)
                         return msg.trim()
                     });
-                }).subscribe({ String o ->
+                }).toBlockingObservable().forEach({ String o ->
                     println("onNext event => " + o + "\n")
-                }, {Throwable e ->
-                    println("error => " + e); e.printStackTrace()
                 });
 
-        /*
-         * one problem of having RemoteObservable/RemoteSubscription is that we lose the Observable
-         * extensions such as toBlockingObservable().
-         * 
-         * In other words, RemoteSubscription makes this non-composable with normal Observable/Subscription
-         */
-
-        // artificially waiting since the above is non-blocking
-        Thread.sleep(1000000000);
     }
 }

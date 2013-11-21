@@ -60,7 +60,7 @@ public class ProtocolHandlers {
     }
 
     /**
-     * The identity protocol handler. It does nothing, allowing any given {@link io.netty.buffer.ByteBuf} object to reach {@link rx.netty.impl.HandlerObserver} directly.
+     * The identity protocol handler. It does nothing, allowing any given {@link io.netty.buffer.ByteBuf} object to reach {@link rx.netty.impl.ConnectionHandler} directly.
      */
     public static class CommandOnlyHandler implements ProtocolHandler<ByteBuf, String> {
 
