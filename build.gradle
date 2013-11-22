@@ -31,7 +31,7 @@ apply plugin: 'groovy'
 sourceCompatibility = JavaVersion.VERSION_1_6
 targetCompatibility = JavaVersion.VERSION_1_6
 
-group = "com.netflix"
+group = "com.netflix.rxnetty"
 
 // make 'examples' use the same classpath
 configurations {
