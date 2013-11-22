@@ -82,10 +82,10 @@ idea {
 }
 
 dependencies {
-    compile 'io.netty:netty-all:4.0.10.Final'
-    compile 'com.netflix.rxjava:rxjava-core:0.15.0'
+    compile 'io.netty:netty-all:[4.0,)'
+    compile 'com.netflix.rxjava:rxjava-core:[0.14,)'
     // we only support Groovy in the /src/examples/ code
-    examples 'org.codehaus.groovy:groovy:2.2.0-rc-1'
+    examples 'org.codehaus.groovy:groovy-all:[2.1,)'
 }
 
 
