@@ -35,6 +35,7 @@ import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
@@ -42,6 +43,7 @@ import io.netty.util.concurrent.GenericFutureListener;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import rx.Observable;
 import rx.Observer;
@@ -53,6 +55,7 @@ import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
 public class ObservableHttpClient {
+    
     private EventLoopGroup eventLoopGroup;
 
     // Chunk size in bytes
@@ -167,11 +170,11 @@ public class ObservableHttpClient {
     }
 
     private static class HttpResponseDecoder<T> extends MessageToMessageDecoder<HttpObject> {
-        private final HttpProtocolHandler handler;
+        private final HttpProtocolHandler<T> handler;
 
         private Observer<? super ObservableHttpResponse<T>> observer;
 
-        public HttpResponseDecoder(HttpProtocolHandler handler, Observer<? super ObservableHttpResponse<T>> observer) {
+        public HttpResponseDecoder(HttpProtocolHandler<T> handler, Observer<? super ObservableHttpResponse<T>> observer) {
             this.handler = handler;
             this.observer = observer;
         }
@@ -194,12 +197,13 @@ public class ObservableHttpClient {
 
                     out.add(msg);
                 }
-
-                final ObservableHttpResponse<T> httpResponse = new ObservableHttpResponse<T>(response, PublishSubject.<T> create());
+                
+                PublishSubject<T> subject = PublishSubject.<T> create();
+                final ObservableHttpResponse<T> httpResponse = new ObservableHttpResponse<T>(response, subject);
                 observer.onNext(httpResponse);
                 ctx.channel().pipeline().addLast("content-handler", new HttpMessageObserver<T>(observer, httpResponse));
 
-                handler.configure(ctx.channel().pipeline());
+                handler.configure(ctx.channel().pipeline(), observer, subject);
             }
         }
     }
@@ -238,9 +242,13 @@ public class ObservableHttpClient {
         Observable<ObservableHttpResponse<Message>> response = client.execute(request, new HttpProtocolHandler<Message>() {
 
             @Override
-            public void configure(ChannelPipeline pipeline) {
-
+            public void configure(ChannelPipeline pipeline,
+                    Observer<? super ObservableHttpResponse<Message>> observer,
+                    Observer<Message> entityObserver) {
+                // TODO Auto-generated method stub
+                
             }
+
         });
 
         response.flatMap(new Func1<ObservableHttpResponse<Message>, Observable<Message>>() {

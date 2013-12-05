@@ -15,16 +15,19 @@
  */
 package rx.netty.protocol.http;
 
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpResponse;
-import rx.netty.protocol.tcp.ProtocolHandler;
+import rx.Observer;
+
 
 /**
  *
  */
-public interface HttpProtocolHandler<T> extends ProtocolHandler<Void, T> {
+public interface HttpProtocolHandler<T> {
 
     public static final HttpProtocolHandler<Message> SSE_HANDLER = new HttpProtocolHandlerAdapter<Message>();
 
     public static final HttpProtocolHandler<FullHttpResponse> FULL_HTTP_RESPONSE_HANDLER = new HttpProtocolHandlerAdapter<FullHttpResponse>();
-
+    
+    public void configure(ChannelPipeline pipeline, Observer<? super ObservableHttpResponse<T>> observer, Observer<T> entityObserver);
 }
