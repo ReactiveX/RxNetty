@@ -21,7 +21,5 @@ public class HttpProtocolHandlerAdapter<T> implements HttpProtocolHandler<T> {
 
     @Override
     public void configure(ChannelPipeline pipeline) {
-
     }
-
 }
