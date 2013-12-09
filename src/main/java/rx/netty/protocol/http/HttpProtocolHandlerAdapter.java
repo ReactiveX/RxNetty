@@ -15,14 +15,11 @@
  */
 package rx.netty.protocol.http;
 
-import rx.Observer;
 import io.netty.channel.ChannelPipeline;
 
 public class HttpProtocolHandlerAdapter<T> implements HttpProtocolHandler<T> {
 
     @Override
-    public void configure(ChannelPipeline pipeline,
-            Observer<? super ObservableHttpResponse<T>> observer,
-            Observer<T> entityObserver) {
+    public void configure(ChannelPipeline pipeline) {
     }
 }

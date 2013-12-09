@@ -32,9 +32,11 @@ import io.netty.util.concurrent.Promise;
 public class ConnectionPromise<T, R extends HttpRequest> extends DefaultPromise<RequestWriter<T, R>> {
     private EventExecutor executor;
     private Channel channel;
+    private HttpProtocolHandler<T> handler;
 
-    ConnectionPromise(EventExecutor executor) {
+    ConnectionPromise(EventExecutor executor, HttpProtocolHandler<T> handler) {
         this.executor = executor;
+        this.handler = handler;
     }
 
     @Override
@@ -49,7 +51,7 @@ public class ConnectionPromise<T, R extends HttpRequest> extends DefaultPromise<
     void onConnect(Channel channel) {
         this.executor = channel.eventLoop();
         this.channel = channel;
-
+        handler.configure(channel.pipeline());
         trySuccess(new RequestWriter<T, R>(channel));
     }
 }

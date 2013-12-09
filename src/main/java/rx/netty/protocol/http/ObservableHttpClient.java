@@ -24,17 +24,20 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
@@ -44,6 +47,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import com.sun.xml.internal.ws.api.pipe.PipelineAssembler;
 
 import rx.Observable;
 import rx.Observer;
@@ -105,8 +110,8 @@ public class ObservableHttpClient {
         }
     }
 
-    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo) {
-        final ConnectionPromise<T, HttpRequest> connectionPromise = new ConnectionPromise<T, HttpRequest>(eventExecutor);
+    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo, HttpProtocolHandler<T> handler) {
+        final ConnectionPromise<T, HttpRequest> connectionPromise = new ConnectionPromise<T, HttpRequest>(eventExecutor, handler);
         bootstrap.connect(uriInfo.getHost(), uriInfo.getPort())
                 .addListener(new ChannelFutureListener() {
                     @Override
@@ -139,7 +144,7 @@ public class ObservableHttpClient {
             public Subscription onSubscribe(Observer<? super ObservableHttpResponse<T>> observer) {
                 UriInfo uriInfo = request.getUriInfo();
                 Bootstrap bootstrap = createBootstrap(handler, observer);
-                final ConnectionPromise<T, HttpRequest> connectionPromise = makeConnection(bootstrap, uriInfo);
+                final ConnectionPromise<T, HttpRequest> connectionPromise = makeConnection(bootstrap, uriInfo, handler);
 
                 RequestCompletionPromise<T, HttpRequest> requestCompletionPromise = new RequestCompletionPromise<T, HttpRequest>(self.eventExecutor, connectionPromise);
 
@@ -169,42 +174,43 @@ public class ObservableHttpClient {
         }
     }
 
-    private static class HttpResponseDecoder<T> extends MessageToMessageDecoder<HttpObject> {
-        private final HttpProtocolHandler<T> handler;
+    private static class HttpObservableTracker<T> extends SimpleChannelInboundHandler<HttpObject> {
+        protected Observer<? super ObservableHttpResponse<T>> observer;
+        
+        protected PublishSubject<T> subject;
 
-        private Observer<? super ObservableHttpResponse<T>> observer;
-
-        public HttpResponseDecoder(HttpProtocolHandler<T> handler, Observer<? super ObservableHttpResponse<T>> observer) {
-            this.handler = handler;
+        public HttpObservableTracker(HttpProtocolHandler<T> handler, Observer<? super ObservableHttpResponse<T>> observer) {
             this.observer = observer;
         }
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, HttpObject msg, List<Object> out) throws Exception {
+        protected void channelRead0(ChannelHandlerContext ctx, HttpObject msg)
+                throws Exception {
             if (msg instanceof HttpResponse) {
                 HttpResponse response = (HttpResponse) msg;
-
-                String header = response.headers().get("Content-Type");
-                ContentType contentType = ContentType.fromHeader(header);
-                if (contentType.isSSE()) {
-                    ChannelPipeline p = ctx.channel().pipeline();
-                    p.remove("http-codec");
-                    p.replace("http-response-decoder", "http-sse-handler", new ServerSentEventDecoder());
-                } else {
-                    ctx.channel()
-                            .pipeline()
-                            .replace("http-response-decoder", "http-aggregator", new HttpObjectAggregator(Integer.MAX_VALUE));
-
-                    out.add(msg);
-                }
-                
-                PublishSubject<T> subject = PublishSubject.<T> create();
+                subject = PublishSubject.<T> create();
                 final ObservableHttpResponse<T> httpResponse = new ObservableHttpResponse<T>(response, subject);
+                ChannelPipeline pipeLine = ctx.channel().pipeline();
+                if (pipeLine.get("content-handler") == null) {
+                    pipeLine.addLast("content-handler", new HttpMessageObserver<T>(observer, httpResponse));
+                }
                 observer.onNext(httpResponse);
-                ctx.channel().pipeline().addLast("content-handler", new HttpMessageObserver<T>(observer, httpResponse));
-
-                handler.configure(ctx.channel().pipeline(), observer, subject);
             }
+            if (msg instanceof HttpContent) {
+                ((HttpContent) msg).content().retain();
+            }
+            ctx.fireChannelRead(msg);
+            if (msg instanceof LastHttpContent) {
+                subject.onCompleted();
+                observer.onCompleted();    
+            }
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
+                throws Exception {
+            subject.onError(cause);
+            observer.onError(cause);
         }
     }
 
@@ -218,7 +224,7 @@ public class ObservableHttpClient {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ch.pipeline()
                                 .addLast("http-codec", new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize))
-                                .addLast("http-response-decoder", new HttpResponseDecoder<T>(handler, observer));
+                                .addLast("http-response-decoder", new HttpObservableTracker<T>(handler, observer));
                     }
                 })
                 .option(ChannelOption.TCP_NODELAY, true)
@@ -239,17 +245,7 @@ public class ObservableHttpClient {
         ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://ec2-107-22-122-75.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca");
 
         request.getUriInfo().getUri().getRawPath();
-        Observable<ObservableHttpResponse<Message>> response = client.execute(request, new HttpProtocolHandler<Message>() {
-
-            @Override
-            public void configure(ChannelPipeline pipeline,
-                    Observer<? super ObservableHttpResponse<Message>> observer,
-                    Observer<Message> entityObserver) {
-                // TODO Auto-generated method stub
-                
-            }
-
-        });
+        Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);
 
         response.flatMap(new Func1<ObservableHttpResponse<Message>, Observable<Message>>() {
             @Override

@@ -15,19 +15,30 @@
  */
 package rx.netty.protocol.http;
 
+import rx.netty.protocol.tcp.ProtocolHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpResponse;
-import rx.Observer;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 
 
 /**
  *
  */
-public interface HttpProtocolHandler<T> {
+public interface HttpProtocolHandler<T> extends ProtocolHandler<Void, T> {
 
-    public static final HttpProtocolHandler<Message> SSE_HANDLER = new HttpProtocolHandlerAdapter<Message>();
+    public static final HttpProtocolHandler<Message> SSE_HANDLER = new HttpProtocolHandlerAdapter<Message>() {
+        @Override
+        public void configure(ChannelPipeline pipeline) {
+            pipeline.addAfter("http-response-decoder", SSEHandler.NAME, new SSEHandler());
+        }        
+    };
 
-    public static final HttpProtocolHandler<FullHttpResponse> FULL_HTTP_RESPONSE_HANDLER = new HttpProtocolHandlerAdapter<FullHttpResponse>();
+    public static final HttpProtocolHandler<FullHttpResponse> FULL_HTTP_RESPONSE_HANDLER = new HttpProtocolHandlerAdapter<FullHttpResponse>() {
+        @Override
+        public void configure(ChannelPipeline pipeline) {
+            pipeline.addAfter("http-response-decoder", "http-aggregator", new HttpObjectAggregator(Integer.MAX_VALUE));
+        }        
+    };
     
-    public void configure(ChannelPipeline pipeline, Observer<? super ObservableHttpResponse<T>> observer, Observer<T> entityObserver);
+    public void configure(ChannelPipeline pipeline);
 }
