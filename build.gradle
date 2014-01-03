@@ -90,6 +90,7 @@ dependencies {
     testCompile 'javax.ws.rs:jsr311-api:1.1.1' 
     testCompile 'com.sun.jersey:jersey-core:1.11'   
     testCompile 'junit:junit:4.10'
+    testCompile 'com.google.mockwebserver:mockwebserver:20130706'
 }
 
 

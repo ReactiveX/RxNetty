@@ -74,5 +74,20 @@ public class EmbeddedResources {
         };
     }
 
+    @GET
+    @Path("/largeStream")
+    @Produces("text/event-stream")
+    public StreamingOutput getLargeStream() {
+        return new StreamingOutput() {
+            @Override
+            public void write(OutputStream output) throws IOException,
+                    WebApplicationException {
+                for (String line: largeStreamContent) {
+                    String eventLine = "data:" + line + "\n";
+                    output.write(eventLine.getBytes("UTF-8"));
+                }
+            }
+        };
+    }
 }
 

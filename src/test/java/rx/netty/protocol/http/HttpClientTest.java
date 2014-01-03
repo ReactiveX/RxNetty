@@ -1,7 +1,6 @@
 package rx.netty.protocol.http;
 
 import static org.junit.Assert.*;
-import static org.junit.Assert.fail;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -12,6 +11,7 @@ import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 
+import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +26,8 @@ import rx.netty.protocol.http.ObservableHttpClient.HttpClientBuilder;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
+import com.google.mockwebserver.MockResponse;
+import com.google.mockwebserver.MockWebServer;
 import com.sun.jersey.api.container.httpserver.HttpServerFactory;
 import com.sun.jersey.api.core.PackagesResourceConfig;
 import com.sun.net.httpserver.HttpServer;
@@ -81,7 +83,7 @@ public class HttpClientTest {
     
     
     @Test
-    public void testStreaming() throws Exception {
+    public void testChunkedStreaming() throws Exception {
         ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/stream");
 
         Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);
@@ -93,19 +95,43 @@ public class HttpClientTest {
             public Observable<Message> call(ObservableHttpResponse<Message> observableHttpResponse) {
                 return observableHttpResponse.content();
             }
-        }).subscribe(new Action1<Message>() {
+        }).toBlockingObservable().forEach(new Action1<Message>() {
             @Override
             public void call(Message message
                     ) {
-                System.out.println(message);
+                // System.out.println(message);
                 result.add(message.getEventData());
             }
         });
-        Thread.sleep(2000);
         assertEquals(EmbeddedResources.smallStreamContent, result);
-        
     }
     
+    @Test
+    public void testMultipleChunks() throws Exception {
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/largeStream");
+
+        Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);
+        
+        final List<String> result = new ArrayList<String>();
+
+        response.flatMap(new Func1<ObservableHttpResponse<Message>, Observable<Message>>() {
+            @Override
+            public Observable<Message> call(ObservableHttpResponse<Message> observableHttpResponse) {
+                return observableHttpResponse.content();
+            }
+        }).toBlockingObservable().forEach(new Action1<Message>() {
+            @Override
+            public void call(Message message
+                    ) {
+                // System.out.println(message);
+                result.add(message.getEventData());
+            }
+        });
+        // Thread.sleep(5000);
+        assertEquals(EmbeddedResources.largeStreamContent, result);
+        
+    }
+
     @Test
     public void testSingleEntity() throws Exception {
         ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/singleEntity");
@@ -152,5 +178,41 @@ public class HttpClientTest {
         });
         assertEquals(1, result.size());
         assertEquals("Hello world", result.get(0));
+    }
+    
+    @Test
+    public void testNonChunkingStream() throws Exception {
+        MockWebServer server = new MockWebServer();
+        String content = "";
+        for (String s: EmbeddedResources.largeStreamContent) {
+            content += "data:" + s + "\n";
+        }
+        server.enqueue(new MockResponse().setResponseCode(200).setHeader("Content-type", "text/event-stream")
+                .setBody(content)
+                .removeHeader("Content-Length"));
+        server.play();
+        
+        URI url = server.getUrl("/").toURI();
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(url);
+        Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);
+        
+        final List<String> result = new ArrayList<String>();
+
+        response.flatMap(new Func1<ObservableHttpResponse<Message>, Observable<Message>>() {
+            @Override
+            public Observable<Message> call(ObservableHttpResponse<Message> observableHttpResponse) {
+                return observableHttpResponse.content();
+            }
+        }).subscribe(new Action1<Message>() {
+            @Override
+            public void call(Message message
+                    ) {
+                // System.out.println(message);
+                result.add(message.getEventData());
+            }
+        });
+        Thread.sleep(2000);
+        assertEquals(EmbeddedResources.largeStreamContent, result);
+        server.shutdown();
     }
 }

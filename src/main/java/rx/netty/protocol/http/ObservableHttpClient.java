@@ -225,7 +225,7 @@ public class ObservableHttpClient {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ch.pipeline()
-                                // .addLast("log", new LoggingHandler(LogLevel.INFO))
+                                //.addLast("log", new LoggingHandler(LogLevel.INFO))
                                 .addLast("http-codec", new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize))
                                 .addLast("http-response-decoder", new HttpObservableTracker<T>(handler, observer));
                     }
@@ -245,7 +245,7 @@ public class ObservableHttpClient {
         EventLoopGroup group = new NioEventLoopGroup();
         ObservableHttpClient client = new HttpClientBuilder().build(group);
 
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://ec2-54-204-236-181.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca");
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://ec2-54-202-113-170.us-west-2.compute.amazonaws.com:7001/turbine.stream?cluster=api-prod");
 
         request.getUriInfo().getUri().getRawPath();
         Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);

@@ -147,7 +147,7 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
     private String readFullLine(ByteBuf in) {
         StringBuilder line = new StringBuilder();
 
-        while (in.writerIndex() - in.readerIndex() > 0) {
+        for (;;) {
             char c = (char) in.readByte();
             if (isLineDelimiter(c)) {
                 // Storing new line makes it convenient to process data because we need to
