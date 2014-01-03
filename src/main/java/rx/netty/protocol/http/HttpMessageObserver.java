@@ -55,7 +55,13 @@ public class HttpMessageObserver<T> extends ChannelInboundHandlerAdapter {
     }
 
     @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        super.channelRegistered(ctx);
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt)
+            throws Exception {
+        if (evt == ObservableHttpResponse.Events.End) {
+            response.contentObserver().onCompleted();    
+            observer.onCompleted();
+        }
     }
+    
+    
 }

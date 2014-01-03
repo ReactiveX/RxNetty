@@ -157,17 +157,20 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
                 line.append(c);
 
                 checkpoint(State.END_OF_LINE);
-
-                return line.toString();
+                break;
             }
 
             line.append(c);
         }
+        return line.toString();
     }
 
     private int skipLineDelimiters(ByteBuf in) {
         int skipped = 0;
-        for (;;) {
+        while (in.writerIndex() - in.readerIndex() > 0) {
+            // the above check is needed to ensure that last event is delivered
+            // otherwise, an exception (Netty's Signal object) will be thrown
+            // from ReplayingDecoderBuffer.readByte()
             char c = (char) in.readByte();
             if (isLineDelimiter(c)) {
                 skipped += 1;
