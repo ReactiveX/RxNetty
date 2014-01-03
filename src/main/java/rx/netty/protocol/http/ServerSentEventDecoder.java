@@ -147,7 +147,7 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
     private String readFullLine(ByteBuf in) {
         StringBuilder line = new StringBuilder();
 
-        for (;;) {
+        while (in.writerIndex() - in.readerIndex() > 0) {
             char c = (char) in.readByte();
             if (isLineDelimiter(c)) {
                 // Storing new line makes it convenient to process data because we need to
@@ -157,17 +157,17 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
                 line.append(c);
 
                 checkpoint(State.END_OF_LINE);
-
-                return line.toString();
+                break;
             }
 
             line.append(c);
         }
+        return line.toString();
     }
 
     private int skipLineDelimiters(ByteBuf in) {
         int skipped = 0;
-        for (;;) {
+        while (in.writerIndex() - in.readerIndex() > 0) {
             char c = (char) in.readByte();
             if (isLineDelimiter(c)) {
                 skipped += 1;

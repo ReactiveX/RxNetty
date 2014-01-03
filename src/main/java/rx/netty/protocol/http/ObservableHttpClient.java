@@ -38,6 +38,8 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
@@ -223,6 +225,7 @@ public class ObservableHttpClient {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ch.pipeline()
+                                // .addLast("log", new LoggingHandler(LogLevel.INFO))
                                 .addLast("http-codec", new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize))
                                 .addLast("http-response-decoder", new HttpObservableTracker<T>(handler, observer));
                     }
@@ -242,7 +245,7 @@ public class ObservableHttpClient {
         EventLoopGroup group = new NioEventLoopGroup();
         ObservableHttpClient client = new HttpClientBuilder().build(group);
 
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://ec2-107-22-122-75.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca");
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://ec2-54-204-236-181.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca");
 
         request.getUriInfo().getUri().getRawPath();
         Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);

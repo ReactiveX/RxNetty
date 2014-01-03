@@ -31,6 +31,10 @@ public class ObservableHttpResponse<T> {
     private final HttpResponse response;
     private final PublishSubject<T> subject;
 
+    public enum Events {
+        End    
+    }
+    
     public ObservableHttpResponse(HttpResponse response, PublishSubject<T> subject) {
         this.response = response;
         this.subject = subject;
