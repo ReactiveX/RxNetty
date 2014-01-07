@@ -17,14 +17,7 @@ package rx.netty.protocol.http;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.SimpleChannelInboundHandler;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -157,11 +150,17 @@ public class ObservableHttpClient {
 
                     @Override
                     public void call() {
+                        Channel ch = connectionPromise.channel();
                         try {
-                            connectionPromise.channel().close().sync();
+                            if(ch != null) {
+                                ch.close().sync();
+                            }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
-                            throw new RuntimeException("Failed to unsubscribe");
+
+                            UriInfo uriInfo = request.getUriInfo();
+                            // No need to handle the case when uriInfo is null. If there's no URI in a request, there won't be a channel either.
+                            throw new RuntimeException(String.format("Failed to close client channel for host %s and port %s", uriInfo.getHost(), uriInfo.getPort()));
                         }
                     }
 
