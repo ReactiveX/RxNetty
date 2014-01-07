@@ -205,7 +205,7 @@ public class HttpClientTest {
         server.enqueue(new MockResponse().setResponseCode(200).setHeader("Content-type", "text/event-stream")
                 .setBody(content)
                 .removeHeader("Content-Length"));
-        server.play();
+        server.play(new Random().nextInt(1000) + 5000);
         
         URI url = server.getUrl("/").toURI();
         ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(url);
