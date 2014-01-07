@@ -15,10 +15,10 @@
  */
 package rx.netty.protocol.http;
 
-import rx.netty.protocol.tcp.ProtocolHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpObjectAggregator;
+import rx.netty.protocol.tcp.ProtocolHandler;
 
 
 /**

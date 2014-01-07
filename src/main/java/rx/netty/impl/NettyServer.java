@@ -15,8 +15,6 @@
  */
 package rx.netty.impl;
 
-import java.util.concurrent.TimeUnit;
-
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
@@ -25,7 +23,9 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import rx.Observer;
+
+import java.util.concurrent.TimeUnit;
+
 import rx.netty.protocol.tcp.ProtocolHandler;
 import rx.util.functions.Action1;
 
