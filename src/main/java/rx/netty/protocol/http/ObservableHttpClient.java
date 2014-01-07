@@ -104,7 +104,11 @@ public class ObservableHttpClient {
         this.useCompression = useCompression;
         this.followRedirects = followRedirects;
         this.userAgent = userAgent;
-        this.eventExecutor = eventExecutor;
+        if (eventExecutor == null) {
+            this.eventExecutor = eventLoopGroup.next();
+        } else {
+            this.eventExecutor = eventExecutor;
+        }
 
         this.channelSettings = new HashSet<ChannelSetting>();
         for (ChannelSetting setting : channelOptions) {
@@ -112,7 +116,7 @@ public class ObservableHttpClient {
         }
     }
 
-    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo, HttpProtocolHandler<T> handler) {
+    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo, HttpProtocolHandler<T> handler, final Observer<? super ObservableHttpResponse<T>> observer) {
         final ConnectionPromise<T, HttpRequest> connectionPromise = new ConnectionPromise<T, HttpRequest>(eventExecutor, handler);
         bootstrap.connect(uriInfo.getHost(), uriInfo.getPort())
                 .addListener(new ChannelFutureListener() {
@@ -122,6 +126,7 @@ public class ObservableHttpClient {
                             connectionPromise.onConnect(future.channel());
                         } else {
                             connectionPromise.tryFailure(future.cause());
+                            observer.onError(future.cause());
                         }
                     }
                 });
@@ -146,7 +151,7 @@ public class ObservableHttpClient {
             public Subscription onSubscribe(Observer<? super ObservableHttpResponse<T>> observer) {
                 UriInfo uriInfo = request.getUriInfo();
                 Bootstrap bootstrap = createBootstrap(handler, observer);
-                final ConnectionPromise<T, HttpRequest> connectionPromise = makeConnection(bootstrap, uriInfo, handler);
+                final ConnectionPromise<T, HttpRequest> connectionPromise = makeConnection(bootstrap, uriInfo, handler, observer);
 
                 RequestCompletionPromise<T, HttpRequest> requestCompletionPromise = new RequestCompletionPromise<T, HttpRequest>(self.eventExecutor, connectionPromise);
 
