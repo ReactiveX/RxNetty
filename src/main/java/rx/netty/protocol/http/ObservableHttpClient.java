@@ -17,33 +17,31 @@ package rx.netty.protocol.http;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.util.AttributeKey;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import com.sun.xml.internal.ws.api.pipe.PipelineAssembler;
 
 import rx.Observable;
 import rx.Observer;
@@ -97,7 +95,11 @@ public class ObservableHttpClient {
         this.useCompression = useCompression;
         this.followRedirects = followRedirects;
         this.userAgent = userAgent;
-        this.eventExecutor = eventExecutor;
+        if (eventExecutor == null) {
+            this.eventExecutor = eventLoopGroup.next();
+        } else {
+            this.eventExecutor = eventExecutor;
+        }
 
         this.channelSettings = new HashSet<ChannelSetting>();
         for (ChannelSetting setting : channelOptions) {
@@ -105,7 +107,7 @@ public class ObservableHttpClient {
         }
     }
 
-    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo, HttpProtocolHandler<T> handler) {
+    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo, HttpProtocolHandler<T> handler, final Observer<? super ObservableHttpResponse<T>> observer) {
         final ConnectionPromise<T, HttpRequest> connectionPromise = new ConnectionPromise<T, HttpRequest>(eventExecutor, handler);
         bootstrap.connect(uriInfo.getHost(), uriInfo.getPort())
                 .addListener(new ChannelFutureListener() {
@@ -115,6 +117,7 @@ public class ObservableHttpClient {
                             connectionPromise.onConnect(future.channel());
                         } else {
                             connectionPromise.tryFailure(future.cause());
+                            observer.onError(future.cause());
                         }
                     }
                 });
@@ -139,7 +142,7 @@ public class ObservableHttpClient {
             public Subscription onSubscribe(Observer<? super ObservableHttpResponse<T>> observer) {
                 UriInfo uriInfo = request.getUriInfo();
                 Bootstrap bootstrap = createBootstrap(handler, observer);
-                final ConnectionPromise<T, HttpRequest> connectionPromise = makeConnection(bootstrap, uriInfo, handler);
+                final ConnectionPromise<T, HttpRequest> connectionPromise = makeConnection(bootstrap, uriInfo, handler, observer);
 
                 RequestCompletionPromise<T, HttpRequest> requestCompletionPromise = new RequestCompletionPromise<T, HttpRequest>(self.eventExecutor, connectionPromise);
 
@@ -150,17 +153,13 @@ public class ObservableHttpClient {
 
                     @Override
                     public void call() {
-                        Channel ch = connectionPromise.channel();
                         try {
-                            if(ch != null) {
-                                ch.close().sync();
+                            if (connectionPromise.channel() != null) {
+                                connectionPromise.channel().close().sync();
                             }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
-
-                            UriInfo uriInfo = request.getUriInfo();
-                            // No need to handle the case when uriInfo is null. If there's no URI in a request, there won't be a channel either.
-                            throw new RuntimeException(String.format("Failed to close client channel for host %s and port %s", uriInfo.getHost(), uriInfo.getPort()));
+                            throw new RuntimeException("Failed to unsubscribe");
                         }
                     }
 
