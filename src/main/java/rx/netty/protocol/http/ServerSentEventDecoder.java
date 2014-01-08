@@ -107,10 +107,6 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
         case NEW_LINE:
             String line = readFullLine(in);
 
-            // Immediately checkpoint the progress so that replaying decoder
-            // will not start over from the beginning of the line when buffer overflows
-            checkpoint();
-
             int colonIndex = line.indexOf(':');
 
             if (colonIndex <= 0) {
