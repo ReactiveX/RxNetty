@@ -229,7 +229,6 @@ public class ObservableHttpClient {
                     }
                 })
                 .option(ChannelOption.TCP_NODELAY, true)
-                .option(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT)
                 .channel(NioSocketChannel.class);
 
         for (ChannelSetting setting : channelSettings) {
