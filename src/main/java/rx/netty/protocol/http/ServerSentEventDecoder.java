@@ -146,11 +146,9 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
         for (;;) {
             char c = (char) in.readByte();
             if (isLineDelimiter(c)) {
-                // Storing new line makes it convenient to process data because we need to
-                // conserve the new line for multi-line data anyway. Also, if colon is at
-                // the very end of a line, having a new line will help us avoid IndexOutOfBoundException
+                // If colon is at the very end of a line, having an empty string will help us avoid IndexOutOfBoundException
                 // without checking the colon is at the end of the line.
-                line.append(c);
+                line.append("");
 
                 checkpoint(State.END_OF_LINE);
                 break;
