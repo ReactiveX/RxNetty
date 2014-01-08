@@ -29,7 +29,7 @@ import io.netty.util.concurrent.Promise;
  * @param <R>
  *            The request type
  */
-public class ConnectionPromise<T, R extends HttpRequest> extends DefaultPromise<RequestWriter<T, R>> {
+class ConnectionPromise<T, R extends HttpRequest> extends DefaultPromise<RequestWriter<T, R>> {
     private EventExecutor executor;
     private Channel channel;
     private HttpProtocolHandler<T> handler;
