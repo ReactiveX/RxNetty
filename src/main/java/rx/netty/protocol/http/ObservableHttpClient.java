@@ -154,7 +154,9 @@ public class ObservableHttpClient {
                     @Override
                     public void call() {
                         try {
-                            connectionPromise.channel().close().sync();
+                            if (connectionPromise.channel() != null) {
+                                connectionPromise.channel().close().sync();
+                            }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             throw new RuntimeException("Failed to unsubscribe");
