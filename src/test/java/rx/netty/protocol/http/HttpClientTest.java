@@ -200,7 +200,7 @@ public class HttpClientTest {
         MockWebServer server = new MockWebServer();
         String content = "";
         for (String s: EmbeddedResources.largeStreamContent) {
-            content += "data:" + s + "\n";
+            content += "data:" + s + "\n\n";
         }
         server.enqueue(new MockResponse().setResponseCode(200).setHeader("Content-type", "text/event-stream")
                 .setBody(content)

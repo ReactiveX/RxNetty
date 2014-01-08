@@ -45,10 +45,10 @@ public class EmbeddedResources {
 
     static {
         for (int i = 0; i < 3; i++) {
-            smallStreamContent.add("line " + i + "\n");
+            smallStreamContent.add("line " + i);
         }
         for (int i = 0; i < 1000; i++) {
-            largeStreamContent.add("line " + i + "\n");
+            largeStreamContent.add("line " + i);
         }
     }
     
@@ -67,7 +67,7 @@ public class EmbeddedResources {
             public void write(OutputStream output) throws IOException,
                     WebApplicationException {
                 for (String line: smallStreamContent) {
-                    String eventLine = "data:" + line + "\n";
+                    String eventLine = "data:" + line + "\n\n";
                     output.write(eventLine.getBytes("UTF-8"));
                 }
             }
@@ -83,7 +83,7 @@ public class EmbeddedResources {
             public void write(OutputStream output) throws IOException,
                     WebApplicationException {
                 for (String line: largeStreamContent) {
-                    String eventLine = "data:" + line + "\n";
+                    String eventLine = "data:" + line + "\n\n";
                     output.write(eventLine.getBytes("UTF-8"));
                 }
             }
