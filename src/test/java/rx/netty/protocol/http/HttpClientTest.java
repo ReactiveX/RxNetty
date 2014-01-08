@@ -205,9 +205,13 @@ public class HttpClientTest {
         server.enqueue(new MockResponse().setResponseCode(200).setHeader("Content-type", "text/event-stream")
                 .setBody(content)
                 .removeHeader("Content-Length"));
-        server.play(new Random().nextInt(10000) + 50000);
+        server.play();
         
-        URI url = server.getUrl("/").toURI();
+        // TODO: this does not work for UriInfo: https://github.com/Netflix/RxNetty/issues/12
+        // URI url = server.getUrl("/").toURI();
+
+        URI url = new URI("http://localhost:" + server.getPort() + "/"); 
+        
         System.err.println("Using URI: " + url);
         ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(url);
         Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);
@@ -229,9 +233,7 @@ public class HttpClientTest {
             @Override
             public void call(Throwable t1) {
                 t1.printStackTrace();
-                
             }
-            
         });
         Thread.sleep(2000);
         assertEquals(EmbeddedResources.largeStreamContent, result);
