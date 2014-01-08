@@ -205,9 +205,10 @@ public class HttpClientTest {
         server.enqueue(new MockResponse().setResponseCode(200).setHeader("Content-type", "text/event-stream")
                 .setBody(content)
                 .removeHeader("Content-Length"));
-        server.play(new Random().nextInt(1000) + 5000);
+        server.play(new Random().nextInt(10000) + 50000);
         
         URI url = server.getUrl("/").toURI();
+        System.err.println("Using URI: " + url);
         ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(url);
         Observable<ObservableHttpResponse<Message>> response = client.execute(request, HttpProtocolHandlerAdapter.SSE_HANDLER);
         
@@ -222,9 +223,15 @@ public class HttpClientTest {
             @Override
             public void call(Message message
                     ) {
-                // System.out.println(message);
                 result.add(message.getEventData());
             }
+        }, new Action1<Throwable>() {
+            @Override
+            public void call(Throwable t1) {
+                t1.printStackTrace();
+                
+            }
+            
         });
         Thread.sleep(2000);
         assertEquals(EmbeddedResources.largeStreamContent, result);
