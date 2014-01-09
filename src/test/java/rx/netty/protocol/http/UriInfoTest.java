@@ -40,6 +40,17 @@ public class UriInfoTest {
     }
 
     @Test
+    public void testInvalidSchemesWillBeRejected() {
+        try{
+            String url = "invalidScheme://host:7000/abc";
+            UriInfo.fromUri(url);
+            fail(String.format("The uri %s should result in an exception because its scheme is not supported. ", url));
+        } catch (IllegalArgumentException e) {
+
+        }
+    }
+
+    @Test
     public void testHttpPortHasDefaultValue() {
         String host = "host";
         String scheme = "http";
