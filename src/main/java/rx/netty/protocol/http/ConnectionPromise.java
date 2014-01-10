@@ -52,6 +52,6 @@ class ConnectionPromise<T, R extends HttpRequest> extends DefaultPromise<Request
         this.executor = channel.eventLoop();
         this.channel = channel;
         handler.configure(channel.pipeline());
-        trySuccess(new RequestWriter<T, R>(channel));
+        trySuccess(new RequestWriter<T, R>(channel, handler));
     }
 }

@@ -19,6 +19,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
@@ -107,21 +108,25 @@ public class ObservableHttpClient {
         }
     }
 
-    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo, HttpProtocolHandler<T> handler, final Observer<? super ObservableHttpResponse<T>> observer) {
+    private <T> ConnectionPromise<T, HttpRequest> makeConnection(Bootstrap bootstrap, UriInfo uriInfo, final HttpProtocolHandler<T> handler, final Observer<? super ObservableHttpResponse<T>> observer) {
         final ConnectionPromise<T, HttpRequest> connectionPromise = new ConnectionPromise<T, HttpRequest>(eventExecutor, handler);
         bootstrap.connect(uriInfo.getHost(), uriInfo.getPort())
-                .addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if (future.isSuccess()) {
-                            connectionPromise.onConnect(future.channel());
-                        } else {
-                            connectionPromise.tryFailure(future.cause());
-                            observer.onError(future.cause());
-                        }
-                    }
-                });
-
+        .addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess()) {
+                    connectionPromise.onConnect(future.channel());
+                } else {
+                    connectionPromise.tryFailure(future.cause());
+                    observer.onError(future.cause());
+                }
+            }
+        }).addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                handler.onChannelConnectOperationCompleted(future);
+            }
+        });
         return connectionPromise;
     }
 
@@ -155,14 +160,19 @@ public class ObservableHttpClient {
                     public void call() {
                         try {
                             if (connectionPromise.channel() != null) {
-                                connectionPromise.channel().close().sync();
+                                connectionPromise.channel().close().sync()
+                                        .addListener(new ChannelFutureListener() {                                            
+                                            @Override
+                                            public void operationComplete(ChannelFuture future) throws Exception {
+                                                handler.onChannelCloseOperationCompleted(future);    
+                                            }
+                                        });
                             }
                         } catch (InterruptedException e) {
                             Thread.currentThread().interrupt();
                             throw new RuntimeException("Failed to unsubscribe");
                         }
                     }
-
                 });
             }
         });
@@ -191,8 +201,11 @@ public class ObservableHttpClient {
                 subject = PublishSubject.<T> create();
                 final ObservableHttpResponse<T> httpResponse = new ObservableHttpResponse<T>(response, subject);
                 ChannelPipeline pipeLine = ctx.channel().pipeline();
-                if (pipeLine.get("content-handler") == null) {
+                ChannelHandler observerHandler = pipeLine.get("content-handler");
+                if (observerHandler == null) {
                     pipeLine.addLast("content-handler", new HttpMessageObserver<T>(observer, httpResponse));
+                } else {
+                    pipeLine.replace(observerHandler, "content-handler", new HttpMessageObserver<T>(observer, httpResponse));
                 }
                 observer.onNext(httpResponse);
             }
@@ -209,7 +222,9 @@ public class ObservableHttpClient {
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause)
                 throws Exception {
-            subject.onError(cause);
+            if (subject != null) {
+                subject.onError(cause);
+            }
             observer.onError(cause);
         }
     }
@@ -225,7 +240,10 @@ public class ObservableHttpClient {
                         ch.pipeline()
                                 //.addLast("log", new LoggingHandler(LogLevel.INFO))
                                 .addLast("http-codec", new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize))
-                                .addLast("http-response-decoder", new HttpObservableTracker<T>(handler, observer));
+                                .addLast("http-response-decoder", new HttpObservableTracker<T>(handler, observer))
+                                // we need to add this to catch any exception before channel read happens and 
+                                // deliver the exception to the observer
+                                .addLast("content-handler", new HttpMessageObserver<T>(observer, null));
                     }
                 })
                 .option(ChannelOption.TCP_NODELAY, true)
