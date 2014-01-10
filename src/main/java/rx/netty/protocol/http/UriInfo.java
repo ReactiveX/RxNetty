@@ -17,6 +17,7 @@ package rx.netty.protocol.http;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 
 /**
  * A wrapper on a valid URI that provides additional information such as port number and relative path
@@ -24,7 +25,6 @@ import java.net.URISyntaxException;
  */
 public class UriInfo {
     public static final Scheme DEFAULT_SCHEME = Scheme.HTTP;
-    public static final String DEFAULT_HOST = "localhost";
     public static final int DEFAULT_PORT = 80;
     public static final int DEFAULT_SECURE_PORT = 443;
 
@@ -60,7 +60,7 @@ public class UriInfo {
 
     private String interpretHost(String host) {
         if (host == null) {
-            return DEFAULT_HOST;
+            throw new IllegalArgumentException(String.format("Host can't be null for uri '%s' ", uri));
         }
 
         return host;
@@ -102,7 +102,7 @@ public class UriInfo {
         try {
             return Scheme.valueOf(scheme.toUpperCase());
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException(String.format("The scheme '%s' is not supported yet. ", scheme));
+            throw new IllegalArgumentException(String.format("The scheme '%s' is not supported yet. Supported schemes: %s", scheme, Arrays.toString(Scheme.values())));
         }
     }
 
@@ -112,7 +112,11 @@ public class UriInfo {
 
     public static UriInfo fromUri(String uri) {
         try {
-            return fromUri(new URI(uri));
+            URI uriObj = new URI(uri);
+            if(uriObj.getHost() == null || uriObj.getHost().trim().isEmpty()) {
+                throw new IllegalArgumentException(String.format("Given uri %s must have a host", uri));
+            }
+            return fromUri(uriObj);
         } catch (URISyntaxException e) {
             throw new IllegalArgumentException(String.format("Given uri %s is not valid: %s", uri, e.getMessage()), e);
         }
@@ -124,9 +128,8 @@ public class UriInfo {
     }
 
     public static void main(String[] args) throws Exception {
-        URI uri = new URI("http://localhost:7001/just/a/path#");
-
-        System.out.println(UriInfo.fromUri(uri).rawRelative());
+        URI uri = new URI("http://jenkins_slave-cf8d2895:50913/");
+        System.out.println(UriInfo.fromUri(uri).getHost());
 
     }
 }
