@@ -15,11 +15,24 @@
  */
 package rx.netty.protocol.http;
 
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPipeline;
 
 public class HttpProtocolHandlerAdapter<T> implements HttpProtocolHandler<T> {
 
     @Override
     public void configure(ChannelPipeline pipeline) {
+    }
+
+    @Override
+    public void onChannelConnectOperationCompleted(ChannelFuture connectFuture) {
+    }
+
+    @Override
+    public void onChannelWriteOperationCompleted(ChannelFuture requestWrittenFuture) {
+    }
+
+    @Override
+    public void onChannelCloseOperationCompleted(ChannelFuture channelCloseFuture) {
     }
 }

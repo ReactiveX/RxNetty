@@ -19,6 +19,7 @@ import static org.junit.Assert.*;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -31,12 +32,16 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import rx.Observable;
+import rx.Observer;
 import rx.netty.protocol.http.ObservableHttpClient.HttpClientBuilder;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
@@ -239,4 +244,134 @@ public class HttpClientTest {
         assertEquals(EmbeddedResources.largeStreamContent, result);
         server.shutdown();
     }
+    
+    @Test
+    public void testConnectException() throws Exception {
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://www.google.com:81/");
+        ObservableHttpClient timeoutClient = ObservableHttpClient.newBuilder()
+        .withChannelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10)
+        .build(new NioEventLoopGroup());
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = timeoutClient.request(request);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
+        response.subscribe(new Action1<ObservableHttpResponse<FullHttpResponse>>() {
+            @Override
+            public void call(ObservableHttpResponse<FullHttpResponse> t1) {
+                latch.countDown();
+            }
+            
+        }, new Action1<Throwable>() {
+            @Override
+            public void call(Throwable t1) {
+                ex.set(t1);
+                latch.countDown();
+            }
+        });
+        latch.await(2, TimeUnit.SECONDS);
+        assertTrue(ex.get() instanceof io.netty.channel.ConnectTimeoutException);
+    }
+    
+    @Test
+    public void testConnectException2() throws Exception {
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://www.google.com:81/");
+        ObservableHttpClient timeoutClient = ObservableHttpClient.newBuilder()
+        .withChannelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10)
+        .build(new NioEventLoopGroup());
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = timeoutClient.request(request);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
+        response.flatMap(new Func1<ObservableHttpResponse<FullHttpResponse>, Observable<FullHttpResponse>>() {
+            @Override
+            public Observable<FullHttpResponse> call(
+                    ObservableHttpResponse<FullHttpResponse> t1) {
+                return t1.content();
+            }
+        }).subscribe(new Action1<FullHttpResponse>() {
+            @Override
+            public void call(FullHttpResponse t1) {
+                latch.countDown();
+            }
+            
+        }, new Action1<Throwable>() {
+            @Override
+            public void call(Throwable t1) {
+                ex.set(t1);
+                latch.countDown();
+            }
+        });
+        latch.await(100000, TimeUnit.SECONDS);
+        assertTrue(ex.get() instanceof io.netty.channel.ConnectTimeoutException);
+    }
+
+    
+    @Test
+    public void testTimeout() throws Exception {
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/timeout?timeout=10000");
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.execute(request, new FullHttpResponseHandler(10));
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
+        response.flatMap(new Func1<ObservableHttpResponse<FullHttpResponse>, Observable<FullHttpResponse>>() {
+            @Override
+            public Observable<FullHttpResponse> call(
+                    ObservableHttpResponse<FullHttpResponse> t1) {
+                return t1.content();
+            }
+        }).subscribe(new Observer<FullHttpResponse>() {
+            @Override
+            public void onCompleted() {
+                latch.countDown();
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                exception.set(e);
+                latch.countDown();
+            }
+
+            @Override
+            public void onNext(FullHttpResponse args) {
+                latch.countDown();
+            }
+        });
+        if (!latch.await(2, TimeUnit.SECONDS)) {
+            fail("Observer is not called without timeout");
+        } else {
+            assertTrue(exception.get() instanceof io.netty.handler.timeout.ReadTimeoutException);
+        }
+    }
+    
+    @Test
+    public void testNoReadTimeout() throws Exception {
+        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/singleEntity");
+        // Set a read timeout of 2 seconds
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.execute(request, new FullHttpResponseHandler(2000));
+        
+        final AtomicReference<Throwable> exceptionHolder = new AtomicReference<Throwable>();
+        final AtomicReference<FullHttpResponse> responseHolder = new AtomicReference<FullHttpResponse>(); 
+        response.flatMap(new Func1<ObservableHttpResponse<FullHttpResponse>, Observable<FullHttpResponse>>() {
+            @Override
+            public Observable<FullHttpResponse> call(
+                    ObservableHttpResponse<FullHttpResponse> t1) {
+                return t1.content();
+            }
+        }).subscribe(new Observer<FullHttpResponse>() {
+            @Override
+            public void onCompleted() {
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                exceptionHolder.set(e);
+            }
+
+            @Override
+            public void onNext(FullHttpResponse args) {
+                responseHolder.set(args);
+            }
+        });
+        Thread.sleep(3000);
+        assertNull(exceptionHolder.get());
+        assertEquals(200, responseHolder.get().getStatus().code());
+    }
+
 }

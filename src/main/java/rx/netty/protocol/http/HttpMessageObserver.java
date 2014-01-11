@@ -28,6 +28,9 @@ public class HttpMessageObserver<T> extends ChannelInboundHandlerAdapter {
     private volatile ObservableHttpResponse<T> response;
 
     public HttpMessageObserver(Observer<? super ObservableHttpResponse<T>> observer, ObservableHttpResponse<T> response) {
+        if (observer == null) {
+            throw new IllegalArgumentException("observer is null");
+        }
         this.observer = observer;
         this.response = response;
     }
@@ -36,7 +39,9 @@ public class HttpMessageObserver<T> extends ChannelInboundHandlerAdapter {
     @SuppressWarnings("unchecked")
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        response.contentObserver().onNext((T) msg);
+        if (response != null) {
+            response.contentObserver().onNext((T) msg);
+        }
     }
 
     @Override
@@ -44,7 +49,7 @@ public class HttpMessageObserver<T> extends ChannelInboundHandlerAdapter {
         if (response != null) {
             response.contentObserver().onError(cause);
         } else {
-            observer.onError(new RuntimeException("HTTP response does not exist: " + cause));
+            observer.onError(cause);
         }
     }
 
