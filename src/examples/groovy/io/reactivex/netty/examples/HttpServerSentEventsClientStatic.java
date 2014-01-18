@@ -13,13 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package rx.netty.examples;
+package io.reactivex.netty.examples;
 
 import rx.Observable;
-import rx.netty.RxNetty;
-import rx.netty.protocol.http.HttpProtocolHandler;
-import rx.netty.protocol.http.Message;
-import rx.netty.protocol.http.ObservableHttpResponse;
+import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.protocol.http.HttpProtocolHandler;
+import io.reactivex.netty.protocol.http.Message;
+import io.reactivex.netty.protocol.http.ObservableHttpResponse;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
