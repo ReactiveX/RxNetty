@@ -15,11 +15,11 @@
  */
 package io.reactivex.netty.examples
 
+import io.reactivex.netty.ObservableConnection
+import io.reactivex.netty.ProtocolHandlers
 import rx.Observable
 import rx.Subscription
 import io.reactivex.netty.RxNetty
-import io.reactivex.netty.impl.ObservableConnection
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers
 
 
 class TcpEchoServer {

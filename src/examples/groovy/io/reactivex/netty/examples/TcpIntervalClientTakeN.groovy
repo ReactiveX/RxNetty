@@ -17,8 +17,8 @@ package io.reactivex.netty.examples
 
 import rx.Observable
 import io.reactivex.netty.RxNetty
-import io.reactivex.netty.impl.ObservableConnection
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers
+import io.reactivex.netty.ObservableConnection
+import io.reactivex.netty.ProtocolHandlers
 
 
 /**
@@ -41,7 +41,7 @@ class TcpIntervalClientTakeN {
                 .flatMap({ ObservableConnection<String, String> connection ->
 
                     // output 10 values at intervals and receive the echo back
-                    Observable<String> subscribeWrite = connection.write("subscribe:").map({ return ""});
+                    Observable<String> subscribeWrite = connection.writeNow("subscribe:").map({ return ""});
 
                     // capture the output from the server
                     Observable<String> data = connection.getInput().map({ String msg ->

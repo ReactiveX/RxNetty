@@ -15,10 +15,9 @@
  */
 package io.reactivex.netty.examples
 
-import rx.Observable
 import io.reactivex.netty.RxNetty
-import io.reactivex.netty.impl.ObservableConnection
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers
+import io.reactivex.netty.ObservableConnection
+import io.reactivex.netty.ProtocolHandlers
 
 
 /**

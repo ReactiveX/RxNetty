@@ -18,46 +18,48 @@ package io.reactivex.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.reactivex.netty.http.HttpClient;
+import io.reactivex.netty.http.HttpNettyPipelineConfigurator;
+import io.reactivex.netty.http.ObservableHttpResponse;
+import io.reactivex.netty.spi.NettyPipelineConfigurator;
+import rx.Observable;
 
 import java.net.URI;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import io.reactivex.netty.impl.NettyClient;
-import io.reactivex.netty.impl.NettyServer;
-import io.reactivex.netty.impl.ObservableConnection;
-import io.reactivex.netty.protocol.http.*;
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers;
-import rx.Observable;
-import io.reactivex.netty.protocol.http.ObservableHttpClient;
-import io.reactivex.netty.protocol.http.ObservableHttpResponse;
-import io.reactivex.netty.protocol.http.ValidatedFullHttpRequest;
-import io.reactivex.netty.protocol.tcp.ProtocolHandler;
+public final class RxNetty {
 
-public class RxNetty {
+    private RxNetty() {
+    }
 
     public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(String uri) {
-        return createHttpRequest(uri, new HttpProtocolHandlerAdapter<T>(), DEFAULT_HTTP_CLIENT.CLIENT);
+        return null;
     }
 
     public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(URI uri) {
-        return createHttpRequest(uri, new HttpProtocolHandlerAdapter<T>(), DEFAULT_HTTP_CLIENT.CLIENT);
+        //return createHttpRequest(uri, new HttpNettyPipelineConfiguratorAdapter<T>(), DEFAULT_HTTP_CLIENT.CLIENT);
+        return null;
     }
 
-    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(String uri, HttpProtocolHandler<T> protocolHandler) {
-        return createHttpRequest(uri, protocolHandler, DEFAULT_HTTP_CLIENT.CLIENT);
+    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(String uri, HttpNettyPipelineConfigurator<T> protocolHandler) {
+        //return createHttpRequest(uri, protocolHandler, DEFAULT_HTTP_CLIENT.CLIENT);
+        return null;
     }
 
-    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(URI uri, HttpProtocolHandler<T> protocolHandler) {
-        return createHttpRequest(uri, protocolHandler, DEFAULT_HTTP_CLIENT.CLIENT);
+    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(URI uri, HttpNettyPipelineConfigurator<T> protocolHandler) {
+        //return createHttpRequest(uri, protocolHandler, DEFAULT_HTTP_CLIENT.CLIENT);
+        return null;
     }
 
-    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(String uri, HttpProtocolHandler<T> protocolHandler, ObservableHttpClient client) {
-        return client.execute(ValidatedFullHttpRequest.get(uri), protocolHandler);
+    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(String uri, HttpNettyPipelineConfigurator<T> protocolHandler, HttpClient client) {
+        //return client.execute(ValidatedFullHttpRequest.get(uri), protocolHandler);
+        return null;
     }
 
-    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(URI uri, HttpProtocolHandler<T> protocolHandler, ObservableHttpClient client) {
-        return client.execute(ValidatedFullHttpRequest.get(uri), protocolHandler);
+    public static <T> Observable<ObservableHttpResponse<T>> createHttpRequest(URI uri, HttpNettyPipelineConfigurator<T> protocolHandler, HttpClient client) {
+        //return client.execute(ValidatedFullHttpRequest.get(uri), protocolHandler);
+        return null;
     }
 
     public static NettyServer<String, String> createTcpServer(final int port, final EventLoopGroup acceptorEventLoops, final EventLoopGroup workerEventLoops) {
@@ -68,24 +70,27 @@ public class RxNetty {
         return createTcpServer(port, DEFAULT_EVENT_LOOPS.ACCEPTOR, DEFAULT_EVENT_LOOPS.WORKER);
     }
 
-    public static <I, O> NettyServer<I, O> createTcpServer(int port, ProtocolHandler<I, O> handler) {
+    public static <I, O> NettyServer<I, O> createTcpServer(int port, NettyPipelineConfigurator handler) {
         return createTcpServer(port, DEFAULT_EVENT_LOOPS.ACCEPTOR, DEFAULT_EVENT_LOOPS.WORKER, handler);
     }
 
-    public static <I, O> NettyServer<I, O> createTcpServer(final int port, final EventLoopGroup acceptorEventLoops, final EventLoopGroup workerEventLoops, ProtocolHandler<I, O> handler) {
-        return NettyServer.create(port, acceptorEventLoops, workerEventLoops, handler);
+    public static <I, O> NettyServer<I, O> createTcpServer(final int port, final EventLoopGroup acceptorEventLoops,
+                                                           final EventLoopGroup workerEventLoops,
+                                                           NettyPipelineConfigurator pipelineConfigurator) {
+        return new ServerBuilder<I, O>(port)
+                .eventLoops(acceptorEventLoops, workerEventLoops)
+                .pipelineConfigurator(pipelineConfigurator)
+                .build();
     }
 
-    public static Observable<ObservableConnection<ByteBuf, String>> createTcpClient(final String host, final int port, final EventLoopGroup eventLoops) {
-        return NettyClient.createClient(host, port, eventLoops, ProtocolHandlers.commandOnlyHandler());
+    public static <I, O> Observable<ObservableConnection<O, I>> createTcpClient(String host, int port, NettyPipelineConfigurator handler) {
+        return new ClientBuilder<I, O>(host, port)
+                .pipelineConfigurator(handler)
+                .build().connect();
     }
 
-    public static <I, O> Observable<ObservableConnection<I, O>> createTcpClient(String host, int port, ProtocolHandler<I, O> handler) {
-        return NettyClient.createClient(host, port, DEFAULT_EVENT_LOOPS.WORKER, handler);
-    }
-
-    private static class DEFAULT_EVENT_LOOPS {
-        private static ThreadFactory THREAD_FACTORY = new ThreadFactory() {
+    private static final class DEFAULT_EVENT_LOOPS {
+        private static final ThreadFactory THREAD_FACTORY = new ThreadFactory() {
 
             private final AtomicInteger counter = new AtomicInteger();
 
@@ -97,11 +102,7 @@ public class RxNetty {
             }
 
         };
-        private static NioEventLoopGroup ACCEPTOR = new NioEventLoopGroup(2, THREAD_FACTORY);
-        private static NioEventLoopGroup WORKER = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(), THREAD_FACTORY);
-    }
-
-    private static class DEFAULT_HTTP_CLIENT {
-        private static ObservableHttpClient CLIENT = ObservableHttpClient.newBuilder().build(DEFAULT_EVENT_LOOPS.WORKER);
+        private static final NioEventLoopGroup ACCEPTOR = new NioEventLoopGroup(2, THREAD_FACTORY);
+        private static final NioEventLoopGroup WORKER = new NioEventLoopGroup(Runtime.getRuntime().availableProcessors(), THREAD_FACTORY);
     }
 }

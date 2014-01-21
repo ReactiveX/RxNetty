@@ -18,10 +18,9 @@ package io.reactivex.netty.examples
 import java.util.concurrent.TimeUnit
 
 import rx.Observable
-import rx.Subscription;
 import io.reactivex.netty.RxNetty
-import io.reactivex.netty.impl.ObservableConnection
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers
+import io.reactivex.netty.ObservableConnection
+import io.reactivex.netty.ProtocolHandlers
 
 
 /**
@@ -63,7 +62,7 @@ class TcpEchoClient {
                             .flatMap({ long l ->
                                 // write the output and convert from Void to String so it can merge with others
                                 // (nothing will be emitted since 'write' is Observable<Void>)
-                                return connection.write(String.valueOf(l+1)).map({ return ""});
+                                return connection.writeNow(String.valueOf(l+1)).map({ return ""});
                             })
 
                     // capture the output from the server

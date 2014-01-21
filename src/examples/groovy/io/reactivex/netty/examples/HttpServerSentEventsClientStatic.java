@@ -17,9 +17,9 @@ package io.reactivex.netty.examples;
 
 import rx.Observable;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.HttpProtocolHandler;
-import io.reactivex.netty.protocol.http.Message;
-import io.reactivex.netty.protocol.http.ObservableHttpResponse;
+import io.reactivex.netty.http.HttpNettyPipelineConfigurator;
+import io.reactivex.netty.http.sse.codec.SSEEvent;
+import io.reactivex.netty.http.ObservableHttpResponse;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
@@ -27,11 +27,11 @@ public class HttpServerSentEventsClientStatic {
 
     public static void main(String[] args) {
 
-        RxNetty.createHttpRequest("http://ec2-107-22-122-75.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca", HttpProtocolHandler.SSE_HANDLER)
-                .flatMap(new Func1<ObservableHttpResponse<Message>, Observable<Message>>() {
+        RxNetty.createHttpRequest("http://ec2-107-22-122-75.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca", HttpNettyPipelineConfigurator.SSE_HANDLER)
+                .flatMap(new Func1<ObservableHttpResponse<SSEEvent>, Observable<SSEEvent>>() {
 
                     @Override
-                    public Observable<Message> call(ObservableHttpResponse<Message> response) {
+                    public Observable<SSEEvent> call(ObservableHttpResponse<SSEEvent> response) {
                         
                         
                         System.out.println("Received connection: " + response.response().getStatus());
@@ -40,10 +40,10 @@ public class HttpServerSentEventsClientStatic {
 
                 })
                 .take(10)
-                .toBlockingObservable().forEach(new Action1<Message>() {
+                .toBlockingObservable().forEach(new Action1<SSEEvent>() {
 
                     @Override
-                    public void call(Message message) {
+                    public void call(SSEEvent message) {
                         System.out.println("Message => " + message.getEventData().trim());
                     }
 
@@ -51,16 +51,16 @@ public class HttpServerSentEventsClientStatic {
     }
     
     
-    public static Message executeRequest(String url) {
+    public static SSEEvent executeRequest(String url) {
         return createRequest().toBlockingObservable().last();
     }
 
-    public static Observable<Message> createRequest() {
-        return RxNetty.createHttpRequest("http://ec2-107-22-122-75.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca", HttpProtocolHandler.SSE_HANDLER)
-        .flatMap(new Func1<ObservableHttpResponse<Message>, Observable<Message>>() {
+    public static Observable<SSEEvent> createRequest() {
+        return RxNetty.createHttpRequest("http://ec2-107-22-122-75.compute-1.amazonaws.com:7001/turbine.stream?cluster=api-prod-c0us.ca", HttpNettyPipelineConfigurator.SSE_HANDLER)
+        .flatMap(new Func1<ObservableHttpResponse<SSEEvent>, Observable<SSEEvent>>() {
 
             @Override
-            public Observable<Message> call(ObservableHttpResponse<Message> response) {
+            public Observable<SSEEvent> call(ObservableHttpResponse<SSEEvent> response) {
                 
                 
                 System.out.println("Received connection: " + response.response().getStatus());
