@@ -51,7 +51,6 @@ public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg)
             throws Exception {
-        ByteBuf buf = null;
         if (msg instanceof HttpResponse) {
             ChannelPipeline pipeline = ctx.channel().pipeline();
             if (!HttpHeaders.isTransferEncodingChunked((HttpResponse) msg)) {
@@ -61,12 +60,9 @@ public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
             }
             ctx.fireChannelRead(msg);
         } else if (msg instanceof HttpContent) {
-            buf = ((HttpContent) msg).content();
-        } else if (msg instanceof ByteBuf) {
-            buf = (ByteBuf) msg;
-        }
-        if (buf != null) {
-            ctx.fireChannelRead(buf);
+            ctx.fireChannelRead(((HttpContent) msg).content());
+        } else {
+            ctx.fireChannelRead(msg);
         }
     }
 }

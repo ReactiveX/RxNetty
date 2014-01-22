@@ -72,11 +72,7 @@ public class NettyClient<I, O> {
 
                         @Override
                         public void unsubscribe() {
-                            try {
-                                f.channel().close().sync();
-                            } catch (InterruptedException e) {
-                                observer.onError(new RuntimeException("Failed to unsubscribe", e));
-                            }
+                            f.channel().close(); // Async close, no need to wait for close or give any callback for failures.
                         }
                     };
                 } catch (Throwable e) {

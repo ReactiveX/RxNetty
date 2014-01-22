@@ -21,7 +21,7 @@ public class ServerSentEventEncoder extends MessageToMessageEncoder<SSEEvent> {
         eventBuilder.append(sseEvent.getEventName());
         eventBuilder.append(": ");
         eventBuilder.append(sseEvent.getEventData());
-        eventBuilder.append('\n');
+        eventBuilder.append("\n\n");
         String data = eventBuilder.toString();
         out.add(ctx.alloc().buffer(data.length()).writeBytes(data.getBytes()));
     }

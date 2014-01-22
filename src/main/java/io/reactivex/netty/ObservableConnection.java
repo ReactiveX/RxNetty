@@ -38,7 +38,7 @@ public class ObservableConnection<I, O> {
     private final PublishSubject<I> s;
     private final ChannelHandlerContext ctx;
 
-    protected ObservableConnection(ChannelHandlerContext ctx, final PublishSubject<I> s) {
+    protected ObservableConnection(final ChannelHandlerContext ctx, final PublishSubject<I> s) {
         this.ctx = ctx;
         this.s = s;
     }

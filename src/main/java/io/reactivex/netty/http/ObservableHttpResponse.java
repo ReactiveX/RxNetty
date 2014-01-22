@@ -96,8 +96,8 @@ import rx.util.functions.Action1;
  *     </tr>
  *     <tr>
  *         <td>Header</td>
- *         <td>No way to access the header. {@link #header()}'s {@link Observer#onCompleted()} will be called after the
- *         connection is closed.</td>
+ *         <td>Iff the pipeline emits HttpResponse objects, {@link #header()} can be used to get the header.
+ *         {@link #header()}'s {@link Observer#onCompleted()} will be called after the connection is closed.</td>
  *     </tr>
  *     <tr>
  *         <td>Content</td>

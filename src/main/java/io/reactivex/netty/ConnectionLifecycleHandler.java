@@ -18,11 +18,13 @@ package io.reactivex.netty;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import rx.Observer;
+import rx.subjects.PublishSubject;
 
 public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
 
     private final Observer<? super ObservableConnection<I, O>> connectObserver;
     private final NettyObservableAdapter nettyObservableAdapter;
+    private PublishSubject<I> inputPublishSubject;
 
     public ConnectionLifecycleHandler(final Observer<? super ObservableConnection<I, O>> connectObserver,
                                       final NettyObservableAdapter nettyObservableAdapter) {
@@ -31,17 +33,11 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     }
 
     @Override
-    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        if (!ctx.channel().isActive()) {
-            connectObserver.onError(cause);
-        } else {
-            super.exceptionCaught(ctx, cause);
-        }
-    }
-
-    @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
         connectObserver.onCompleted();
+        if (null != inputPublishSubject) {
+            inputPublishSubject.onCompleted();
+        }
         super.channelUnregistered(ctx);
     }
 
@@ -49,7 +45,8 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         ObservableConnection<I, O> connection = ObservableConnection.create(ctx);
         if (null != nettyObservableAdapter) {
-            nettyObservableAdapter.activate(connection.getInputPublishSubject());
+            inputPublishSubject = connection.getInputPublishSubject();
+            nettyObservableAdapter.activate(inputPublishSubject);
         }
         connectObserver.onNext(connection);
         super.channelActive(ctx);
