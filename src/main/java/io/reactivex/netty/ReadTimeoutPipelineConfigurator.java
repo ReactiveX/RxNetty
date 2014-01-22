@@ -8,15 +8,19 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.reactivex.netty.spi.NettyPipelineConfigurator;
-import rx.Observer;
 
 import java.util.concurrent.TimeUnit;
 
 /**
  * An implementation of {@link NettyPipelineConfigurator} to configure a read time handler. <br/>
  * A read timeout is defined as lack of bytes read from the channel over the specified period. <br/>
- * This configurator, adds the {@link ReadTimeoutHandler} after every write and is removed after the {@link Observer}
- * associated with the response recieving, i.e., {@link ObservableConnection#getInput()} is completed.
+ * This configurator, adds the {@link ReadTimeoutHandler} after every write, if not present.
+ *
+ * <h1>Reusable connections and timeout</h1>
+ *
+ * In cases where the connection is reused (like HTTP persistent connections), it is the responsibility of the protocol
+ * to remove this timeout handler, for not being timed out (resulting in connection close) due to inactivity when the
+ * connection is not in use.
  *
  * @see {@link ReadTimeoutHandler}
  *

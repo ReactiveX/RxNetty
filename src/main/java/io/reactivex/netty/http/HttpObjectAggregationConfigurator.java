@@ -17,6 +17,7 @@ import io.reactivex.netty.spi.NettyPipelineConfigurator;
 public class HttpObjectAggregationConfigurator implements NettyPipelineConfigurator {
 
     public static final String AGGREGATOR_HANDLER_NAME = "http-aggregator";
+    public static final String READ_TIMEOUT_REMOVING_HANDLER_NAME = "http-readtimout-removing-handler";
 
     public static final int DEFAULT_CHUNK_SIZE = 1048576; // 1 MB
 
@@ -44,6 +45,9 @@ public class HttpObjectAggregationConfigurator implements NettyPipelineConfigura
                                new HttpObjectAggregator(maxChunkSize));
         } else {
             pipeline.addLast(AGGREGATOR_HANDLER_NAME, new HttpObjectAggregator(maxChunkSize));
+            if (HttpClientPipelineConfigurator.class.isAssignableFrom(httpPipelineConfigurator.getClass())) {
+                //pipeline.addLast(READ_TIMEOUT_REMOVING_HANDLER_NAME)
+            }
         }
     }
 }

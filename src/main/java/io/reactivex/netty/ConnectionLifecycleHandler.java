@@ -42,6 +42,11 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     }
 
     @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        super.channelInactive(ctx);
+    }
+
+    @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         ObservableConnection<I, O> connection = ObservableConnection.create(ctx);
         if (null != nettyObservableAdapter) {
