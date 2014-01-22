@@ -34,8 +34,9 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (!ctx.channel().isActive()) {
             connectObserver.onError(cause);
+        } else {
+            super.exceptionCaught(ctx, cause);
         }
-        super.exceptionCaught(ctx, cause);
     }
 
     @Override

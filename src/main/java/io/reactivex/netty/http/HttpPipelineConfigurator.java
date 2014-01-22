@@ -1,4 +1,6 @@
-package io.reactivex.netty.spi;
+package io.reactivex.netty.http;
+
+import io.reactivex.netty.spi.NettyPipelineConfigurator;
 
 /**
  * @author Nitesh Kant

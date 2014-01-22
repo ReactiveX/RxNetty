@@ -1,12 +1,22 @@
-package io.reactivex.netty.spi;
+package io.reactivex.netty.http;
 
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.spi.NettyPipelineConfigurator;
+
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
 
 /**
  * An implementation of {@link NettyPipelineConfigurator} to configure the pipeline for an HTTP server. <br/>
@@ -60,6 +70,7 @@ public class HttpServerPipelineConfigurator extends HttpPipelineConfigurator {
 
     public static final String HTTP_REQUEST_DECODER_HANDLER_NAME = "http-request-decoder";
     public static final String HTTP_RESPONSE_ENCODER_HANDLER_NAME = "http-response-encoder";
+    public static final String FULL_HTTP_RESPONSE_COMPLETER_HANDLER_NAME = "full_http_response_completer";
 
     public HttpServerPipelineConfigurator() {
         this(MAX_INITIAL_LINE_LENGTH_DEFAULT, MAX_CHUNK_SIZE_DEFAULT, MAX_HEADER_SIZE_DEFAULT);
@@ -79,5 +90,31 @@ public class HttpServerPipelineConfigurator extends HttpPipelineConfigurator {
         pipeline.addLast(HTTP_REQUEST_DECODER_HANDLER_NAME, new HttpRequestDecoder(maxInitialLineLength, maxHeaderSize,
                                                                                    maxChunkSize, validateHeaders));
         pipeline.addLast(HTTP_RESPONSE_ENCODER_HANDLER_NAME, new HttpResponseEncoder());
+        pipeline.addLast(FULL_HTTP_RESPONSE_COMPLETER_HANDLER_NAME, new FullHttpResponseCompleter());
+    }
+
+    static class FullHttpResponseCompleter extends ChannelDuplexHandler {
+
+        private boolean keepAlive;
+
+        @Override
+        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+            if (HttpRequest.class.isAssignableFrom(msg.getClass())) {
+                keepAlive = HttpHeaders.isKeepAlive((HttpMessage) msg);
+            }
+            super.channelRead(ctx, msg);
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            if (FullHttpResponse.class.isAssignableFrom(msg.getClass())) {
+                FullHttpResponse httpResponse = (FullHttpResponse) msg;
+                if (keepAlive) {
+                    httpResponse.headers().set(CONTENT_LENGTH, httpResponse.content().readableBytes());
+                    httpResponse.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                }
+            }
+            super.write(ctx, msg, promise);
+        }
     }
 }

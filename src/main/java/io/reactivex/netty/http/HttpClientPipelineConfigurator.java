@@ -1,4 +1,4 @@
-package io.reactivex.netty.spi;
+package io.reactivex.netty.http;
 
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
@@ -6,6 +6,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.spi.NettyPipelineConfigurator;
 
 /**
  * An implementation of {@link NettyPipelineConfigurator} to configure the pipeline for an HTTP client. <br/>

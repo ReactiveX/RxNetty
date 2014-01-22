@@ -7,6 +7,7 @@ import io.reactivex.netty.RxNetty;
 import rx.Notification;
 import rx.Observable;
 import rx.util.functions.Action0;
+import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
 import java.util.concurrent.TimeUnit;
@@ -18,13 +19,13 @@ public final class TcpEventStreamServer {
 
     public static void main(String[] args) throws InterruptedException {
         NettyServer<String, String> tcpServer = RxNetty.createTcpServer(8181, ProtocolHandlers.stringCodec());
-        tcpServer.startNow().map(new Func1<ObservableConnection<String, String>, Object>() {
+        tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
             @Override
-            public Object call(ObservableConnection<String, String> connection) {
-                connection.writeNow("Hello!\n");
-                return getEventStream(connection).subscribe();
+            public void call(ObservableConnection<String, String> connection) {
+                getEventStream(connection).subscribe();
             }
         }).toBlockingObservable().last();
+
         tcpServer.waitTillShutdown();
     }
 

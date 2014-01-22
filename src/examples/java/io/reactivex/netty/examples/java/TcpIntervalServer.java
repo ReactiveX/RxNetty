@@ -19,9 +19,9 @@ public final class TcpIntervalServer {
 
     public static void main(String[] args) throws InterruptedException {
         NettyServer<String, String> tcpServer = RxNetty.createTcpServer(8181, ProtocolHandlers.stringCodec());
-        tcpServer.startNow().map(new Func1<ObservableConnection<String, String>, Object>() {
+        tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
             @Override
-            public Object call(final ObservableConnection<String, String> connection) {
+            public void call(final ObservableConnection<String, String> connection) {
                 System.out.println("--- Connection Started ---");
 
                 final Observable<String> input = connection.getInput().map(new Func1<String, String>() {
@@ -31,7 +31,7 @@ public final class TcpIntervalServer {
                     }
                 });
 
-                return input.flatMap(new Func1<String, Observable<Void>>() {
+                input.flatMap(new Func1<String, Observable<Void>>() {
                     @Override
                     public Observable<Void> call(String msg) {
                         if (msg.startsWith("subscribe:")) {
@@ -39,10 +39,10 @@ public final class TcpIntervalServer {
                             System.out.println("Received 'subscribe' from client so starting interval ...");
                             return getIntervalObservable(connection)
                                     .takeUntil(input.filter(new Func1<String, Boolean>() {
-                                                                @Override
-                                                                public Boolean call(String s) {
-                                                                    return "unsubscribe:".equals(s);
-                                                                }
+                                        @Override
+                                        public Boolean call(String s) {
+                                            return "unsubscribe:".equals(s);
+                                        }
                                     }));
                         } else if (msg.startsWith("unsubscribe:")) {
                             // this is here just for verbose logging

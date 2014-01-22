@@ -2,8 +2,6 @@ package io.reactivex.netty.spi;
 
 import io.netty.channel.ChannelPipeline;
 
-import java.util.Map;
-
 /**
  * A composable implementation of {@link NettyPipelineConfigurator} to compose a pipeline configuration out of multiple
  * {@link NettyPipelineConfigurator} implementations. <br/>

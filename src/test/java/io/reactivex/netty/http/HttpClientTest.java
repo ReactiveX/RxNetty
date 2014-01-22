@@ -15,47 +15,6 @@
  */
 package io.reactivex.netty.http;
 
-import static org.junit.Assert.*;
-
-import io.netty.bootstrap.Bootstrap;
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.handler.codec.MessageToMessageDecoder;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpObjectAggregator;
-
-import java.net.URI;
-import java.nio.charset.Charset;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import io.reactivex.netty.ClientBuilder;
-import io.reactivex.netty.NettyClient;
-import io.reactivex.netty.http.sse.codec.SSEEvent;
-import io.reactivex.netty.spi.HttpClientPipelineConfigurator;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
-import rx.Observable;
-import rx.Observer;
-import rx.util.functions.Action1;
-import rx.util.functions.Func1;
-
-import com.google.mockwebserver.MockResponse;
-import com.google.mockwebserver.MockWebServer;
-import com.sun.jersey.api.container.httpserver.HttpServerFactory;
-import com.sun.jersey.api.core.PackagesResourceConfig;
-import com.sun.net.httpserver.HttpServer;
-
 public class HttpClientTest {
 /*
     private static HttpServer server = null;

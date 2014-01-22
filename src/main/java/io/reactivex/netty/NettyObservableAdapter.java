@@ -27,7 +27,13 @@ public class NettyObservableAdapter extends ChannelInboundHandlerAdapter {
         if (null != bridgedObserver) {
             bridgedObserver.onNext(msg);
         }
-        ctx.fireChannelRead(msg);
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        if (null != bridgedObserver) {
+            bridgedObserver.onError(cause);
+        }
     }
 
     @Override
@@ -35,6 +41,5 @@ public class NettyObservableAdapter extends ChannelInboundHandlerAdapter {
         if (null != bridgedObserver) {
             bridgedObserver.onCompleted();
         }
-        ctx.fireChannelInactive();
     }
 }

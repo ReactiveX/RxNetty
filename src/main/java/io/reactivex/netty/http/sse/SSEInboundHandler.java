@@ -16,51 +16,56 @@
 package io.reactivex.netty.http.sse;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
+import io.reactivex.netty.http.sse.codec.SSEEvent;
 import io.reactivex.netty.http.sse.codec.ServerSentEventDecoder;
 
-import java.util.List;
-
-public class SSEHandler extends SimpleChannelInboundHandler<Object> {
+/**
+ * A handler to insert {@link ServerSentEventDecoder} at a proper position in the pipeline according to the protocol. <br/>
+ * There are the following cases, this handles:
+ *
+ * <h1>Http response with chunked encoding</h1>
+ * In this case, the {@link ServerSentEventDecoder} is inserted after this {@link SSEInboundHandler}
+ *
+ * <h1>Http response with no chunking</h1>
+ * In this case, the {@link ServerSentEventDecoder} is inserted as the first handler in the pipeline. This makes the
+ * {@link ByteBuf} at the origin to be converted to {@link SSEEvent} and hence any other handler will not look at this
+ * message unless it is really interested.
+ *
+ * <h1>No HTTP protocol</h1>
+ * In this case, the handler does not do anything, assuming that there is no special handling required.
+ *
+ */
+@ChannelHandler.Sharable
+public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
 
     public static final String NAME = "sse-handler";
-    
+    public static final String SSE_DECODER_HANDLER_NAME = "sse-decoder";
+
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg)
             throws Exception {
         ByteBuf buf = null;
         if (msg instanceof HttpResponse) {
             ChannelPipeline pipeline = ctx.channel().pipeline();
-            pipeline.addAfter(NAME, "http-sse-handler", new ServerSentEventDecoder());
-            List<String> encoding = ((HttpResponse) msg).headers().getAll("Transfer-encoding");
-            boolean chunked = false;
-            if (encoding != null) {
-                for (String value: encoding) {
-                    if ("chunked".equalsIgnoreCase(value)) {
-                        chunked = true;
-                        break;
-                    }
-                }
+            if (!HttpHeaders.isTransferEncodingChunked((HttpResponse) msg)) {
+                pipeline.addFirst(SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
+            } else {
+                pipeline.addAfter(NAME, SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
             }
-            if (!chunked) {
-                // if chunked encoding is not used on server, remove HttpCodec 
-                // and HTTP state tracker to optimize performance. Otherwise, 
-                // reserve the HttpCodec and HTTP state tracker to handle HTTP chunks 
-                // and ensure end of stream is signaled to the observers
-                pipeline.remove("http-response-decoder");
-                pipeline.remove("http-codec");
-            }
+            ctx.fireChannelRead(msg);
         } else if (msg instanceof HttpContent) {
             buf = ((HttpContent) msg).content();
         } else if (msg instanceof ByteBuf) {
             buf = (ByteBuf) msg;
         }
         if (buf != null) {
-            buf.retain();
             ctx.fireChannelRead(buf);
         }
     }
