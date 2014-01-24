@@ -3,7 +3,7 @@ package io.reactivex.netty.examples.java;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.server.NettyServer;
+import io.reactivex.netty.server.RxServer;
 import rx.Observer;
 import rx.util.functions.Action1;
 
@@ -14,7 +14,7 @@ public final class TcpEchoServer {
 
     public static void main(final String[] args) throws InterruptedException {
         final int port = 8181;
-        NettyServer<String, String> tcpServer = RxNetty.createTcpServer(port, PipelineConfigurators.stringCodec());
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(port, PipelineConfigurators.stringCodec());
         tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
             @Override
             public void call(final ObservableConnection<String, String> connection) {

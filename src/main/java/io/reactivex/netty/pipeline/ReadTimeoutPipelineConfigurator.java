@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
-public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator {
+public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Object, Object> {
 
     public static final String READ_TIMEOUT_HANDLER_NAME = "readtimeout-handler";
     public static final String READ_TIMEOUT_LIFECYCLE_MANAGER_HANDLER_NAME = "readtimeout-handler-lifecycle-manager";

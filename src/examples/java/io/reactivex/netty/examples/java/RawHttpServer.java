@@ -28,7 +28,7 @@ public final class RawHttpServer {
         final int port = 8080;
 
         HttpServer<FullHttpRequest, HttpObject> server =
-                RxNetty.createHttpServer(port, new HttpObjectAggregationConfigurator(new HttpServerPipelineConfigurator()));
+                RxNetty.createHttpServer(port, new HttpObjectAggregationConfigurator<FullHttpRequest, HttpObject>(new HttpServerPipelineConfigurator<HttpObject, HttpObject>()));
 
         server.startNow(new Action1<ObservableConnection<FullHttpRequest, HttpObject>>() {
             @Override

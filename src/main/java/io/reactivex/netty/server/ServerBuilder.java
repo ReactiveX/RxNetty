@@ -3,11 +3,11 @@ package io.reactivex.netty.server;
 import io.netty.bootstrap.ServerBootstrap;
 
 /**
- * A convenience builder for creating instances of {@link NettyServer}
+ * A convenience builder for creating instances of {@link RxServer}
  *
  * @author Nitesh Kant
  */
-public class ServerBuilder<I, O> extends AbstractServerBuilder<I,O, ServerBuilder<I, O>, NettyServer<I, O>> {
+public class ServerBuilder<I, O> extends AbstractServerBuilder<I,O, ServerBuilder<I, O>, RxServer<I, O>> {
 
     public ServerBuilder(int port) {
         super(port);
@@ -18,7 +18,7 @@ public class ServerBuilder<I, O> extends AbstractServerBuilder<I,O, ServerBuilde
     }
 
     @Override
-    protected NettyServer<I, O> createServer() {
-        return new NettyServer<I, O>(serverBootstrap, port, pipelineConfigurator);
+    protected RxServer<I, O> createServer() {
+        return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator);
     }
 }

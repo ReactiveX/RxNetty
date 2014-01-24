@@ -13,12 +13,12 @@ public class HttpClientBuilder<I extends HttpRequest, O>
 
     public HttpClientBuilder(String host, int port) {
         super(host, port);
-        pipelineConfigurator(new HttpClientPipelineConfigurator());
+        pipelineConfigurator(new HttpClientPipelineConfigurator<I, O>());
     }
 
     public HttpClientBuilder(Bootstrap bootstrap, String host, int port) {
         super(bootstrap, host, port);
-        pipelineConfigurator(new HttpClientPipelineConfigurator());
+        pipelineConfigurator(new HttpClientPipelineConfigurator<I, O>());
     }
 
     @Override

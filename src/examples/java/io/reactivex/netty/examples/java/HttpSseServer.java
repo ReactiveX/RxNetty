@@ -2,15 +2,15 @@ package io.reactivex.netty.examples.java;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
 import io.reactivex.netty.protocol.http.HttpServer;
 import io.reactivex.netty.protocol.http.HttpServerPipelineConfigurator;
-import io.reactivex.netty.protocol.http.sse.codec.SSEEvent;
+import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import rx.Notification;
 import rx.Observable;
 import rx.Observer;
@@ -27,7 +27,8 @@ public final class HttpSseServer {
     public static void main(String[] args) throws InterruptedException {
         final int port = 8080;
 
-        final PipelineConfigurator configurator = new HttpObjectAggregationConfigurator(new HttpServerPipelineConfigurator());
+        final HttpObjectAggregationConfigurator<FullHttpRequest, Object> configurator =
+                new HttpObjectAggregationConfigurator<FullHttpRequest, Object>(new HttpServerPipelineConfigurator<HttpObject, Object>());
         HttpServer<FullHttpRequest, Object> httpSseServer = RxNetty.createHttpSseServer(port, configurator);
 
         httpSseServer.startNow(new Action1<ObservableConnection<FullHttpRequest, Object>>() {

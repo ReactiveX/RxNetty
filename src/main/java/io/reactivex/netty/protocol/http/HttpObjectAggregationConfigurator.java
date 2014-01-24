@@ -2,6 +2,8 @@ package io.reactivex.netty.protocol.http;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.http.FullHttpMessage;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
@@ -14,7 +16,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  *
  * @author Nitesh Kant
  */
-public class HttpObjectAggregationConfigurator implements PipelineConfigurator {
+public class HttpObjectAggregationConfigurator<R extends FullHttpMessage, W> implements PipelineConfigurator<R, W> {
 
     public static final String AGGREGATOR_HANDLER_NAME = "http-aggregator";
     public static final String READ_TIMEOUT_REMOVING_HANDLER_NAME = "http-readtimout-removing-handler";
@@ -22,13 +24,14 @@ public class HttpObjectAggregationConfigurator implements PipelineConfigurator {
     public static final int DEFAULT_CHUNK_SIZE = 1048576; // 1 MB
 
     private final int maxChunkSize;
-    private final HttpPipelineConfigurator httpPipelineConfigurator;
+    private final HttpPipelineConfigurator<? extends HttpObject, W> httpPipelineConfigurator;
 
-    public HttpObjectAggregationConfigurator(HttpPipelineConfigurator httpConfigurator) {
+    public <I extends HttpObject> HttpObjectAggregationConfigurator(HttpPipelineConfigurator<I, W> httpConfigurator) {
         this(DEFAULT_CHUNK_SIZE, httpConfigurator);
     }
 
-    public HttpObjectAggregationConfigurator(int maxChunkSize, HttpPipelineConfigurator httpConfigurator) {
+    public <I extends HttpObject> HttpObjectAggregationConfigurator(int maxChunkSize,
+                                                                    HttpPipelineConfigurator<I, W> httpConfigurator) {
         if (null == httpConfigurator) {
             throw new IllegalArgumentException("Http configurator can not be null.");
         }

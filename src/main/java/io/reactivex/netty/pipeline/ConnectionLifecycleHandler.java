@@ -24,13 +24,13 @@ import rx.subjects.PublishSubject;
 public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
 
     private final Observer<? super ObservableConnection<I, O>> connectObserver;
-    private final NettyObservableAdapter nettyObservableAdapter;
+    private final ObservableAdapter observableAdapter;
     private PublishSubject<I> responseSubject;
 
     public ConnectionLifecycleHandler(final Observer<? super ObservableConnection<I, O>> connectObserver,
-                                      final NettyObservableAdapter nettyObservableAdapter) {
+                                      final ObservableAdapter observableAdapter) {
         this.connectObserver = connectObserver;
-        this.nettyObservableAdapter = nettyObservableAdapter;
+        this.observableAdapter = observableAdapter;
     }
 
     @Override
@@ -51,8 +51,8 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         responseSubject = PublishSubject.create();
         ObservableConnection<I, O> connection = new ObservableConnection<I, O>(ctx, responseSubject);
-        if (null != nettyObservableAdapter) {
-            nettyObservableAdapter.activate(responseSubject);
+        if (null != observableAdapter) {
+            observableAdapter.activate(responseSubject);
         }
         connectObserver.onNext(connection);
         super.channelActive(ctx);

@@ -5,7 +5,8 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 /**
  * @author Nitesh Kant
  */
-public abstract class HttpPipelineConfigurator implements PipelineConfigurator {
+public abstract class HttpPipelineConfigurator<R, W>
+        implements PipelineConfigurator<R, W> {
 
     public static final int MAX_INITIAL_LINE_LENGTH_DEFAULT = 4096;
     public static final int MAX_HEADER_SIZE_DEFAULT = 8192;

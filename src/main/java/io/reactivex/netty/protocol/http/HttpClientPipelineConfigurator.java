@@ -3,6 +3,7 @@ package io.reactivex.netty.protocol.http;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
@@ -55,11 +56,15 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  * </tr>
  * </table>
  *
+ * @param <W> The request object type.
+ * @param <R> The response object type.
+ *
  * @see {@link HttpClientCodec}
  *
  * @author Nitesh Kant
  */
-public class HttpClientPipelineConfigurator extends HttpPipelineConfigurator {
+public class HttpClientPipelineConfigurator<W extends HttpObject, R>
+        extends HttpPipelineConfigurator<R, W> {
 
     public static final String HTTP_CODEC_HANDLER_NAME = "http-client-codec";
 

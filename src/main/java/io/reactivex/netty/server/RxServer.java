@@ -32,7 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static rx.Observable.OnSubscribeFunc;
 
-public class NettyServer<I, O> {
+public class RxServer<I, O> {
 
     private ChannelFuture bindFuture;
 
@@ -44,10 +44,10 @@ public class NettyServer<I, O> {
      * This should NOT be used directly. {@link #getPipelineConfiguratorForAChannel(Action1)} is the correct way of
      * getting the pipeline configurator.
      */
-    private final PipelineConfigurator incompleteConfigurator;
+    private final PipelineConfigurator<I, O> incompleteConfigurator;
     private final AtomicReference<ServerState> serverStateRef;
 
-    public NettyServer(ServerBootstrap bootstrap, int port, PipelineConfigurator pipelineConfigurator) {
+    public RxServer(ServerBootstrap bootstrap, int port, PipelineConfigurator<I, O> pipelineConfigurator) {
         this.bootstrap = bootstrap;
         this.port = port;
         incompleteConfigurator = pipelineConfigurator;
@@ -82,7 +82,7 @@ public class NettyServer<I, O> {
                         bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
                             @Override
                             protected void initChannel(SocketChannel ch) throws Exception {
-                                PipelineConfigurator configurator = getPipelineConfiguratorForAChannel(onNewConnection);
+                                PipelineConfigurator<O, I> configurator = getPipelineConfiguratorForAChannel(onNewConnection);
                                 configurator.configureNewPipeline(ch.pipeline());
                             }
                         });
@@ -134,7 +134,7 @@ public class NettyServer<I, O> {
         }
     }
 
-    protected PipelineConfigurator getPipelineConfiguratorForAChannel(final Action1<ObservableConnection<I, O>> onConnectAction) {
+    protected PipelineConfigurator<O, I> getPipelineConfiguratorForAChannel(final Action1<ObservableConnection<I, O>> onConnectAction) {
         RxRequiredConfigurator<I, O> requiredConfigurator =
                 new RxRequiredConfigurator<I, O>(new Observer<ObservableConnection<I, O>>() {
                     @Override
@@ -152,6 +152,6 @@ public class NettyServer<I, O> {
                         onConnectAction.call(connection);
                     }
                 });
-        return new PipelineConfiguratorComposite(incompleteConfigurator, requiredConfigurator);
+        return new PipelineConfiguratorComposite<O, I>(incompleteConfigurator, requiredConfigurator);
     }
 }

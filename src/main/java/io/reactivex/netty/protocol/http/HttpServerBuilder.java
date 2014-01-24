@@ -14,12 +14,12 @@ public class HttpServerBuilder<I extends HttpObject, O>
 
     public HttpServerBuilder(int port) {
         super(port);
-        pipelineConfigurator(new HttpServerPipelineConfigurator());
+        pipelineConfigurator(new HttpServerPipelineConfigurator<I, O>());
     }
 
     public HttpServerBuilder(ServerBootstrap bootstrap, int port) {
         super(bootstrap, port);
-        pipelineConfigurator(new HttpServerPipelineConfigurator());
+        pipelineConfigurator(new HttpServerPipelineConfigurator<I, O>());
     }
 
     @Override

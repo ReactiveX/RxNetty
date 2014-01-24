@@ -14,7 +14,7 @@ import rx.Observer;
  *
  * @author Nitesh Kant
  */
-public class RxRequiredConfigurator<I, O> implements PipelineConfigurator {
+public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<Object, Object> {
 
     public static final String CONN_LIFECYCLE_HANDLER_NAME = "conn_lifecycle_handler";
     public static final String NETTY_OBSERVABLE_ADAPTER_NAME = "netty_observable_adapter";
@@ -27,7 +27,7 @@ public class RxRequiredConfigurator<I, O> implements PipelineConfigurator {
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        NettyObservableAdapter observableAdapter = new NettyObservableAdapter();
+        ObservableAdapter observableAdapter = new ObservableAdapter();
         ConnectionLifecycleHandler<I, O> lifecycleHandler = new ConnectionLifecycleHandler<I, O>(connectionObserver,
                                                                                                  observableAdapter);
         pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);

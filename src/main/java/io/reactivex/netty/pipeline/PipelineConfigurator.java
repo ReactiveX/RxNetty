@@ -16,9 +16,21 @@
 package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelPipeline;
+import io.reactivex.netty.client.RxClient;
+import io.reactivex.netty.server.RxServer;
 
-//TODO: Add generics
-public interface PipelineConfigurator {
+/**
+ * A contract for configuring Netty's channel pipeline according to the required protocol.
+ *
+ * @param <R> The input object type for the pipeline i.e. the object type which is read from the pipeline.
+ *           This type is not enforced by the pipeline configurator per se, but they are just to make the creator of
+ *           {@link RxServer} and {@link RxClient} type aware.
+ *
+ * @param <W> The output object type for the pipeline i.e. the object type which is written to the pipeline.
+ *           This type is not enforced by the pipeline configurator per se, but they are just to make the creator of
+ *           {@link RxServer} and {@link RxClient} type aware.
+ */
+public interface PipelineConfigurator<R, W> {
 
     /**
      * A callback to configure the passed {@code pipeline}. This will be invoked everytime a new netty pipeline is

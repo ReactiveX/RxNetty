@@ -12,12 +12,12 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  * @author Nitesh Kant
  */
 @SuppressWarnings("rawtypes")
-public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilder, S extends NettyServer<I, O>> {
+public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilder, S extends RxServer<I, O>> {
 
     protected final int port;
     protected final ServerBootstrap serverBootstrap;
     protected Class<? extends ServerChannel> serverChannelClass;
-    protected PipelineConfigurator pipelineConfigurator;
+    protected PipelineConfigurator<I, O> pipelineConfigurator;
 
     protected AbstractServerBuilder(int port) {
         serverBootstrap = new ServerBootstrap();
@@ -56,7 +56,7 @@ public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilde
         return returnBuilder();
     }
 
-    public B pipelineConfigurator(PipelineConfigurator pipelineConfigurator) {
+    public B pipelineConfigurator(PipelineConfigurator<I, O> pipelineConfigurator) {
         this.pipelineConfigurator = pipelineConfigurator;
         return returnBuilder();
     }

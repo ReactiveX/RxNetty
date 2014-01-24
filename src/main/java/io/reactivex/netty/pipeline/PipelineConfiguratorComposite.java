@@ -8,13 +8,15 @@ import io.netty.channel.ChannelPipeline;
  *
  * @author Nitesh Kant
  */
-public class PipelineConfiguratorComposite implements PipelineConfigurator {
+public class PipelineConfiguratorComposite<I, O> implements PipelineConfigurator<I, O> {
 
+    @SuppressWarnings("rawtypes")
     private static final PipelineConfigurator[] EMPTY_CONFIGURATORS = new PipelineConfigurator[0];
 
+    @SuppressWarnings("rawtypes")
     private final PipelineConfigurator[] configurators;
 
-    public PipelineConfiguratorComposite(PipelineConfigurator... configurators) {
+    public PipelineConfiguratorComposite(@SuppressWarnings("rawtypes")PipelineConfigurator... configurators) {
         if (null == configurators) {
             configurators = EMPTY_CONFIGURATORS;
         }
@@ -29,7 +31,7 @@ public class PipelineConfiguratorComposite implements PipelineConfigurator {
      */
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        for (PipelineConfigurator configurator : configurators) {
+        for (@SuppressWarnings("rawtypes") PipelineConfigurator configurator : configurators) {
             configurator.configureNewPipeline(pipeline);
         }
     }

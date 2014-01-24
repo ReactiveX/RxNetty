@@ -4,10 +4,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponse;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.HttpServerPipelineConfigurator;
-import io.reactivex.netty.protocol.http.sse.codec.ServerSentEventEncoder;
+import io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator;
+import io.reactivex.netty.protocol.text.sse.ServerSentEventEncoder;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
 
@@ -18,18 +20,19 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
  *
  * @author Nitesh Kant
  */
-public class SseOverHttpServerPipelineConfigurator extends SSEServerPipelineConfigurator {
+public class SseOverHttpServerPipelineConfigurator<I extends HttpObject> extends
+        SSEServerPipelineConfigurator<I, Object> {
 
     public static final String BYTE_BUF_TO_HTTP_CONTENT_ENCODER_HANDLER_NAME = "bytebuf-http-content-encoder";
     public static final String SSE_RESPONSE_HEADERS_COMPLETER = "sse-response-headers-completer";
 
-    private final PipelineConfigurator pipelineConfigurator;
+    private final PipelineConfigurator<I, ?> pipelineConfigurator;
 
-    public SseOverHttpServerPipelineConfigurator(PipelineConfigurator pipelineConfigurator) {
-        this.pipelineConfigurator = pipelineConfigurator;
+    public SseOverHttpServerPipelineConfigurator(PipelineConfigurator<I, ?> httpServerPipelineConfigurator) {
+        pipelineConfigurator = httpServerPipelineConfigurator;
     }
 
-    public SseOverHttpServerPipelineConfigurator(HttpServerPipelineConfigurator httpServerPipelineConfigurator) {
+    public SseOverHttpServerPipelineConfigurator(HttpServerPipelineConfigurator<I, ?> httpServerPipelineConfigurator) {
         pipelineConfigurator = httpServerPipelineConfigurator;
     }
 

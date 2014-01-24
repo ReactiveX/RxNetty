@@ -12,17 +12,17 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  * @author Nitesh Kant
  */
 @SuppressWarnings("rawtypes")
-public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends NettyClient<I, O>> {
+public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
 
-    protected final NettyClient.ServerInfo serverInfo;
+    protected final RxClient.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
-    protected PipelineConfigurator pipelineConfigurator;
+    protected PipelineConfigurator<O, I> pipelineConfigurator;
     protected Class<? extends SocketChannel> socketChannel;
     protected EventLoopGroup eventLoopGroup;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
-        serverInfo = new NettyClient.ServerInfo(host, port);
+        serverInfo = new RxClient.ServerInfo(host, port);
     }
 
     protected AbstractClientBuilder(String host, int port) {
@@ -34,7 +34,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return channelOption(ChannelOption.TCP_NODELAY, true);
     }
 
-    public B pipelineConfigurator(PipelineConfigurator pipelineConfigurator) {
+    public B pipelineConfigurator(PipelineConfigurator<O, I> pipelineConfigurator) {
         this.pipelineConfigurator = pipelineConfigurator;
         return returnBuilder();
     }

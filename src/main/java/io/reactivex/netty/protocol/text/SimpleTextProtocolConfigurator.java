@@ -27,7 +27,7 @@ import java.nio.charset.Charset;
  * @see {@link StringEncoder}
  * @see {@link StringLineDecoder}
  */
-public class SimpleTextProtocolConfigurator implements PipelineConfigurator {
+public class SimpleTextProtocolConfigurator implements PipelineConfigurator<String, String> {
 
     private final Charset inputCharset;
 

@@ -56,7 +56,7 @@ public class HttpClientTest {
             fail("Unable to start server");
         }
         EventLoopGroup group = new NioEventLoopGroup();
-        client = new HttpClient(new NettyClient.ServerInfo("localhost", port),
+        client = new HttpClient(new RxClient.ServerInfo("localhost", port),
                                 new Bootstrap(), new HttpClientPipelineConfigurator());
     }
 

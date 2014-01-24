@@ -18,12 +18,12 @@ public final class TcpIntervalClientTakeN {
 
     public static void main(String[] args) {
         Observable<ObservableConnection<String, ByteBuf>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, new PipelineConfigurator() {
+                RxNetty.createTcpClient("localhost", 8181, new PipelineConfigurator<String, ByteBuf>() {
                     @Override
                     public void configureNewPipeline(ChannelPipeline pipeline) {
                         pipeline.addLast(new StringDecoder());
                     }
-                });
+                }).connect();
         connectionObservable.flatMap(new Func1<ObservableConnection<String, ByteBuf>, Observable<String>>() {
             @Override
             public Observable<String> call(ObservableConnection<String, ByteBuf> connection) {

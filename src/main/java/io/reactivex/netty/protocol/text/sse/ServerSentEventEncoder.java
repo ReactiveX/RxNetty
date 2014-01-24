@@ -1,4 +1,4 @@
-package io.reactivex.netty.protocol.http.sse.codec;
+package io.reactivex.netty.protocol.text.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;

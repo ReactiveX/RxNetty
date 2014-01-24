@@ -29,7 +29,13 @@ import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
 
-public class NettyClient<I, O> {
+/**
+ * The base class for all connection oriented clients inside RxNetty.
+ *
+ * @param <I> The request object type for this client.
+ * @param <O> The response object type for this client.
+ */
+public class RxClient<I, O> {
 
     private final ServerInfo serverInfo;
     private final Bootstrap clientBootstrap;
@@ -37,9 +43,10 @@ public class NettyClient<I, O> {
      * This should NOT be used directly. {@link #getPipelineConfiguratorForAChannel(Observer)} is the correct way of
      * getting the pipeline configurator.
      */
-    private final PipelineConfigurator incompleteConfigurator;
+    private final PipelineConfigurator<O, I> incompleteConfigurator;
 
-    public NettyClient(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator pipelineConfigurator) {
+    public RxClient(ServerInfo serverInfo, Bootstrap clientBootstrap,
+                    PipelineConfigurator<O, I> pipelineConfigurator) {
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
         incompleteConfigurator = pipelineConfigurator;
@@ -60,7 +67,7 @@ public class NettyClient<I, O> {
                     clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
-                            PipelineConfigurator configurator = getPipelineConfiguratorForAChannel(observer);
+                            PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(observer);
                             configurator.configureNewPipeline(ch.pipeline());
                         }
                     });
@@ -84,9 +91,9 @@ public class NettyClient<I, O> {
         });
     }
 
-    protected PipelineConfigurator getPipelineConfiguratorForAChannel(final Observer<? super ObservableConnection<O, I>> observer) {
+    protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(final Observer<? super ObservableConnection<O, I>> observer) {
         RxRequiredConfigurator<O, I> requiredConfigurator = new RxRequiredConfigurator<O, I>(observer);
-        return new PipelineConfiguratorComposite(incompleteConfigurator, requiredConfigurator);
+        return new PipelineConfiguratorComposite<I, O>(incompleteConfigurator, requiredConfigurator);
     }
 
     public static class ServerInfo {

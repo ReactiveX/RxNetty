@@ -12,7 +12,7 @@ import rx.subjects.PublishSubject;
  *
  * @author Nitesh Kant
  */
-public class NettyObservableAdapter extends ChannelInboundHandlerAdapter {
+public class ObservableAdapter extends ChannelInboundHandlerAdapter {
 
     @SuppressWarnings("rawtypes")
     /*Nullable*/ private PublishSubject bridgedObserver;

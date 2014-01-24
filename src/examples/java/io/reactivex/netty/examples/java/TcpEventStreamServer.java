@@ -3,7 +3,7 @@ package io.reactivex.netty.examples.java;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.server.NettyServer;
+import io.reactivex.netty.server.RxServer;
 import rx.Notification;
 import rx.Observable;
 import rx.util.functions.Action0;
@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 public final class TcpEventStreamServer {
 
     public static void main(String[] args) throws InterruptedException {
-        NettyServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.stringCodec());
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.stringCodec());
         tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
             @Override
             public void call(ObservableConnection<String, String> connection) {

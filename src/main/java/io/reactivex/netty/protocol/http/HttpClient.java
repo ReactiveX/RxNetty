@@ -20,17 +20,17 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.reactivex.netty.ObservableConnection;
-import io.reactivex.netty.client.NettyClient;
+import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
-public class HttpClient<I extends HttpRequest, O> extends NettyClient<I, O> {
+public class HttpClient<I extends HttpRequest, O> extends RxClient<I, O> {
 
     public HttpClient(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                      PipelineConfigurator pipelineConfigurator) {
+                      PipelineConfigurator<O, I> pipelineConfigurator) {
         super(serverInfo, clientBootstrap, pipelineConfigurator);
     }
 

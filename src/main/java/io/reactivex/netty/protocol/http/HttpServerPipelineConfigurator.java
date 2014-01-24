@@ -8,6 +8,7 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
@@ -61,12 +62,17 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
  * </tr>
  * </table>
  *
+ * @param <R> The request type for the server.
+ * @param <W> The response type for the server.
+ *
+ *
  * @see {@link HttpRequestDecoder}
  * @see {@link HttpResponseEncoder}
  *
  * @author Nitesh Kant
  */
-public class HttpServerPipelineConfigurator extends HttpPipelineConfigurator {
+public class HttpServerPipelineConfigurator<R extends HttpObject, W>
+        extends HttpPipelineConfigurator<R, W> {
 
     public static final String HTTP_REQUEST_DECODER_HANDLER_NAME = "http-request-decoder";
     public static final String HTTP_RESPONSE_ENCODER_HANDLER_NAME = "http-response-encoder";

@@ -31,47 +31,27 @@ public final class PipelineConfigurators {
     private PipelineConfigurators() {
     }
 
-    /**
-     * @return An {@link PipelineConfigurator} implementation that does nothing on inbound data but encode outbound data
-     *         as strings. This allows {@link ByteBuf} from a {@link ChannelPipeline} to get passed down to th pipeline.
-     */
-    public static PipelineConfigurator commandOnlyHandler() {
+    public static PipelineConfigurator<ByteBuf, String> commandOnlyHandler() {
         return CommandOnlyHandler.INSTANCE;
     }
 
-    /**
-     * @return An {@link PipelineConfigurator} implementation that does nothing on inbound data but encode outbound data
-     *         as strings. This allows {@link ByteBuf} from a {@link ChannelPipeline} to get passed down to th pipeline.
-     */
-    public static PipelineConfigurator commandOnlyHandler(Charset charset) {
+    public static PipelineConfigurator<ByteBuf, String> commandOnlyHandler(Charset charset) {
         return new CommandOnlyHandler(charset);
     }
 
-    /**
-     * @return An {@link PipelineConfigurator} implementation that encode and decode outgoing and incoming data
-     * to/from strings.
-     */
-    public static PipelineConfigurator stringCodec() {
+    public static PipelineConfigurator<String, String> stringCodec() {
         return new StringCodec();
     }
 
-    /**
-     * @return An {@link PipelineConfigurator} implementation that encode and decode outgoing and incoming data
-     * to/from strings.
-     */
-    public static PipelineConfigurator stringCodec(Charset inputCharset, Charset outputCharset) {
+    public static PipelineConfigurator<String, String> stringCodec(Charset inputCharset, Charset outputCharset) {
         return new StringCodec(inputCharset, outputCharset);
     }
 
-    public static PipelineConfigurator stringLineCodec() {
+    public static PipelineConfigurator<String, String> stringLineCodec() {
         return new SimpleTextProtocolConfigurator();
     }
 
-    /**
-     * The identity protocol handler. It does nothing, allowing any given {@link ByteBuf} object to reach
-     * {@link ConnectionLifecycleHandler} directly.
-     */
-    public static class CommandOnlyHandler implements PipelineConfigurator {
+    public static class CommandOnlyHandler implements PipelineConfigurator<ByteBuf, String> {
 
         public static final CommandOnlyHandler INSTANCE = new CommandOnlyHandler();
         private final Charset dataCharset;
@@ -90,7 +70,7 @@ public final class PipelineConfigurators {
         }
     }
 
-    public static class StringCodec implements PipelineConfigurator {
+    public static class StringCodec implements PipelineConfigurator<String, String> {
 
         private final Charset inputCharset;
         private final Charset outputCharset;

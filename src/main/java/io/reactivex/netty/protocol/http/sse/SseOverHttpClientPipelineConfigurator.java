@@ -2,8 +2,11 @@ package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpRequest;
 import io.reactivex.netty.protocol.http.HttpClientPipelineConfigurator;
-import io.reactivex.netty.protocol.http.sse.codec.ServerSentEventDecoder;
+import io.reactivex.netty.protocol.text.sse.SSEClientPipelineConfigurator;
+import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
  * An extension to {@link SSEClientPipelineConfigurator} that enables SSE over HTTP. <br/>
@@ -15,19 +18,17 @@ import io.reactivex.netty.protocol.http.sse.codec.ServerSentEventDecoder;
  *
  * @author Nitesh Kant
  */
-public class SseOverHttpClientPipelineConfigurator extends SSEServerPipelineConfigurator {
+public class SseOverHttpClientPipelineConfigurator<W extends HttpRequest> extends SSEClientPipelineConfigurator<W> {
 
-    public static final SSEInboundHandler SSE_INBOUND_HANDLER = new SSEInboundHandler();
-    private final HttpClientPipelineConfigurator httpClientPipelineConfigurator;
+    private final HttpClientPipelineConfigurator<W, ?> httpClientPipelineConfigurator;
 
-    public SseOverHttpClientPipelineConfigurator(HttpClientPipelineConfigurator httpClientPipelineConfigurator) {
+    public <O extends HttpObject> SseOverHttpClientPipelineConfigurator(HttpClientPipelineConfigurator<W, O> httpClientPipelineConfigurator) {
         this.httpClientPipelineConfigurator = httpClientPipelineConfigurator;
     }
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
         httpClientPipelineConfigurator.configureNewPipeline(pipeline);
-        pipeline.addLast(SSEInboundHandler.NAME, SSE_INBOUND_HANDLER);
         super.configureNewPipeline(pipeline);
     }
 }

@@ -1,10 +1,9 @@
-package io.reactivex.netty.protocol.http.sse;
+package io.reactivex.netty.protocol.text.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.protocol.http.sse.codec.SSEEvent;
-import io.reactivex.netty.protocol.http.sse.codec.ServerSentEventEncoder;
+import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
 
 /**
  * An implementation of {@link PipelineConfigurator} that will setup Netty's pipeline for a server sending
@@ -16,7 +15,7 @@ import io.reactivex.netty.protocol.http.sse.codec.ServerSentEventEncoder;
  *
  * @author Nitesh Kant
  */
-public class SSEServerPipelineConfigurator implements PipelineConfigurator {
+public class SSEServerPipelineConfigurator<R, W> implements PipelineConfigurator<R, W> {
 
     public static final String SSE_ENCODER_HANDLER_NAME = "sse-encoder";
 
