@@ -9,8 +9,8 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.http.HttpClient;
-import io.reactivex.netty.http.ObservableHttpResponse;
+import io.reactivex.netty.protocol.http.HttpClient;
+import io.reactivex.netty.protocol.http.ObservableHttpResponse;
 import rx.Observer;
 import rx.util.functions.Action1;
 

@@ -15,13 +15,12 @@
  */
 package io.reactivex.netty.examples
 
-import java.util.concurrent.TimeUnit
-
-import rx.Observable
-import io.reactivex.netty.RxNetty
 import io.reactivex.netty.ObservableConnection
-import io.reactivex.netty.ProtocolHandlers
+import io.reactivex.netty.RxNetty
+import io.reactivex.netty.pipeline.PipelineConfigurators
+import rx.Observable
 
+import java.util.concurrent.TimeUnit
 
 /**
  * Connects to EchoServer, awaits first "Welcome!" message then outputs 10 values and receives the echo responses.
@@ -47,7 +46,7 @@ class TcpEchoClient {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
+        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringCodec())
                 .flatMap({ ObservableConnection<String, String> connection ->
                     
                     // we expect the EchoServer to output a single value at the beginning
@@ -62,7 +61,7 @@ class TcpEchoClient {
                             .flatMap({ long l ->
                                 // write the output and convert from Void to String so it can merge with others
                                 // (nothing will be emitted since 'write' is Observable<Void>)
-                                return connection.writeNow(String.valueOf(l+1)).map({ return ""});
+                                return connection.write(String.valueOf(l+1)).map({ return ""});
                             })
 
                     // capture the output from the server

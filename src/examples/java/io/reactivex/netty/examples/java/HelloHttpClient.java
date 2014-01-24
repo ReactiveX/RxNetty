@@ -5,7 +5,7 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.http.ObservableHttpResponse;
+import io.reactivex.netty.protocol.http.ObservableHttpResponse;
 import rx.Observer;
 import rx.util.functions.Action1;
 
@@ -39,8 +39,9 @@ public final class HelloHttpClient {
                            public void call(FullHttpResponse response) {
                                System.out.println("New response recieved.");
                                System.out.println("========================");
-                               System.out.println(response.getProtocolVersion().text() + ' ' + response.getStatus().code()
-                                                  + ' ' + response.getStatus().reasonPhrase());
+                               System.out.println(
+                                       response.getProtocolVersion().text() + ' ' + response.getStatus().code()
+                                       + ' ' + response.getStatus().reasonPhrase());
                                for (Map.Entry<String, String> header : response.headers().entries()) {
                                    System.out.println(header.getKey() + ": " + header.getValue());
                                }

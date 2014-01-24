@@ -1,8 +1,8 @@
 package io.reactivex.netty.examples.java;
 
 import io.reactivex.netty.ObservableConnection;
-import io.reactivex.netty.ProtocolHandlers;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
 import rx.util.functions.Action0;
 import rx.util.functions.Action1;
@@ -17,7 +17,7 @@ public final class TcpEchoClient {
 
     public static void main(String[] args) {
         Observable<ObservableConnection<String, String>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec());
+                RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringCodec());
 
         connectionObservable.flatMap(new Func1<ObservableConnection<String, String>, Observable<?>>() {
             @Override
@@ -40,7 +40,7 @@ public final class TcpEchoClient {
                                   .flatMap(new Func1<Long, Observable<String>>() {
                                       @Override
                                       public Observable<String> call(Long aLong) {
-                                          return connection.writeNow(String.valueOf(aLong + 1))
+                                          return connection.write(String.valueOf(aLong + 1))
                                                            .map(new Func1<Void, String>() {
                                                                @Override
                                                                public String call(Void aVoid) {

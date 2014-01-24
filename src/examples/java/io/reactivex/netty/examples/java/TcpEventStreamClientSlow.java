@@ -1,8 +1,8 @@
 package io.reactivex.netty.examples.java;
 
 import io.reactivex.netty.ObservableConnection;
-import io.reactivex.netty.ProtocolHandlers;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
@@ -14,7 +14,7 @@ public final class TcpEventStreamClientSlow {
 
     public static void main(String[] args) {
         Observable<ObservableConnection<String, String>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringLineCodec());
+                RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringLineCodec());
         connectionObservable.flatMap(new Func1<ObservableConnection<String, String>, Observable<?>>() {
             @Override
             public Observable<?> call(ObservableConnection<String, String> connection) {

@@ -19,16 +19,20 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
-import io.reactivex.netty.http.HttpClient;
-import io.reactivex.netty.http.HttpClientPipelineConfigurator;
-import io.reactivex.netty.http.HttpObjectAggregationConfigurator;
-import io.reactivex.netty.http.HttpServer;
-import io.reactivex.netty.http.HttpServerBuilder;
-import io.reactivex.netty.http.HttpServerPipelineConfigurator;
-import io.reactivex.netty.http.sse.SseOverHttpClientPipelineConfigurator;
-import io.reactivex.netty.http.sse.SseOverHttpServerPipelineConfigurator;
-import io.reactivex.netty.http.sse.codec.SSEEvent;
-import io.reactivex.netty.spi.NettyPipelineConfigurator;
+import io.reactivex.netty.client.ClientBuilder;
+import io.reactivex.netty.client.HttpClientBuilder;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.protocol.http.HttpClient;
+import io.reactivex.netty.protocol.http.HttpClientPipelineConfigurator;
+import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
+import io.reactivex.netty.protocol.http.HttpServer;
+import io.reactivex.netty.protocol.http.HttpServerBuilder;
+import io.reactivex.netty.protocol.http.HttpServerPipelineConfigurator;
+import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurator;
+import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
+import io.reactivex.netty.protocol.http.sse.codec.SSEEvent;
+import io.reactivex.netty.server.NettyServer;
+import io.reactivex.netty.server.ServerBuilder;
 import rx.Observable;
 
 public final class RxNetty {
@@ -54,7 +58,7 @@ public final class RxNetty {
     }
 
     public static <I extends HttpRequest, O> HttpClient<I, O> createHttpClient(String host, int port,
-                                                                               NettyPipelineConfigurator pipelineConfigurator) {
+                                                                               PipelineConfigurator pipelineConfigurator) {
         return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(pipelineConfigurator).build();
     }
 
@@ -63,7 +67,7 @@ public final class RxNetty {
     }
 
     public static <I extends HttpObject> HttpServer<I, Object> createHttpSseServer(int port,
-                                                                                     NettyPipelineConfigurator pipelineConfigurator) {
+                                                                                     PipelineConfigurator pipelineConfigurator) {
         return createHttpServer(port, new SseOverHttpServerPipelineConfigurator(pipelineConfigurator));
     }
 
@@ -76,17 +80,17 @@ public final class RxNetty {
         return new HttpServerBuilder<I, O>(port).build();
     }
 
-    public static <I extends HttpObject, O> HttpServer<I, O> createHttpServer(int port, NettyPipelineConfigurator pipelineConfigurator) {
+    public static <I extends HttpObject, O> HttpServer<I, O> createHttpServer(int port, PipelineConfigurator pipelineConfigurator) {
         return new HttpServerBuilder<I, O>(port).pipelineConfigurator(pipelineConfigurator).build();
     }
 
-    public static <I, O> NettyServer<I, O> createTcpServer(final int port, NettyPipelineConfigurator pipelineConfigurator) {
+    public static <I, O> NettyServer<I, O> createTcpServer(final int port, PipelineConfigurator pipelineConfigurator) {
         return new ServerBuilder<I, O>(port)
                 .pipelineConfigurator(pipelineConfigurator)
                 .build();
     }
 
-    public static <I, O> Observable<ObservableConnection<O, I>> createTcpClient(String host, int port, NettyPipelineConfigurator handler) {
+    public static <I, O> Observable<ObservableConnection<O, I>> createTcpClient(String host, int port, PipelineConfigurator handler) {
         return new ClientBuilder<I, O>(host, port)
                 .pipelineConfigurator(handler)
                 .build().connect();

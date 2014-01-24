@@ -13,9 +13,9 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.http.HttpObjectAggregationConfigurator;
-import io.reactivex.netty.http.HttpServer;
-import io.reactivex.netty.http.HttpServerPipelineConfigurator;
+import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
+import io.reactivex.netty.protocol.http.HttpServer;
+import io.reactivex.netty.protocol.http.HttpServerPipelineConfigurator;
 import rx.Observer;
 import rx.util.functions.Action1;
 
@@ -51,18 +51,18 @@ public final class RawHttpServer {
                         System.out.println("New request recieved: " + httpRequest);
                         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
                         response.headers().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
-                        connection.writeNow(response).subscribe(new Observer<Void>() {
+                        connection.write(response).subscribe(new Observer<Void>() {
                             @Override
                             public void onCompleted() {
                                 System.out.println("Header write successful.");
                                 HttpContent content = new DefaultHttpContent(Unpooled.copiedBuffer("Welcome! \n\n".getBytes()));
-                                connection.writeNow(content).doOnError(new Action1<Throwable>() {
+                                connection.write(content).doOnError(new Action1<Throwable>() {
                                     @Override
                                     public void call(Throwable throwable) {
                                         System.out.println("Content write failed.");
                                     }
                                 });
-                                connection.writeNow(new DefaultLastHttpContent(Unpooled.copiedBuffer("".getBytes()))).doOnError(new Action1<Throwable>() {
+                                connection.write(new DefaultLastHttpContent(Unpooled.copiedBuffer("".getBytes()))).doOnError(new Action1<Throwable>() {
                                     @Override
                                     public void call(Throwable throwable) {
                                         System.out.println("Last HTTP content write failed.");

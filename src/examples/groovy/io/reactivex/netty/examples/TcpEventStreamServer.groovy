@@ -15,13 +15,13 @@
  */
 package io.reactivex.netty.examples
 
-import java.util.concurrent.TimeUnit
-
+import io.reactivex.netty.ObservableConnection
+import io.reactivex.netty.RxNetty
+import io.reactivex.netty.pipeline.PipelineConfigurators
 import rx.Notification
 import rx.Observable
-import io.reactivex.netty.RxNetty
-import io.reactivex.netty.ObservableConnection
-import io.reactivex.netty.ProtocolHandlers
+
+import java.util.concurrent.TimeUnit
 
 /**
  * When a client connects it will start emitting an infinite stream of events.
@@ -33,9 +33,9 @@ class TcpEventStreamServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, ProtocolHandlers.stringLineCodec())
+        return RxNetty.createTcpServer(port, PipelineConfigurators.stringLineCodec())
             .onConnect({ ObservableConnection<String, String> connection ->
-                connection.writeNow("Hello!\n");
+                connection.write("Hello!\n");
                 return getEventStream(connection).subscribe({});
             }).startAndAwait();
     }
@@ -45,7 +45,7 @@ class TcpEventStreamServer {
         .flatMap({ Long interval ->
             System.out.println("Writing event: " + interval);
             // emit the interval to the output and return the notification received from it
-            return connection.writeNow("data: {\"type\":\"Command\",\"name\":\"GetAccount\",\"currentTime\":1376957348166,\"errorPercentage\":0,\"errorCount\":0,\"requestCount\":" + interval + "}\n").materialize();
+            return connection.write("data: {\"type\":\"Command\",\"name\":\"GetAccount\",\"currentTime\":1376957348166,\"errorPercentage\":0,\"errorCount\":0,\"requestCount\":" + interval + "}\n").materialize();
         })
         .takeWhile({ Notification<Void> n ->
             // unsubscribe from interval if we receive an error

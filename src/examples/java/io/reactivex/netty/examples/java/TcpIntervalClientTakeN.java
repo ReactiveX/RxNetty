@@ -4,11 +4,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
 import io.reactivex.netty.ObservableConnection;
-import io.reactivex.netty.ProtocolHandlers;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.spi.NettyPipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
 import rx.util.functions.Action1;
 import rx.util.functions.Func1;
@@ -20,7 +18,7 @@ public final class TcpIntervalClientTakeN {
 
     public static void main(String[] args) {
         Observable<ObservableConnection<String, ByteBuf>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, new NettyPipelineConfigurator() {
+                RxNetty.createTcpClient("localhost", 8181, new PipelineConfigurator() {
                     @Override
                     public void configureNewPipeline(ChannelPipeline pipeline) {
                         pipeline.addLast(new StringDecoder());
@@ -30,7 +28,7 @@ public final class TcpIntervalClientTakeN {
             @Override
             public Observable<String> call(ObservableConnection<String, ByteBuf> connection) {
                 ByteBuf request = Unpooled.copiedBuffer("subscribe:".getBytes());
-                Observable<String> subscribeWrite = connection.writeNow(request).map(new Func1<Void, String>() {
+                Observable<String> subscribeWrite = connection.write(request).map(new Func1<Void, String>() {
                     @Override
                     public String call(Void aVoid) {
                         return "";

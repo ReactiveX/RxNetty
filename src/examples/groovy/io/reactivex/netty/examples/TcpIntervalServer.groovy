@@ -15,13 +15,13 @@
  */
 package io.reactivex.netty.examples
 
+import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
+import io.reactivex.netty.pipeline.PipelineConfigurators
+import rx.Notification
+import rx.Observable
 
 import java.util.concurrent.TimeUnit
-
-import rx.*
-import io.reactivex.netty.ObservableConnection
-import io.reactivex.netty.ProtocolHandlers
 
 /**
  * When a client connects and sends "subscribe:" it will start emitting until it receives "unsubscribe:"
@@ -44,7 +44,7 @@ class TcpIntervalServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, ProtocolHandlers.stringCodec())
+        return RxNetty.createTcpServer(port, PipelineConfigurators.stringCodec())
         .onConnect({ ObservableConnection<String, String> connection ->
 
             println("--- Connection Started ---")
@@ -65,7 +65,7 @@ class TcpIntervalServer {
                     return Observable.empty();
                 } else {
                     if (!(msg.isEmpty() || "unsubscribe:".equals(msg))) {
-                        connection.writeNow("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
+                        connection.write("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
                     }
                     return Observable.empty();
                 }
@@ -81,7 +81,7 @@ class TcpIntervalServer {
         .flatMap({ Long interval ->
             System.out.println("Writing interval: " + interval);
             // emit the interval to the output and return the notification received from it
-            return connection.writeNow("interval => " + interval + "\n").materialize();
+            return connection.write("interval => " + interval + "\n").materialize();
         })
         .takeWhile({ Notification<Void> n ->
             // unsubscribe from interval if we receive an error

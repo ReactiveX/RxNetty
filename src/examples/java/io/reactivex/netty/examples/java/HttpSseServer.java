@@ -6,11 +6,11 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.http.HttpObjectAggregationConfigurator;
-import io.reactivex.netty.http.HttpServer;
-import io.reactivex.netty.http.HttpServerPipelineConfigurator;
-import io.reactivex.netty.http.sse.codec.SSEEvent;
-import io.reactivex.netty.spi.NettyPipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
+import io.reactivex.netty.protocol.http.HttpServer;
+import io.reactivex.netty.protocol.http.HttpServerPipelineConfigurator;
+import io.reactivex.netty.protocol.http.sse.codec.SSEEvent;
 import rx.Notification;
 import rx.Observable;
 import rx.Observer;
@@ -27,7 +27,7 @@ public final class HttpSseServer {
     public static void main(String[] args) throws InterruptedException {
         final int port = 8080;
 
-        final NettyPipelineConfigurator configurator = new HttpObjectAggregationConfigurator(new HttpServerPipelineConfigurator());
+        final PipelineConfigurator configurator = new HttpObjectAggregationConfigurator(new HttpServerPipelineConfigurator());
         HttpServer<FullHttpRequest, Object> httpSseServer = RxNetty.createHttpSseServer(port, configurator);
 
         httpSseServer.startNow(new Action1<ObservableConnection<FullHttpRequest, Object>>() {
@@ -48,8 +48,8 @@ public final class HttpSseServer {
                     @Override
                     public void onNext(FullHttpRequest httpRequest) {
                         System.out.println("New request recieved: " + httpRequest);
-                        observableConnection.writeNow(new DefaultHttpResponse(HttpVersion.HTTP_1_1,
-                                                                              HttpResponseStatus.OK));
+                        observableConnection.write(new DefaultHttpResponse(HttpVersion.HTTP_1_1,
+                                                                           HttpResponseStatus.OK));
                         getIntervalObservable(observableConnection).subscribe();
                     }
                 });
@@ -82,7 +82,7 @@ public final class HttpSseServer {
                              @Override
                              public Observable<Notification<Void>> call(Long interval) {
                                  System.out.println("Writing SSE event for interval: " + interval);
-                                 return connection.writeNow(new SSEEvent("1", "data: ", String.valueOf(interval))).materialize();
+                                 return connection.write(new SSEEvent("1", "data: ", String.valueOf(interval))).materialize();
                              }
                          })
                          .takeWhile(new Func1<Notification<Void>, Boolean>() {

@@ -38,13 +38,9 @@ public class ObservableConnection<I, O> {
     private final PublishSubject<I> s;
     private final ChannelHandlerContext ctx;
 
-    protected ObservableConnection(final ChannelHandlerContext ctx, final PublishSubject<I> s) {
+    public ObservableConnection(final ChannelHandlerContext ctx, final PublishSubject<I> s) {
         this.ctx = ctx;
         this.s = s;
-    }
-
-    public static <I, O> ObservableConnection<I, O> create(ChannelHandlerContext ctx) {
-        return new ObservableConnection<I, O>(ctx, PublishSubject.<I> create());
     }
 
     public Observable<I> getInput() {
@@ -63,7 +59,7 @@ public class ObservableConnection<I, O> {
      *
      * @return The observable associated with the completion of the write action.
      */
-    public Observable<Void> writeNow(final O msg) {
+    public Observable<Void> write(final O msg) {
         final ChannelFuture f = ctx.writeAndFlush(msg);
 
         Observable<Void> o = Observable.create(new OnSubscribeFunc<Void>() {

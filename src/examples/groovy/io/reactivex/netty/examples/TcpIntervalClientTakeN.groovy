@@ -15,11 +15,10 @@
  */
 package io.reactivex.netty.examples
 
-import rx.Observable
-import io.reactivex.netty.RxNetty
 import io.reactivex.netty.ObservableConnection
-import io.reactivex.netty.ProtocolHandlers
-
+import io.reactivex.netty.RxNetty
+import io.reactivex.netty.pipeline.PipelineConfigurators
+import rx.Observable
 
 /**
  * Connects to IntervalServer, take N values and disconnects.
@@ -37,11 +36,11 @@ class TcpIntervalClientTakeN {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringCodec())
+        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringCodec())
                 .flatMap({ ObservableConnection<String, String> connection ->
 
                     // output 10 values at intervals and receive the echo back
-                    Observable<String> subscribeWrite = connection.writeNow("subscribe:").map({ return ""});
+                    Observable<String> subscribeWrite = connection.write("subscribe:").map({ return ""});
 
                     // capture the output from the server
                     Observable<String> data = connection.getInput().map({ String msg ->

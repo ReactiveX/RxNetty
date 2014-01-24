@@ -15,8 +15,8 @@
  */
 package io.reactivex.netty.examples
 
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.http.ObservableHttpResponse;
+import io.reactivex.netty.RxNetty
+import io.reactivex.netty.protocol.http.ObservableHttpResponse
 
 class HttpServerSentEventsClient {
 

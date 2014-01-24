@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.http.HttpServer;
+import io.reactivex.netty.protocol.http.HttpServer;
 import rx.Observer;
 import rx.util.functions.Action1;
 
@@ -44,7 +44,7 @@ public final class HttpWelcomeServer {
                                                                                 HttpResponseStatus.OK);
                         response.content().writeBytes("Welcome! \n\n".getBytes());
                         // writing to the connection is the only place where anything is remote
-                        connection.writeNow(response).subscribe(new Observer<Void>() {
+                        connection.write(response).subscribe(new Observer<Void>() {
                             @Override
                             public void onCompleted() {
                                 System.out.println("Response write successful.");

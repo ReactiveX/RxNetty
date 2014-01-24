@@ -15,10 +15,9 @@
  */
 package io.reactivex.netty.examples
 
-import io.reactivex.netty.RxNetty
 import io.reactivex.netty.ObservableConnection
-import io.reactivex.netty.ProtocolHandlers
-
+import io.reactivex.netty.RxNetty
+import io.reactivex.netty.pipeline.PipelineConfigurators
 
 /**
  * Connects to EventStreamServer and simulates a slow consumer. 
@@ -44,7 +43,7 @@ class TcpEventStreamClientSlow {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpClient("localhost", 8181, ProtocolHandlers.stringLineCodec())
+        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringLineCodec())
                 .flatMap({ ObservableConnection<String, String> connection ->
                     return connection.getInput().map({ String msg ->
                         // simulate slow processing

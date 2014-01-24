@@ -1,9 +1,9 @@
 package io.reactivex.netty.examples.java;
 
-import io.reactivex.netty.NettyServer;
 import io.reactivex.netty.ObservableConnection;
-import io.reactivex.netty.ProtocolHandlers;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.server.NettyServer;
 import rx.Notification;
 import rx.Observable;
 import rx.util.functions.Action0;
@@ -18,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 public final class TcpIntervalServer {
 
     public static void main(String[] args) throws InterruptedException {
-        NettyServer<String, String> tcpServer = RxNetty.createTcpServer(8181, ProtocolHandlers.stringCodec());
+        NettyServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.stringCodec());
         tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
             @Override
             public void call(final ObservableConnection<String, String> connection) {
@@ -50,7 +50,8 @@ public final class TcpIntervalServer {
                             return Observable.empty();
                         } else {
                             if (!(msg.isEmpty() || "unsubscribe:".equals(msg))) {
-                                connection.writeNow("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
+                                connection.write("\nERROR => Unknown command: " + msg
+                                                 + "\nCommands => subscribe:, unsubscribe:\n");
                             }
                             return Observable.empty();
                         }
@@ -78,7 +79,7 @@ public final class TcpIntervalServer {
                                      Long interval) {
                                  System.out.println(
                                          "Writing interval: " + interval);
-                                 return connection.writeNow("interval => " + interval + '\n').materialize();
+                                 return connection.write("interval => " + interval + '\n').materialize();
                              }
                          })
                          .takeWhile(new Func1<Notification<Void>, Boolean>() {
