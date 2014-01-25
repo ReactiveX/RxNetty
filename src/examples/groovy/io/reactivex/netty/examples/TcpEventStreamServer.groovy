@@ -33,7 +33,7 @@ class TcpEventStreamServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, PipelineConfigurators.stringLineCodec())
+        return RxNetty.createTcpServer(port, PipelineConfigurators.stringMessageConfigurator())
             .onConnect({ ObservableConnection<String, String> connection ->
                 connection.write("Hello!\n");
                 return getEventStream(connection).subscribe({});

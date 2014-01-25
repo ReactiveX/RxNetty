@@ -7,7 +7,8 @@ import io.netty.handler.codec.ReplayingDecoder;
 import java.util.List;
 
 /**
- * The decoder that breaks incoming strings into lines by new-line delimiters
+ * A decoder that breaks an incoming {@link ByteBuf} into a list of strings delimited by a new line as specified by
+ * {@link #isLineDelimiter(char)}
  */
 class StringLineDecoder extends ReplayingDecoder<StringLineDecoder.State> {
 
@@ -66,7 +67,7 @@ class StringLineDecoder extends ReplayingDecoder<StringLineDecoder.State> {
         }
     }
 
-    private static boolean isLineDelimiter(char c) {
+    public static boolean isLineDelimiter(char c) {
         return c == '\r' || c == '\n';
     }
 }

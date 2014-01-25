@@ -19,9 +19,9 @@ public final class HttpWelcomeServer {
     public static void main(final String[] args) throws InterruptedException {
         final int port = 8080;
 
-        HttpServer<FullHttpRequest, FullHttpResponse> server = RxNetty.createAggregatedHttpObjectServer(port);
+        HttpServer<FullHttpRequest, FullHttpResponse> server = RxNetty.createHttpServer(port);
 
-        server.startNow(new Action1<ObservableConnection<FullHttpRequest, FullHttpResponse>>() {
+        server.start(new Action1<ObservableConnection<FullHttpRequest, FullHttpResponse>>() {
             @Override
             public void call(final ObservableConnection<FullHttpRequest, FullHttpResponse> connection) {
                 connection.getInput().subscribe(new Observer<FullHttpRequest>() {
@@ -63,22 +63,6 @@ public final class HttpWelcomeServer {
                         });
                     }
                 });
-            }
-        }).subscribe(new Observer<Void>() {
-
-            @Override
-            public void onCompleted() {
-                System.out.println("Http server on port: " + port + " stopped.");
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                System.out.println("Error starting http server on port:  " + port);
-            }
-
-            @Override
-            public void onNext(final Void newConnectionCallback) {
-                System.out.println("New client connection established.");
             }
         });
 

@@ -46,7 +46,7 @@ class TcpEchoClient {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringCodec())
+        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.textOnlyConfigurator())
                 .flatMap({ ObservableConnection<String, String> connection ->
                     
                     // we expect the EchoServer to output a single value at the beginning

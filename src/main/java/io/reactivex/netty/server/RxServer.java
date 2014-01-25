@@ -23,14 +23,10 @@ import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
-import rx.Observable;
 import rx.Observer;
-import rx.Subscription;
 import rx.util.functions.Action1;
 
 import java.util.concurrent.atomic.AtomicReference;
-
-import static rx.Observable.OnSubscribeFunc;
 
 public class RxServer<I, O> {
 
@@ -55,66 +51,40 @@ public class RxServer<I, O> {
     }
 
     /**
-     * Starts this server now. The returned {@link Observable} is a cached observable which can be used to get a handle
-     * of the {@link ObservableConnection} or just to shutdown this server.
+     * Starts this server with the passed action invoked for every new client connecting to this server.
      *
-     * @param onNewConnection An action that will be invoked whenever a new connection is established to the server.
-     *
-     * @return Observable to use for shutdown.
+     * @param onNewConnection An action that will be invoked whenever a new client connection is established with this
+     *                        server.
      */
-    public Observable<Void> startNow(final Action1<ObservableConnection<I, O>> onNewConnection) {
+    public void start(final Action1<ObservableConnection<I, O>> onNewConnection) {
 
         if (null == onNewConnection) {
             throw new IllegalArgumentException("On new connection action must not be null.");
         }
 
-        Observable<ObservableConnection<I, O>> cachedStartObservable = Observable.create(
-                new OnSubscribeFunc<ObservableConnection<I, O>>() {
+        if (!serverStateRef.compareAndSet(ServerState.Created, ServerState.Starting)) {
+            throw new IllegalStateException("Server already started");
+        }
 
-                    @Override
-                    public Subscription onSubscribe(
-                            final Observer<? super ObservableConnection<I, O>> connectObserver) {
+        bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            protected void initChannel(SocketChannel ch) throws Exception {
+                PipelineConfigurator<O, I> configurator = getPipelineConfiguratorForAChannel(onNewConnection);
+                configurator.configureNewPipeline(ch.pipeline());
+            }
+        });
 
-                        if (!serverStateRef.compareAndSet(ServerState.Created, ServerState.Starting)) {
-                            throw new IllegalStateException("Server already started");
-                        }
+        bindFuture = bootstrap.bind(port);
 
-                        bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
-                            @Override
-                            protected void initChannel(SocketChannel ch) throws Exception {
-                                PipelineConfigurator<O, I> configurator = getPipelineConfiguratorForAChannel(onNewConnection);
-                                configurator.configureNewPipeline(ch.pipeline());
-                            }
-                        });
+        serverStateRef.set(ServerState.Started); // It will come here only if this was the thread that transitioned to Starting
+    }
 
-                        bindFuture = bootstrap.bind(port);
-
-                        serverStateRef.set(ServerState.Started); // It will come here only if this was the thread that transitioned to Starting
-
-                        // return a subscription that can shut down the server
-                        return new Subscription() {
-
-                            @Override
-                            public void unsubscribe() {
-                                if (!serverStateRef.compareAndSet(ServerState.Started, ServerState.Shutdown)) {
-                                    connectObserver.onError(new IllegalStateException(
-                                            "The server is already shutdown."));
-                                } else {
-                                    try {
-                                        bindFuture.channel().close().sync();
-                                    } catch (InterruptedException e) {
-                                        connectObserver.onError(new RuntimeException("Failed to shutdown the server.",
-                                                                                     e));
-                                    }
-                                }
-                            }
-                        };
-                    }
-                }).cache();
-
-        cachedStartObservable.subscribe();
-
-        return cachedStartObservable.cast(Void.class);
+    public void shutdown() throws InterruptedException {
+        if (!serverStateRef.compareAndSet(ServerState.Started, ServerState.Shutdown)) {
+            throw new IllegalStateException("The server is already shutdown.");
+        } else {
+            bindFuture.channel().close().sync();
+        }
     }
 
     @SuppressWarnings("fallthrough")
@@ -139,7 +109,7 @@ public class RxServer<I, O> {
                 new RxRequiredConfigurator<I, O>(new Observer<ObservableConnection<I, O>>() {
                     @Override
                     public void onCompleted() {
-                        // No Op.
+                        // No Op as this is the case when the
                     }
 
                     @Override

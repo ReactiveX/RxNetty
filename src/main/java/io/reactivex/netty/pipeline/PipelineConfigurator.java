@@ -16,7 +16,6 @@
 package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelPipeline;
-import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.server.RxServer;
 
 /**
@@ -24,11 +23,11 @@ import io.reactivex.netty.server.RxServer;
  *
  * @param <R> The input object type for the pipeline i.e. the object type which is read from the pipeline.
  *           This type is not enforced by the pipeline configurator per se, but they are just to make the creator of
- *           {@link RxServer} and {@link RxClient} type aware.
+ *           {@link RxServer} and {@link io.reactivex.netty.client.RxClientImpl} type aware.
  *
  * @param <W> The output object type for the pipeline i.e. the object type which is written to the pipeline.
  *           This type is not enforced by the pipeline configurator per se, but they are just to make the creator of
- *           {@link RxServer} and {@link RxClient} type aware.
+ *           {@link RxServer} and {@link io.reactivex.netty.client.RxClientImpl} type aware.
  */
 public interface PipelineConfigurator<R, W> {
 

@@ -14,8 +14,8 @@ public final class TcpEchoServer {
 
     public static void main(final String[] args) throws InterruptedException {
         final int port = 8181;
-        RxServer<String, String> tcpServer = RxNetty.createTcpServer(port, PipelineConfigurators.stringCodec());
-        tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator());
+        tcpServer.start(new Action1<ObservableConnection<String, String>>() {
             @Override
             public void call(final ObservableConnection<String, String> connection) {
                 System.out.println("New client connection established.");

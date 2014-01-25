@@ -2,14 +2,11 @@ package io.reactivex.netty.examples.java;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
 import io.reactivex.netty.protocol.http.HttpServer;
-import io.reactivex.netty.protocol.http.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import rx.Notification;
 import rx.Observable;
@@ -27,11 +24,9 @@ public final class HttpSseServer {
     public static void main(String[] args) throws InterruptedException {
         final int port = 8080;
 
-        final HttpObjectAggregationConfigurator<FullHttpRequest, Object> configurator =
-                new HttpObjectAggregationConfigurator<FullHttpRequest, Object>(new HttpServerPipelineConfigurator<HttpObject, Object>());
-        HttpServer<FullHttpRequest, Object> httpSseServer = RxNetty.createHttpSseServer(port, configurator);
+        HttpServer<FullHttpRequest, Object> httpSseServer = RxNetty.createSseServer(port);
 
-        httpSseServer.startNow(new Action1<ObservableConnection<FullHttpRequest, Object>>() {
+        httpSseServer.start(new Action1<ObservableConnection<FullHttpRequest, Object>>() {
             @Override
             public void call(final ObservableConnection<FullHttpRequest, Object> observableConnection) {
                 observableConnection.getInput().subscribe(new Observer<FullHttpRequest>() {
@@ -54,22 +49,6 @@ public final class HttpSseServer {
                         getIntervalObservable(observableConnection).subscribe();
                     }
                 });
-            }
-        }).subscribe(new Observer<Void>() {
-
-            @Override
-            public void onCompleted() {
-                System.out.println("Http server on port: " + port + " stopped.");
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                System.out.println("Error starting http server on port:  " + port);
-            }
-
-            @Override
-            public void onNext(final Void newConnectionCallback) {
-                System.out.println("New client connection established.");
             }
         });
 

@@ -26,7 +26,7 @@ class TcpEventStreamClientFast {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringLineCodec())
+        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringMessageConfigurator())
                 .flatMap({ ObservableConnection<String, String> connection ->
                     return connection.getInput().map({ String msg ->
                         return msg.trim()

@@ -3,7 +3,7 @@ package io.reactivex.netty.client;
 import io.netty.bootstrap.Bootstrap;
 
 /**
- * A builder to build an instance of {@link RxClient}
+ * A builder to build an instance of {@link RxClientImpl}
  *
  * @author Nitesh Kant
  */
@@ -19,6 +19,6 @@ public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilde
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new RxClient<I, O>(serverInfo, bootstrap, pipelineConfigurator);
+        return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator);
     }
 }

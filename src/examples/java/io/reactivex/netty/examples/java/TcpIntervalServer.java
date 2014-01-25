@@ -18,8 +18,8 @@ import java.util.concurrent.TimeUnit;
 public final class TcpIntervalServer {
 
     public static void main(String[] args) throws InterruptedException {
-        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.stringCodec());
-        tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator());
+        tcpServer.start(new Action1<ObservableConnection<String, String>>() {
             @Override
             public void call(final ObservableConnection<String, String> connection) {
                 System.out.println("--- Connection Started ---");
@@ -46,7 +46,8 @@ public final class TcpIntervalServer {
                                     }));
                         } else if (msg.startsWith("unsubscribe:")) {
                             // this is here just for verbose logging
-                            System.out.println("Received 'unsubscribe' from client so stopping interval (or ignoring if nothing subscribed) ...");
+                            System.out.println(
+                                    "Received 'unsubscribe' from client so stopping interval (or ignoring if nothing subscribed) ...");
                             return Observable.empty();
                         } else {
                             if (!(msg.isEmpty() || "unsubscribe:".equals(msg))) {
@@ -67,7 +68,7 @@ public final class TcpIntervalServer {
                     }
                 });
             }
-        }).toBlockingObservable().last();
+        });
         tcpServer.waitTillShutdown();
     }
 

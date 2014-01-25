@@ -18,8 +18,8 @@ import java.util.Map;
 public final class HelloHttpClient {
 
     public static void main(String[] args) {
-        RxNetty.createAggregatedHttpObjectClient("localhost", 8080)
-               .connectAndObserve(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/hello"))
+        RxNetty.createHttpClient("localhost", 8080)
+               .submit(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/hello"))
                .subscribe(new Observer<ObservableHttpResponse<FullHttpResponse>>() {
                    @Override
                    public void onCompleted() {

@@ -15,11 +15,16 @@
  */
 package io.reactivex.netty.pipeline;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.string.StringDecoder;
-import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpObject;
+import io.reactivex.netty.protocol.http.HttpClientPipelineConfigurator;
+import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
+import io.reactivex.netty.protocol.http.HttpServerPipelineConfigurator;
+import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurator;
+import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.SimpleTextProtocolConfigurator;
+import io.reactivex.netty.protocol.text.sse.SSEEvent;
 
 import java.nio.charset.Charset;
 
@@ -31,63 +36,36 @@ public final class PipelineConfigurators {
     private PipelineConfigurators() {
     }
 
-    public static PipelineConfigurator<ByteBuf, String> commandOnlyHandler() {
-        return CommandOnlyHandler.INSTANCE;
+    public static PipelineConfigurator<String, String> textOnlyConfigurator() {
+        return new StringMessageConfigurator();
     }
 
-    public static PipelineConfigurator<ByteBuf, String> commandOnlyHandler(Charset charset) {
-        return new CommandOnlyHandler(charset);
+    public static PipelineConfigurator<String, String> textOnlyConfigurator(Charset inputCharset, Charset outputCharset) {
+        return new StringMessageConfigurator(inputCharset, outputCharset);
     }
 
-    public static PipelineConfigurator<String, String> stringCodec() {
-        return new StringCodec();
-    }
-
-    public static PipelineConfigurator<String, String> stringCodec(Charset inputCharset, Charset outputCharset) {
-        return new StringCodec(inputCharset, outputCharset);
-    }
-
-    public static PipelineConfigurator<String, String> stringLineCodec() {
+    public static PipelineConfigurator<String, String> stringMessageConfigurator() {
         return new SimpleTextProtocolConfigurator();
     }
 
-    public static class CommandOnlyHandler implements PipelineConfigurator<ByteBuf, String> {
-
-        public static final CommandOnlyHandler INSTANCE = new CommandOnlyHandler();
-        private final Charset dataCharset;
-
-        private CommandOnlyHandler() {
-            this(Charset.defaultCharset());
-        }
-
-        public CommandOnlyHandler(Charset dataCharset) {
-            this.dataCharset = dataCharset;
-        }
-
-        @Override
-        public void configureNewPipeline(ChannelPipeline pipeline) {
-            pipeline.addLast(new StringEncoder(dataCharset));
-        }
+    public static PipelineConfigurator<FullHttpResponse, FullHttpRequest> fullHttpMessageClientConfigurator() {
+        return new HttpObjectAggregationConfigurator<FullHttpResponse, FullHttpRequest>(
+                new HttpClientPipelineConfigurator<FullHttpRequest, FullHttpResponse>());
     }
 
-    public static class StringCodec implements PipelineConfigurator<String, String> {
+    public static PipelineConfigurator<FullHttpRequest, FullHttpResponse> fullHttpMessageServerConfigurator() {
+        return new HttpObjectAggregationConfigurator<FullHttpRequest, FullHttpResponse>(
+                new HttpServerPipelineConfigurator<FullHttpRequest, FullHttpResponse>());
+    }
 
-        private final Charset inputCharset;
-        private final Charset outputCharset;
+    public static PipelineConfigurator<SSEEvent, FullHttpRequest> sseClientConfigurator() {
+        return new SseOverHttpClientPipelineConfigurator<FullHttpRequest>(
+                new HttpClientPipelineConfigurator<FullHttpRequest, HttpObject>());
+    }
 
-        public StringCodec() {
-            this(Charset.defaultCharset(), Charset.defaultCharset());
-        }
-
-        public StringCodec(Charset inputCharset, Charset outputCharset) {
-            this.inputCharset = inputCharset;
-            this.outputCharset = outputCharset;
-        }
-
-        @Override
-        public void configureNewPipeline(ChannelPipeline pipeline) {
-            pipeline.addLast(new StringDecoder(outputCharset))
-                    .addLast(new StringEncoder(inputCharset));
-        }
+    public static PipelineConfigurator<FullHttpRequest, Object> sseServerConfigurator() {
+        final HttpObjectAggregationConfigurator<FullHttpRequest, Object> configurator =
+                new HttpObjectAggregationConfigurator<FullHttpRequest, Object>(new HttpServerPipelineConfigurator<HttpObject, Object>());
+        return new SseOverHttpServerPipelineConfigurator<FullHttpRequest>(configurator);
     }
 }

@@ -14,7 +14,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
 
-    protected final RxClient.ServerInfo serverInfo;
+    protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
     protected PipelineConfigurator<O, I> pipelineConfigurator;
     protected Class<? extends SocketChannel> socketChannel;
@@ -22,7 +22,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
-        serverInfo = new RxClient.ServerInfo(host, port);
+        serverInfo = new RxClientImpl.ServerInfo(host, port);
     }
 
     protected AbstractClientBuilder(String host, int port) {

@@ -14,7 +14,7 @@ public final class TcpEventStreamClientFast {
 
     public static void main(String[] args) {
         Observable<ObservableConnection<String, String>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringLineCodec()).connect();
+                RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringMessageConfigurator()).connect();
         connectionObservable.flatMap(new Func1<ObservableConnection<String, String>, Observable<?>>() {
             @Override
             public Observable<?> call(ObservableConnection<String, String> connection) {

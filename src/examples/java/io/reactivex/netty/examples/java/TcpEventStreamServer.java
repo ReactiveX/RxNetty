@@ -18,13 +18,13 @@ import java.util.concurrent.TimeUnit;
 public final class TcpEventStreamServer {
 
     public static void main(String[] args) throws InterruptedException {
-        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.stringCodec());
-        tcpServer.startNow(new Action1<ObservableConnection<String, String>>() {
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator());
+        tcpServer.start(new Action1<ObservableConnection<String, String>>() {
             @Override
             public void call(ObservableConnection<String, String> connection) {
                 getEventStream(connection).subscribe();
             }
-        }).toBlockingObservable().last();
+        });
 
         tcpServer.waitTillShutdown();
     }

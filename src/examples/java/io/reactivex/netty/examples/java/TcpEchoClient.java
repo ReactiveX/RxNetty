@@ -17,7 +17,7 @@ public final class TcpEchoClient {
 
     public static void main(String[] args) {
         Observable<ObservableConnection<String, String>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.stringCodec()).connect();
+                RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.textOnlyConfigurator()).connect();
 
         connectionObservable.flatMap(new Func1<ObservableConnection<String, String>, Observable<?>>() {
             @Override

@@ -23,7 +23,7 @@ class TcpEchoServer {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpServer(8181, PipelineConfigurators.stringCodec())
+        RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator())
                 .onConnect({ ObservableConnection<String, String> connection ->
                     // writing to the connection is the only place where anything is remote
                     connection.write("Welcome! \n\n")

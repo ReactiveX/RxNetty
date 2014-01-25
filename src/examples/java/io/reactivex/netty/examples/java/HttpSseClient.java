@@ -1,8 +1,8 @@
 package io.reactivex.netty.examples.java;
 
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.RxNetty;
@@ -20,8 +20,8 @@ import java.util.Map;
 public final class HttpSseClient {
 
     public static void main(String[] args) {
-        HttpClient<HttpRequest,SSEEvent> sseClient = RxNetty.createHttpSseClient("localhost", 8080);
-        sseClient.connectAndObserve(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/hello"))
+        HttpClient<FullHttpRequest,SSEEvent> sseClient = RxNetty.createSseClient("localhost", 8080);
+        sseClient.submit(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/hello"))
                  .subscribe(new Observer<ObservableHttpResponse<SSEEvent>>() {
                      @Override
                      public void onCompleted() {

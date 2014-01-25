@@ -44,7 +44,7 @@ class TcpIntervalServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, PipelineConfigurators.stringCodec())
+        return RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator())
         .onConnect({ ObservableConnection<String, String> connection ->
 
             println("--- Connection Started ---")

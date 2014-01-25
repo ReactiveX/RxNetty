@@ -30,7 +30,7 @@ public final class RawHttpServer {
         HttpServer<FullHttpRequest, HttpObject> server =
                 RxNetty.createHttpServer(port, new HttpObjectAggregationConfigurator<FullHttpRequest, HttpObject>(new HttpServerPipelineConfigurator<HttpObject, HttpObject>()));
 
-        server.startNow(new Action1<ObservableConnection<FullHttpRequest, HttpObject>>() {
+        server.start(new Action1<ObservableConnection<FullHttpRequest, HttpObject>>() {
             @Override
             public void call(final ObservableConnection<FullHttpRequest, HttpObject> connection) {
                 connection.getInput().subscribe(new Observer<FullHttpRequest>() {
@@ -55,19 +55,21 @@ public final class RawHttpServer {
                             @Override
                             public void onCompleted() {
                                 System.out.println("Header write successful.");
-                                HttpContent content = new DefaultHttpContent(Unpooled.copiedBuffer("Welcome! \n\n".getBytes()));
+                                HttpContent content = new DefaultHttpContent(Unpooled.copiedBuffer(
+                                        "Welcome! \n\n".getBytes()));
                                 connection.write(content).doOnError(new Action1<Throwable>() {
                                     @Override
                                     public void call(Throwable throwable) {
                                         System.out.println("Content write failed.");
                                     }
                                 });
-                                connection.write(new DefaultLastHttpContent(Unpooled.copiedBuffer("".getBytes()))).doOnError(new Action1<Throwable>() {
-                                    @Override
-                                    public void call(Throwable throwable) {
-                                        System.out.println("Last HTTP content write failed.");
-                                    }
-                                });
+                                connection.write(new DefaultLastHttpContent(Unpooled.copiedBuffer("".getBytes())))
+                                          .doOnError(new Action1<Throwable>() {
+                                              @Override
+                                              public void call(Throwable throwable) {
+                                                  System.out.println("Last HTTP content write failed.");
+                                              }
+                                          });
                             }
 
                             @Override
@@ -83,22 +85,6 @@ public final class RawHttpServer {
                         });
                     }
                 });
-            }
-        }).subscribe(new Observer<Void>() {
-
-            @Override
-            public void onCompleted() {
-                System.out.println("Http server on port: " + port + " stopped.");
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                System.out.println("Error starting http server on port:  " + port);
-            }
-
-            @Override
-            public void onNext(final Void newConnectionCallback) {
-                System.out.println("New client connection established.");
             }
         });
 
