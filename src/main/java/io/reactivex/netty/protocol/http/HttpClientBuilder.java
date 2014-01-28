@@ -1,10 +1,8 @@
-package io.reactivex.netty.client;
+package io.reactivex.netty.protocol.http;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpRequest;
-import io.reactivex.netty.protocol.http.HttpClient;
-import io.reactivex.netty.protocol.http.HttpClientImpl;
-import io.reactivex.netty.protocol.http.HttpClientPipelineConfigurator;
+import io.reactivex.netty.client.AbstractClientBuilder;
 
 /**
  * @author Nitesh Kant

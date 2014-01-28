@@ -30,7 +30,6 @@ import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.client.HttpClientBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
