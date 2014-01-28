@@ -118,7 +118,7 @@ public class UriInfoTest {
 
         try{
             UriInfo.fromUri(new URI(edgeUri));
-            fail(String.format("The uri should result in missing host name, and therefore result in IllegalArgumentException ", edgeUri));
+            fail("The uri should result in missing host name, and therefore result in IllegalArgumentException ");
         } catch(IllegalArgumentException e){
             // expected
         }

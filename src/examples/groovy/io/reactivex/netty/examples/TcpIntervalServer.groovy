@@ -15,14 +15,13 @@
  */
 package io.reactivex.netty.examples
 
+import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
+import io.reactivex.netty.pipeline.PipelineConfigurators
+import rx.Notification
+import rx.Observable
 
 import java.util.concurrent.TimeUnit
-
-import rx.*
-import io.reactivex.netty.*
-import io.reactivex.netty.impl.ObservableConnection
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers
 
 /**
  * When a client connects and sends "subscribe:" it will start emitting until it receives "unsubscribe:"
@@ -45,7 +44,7 @@ class TcpIntervalServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, ProtocolHandlers.stringCodec())
+        return RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator())
         .onConnect({ ObservableConnection<String, String> connection ->
 
             println("--- Connection Started ---")

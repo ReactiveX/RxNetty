@@ -15,18 +15,15 @@
  */
 package io.reactivex.netty.examples
 
-import rx.Observable
-import rx.Subscription
+import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
-import io.reactivex.netty.impl.ObservableConnection
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers
-
+import io.reactivex.netty.pipeline.PipelineConfigurators
 
 class TcpEchoServer {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpServer(8181, ProtocolHandlers.stringCodec())
+        RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator())
                 .onConnect({ ObservableConnection<String, String> connection ->
                     // writing to the connection is the only place where anything is remote
                     connection.write("Welcome! \n\n")

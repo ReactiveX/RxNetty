@@ -15,13 +15,13 @@
  */
 package io.reactivex.netty.examples
 
-import java.util.concurrent.TimeUnit
-
+import io.reactivex.netty.ObservableConnection
+import io.reactivex.netty.RxNetty
+import io.reactivex.netty.pipeline.PipelineConfigurators
 import rx.Notification
 import rx.Observable
-import io.reactivex.netty.RxNetty
-import io.reactivex.netty.impl.ObservableConnection
-import io.reactivex.netty.protocol.tcp.ProtocolHandlers
+
+import java.util.concurrent.TimeUnit
 
 /**
  * When a client connects it will start emitting an infinite stream of events.
@@ -33,7 +33,7 @@ class TcpEventStreamServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, ProtocolHandlers.stringLineCodec())
+        return RxNetty.createTcpServer(port, PipelineConfigurators.stringMessageConfigurator())
             .onConnect({ ObservableConnection<String, String> connection ->
                 connection.write("Hello!\n");
                 return getEventStream(connection).subscribe({});

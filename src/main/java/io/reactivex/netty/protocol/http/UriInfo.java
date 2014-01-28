@@ -36,9 +36,9 @@ public class UriInfo {
     // We hide the constructor because we may introduce more builder methods later.
     private UriInfo(URI uri) {
         this.uri = uri;
-        this.scheme = interpretScheme(uri.getScheme());
-        this.port = interpretPort(uri.getPort());
-        this.host = interpretHost(uri.getHost());
+        scheme = interpretScheme(uri.getScheme());
+        port = interpretPort(uri.getPort());
+        host = interpretHost(uri.getHost());
     }
 
     private int interpretPort(int port) {
@@ -87,14 +87,14 @@ public class UriInfo {
         builder.append(uri.getRawPath());
 
         String query = uri.getRawQuery();
-        if (query != null && query.trim().length() > 0) {
+        if (query != null && !query.trim().isEmpty()) {
             builder.append('?').append(query);
         }
 
         return builder.toString();
     }
 
-    private Scheme interpretScheme(String scheme) {
+    private static Scheme interpretScheme(String scheme) {
         if (scheme == null) {
             return DEFAULT_SCHEME;
         }
@@ -122,14 +122,14 @@ public class UriInfo {
         }
     }
 
-    public static enum Scheme {
+    public enum Scheme {
         HTTP,
         HTTPS
     }
 
     public static void main(String[] args) throws Exception {
         URI uri = new URI("http://jenkins_slave-cf8d2895:50913/");
-        System.out.println(UriInfo.fromUri(uri).getHost());
+        System.out.println(fromUri(uri).getHost());
 
     }
 }

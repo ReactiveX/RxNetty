@@ -48,7 +48,7 @@ public class ValidatedFullHttpRequest extends DefaultFullHttpRequest {
 
     public ValidatedFullHttpRequest(HttpVersion httpVersion, HttpMethod method, String uri) {
         super(httpVersion, method, uri);
-        this.uriInfo = UriInfo.fromUri(uri);
+        uriInfo = UriInfo.fromUri(uri);
 
         init();
     }
@@ -59,7 +59,7 @@ public class ValidatedFullHttpRequest extends DefaultFullHttpRequest {
 
     public ValidatedFullHttpRequest(HttpVersion httpVersion, HttpMethod method, String uri, ByteBuf content) {
         super(httpVersion, method, uri, content);
-        this.uriInfo = UriInfo.fromUri(uri);
+        uriInfo = UriInfo.fromUri(uri);
 
         init();
     }
