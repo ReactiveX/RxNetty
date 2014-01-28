@@ -2,6 +2,7 @@ package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.util.ReferenceCountUtil;
 import rx.subjects.PublishSubject;
 
 /**
@@ -25,7 +26,11 @@ public class ObservableAdapter extends ChannelInboundHandlerAdapter {
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (null != bridgedObserver) {
-            bridgedObserver.onNext(msg);
+            try {
+                bridgedObserver.onNext(msg);
+            } finally {
+                ReferenceCountUtil.release(msg);
+            }
         }
     }
 

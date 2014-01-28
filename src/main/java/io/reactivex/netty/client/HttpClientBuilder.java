@@ -12,10 +12,9 @@ import io.reactivex.netty.protocol.http.HttpClientPipelineConfigurator;
 public class HttpClientBuilder<I extends HttpRequest, O>
         extends AbstractClientBuilder<I, O, HttpClientBuilder<I, O>, HttpClient<I, O>> {
 
-    private HttpClient.RequestConfig globalRequestConfig;
-
     public HttpClientBuilder(String host, int port) {
         super(host, port);
+        clientConfig = HttpClient.HttpClientConfig.DEFAULT_CONFIG;
         pipelineConfigurator(new HttpClientPipelineConfigurator<I, O>());
     }
 
@@ -24,13 +23,8 @@ public class HttpClientBuilder<I extends HttpRequest, O>
         pipelineConfigurator(new HttpClientPipelineConfigurator<I, O>());
     }
 
-    public HttpClientBuilder<I, O> globalRequestConfig(HttpClient.RequestConfig globalRequestConfig) {
-        this.globalRequestConfig = globalRequestConfig;
-        return returnBuilder();
-    }
-
     @Override
     protected HttpClient<I, O> createClient() {
-        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, globalRequestConfig);
+        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig);
     }
 }

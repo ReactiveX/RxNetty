@@ -30,12 +30,9 @@ import rx.util.functions.Action1;
 
 public class HttpClientImpl<I extends HttpRequest, O> extends RxClientImpl<I, O> implements HttpClient<I,O> {
 
-    private final RequestConfig globalRequestConfig;
-
     public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                          PipelineConfigurator<O, I> pipelineConfigurator, RequestConfig globalRequestConfig) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator);
-        this.globalRequestConfig = globalRequestConfig;
+                          PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig) {
+        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
     }
 
     @Override
@@ -45,63 +42,76 @@ public class HttpClientImpl<I extends HttpRequest, O> extends RxClientImpl<I, O>
     }
 
     @Override
-    public Observable<ObservableHttpResponse<O>> submit(I request, RequestConfig config) {
+    public Observable<ObservableHttpResponse<O>> submit(I request, ClientConfig config) {
         Observable<ObservableConnection<O, I>> connectionObservable = connect();
         return submit(request, connectionObservable, config);
     }
 
     protected Observable<ObservableHttpResponse<O>> submit(final I request,
                                                            Observable<ObservableConnection<O, I>> connectionObservable) {
-        return submit(request, connectionObservable, null == globalRequestConfig
-                                                     ? RequestConfig.DEFAULT_CONFIG : globalRequestConfig);
+        return submit(request, connectionObservable, null == clientConfig
+                                                     ? HttpClientConfig.DEFAULT_CONFIG : clientConfig);
     }
 
     protected Observable<ObservableHttpResponse<O>> submit(final I request,
                                                            final Observable<ObservableConnection<O, I>> connectionObservable,
-                                                           RequestConfig config) {
+                                                           ClientConfig config) {
         enrichRequest(request, config);
 
         return Observable.create(new Observable.OnSubscribeFunc<ObservableHttpResponse<O>>() {
             @Override
             public Subscription onSubscribe(final Observer<? super ObservableHttpResponse<O>> observer) {
-                    connectionObservable.subscribe(new Action1<ObservableConnection<O, I>>() {
-                        @Override
-                        public void call(ObservableConnection<O, I> connection) {
-                            final PublishSubject<HttpResponse> headerSubject = PublishSubject.create();
-                            final PublishSubject<O> contentSubject = PublishSubject.create();
-                            final ObservableHttpResponse<O> observableResponse =
-                                    new ObservableHttpResponse<O>(connection, headerSubject, contentSubject);
-                            connection.write(request).doOnError(new Action1<Throwable>() {
-                                @Override
-                                public void call(Throwable throwable) {
-                                    // If the write fails, the response should get the error. Completion & onNext are managed by
-                                    // the response observable itself.
-                                    headerSubject.onError(throwable);
-                                    contentSubject.onError(throwable);
-                                }
-                            });
-                            observer.onNext(observableResponse);
-                        }
-                    }, new Action1<Throwable>() {
-                           @Override
-                           public void call(Throwable throwable) {
-                               observer.onError(throwable);
-                           }
-                       }
-                );
+                final Subscription connectSubscription =
+                        connectionObservable.subscribe(new ConnectObserver<O, I>(request, observer));
 
                 return new Subscription() {
                     @Override
                     public void unsubscribe() {
+                        //TODO: Cancel write & if the response is not over, disconnect the channel.
+                        connectSubscription.unsubscribe();
                     }
                 };
             }
         });
     }
 
-    private void enrichRequest(I request, RequestConfig config) {
-        if (config.getUserAgent() != null && request.headers().get(HttpHeaders.Names.USER_AGENT) == null) {
-            request.headers().set(HttpHeaders.Names.USER_AGENT, config.getUserAgent());
+    private void enrichRequest(I request, ClientConfig config) {
+        if (config instanceof HttpClientConfig) {
+            HttpClientConfig httpClientConfig = (HttpClientConfig) config;
+            if (httpClientConfig.getUserAgent() != null && request.headers().get(HttpHeaders.Names.USER_AGENT) == null) {
+                request.headers().set(HttpHeaders.Names.USER_AGENT, httpClientConfig.getUserAgent());
+            }
+        }
+    }
+
+    private static class ConnectObserver<O, I extends HttpRequest> extends CompositeObserver<ObservableConnection<O,I>> {
+
+        private final I request;
+        private final Observer<? super ObservableHttpResponse<O>> requestProcessingObserver;
+
+        public ConnectObserver(I request, Observer<? super ObservableHttpResponse<O>> requestProcessingObserver) {
+            super(requestProcessingObserver);
+            this.request = request;
+            this.requestProcessingObserver = requestProcessingObserver;
+        }
+
+        @Override
+        public void onNext(ObservableConnection<O, I> connection) {
+            final PublishSubject<HttpResponse> headerSubject = PublishSubject.create();
+            final PublishSubject<O> contentSubject = PublishSubject.create();
+            final ObservableHttpResponse<O> observableResponse =
+                    new ObservableHttpResponse<O>(connection, requestProcessingObserver, headerSubject, contentSubject);
+            connection.write(request).doOnError(new Action1<Throwable>() {
+                @Override
+                public void call(Throwable throwable) {
+                    // If the write fails, the response should get the error. Completion & onNext are managed by
+                    // the response observable itself.
+                    headerSubject.onError(throwable);
+                    contentSubject.onError(throwable);
+                }
+            });
+
+            requestProcessingObserver.onNext(observableResponse);
         }
     }
 }

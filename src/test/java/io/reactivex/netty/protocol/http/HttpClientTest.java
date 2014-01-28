@@ -15,86 +15,122 @@
  */
 package io.reactivex.netty.protocol.http;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ConnectTimeoutException;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.timeout.ReadTimeoutException;
+import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.client.HttpClientBuilder;
+import io.reactivex.netty.client.RxClient;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.protocol.text.sse.SSEEvent;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+import rx.Observable;
+import rx.Observer;
+import rx.util.functions.Action1;
+import rx.util.functions.Func1;
+
+import java.nio.charset.Charset;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+
 public class HttpClientTest {
-/*
-    private static HttpServer server = null;
-    private static String SERVICE_URI;
+    private static HttpServer<FullHttpRequest, Object> server;
 
     private static int port;
-    private static HttpClient client;
 
-    private static class SingleEntityHandler extends HttpNettyPipelineConfiguratorAdapter<String> {
+    private static class SingleEntityConfigurator implements PipelineConfigurator<String, FullHttpRequest> {
+
+        private final HttpObjectAggregationConfigurator<FullHttpResponse, FullHttpRequest> configurator;
+
+        public SingleEntityConfigurator(HttpObjectAggregationConfigurator<FullHttpResponse, FullHttpRequest> configurator) {
+            this.configurator = configurator;
+        }
+
         @Override
         public void configureNewPipeline(ChannelPipeline pipeline) {
-            pipeline.addAfter("http-response-decoder", "http-aggregator", new HttpObjectAggregator(Integer.MAX_VALUE));
-            pipeline.addAfter("http-aggregator", "entity-decoder", new StringEntityDecoder());
+            configurator.configureNewPipeline(pipeline);
+            pipeline.addLast("entity-decoder", new StringEntityDecoder());
         }
     }
     
     private static class StringEntityDecoder extends MessageToMessageDecoder<FullHttpResponse> {
 
         @Override
-        protected void decode(ChannelHandlerContext ctx, FullHttpResponse msg,
-                List<Object> out) throws Exception {
+        protected void decode(ChannelHandlerContext ctx, FullHttpResponse msg, List<Object> out) throws Exception {
             ByteBuf buf = msg.content();
             String content = buf.toString(Charset.defaultCharset());
             out.add(content);
+            out.add(new DefaultLastHttpContent()); // Since, this is publishing custom objects in the pipeline,
+                                                   // it should indicate that the response has ended.
         }
-        
     }
 
     @BeforeClass
     public static void init() {
-        PackagesResourceConfig resourceConfig = new PackagesResourceConfig("io.reactivex.netty.protocol.http");
-        port = (new Random()).nextInt(1000) + 4000;
-        SERVICE_URI = "http://localhost:" + port + "/";
-        try{
-            server = HttpServerFactory.create(SERVICE_URI, resourceConfig);
-            server.start();
-        } catch(Exception e) {
-            e.printStackTrace();
-            fail("Unable to start server");
-        }
-        EventLoopGroup group = new NioEventLoopGroup();
-        client = new HttpClient(new RxClient.ServerInfo("localhost", port),
-                                new Bootstrap(), new HttpClientPipelineConfigurator());
+        port = new Random().nextInt(1000) + 4000;
+        server = RxNetty.createHttpServer(port, new HttpObjectAggregationConfigurator<FullHttpRequest, Object>(new HttpServerPipelineConfigurator<HttpObject, Object>()));
+        server.start(new RequestProcessor());
     }
 
     @AfterClass
-    public static void shutDown() {
-        server.stop(0);
+    public static void shutDown() throws InterruptedException {
+        server.shutdown();
     }
     
     
     @Test
     public void testChunkedStreaming() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/stream");
-
-        Observable<ObservableHttpResponse<SSEEvent>> response = client.execute(request, HttpNettyPipelineConfiguratorAdapter.SSE_HANDLER);
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/stream");
+        HttpClient<FullHttpRequest, SSEEvent> client = RxNetty.createSseClient("localhost", port);
+        Observable<ObservableHttpResponse<SSEEvent>> response = client.submit(request);
         
         final List<String> result = new ArrayList<String>();
 
-        response.flatMap(new Func1<ObservableHttpResponse<SSEEvent>, Observable<SSEEvent>>() {
-            @Override
-            public Observable<SSEEvent> call(ObservableHttpResponse<SSEEvent> observableHttpResponse) {
-                return observableHttpResponse.content();
-            }
-        }).toBlockingObservable().forEach(new Action1<SSEEvent>() {
-            @Override
-            public void call(SSEEvent event
-                    ) {
-                // System.out.println(message);
-                result.add(event.getEventData());
-            }
-        });
-        assertEquals(EmbeddedResources.smallStreamContent, result);
+        response.flatMap(
+                new Func1<ObservableHttpResponse<SSEEvent>, Observable<SSEEvent>>() {
+                    @Override
+                    public Observable<SSEEvent> call(ObservableHttpResponse<SSEEvent> observableHttpResponse) {
+                        return observableHttpResponse.content();
+                    }
+                })
+                .toBlockingObservable()
+                .forEach(new Action1<SSEEvent>() {
+                    @Override
+                    public void call(SSEEvent sseEvent) {
+                        result.add(sseEvent.getEventData());
+                    }
+                });
+        assertEquals(RequestProcessor.smallStreamContent, result);
     }
     
     @Test
     public void testMultipleChunks() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/largeStream");
-
-        Observable<ObservableHttpResponse<SSEEvent>> response = client.execute(request, HttpNettyPipelineConfiguratorAdapter.SSE_HANDLER);
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/largeStream");
+        HttpClient<FullHttpRequest, SSEEvent> client = RxNetty.createSseClient("localhost", port);
+        Observable<ObservableHttpResponse<SSEEvent>> response = client.submit(request);
         
         final List<String> result = new ArrayList<String>();
 
@@ -107,21 +143,24 @@ public class HttpClientTest {
             @Override
             public void call(SSEEvent event
                     ) {
-                // System.out.println(message);
                 result.add(event.getEventData());
             }
         });
-        // Thread.sleep(5000);
-        assertEquals(EmbeddedResources.largeStreamContent, result);
+        assertEquals(RequestProcessor.largeStreamContent, result);
         
     }
 
     @Test
     public void testSingleEntity() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/singleEntity");
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/singleEntity");
         final List<String> result = new ArrayList<String>();
 
-        Observable<ObservableHttpResponse<String>> response = client.execute(request, new SingleEntityHandler());
+        HttpObjectAggregationConfigurator<FullHttpResponse, FullHttpRequest> aggregationConfigurator =
+                new HttpObjectAggregationConfigurator<FullHttpResponse, FullHttpRequest>(new HttpClientPipelineConfigurator<FullHttpRequest, FullHttpResponse>());
+        HttpClient<FullHttpRequest, String> client =
+                RxNetty.createHttpClient("localhost", port,
+                                         new SingleEntityConfigurator(aggregationConfigurator));
+        Observable<ObservableHttpResponse<String>> response = client.submit(request);
         response.flatMap(new Func1<ObservableHttpResponse<String>, Observable<String>>() {
 
             @Override
@@ -141,10 +180,10 @@ public class HttpClientTest {
     
     @Test
     public void testFullHttpResponse() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/singleEntity");
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/singleEntity");
         final List<String> result = new ArrayList<String>();
-
-        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.request(request);
+        HttpClient<FullHttpRequest, FullHttpResponse> client = RxNetty.createHttpClient("localhost", port);
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.submit(request);
         
         response.flatMap(new Func1<ObservableHttpResponse<FullHttpResponse>, Observable<FullHttpResponse>>() {
             @Override
@@ -166,56 +205,34 @@ public class HttpClientTest {
     
     @Test
     public void testNonChunkingStream() throws Exception {
-        MockWebServer server = new MockWebServer();
-        String content = "";
-        for (String s: EmbeddedResources.largeStreamContent) {
-            content += "data:" + s + "\n\n";
-        }
-        server.enqueue(new MockResponse().setResponseCode(200).setHeader("Content-type", "text/event-stream")
-                .setBody(content)
-                .removeHeader("Content-Length"));
-        server.play();
-        
-        // TODO: this does not work for UriInfo: https://github.com/Netflix/RxNetty/issues/12
-        // URI url = server.getUrl("/").toURI();
-
-        URI url = new URI("http://localhost:" + server.getPort() + "/"); 
-        
-        System.err.println("Using URI: " + url);
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(url);
-        Observable<ObservableHttpResponse<SSEEvent>> response = client.execute(request, HttpNettyPipelineConfiguratorAdapter.SSE_HANDLER);
-        
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/nochunk_stream");
+        HttpClient<FullHttpRequest, SSEEvent> client = RxNetty.createSseClient("localhost", port);
         final List<String> result = new ArrayList<String>();
+        Observable<ObservableHttpResponse<SSEEvent>> response = client.submit(request);
 
         response.flatMap(new Func1<ObservableHttpResponse<SSEEvent>, Observable<SSEEvent>>() {
             @Override
             public Observable<SSEEvent> call(ObservableHttpResponse<SSEEvent> observableHttpResponse) {
                 return observableHttpResponse.content();
             }
-        }).subscribe(new Action1<SSEEvent>() {
+        }).toBlockingObservable().forEach(new Action1<SSEEvent>() {
             @Override
             public void call(SSEEvent event
-                    ) {
+            ) {
                 result.add(event.getEventData());
             }
-        }, new Action1<Throwable>() {
-            @Override
-            public void call(Throwable t1) {
-                t1.printStackTrace();
-            }
         });
-        Thread.sleep(2000);
-        assertEquals(EmbeddedResources.largeStreamContent, result);
-        server.shutdown();
+        assertEquals(RequestProcessor.smallStreamContent, result);
     }
     
     @Test
     public void testConnectException() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://www.google.com:81/");
-        HttpClient timeoutClient = HttpClient.newBuilder()
-        .withChannelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10)
-        .build(new NioEventLoopGroup());
-        Observable<ObservableHttpResponse<FullHttpResponse>> response = timeoutClient.request(request);
+        HttpClientBuilder<FullHttpRequest, FullHttpResponse> clientBuilder =
+                new HttpClientBuilder<FullHttpRequest, FullHttpResponse>("www.google.com", 81);
+        HttpClient<FullHttpRequest, FullHttpResponse> client = clientBuilder.channelOption(
+                ChannelOption.CONNECT_TIMEOUT_MILLIS, 10).build();
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.submit(request);
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
         response.subscribe(new Action1<ObservableHttpResponse<FullHttpResponse>>() {
@@ -232,16 +249,17 @@ public class HttpClientTest {
             }
         });
         latch.await(2, TimeUnit.SECONDS);
-        assertTrue(ex.get() instanceof io.netty.channel.ConnectTimeoutException);
+        assertTrue(ex.get() instanceof ConnectTimeoutException);
     }
     
     @Test
     public void testConnectException2() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get("http://www.google.com:81/");
-        HttpClient timeoutClient = HttpClient.newBuilder()
-        .withChannelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10)
-        .build(new NioEventLoopGroup());
-        Observable<ObservableHttpResponse<FullHttpResponse>> response = timeoutClient.request(request);
+        HttpClientBuilder<FullHttpRequest, FullHttpResponse> clientBuilder =
+                new HttpClientBuilder<FullHttpRequest, FullHttpResponse>("www.google.com", 81);
+        HttpClient<FullHttpRequest, FullHttpResponse> client = clientBuilder.channelOption(
+                ChannelOption.CONNECT_TIMEOUT_MILLIS, 10).build();
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.submit(request);
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
         response.flatMap(new Func1<ObservableHttpResponse<FullHttpResponse>, Observable<FullHttpResponse>>() {
@@ -264,14 +282,21 @@ public class HttpClientTest {
             }
         });
         latch.await(100000, TimeUnit.SECONDS);
-        assertTrue(ex.get() instanceof io.netty.channel.ConnectTimeoutException);
+        assertTrue(ex.get() instanceof ConnectTimeoutException);
     }
 
     
     @Test
     public void testTimeout() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/timeout?timeout=10000");
-        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.execute(request, new FullHttpResponseHandler(10));
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/timeout?timeout=10000");
+        PipelineConfigurator<FullHttpResponse, FullHttpRequest> pipelineConfigurator =
+                PipelineConfigurators.fullHttpMessageClientConfigurator();
+        RxClient.ClientConfig clientConfig = new RxClient.ClientConfig.Builder(RxClient.ClientConfig.DEFAULT_CONFIG)
+                .readTimeout(10, TimeUnit.MILLISECONDS).build();
+        HttpClient<FullHttpRequest, FullHttpResponse> client =
+                new HttpClientBuilder<FullHttpRequest, FullHttpResponse>("localhost", port)
+                .pipelineConfigurator(pipelineConfigurator).config(clientConfig).build();
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.submit(request);
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
         response.flatMap(new Func1<ObservableHttpResponse<FullHttpResponse>, Observable<FullHttpResponse>>() {
@@ -300,15 +325,22 @@ public class HttpClientTest {
         if (!latch.await(2, TimeUnit.SECONDS)) {
             fail("Observer is not called without timeout");
         } else {
-            assertTrue(exception.get() instanceof io.netty.handler.timeout.ReadTimeoutException);
+            assertTrue(exception.get() instanceof ReadTimeoutException);
         }
     }
     
     @Test
     public void testNoReadTimeout() throws Exception {
-        ValidatedFullHttpRequest request = ValidatedFullHttpRequest.get(SERVICE_URI + "test/singleEntity");
-        // Set a read timeout of 2 seconds
-        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.execute(request, new FullHttpResponseHandler(2000));
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/singleEntity");
+        PipelineConfigurator<FullHttpResponse, FullHttpRequest> pipelineConfigurator =
+                PipelineConfigurators.fullHttpMessageClientConfigurator();
+        RxClient.ClientConfig clientConfig = new RxClient.ClientConfig.Builder(RxClient.ClientConfig.DEFAULT_CONFIG)
+                .readTimeout(2, TimeUnit.SECONDS).build();
+        HttpClient<FullHttpRequest, FullHttpResponse> client =
+                new HttpClientBuilder<FullHttpRequest, FullHttpResponse>("localhost", port)
+                        .pipelineConfigurator(pipelineConfigurator).config(clientConfig).build();
+
+        Observable<ObservableHttpResponse<FullHttpResponse>> response = client.submit(request);
         
         final AtomicReference<Throwable> exceptionHolder = new AtomicReference<Throwable>();
         final AtomicReference<FullHttpResponse> responseHolder = new AtomicReference<FullHttpResponse>(); 
@@ -337,6 +369,5 @@ public class HttpClientTest {
         assertNull(exceptionHolder.get());
         assertEquals(200, responseHolder.get().getStatus().code());
     }
-*/
 
 }

@@ -15,17 +15,17 @@
  */
 package io.reactivex.netty.protocol.http;
 
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
 import rx.Observer;
 import rx.subjects.PublishSubject;
-import rx.util.functions.Action0;
-import rx.util.functions.Action1;
 
 /**
  * Represents an Http response as an observable. <br/>
@@ -120,47 +120,14 @@ public class ObservableHttpResponse<T> {
     private final PublishSubject<T> contentSubject;
 
     public <I extends HttpRequest> ObservableHttpResponse(final ObservableConnection<T, I> observableConnection,
+                                                          Observer<? super ObservableHttpResponse<T>> requestProcessingObserver,
                                                           final PublishSubject<HttpResponse> headerSubject,
                                                           final PublishSubject<T> contentSubject) {
         this.headerSubject = headerSubject;
         this.contentSubject = contentSubject;
-        observableConnection.getInput().subscribe(new Action1<T>() {
-            @Override
-            public void call(T msg) {
-                Class<?> msgClass = msg.getClass();
-                // See Class javadoc for detail about this behavior.
-                if (FullHttpResponse.class.isAssignableFrom(msgClass)) {
-                    headerSubject.onNext((HttpResponse) msg);
-                    headerSubject.onCompleted();
-                    contentSubject.onNext(msg);
-                    contentSubject.onCompleted();
-                } else if (HttpResponse.class.isAssignableFrom(msgClass)) {
-                    headerSubject.onNext((HttpResponse) msg);
-                } else if (LastHttpContent.class.isAssignableFrom(msgClass)) {
-                    headerSubject.onCompleted();
-                    contentSubject.onNext(msg);
-                    contentSubject.onCompleted();
-                } else if (HttpContent.class.isAssignableFrom(msgClass)) {
-                    contentSubject.onNext(msg);
-                } else { // Custom object case.
-                    contentSubject.onNext(msg);
-                    observableConnection.getInput().doOnCompleted(new Action0() {
-                        @Override
-                        public void call() {
-                            headerSubject.onCompleted();
-                            contentSubject.onCompleted();
-                        }
-                    });
-                }
-            }
-        });
-        observableConnection.getInput().doOnError(new Action1<Throwable>() {
-            @Override
-            public void call(Throwable throwable) {
-                headerSubject.onError(throwable);
-                contentSubject.onError(throwable);
-            }
-        });
+        observableConnection.getInput().subscribe(new InputObserver<T>(headerSubject, contentSubject,
+                                                                       requestProcessingObserver,
+                                                                       observableConnection.channelContext()));
     }
 
     public Observable<T> content() {
@@ -169,5 +136,50 @@ public class ObservableHttpResponse<T> {
 
     public Observable<HttpResponse> header() {
         return headerSubject;
+    }
+
+    private static class InputObserver<T> extends CompositeObserver<T> {
+
+        private final PublishSubject<HttpResponse> headerSubject;
+        private final PublishSubject<T> contentSubject;
+        private final ChannelHandlerContext context;
+
+        public InputObserver(PublishSubject<HttpResponse> headerSubject, PublishSubject<T> contentSubject,
+                             Observer<? super ObservableHttpResponse<T>> requestProcessingObserver,
+                             ChannelHandlerContext context) {
+            super(headerSubject, contentSubject, requestProcessingObserver);
+            this.headerSubject = headerSubject;
+            this.contentSubject = contentSubject;
+            this.context = context;
+        }
+
+        @Override
+        public void onCompleted() {
+            super.onCompleted();
+            ReadTimeoutPipelineConfigurator.removeTimeoutHandler(context.pipeline());
+        }
+
+        @Override
+        public void onNext(T msg) {
+            Class<?> msgClass = msg.getClass();
+            // See Class javadoc for detail about this behavior.
+            if (FullHttpResponse.class.isAssignableFrom(msgClass)) {
+                headerSubject.onNext((HttpResponse) msg);
+                contentSubject.onNext(msg);
+                onCompleted();
+            } else if (HttpResponse.class.isAssignableFrom(msgClass)) {
+                headerSubject.onNext((HttpResponse) msg);
+            } else if (LastHttpContent.class.isAssignableFrom(msgClass)) {
+                LastHttpContent lastHttpContent = (LastHttpContent) msg;
+                if (lastHttpContent.content().isReadable()) { // Do not give callback for empty content.
+                    contentSubject.onNext(msg);
+                }
+                onCompleted();
+            } else if (HttpContent.class.isAssignableFrom(msgClass)) {
+                contentSubject.onNext(msg);
+            } else { // Custom object case.
+                contentSubject.onNext(msg);
+            }
+        }
     }
 }

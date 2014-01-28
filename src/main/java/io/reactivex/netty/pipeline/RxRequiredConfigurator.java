@@ -28,8 +28,8 @@ public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<Object
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
         ObservableAdapter observableAdapter = new ObservableAdapter();
-        ConnectionLifecycleHandler<I, O> lifecycleHandler = new ConnectionLifecycleHandler<I, O>(connectionObserver,
-                                                                                                 observableAdapter);
+        ConnectionLifecycleHandler<I, O> lifecycleHandler =
+                new ConnectionLifecycleHandler<I, O>(connectionObserver, observableAdapter);
         pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
         pipeline.addLast(NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
     }

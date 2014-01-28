@@ -22,12 +22,15 @@ import io.netty.channel.socket.SocketChannel;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
+import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 import rx.Observable;
 import rx.Observable.OnSubscribeFunc;
 import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * The base class for all connection oriented clients inside RxNetty.
@@ -44,11 +47,19 @@ public class RxClientImpl<I, O> implements RxClient<I,O> {
      * getting the pipeline configurator.
      */
     private final PipelineConfigurator<O, I> incompleteConfigurator;
+    protected final ClientConfig clientConfig;
 
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                        PipelineConfigurator<O, I> pipelineConfigurator) {
+                        PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig) {
+        this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
+        if (clientConfig.isReadTimeoutSet()) {
+            ReadTimeoutPipelineConfigurator readTimeoutConfigurator =
+                    new ReadTimeoutPipelineConfigurator(clientConfig.getReadTimeoutInMillis(), TimeUnit.MILLISECONDS);
+            pipelineConfigurator = new PipelineConfiguratorComposite<O, I>(pipelineConfigurator,
+                                                                           readTimeoutConfigurator);
+        }
         incompleteConfigurator = pipelineConfigurator;
     }
 

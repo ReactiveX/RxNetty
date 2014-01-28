@@ -8,18 +8,18 @@ public interface HttpClient<I extends HttpRequest, O> extends RxClient<I, O>{
 
     Observable<ObservableHttpResponse<O>> submit(I request);
 
-    Observable<ObservableHttpResponse<O>> submit(I request, RequestConfig config);
+    Observable<ObservableHttpResponse<O>> submit(I request, ClientConfig config);
 
     /**
-     * A configuration to be used for a request made through this client.
+     * A configuration to be used for this client.
      */
-    class RequestConfig {
+    class HttpClientConfig extends ClientConfig {
 
-        public static final RequestConfig DEFAULT_CONFIG = new RequestConfig();
+        public static final HttpClientConfig DEFAULT_CONFIG = new HttpClientConfig();
 
         private String userAgent = "RxNetty Client";
 
-        private RequestConfig() {
+        private HttpClientConfig() {
             // Only the builder can create this instance, so that we can change the constructor signature at will.
         }
 
@@ -27,21 +27,15 @@ public interface HttpClient<I extends HttpRequest, O> extends RxClient<I, O>{
             return userAgent;
         }
 
-        public static class Builder {
+        public static class Builder extends AbstractBuilder<Builder, HttpClientConfig> {
 
-            private final RequestConfig config;
-
-            public Builder(RequestConfig defaultConfig) {
-                config = null == defaultConfig ? new RequestConfig() : defaultConfig;
+            public Builder(HttpClientConfig defaultConfig) {
+                super(null == defaultConfig ? new HttpClientConfig() : defaultConfig);
             }
 
             public Builder userAgent(String userAgent) {
                 config.userAgent = userAgent;
-                return this;
-            }
-
-            public RequestConfig build() {
-                return config;
+                return returnBuilder();
             }
         }
     }

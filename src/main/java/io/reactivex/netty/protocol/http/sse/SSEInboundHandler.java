@@ -23,6 +23,7 @@ import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
@@ -37,6 +38,12 @@ import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
  * In this case, the {@link ServerSentEventDecoder} is inserted as the first handler in the pipeline. This makes the
  * {@link ByteBuf} at the origin to be converted to {@link SSEEvent} and hence any other handler will not look at this
  * message unless it is really interested.
+ * <h3>Caveat</h3>
+ * In some cases where any message is buffered before this pipeline change is made by this handler (i.e. adding
+ * {@link ServerSentEventDecoder} as the first handler), the {@link ServerSentEventDecoder} will not be applied to those
+ * messages. For this reason we also add {@link ServerSentEventDecoder} after this handler. In cases, where the first
+ * {@link ServerSentEventDecoder} is applied on the incoming data, the next instance of {@link ServerSentEventDecoder}
+ * will be redundant.
  *
  * <h1>No HTTP protocol</h1>
  * In this case, the handler does not do anything, assuming that there is no special handling required.
@@ -47,6 +54,11 @@ public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
 
     public static final String NAME = "sse-handler";
     public static final String SSE_DECODER_HANDLER_NAME = "sse-decoder";
+    public static final String SSE_DECODER_POST_INBOUND_HANDLER = "sse-decoder-post-inbound";
+
+    public SSEInboundHandler() {
+        super(false); // Never auto-release, management of buffer is done via {@link ObservableAdapter}
+    }
 
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Object msg)
@@ -55,10 +67,40 @@ public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
             ChannelPipeline pipeline = ctx.channel().pipeline();
             if (!HttpHeaders.isTransferEncodingChunked((HttpResponse) msg)) {
                 pipeline.addFirst(SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
+                /*
+                 * If there are buffered messages in the previous handler at the time this message is read, we would
+                 * not be able to convert the content into an SseEvent. For this reason, we also add the decoder after
+                 * this handler, so that we can handle the buffered messages.
+                 * See the class level javadoc for more details.
+                 */
+                pipeline.addAfter(NAME, SSE_DECODER_POST_INBOUND_HANDLER, new ServerSentEventDecoder());
             } else {
                 pipeline.addAfter(NAME, SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
             }
             ctx.fireChannelRead(msg);
+        } else if (msg instanceof LastHttpContent) {
+            LastHttpContent lastHttpContent = (LastHttpContent) msg;
+
+            /**
+             * The entire pipeline is set based on the assumption that LastHttpContent signals the end of the stream.
+             * Since, here we are only passing the content to the rest of the pipeline, it becomes imperative to
+             * also pass LastHttpContent as such.
+             * For this reason, we send the LastHttpContent again in the pipeline. For this event sent, the content
+             * buffer will already be read and hence will not be read again. This message serves as only containing
+             * the trailing headers.
+             * However, we need to increment the ref count of the content so that the assumptions down the line of the
+             * ByteBuf always being released by the last pipeline handler will not break (as ServerSentEventDecoder releases
+             * the ByteBuf after read).
+             */
+            lastHttpContent.content().retain(); // pseudo retain so that the last handler of the pipeline can release it.
+
+            if (lastHttpContent.content().isReadable()) {
+                ctx.fireChannelRead(lastHttpContent.content());
+            }
+
+            ctx.fireChannelRead(msg); // Since the content is already consumed above (by the SSEDecoder), this is just
+                                      // as sending just trailing headers. This is critical to mark the end of stream.
+
         } else if (msg instanceof HttpContent) {
             ctx.fireChannelRead(((HttpContent) msg).content());
         } else {

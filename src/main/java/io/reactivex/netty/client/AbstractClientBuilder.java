@@ -19,10 +19,12 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected PipelineConfigurator<O, I> pipelineConfigurator;
     protected Class<? extends SocketChannel> socketChannel;
     protected EventLoopGroup eventLoopGroup;
+    protected RxClient.ClientConfig clientConfig;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
+        clientConfig = RxClient.ClientConfig.DEFAULT_CONFIG;
     }
 
     protected AbstractClientBuilder(String host, int port) {
@@ -51,6 +53,11 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
 
     public B eventloop(EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
+        return returnBuilder();
+    }
+
+    public B config(RxClient.ClientConfig clientConfig) {
+        this.clientConfig = clientConfig;
         return returnBuilder();
     }
 

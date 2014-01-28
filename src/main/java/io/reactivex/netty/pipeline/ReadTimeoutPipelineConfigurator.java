@@ -2,6 +2,7 @@ package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
@@ -25,6 +26,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
+@ChannelHandler.Sharable
 public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Object, Object> {
 
     public static final String READ_TIMEOUT_HANDLER_NAME = "readtimeout-handler";
@@ -39,10 +41,16 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        pipeline.addFirst(READ_TIMEOUT_LIFECYCLE_MANAGER_HANDLER_NAME,
-                          new ReadTimeoutHandlerLifecycleManager());
+        pipeline.addFirst(READ_TIMEOUT_LIFECYCLE_MANAGER_HANDLER_NAME, new ReadTimeoutHandlerLifecycleManager());
     }
 
+    public static void removeTimeoutHandler(ChannelPipeline pipeline) {
+        if (pipeline.get(READ_TIMEOUT_HANDLER_NAME) != null) {
+            pipeline.remove(READ_TIMEOUT_HANDLER_NAME);
+        }
+    }
+
+    @ChannelHandler.Sharable
     private class ReadTimeoutHandlerLifecycleManager extends ChannelOutboundHandlerAdapter {
 
         @Override

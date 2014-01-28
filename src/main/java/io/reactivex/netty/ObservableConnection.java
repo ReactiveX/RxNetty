@@ -47,8 +47,8 @@ public class ObservableConnection<I, O> {
         return s;
     }
 
-    PublishSubject<I> getInputPublishSubject() {
-        return s;
+    public ChannelHandlerContext channelContext() {
+        return ctx;
     }
 
     /**

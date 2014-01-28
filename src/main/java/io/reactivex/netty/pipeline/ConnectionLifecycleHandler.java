@@ -38,13 +38,9 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
         connectObserver.onCompleted();
         if (null != responseSubject) {
             responseSubject.onCompleted();
+            ReadTimeoutPipelineConfigurator.removeTimeoutHandler(ctx.pipeline());
         }
         super.channelUnregistered(ctx);
-    }
-
-    @Override
-    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        super.channelInactive(ctx);
     }
 
     @Override
