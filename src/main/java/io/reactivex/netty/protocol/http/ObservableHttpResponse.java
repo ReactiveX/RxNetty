@@ -165,10 +165,12 @@ public class ObservableHttpResponse<T> {
             // See Class javadoc for detail about this behavior.
             if (FullHttpResponse.class.isAssignableFrom(msgClass)) {
                 headerSubject.onNext((HttpResponse) msg);
+                headerSubject.onCompleted();
                 contentSubject.onNext(msg);
                 onCompleted();
             } else if (HttpResponse.class.isAssignableFrom(msgClass)) {
                 headerSubject.onNext((HttpResponse) msg);
+                headerSubject.onCompleted();
             } else if (LastHttpContent.class.isAssignableFrom(msgClass)) {
                 LastHttpContent lastHttpContent = (LastHttpContent) msg;
                 if (lastHttpContent.content().isReadable()) { // Do not give callback for empty content.
