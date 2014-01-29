@@ -41,6 +41,10 @@ public interface RxClient<I, O> {
             return readTimeoutInMillis;
         }
 
+        public void setReadTimeoutInMillis(long readTimeoutInMillis) {
+            this.readTimeoutInMillis = readTimeoutInMillis;
+        }
+
         public boolean isReadTimeoutSet() {
             return NO_TIMEOUT != readTimeoutInMillis;
         }
@@ -55,7 +59,7 @@ public interface RxClient<I, O> {
             }
 
             public B readTimeout(int timeout, TimeUnit timeUnit) {
-                config.readTimeoutInMillis = TimeUnit.MILLISECONDS.convert(timeout, timeUnit);
+                config.setReadTimeoutInMillis(TimeUnit.MILLISECONDS.convert(timeout, timeUnit));
                 return returnBuilder();
             }
 
