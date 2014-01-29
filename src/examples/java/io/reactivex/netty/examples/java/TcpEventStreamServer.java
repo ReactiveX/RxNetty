@@ -22,14 +22,14 @@ public final class TcpEventStreamServer {
         tcpServer.start(new Action1<ObservableConnection<String, String>>() {
             @Override
             public void call(ObservableConnection<String, String> connection) {
-                getEventStream(connection).subscribe();
+                startEventStream(connection).subscribe();
             }
         });
 
         tcpServer.waitTillShutdown();
     }
 
-    private static Observable<Void> getEventStream(final ObservableConnection<String, String> connection) {
+    private static Observable<Void> startEventStream(final ObservableConnection<String, String> connection) {
         return Observable.interval(10, TimeUnit.MILLISECONDS)
                          .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
                                      @Override

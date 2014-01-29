@@ -78,6 +78,8 @@ idea {
         // include 'provided' dependencies on the classpath
         scopes.PROVIDED.plus += configurations.provided
         scopes.PROVIDED.plus += configurations.provided
+        scopes.COMPILE.plus += configurations.examples
+        scopes.RUNTIME.plus += configurations.examplesRuntime
     }
 }
 
@@ -87,6 +89,7 @@ dependencies {
     compile 'com.netflix.rxjava:rxjava-core:[0.14,)'
     // we only support Groovy in the /src/examples/ code
     examples 'org.codehaus.groovy:groovy-all:[2.1,)'
+    examplesRuntime 'com.netflix.rxjava:rxjava-groovy:[0.14,)'
     testCompile 'junit:junit:4.10'
 }
 
