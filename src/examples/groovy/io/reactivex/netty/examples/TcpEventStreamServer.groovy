@@ -18,8 +18,10 @@ package io.reactivex.netty.examples
 import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
 import io.reactivex.netty.pipeline.PipelineConfigurators
+import io.reactivex.netty.server.RxServer
 import rx.Notification
 import rx.Observable
+import rx.util.functions.Action1
 
 import java.util.concurrent.TimeUnit
 
@@ -29,18 +31,18 @@ import java.util.concurrent.TimeUnit
 class TcpEventStreamServer {
 
     public static void main(String[] args) {
-        createServer(8181).toBlockingObservable().last();
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator());
+        tcpServer.start(new Action1<ObservableConnection<String, String>>() {
+            @Override
+            public void call(ObservableConnection<String, String> connection) {
+                startEventStream(connection).subscribe();
+            }
+        });
+
+        tcpServer.waitTillShutdown();
     }
 
-    public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, PipelineConfigurators.stringMessageConfigurator())
-            .onConnect({ ObservableConnection<String, String> connection ->
-                connection.write("Hello!\n");
-                return getEventStream(connection).subscribe({});
-            }).startAndAwait();
-    }
-
-    public static Observable<Void> getEventStream(final ObservableConnection<String, String> connection) {
+    public static Observable<Void> startEventStream(final ObservableConnection<String, String> connection) {
         return Observable.interval(10, TimeUnit.MILLISECONDS)
         .flatMap({ Long interval ->
             System.out.println("Writing event: " + interval);

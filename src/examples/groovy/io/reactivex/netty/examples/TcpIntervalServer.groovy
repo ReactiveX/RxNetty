@@ -18,8 +18,10 @@ package io.reactivex.netty.examples
 import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
 import io.reactivex.netty.pipeline.PipelineConfigurators
+import io.reactivex.netty.server.RxServer
 import rx.Notification
 import rx.Observable
+import rx.util.functions.Action1
 
 import java.util.concurrent.TimeUnit
 
@@ -44,36 +46,39 @@ class TcpIntervalServer {
     }
 
     public static Observable<String> createServer(final int port) {
-        return RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator())
-        .onConnect({ ObservableConnection<String, String> connection ->
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator());
+        tcpServer.start(new Action1<ObservableConnection<String, String>>() {
+            @Override
+            public void call(ObservableConnection<String, String> connection) {
 
-            println("--- Connection Started ---")
+                println("--- Connection Started ---")
 
-            Observable<String> input = connection.getInput().map({ String m ->
-                return m.trim()
-            });
+                Observable<String> input = connection.getInput().map({ String m ->
+                    return m.trim()
+                });
 
-            // for each message we receive on the connection
-            return input.flatMap({ String msg ->
-                if (msg.startsWith("subscribe:")) {
-                    System.out.println("-------------------------------------");
-                    System.out.println("Received 'subscribe' from client so starting interval ...");
-                    return getIntervalObservable(connection).takeUntil(input.filter({ String m -> m.equals("unsubscribe:")}))
-                } else if (msg.startsWith("unsubscribe:")) {
-                    // this is here just for verbose logging
-                    System.out.println("Received 'unsubscribe' from client so stopping interval (or ignoring if nothing subscribed) ...");
-                    return Observable.empty();
-                } else {
-                    if (!(msg.isEmpty() || "unsubscribe:".equals(msg))) {
-                        connection.write("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
+                // for each message we receive on the connection
+                input.flatMap({ String msg ->
+                    if (msg.startsWith("subscribe:")) {
+                        System.out.println("-------------------------------------");
+                        System.out.println("Received 'subscribe' from client so starting interval ...");
+                        return getIntervalObservable(connection).takeUntil(input.filter({ String m -> m.equals("unsubscribe:")}))
+                    } else if (msg.startsWith("unsubscribe:")) {
+                        // this is here just for verbose logging
+                        System.out.println("Received 'unsubscribe' from client so stopping interval (or ignoring if nothing subscribed) ...");
+                        return Observable.empty();
+                    } else {
+                        if (!(msg.isEmpty() || "unsubscribe:".equals(msg))) {
+                            connection.write("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
+                        }
+                        return Observable.empty();
                     }
-                    return Observable.empty();
-                }
 
-            }).finallyDo({ println("--- Connection Closed ---") }).subscribe({});
+                }).finallyDo({ println("--- Connection Closed ---") }).subscribe({});
+            }
+        });
 
-
-        }).startAndAwait();
+        tcpServer.waitTillShutdown();
     }
 
     public static Observable<Void> getIntervalObservable(final ObservableConnection<String, String> connection) {

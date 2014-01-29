@@ -36,7 +36,7 @@ class TcpIntervalClientTakeN {
 
     def static void main(String[] args) {
 
-        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.textOnlyConfigurator())
+        RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.textOnlyConfigurator()).connect()
                 .flatMap({ ObservableConnection<String, String> connection ->
 
                     // output 10 values at intervals and receive the echo back
