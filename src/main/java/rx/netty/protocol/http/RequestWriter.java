@@ -18,7 +18,9 @@ package rx.netty.protocol.http;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.util.concurrent.DefaultPromise;
 import io.netty.util.concurrent.Future;
@@ -34,9 +36,11 @@ import io.netty.util.concurrent.Future;
  */
 class RequestWriter<T, R extends HttpRequest> {
     private final Channel channel;
+    private final HttpProtocolHandler<T> handler;
 
-    RequestWriter(Channel channel) {
+    RequestWriter(Channel channel, HttpProtocolHandler<T> handler) {
         this.channel = channel;
+        this.handler = handler;
     }
 
     Future<T> execute(R request, final RequestCompletionPromise requestCompletionPromise) {
@@ -48,8 +52,12 @@ class RequestWriter<T, R extends HttpRequest> {
                     requestCompletionPromise.tryFailure(future.cause());
                 }
             }
+        }).addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                handler.onChannelWriteOperationCompleted(future);
+            }
         });
-
         return new RequestWrittenPromise(channel, promise);
     }
 

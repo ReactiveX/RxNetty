@@ -15,9 +15,9 @@
  */
 package rx.netty.protocol.http;
 
+import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpObjectAggregator;
 import rx.netty.protocol.tcp.ProtocolHandler;
 
 
@@ -33,12 +33,13 @@ public interface HttpProtocolHandler<T> extends ProtocolHandler<Void, T> {
         }        
     };
 
-    public static final HttpProtocolHandler<FullHttpResponse> FULL_HTTP_RESPONSE_HANDLER = new HttpProtocolHandlerAdapter<FullHttpResponse>() {
-        @Override
-        public void configure(ChannelPipeline pipeline) {
-            pipeline.addAfter("http-response-decoder", "http-aggregator", new HttpObjectAggregator(Integer.MAX_VALUE));
-        }        
-    };
+    public static final HttpProtocolHandler<FullHttpResponse> FULL_HTTP_RESPONSE_HANDLER = new FullHttpResponseHandler();
     
     public void configure(ChannelPipeline pipeline);
+    
+    public void onChannelConnectOperationCompleted(ChannelFuture connectFuture);
+    
+    public void onChannelWriteOperationCompleted(ChannelFuture requestWrittenFuture);
+    
+    public void onChannelCloseOperationCompleted(ChannelFuture channelCloseFuture);
 }
