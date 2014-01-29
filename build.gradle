@@ -82,8 +82,8 @@ idea {
 }
 
 dependencies {
-    compile 'io.netty:netty-handler:4.0.9.Final'
-    compile 'io.netty:netty-codec-http:4.0.9.Final'
+    compile 'io.netty:netty-handler:4.0.14.Final'
+    compile 'io.netty:netty-codec-http:4.0.14.Final'
     compile 'com.netflix.rxjava:rxjava-core:[0.14,)'
     // we only support Groovy in the /src/examples/ code
     examples 'org.codehaus.groovy:groovy-all:[2.1,)'
