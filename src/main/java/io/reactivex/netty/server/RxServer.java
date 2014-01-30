@@ -16,6 +16,7 @@
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -83,7 +84,26 @@ public class RxServer<I, O> {
         if (!serverStateRef.compareAndSet(ServerState.Started, ServerState.Shutdown)) {
             throw new IllegalStateException("The server is already shutdown.");
         } else {
-            bindFuture.channel().close().sync();
+            try{
+                closeChannel();
+            }finally {
+                // we have to try at least once or there can be hanging thread
+                shutdownBootstrap();
+            }
+
+        }
+    }
+
+    private void shutdownBootstrap() {
+        // There are always group and child group, so we don't have to check for null values
+        bootstrap.childGroup().shutdownGracefully();
+        bootstrap.group().shutdownGracefully();
+    }
+
+    private void closeChannel() throws InterruptedException {
+        Channel ch = bindFuture.channel();
+        if(ch != null){
+            ch.close().sync();
         }
     }
 
