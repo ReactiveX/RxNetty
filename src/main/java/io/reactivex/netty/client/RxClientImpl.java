@@ -17,9 +17,12 @@ package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.pipeline.ConnectionLifecycleHandler;
+import io.reactivex.netty.pipeline.ObservableAdapter;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
@@ -75,17 +78,19 @@ public class RxClientImpl<I, O> implements RxClient<I,O> {
 
             @Override
             public Subscription onSubscribe(final Observer<? super ObservableConnection<O, I>> observer) {
+                final ObservableAdapter adapter = new ObservableAdapter();
+                final ConnectionLifecycleHandler<O, I> connectionLifeCycleHandler = new ConnectionLifecycleHandler<O, I>(observer, adapter);
                 try {
                     clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
-                            PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(observer);
+                            PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(connectionLifeCycleHandler, adapter);
                             configurator.configureNewPipeline(ch.pipeline());
                         }
                     });
 
                     // make the connection
-                    final ChannelFuture f = clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort()).sync();
+                    final ChannelFuture f = clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort()).addListener(connectionLifeCycleHandler);
 
                     // return a subscription that can shut down the connection
                     return new Subscription() {
@@ -103,8 +108,9 @@ public class RxClientImpl<I, O> implements RxClient<I,O> {
         });
     }
 
-    protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(final Observer<? super ObservableConnection<O, I>> observer) {
-        RxRequiredConfigurator<O, I> requiredConfigurator = new RxRequiredConfigurator<O, I>(observer);
+    protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(ConnectionLifecycleHandler<O, I> lifecycleHandler, 
+            ObservableAdapter observableAdapter) {
+        RxRequiredConfigurator<O, I> requiredConfigurator = new RxRequiredConfigurator<O, I>(lifecycleHandler, observableAdapter);
         return new PipelineConfiguratorComposite<I, O>(incompleteConfigurator, requiredConfigurator);
     }
 
