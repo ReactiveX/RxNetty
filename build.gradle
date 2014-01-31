@@ -78,19 +78,19 @@ idea {
         // include 'provided' dependencies on the classpath
         scopes.PROVIDED.plus += configurations.provided
         scopes.PROVIDED.plus += configurations.provided
+        scopes.COMPILE.plus += configurations.examples
+        scopes.RUNTIME.plus += configurations.examplesRuntime
     }
 }
 
 dependencies {
-    compile 'io.netty:netty-all:[4.0,5.0)'
+    compile 'io.netty:netty-handler:4.0.14.Final'
+    compile 'io.netty:netty-codec-http:4.0.14.Final'
     compile 'com.netflix.rxjava:rxjava-core:[0.14,)'
     // we only support Groovy in the /src/examples/ code
     examples 'org.codehaus.groovy:groovy-all:[2.1,)'
-    testCompile 'com.sun.jersey:jersey-server:1.11'
-    testCompile 'javax.ws.rs:jsr311-api:1.1.1' 
-    testCompile 'com.sun.jersey:jersey-core:1.11'   
+    examplesRuntime 'com.netflix.rxjava:rxjava-groovy:[0.14,)'
     testCompile 'junit:junit:4.10'
-    testCompile 'com.google.mockwebserver:mockwebserver:20130706'
 }
 
 
