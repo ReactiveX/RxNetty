@@ -15,6 +15,11 @@
  */
 package io.reactivex.netty.protocol.http;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
@@ -22,11 +27,13 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
@@ -34,13 +41,6 @@ import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.text.sse.SSEEvent;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
-import org.junit.Test;
-import rx.Observable;
-import rx.Observer;
-import rx.util.functions.Action1;
-import rx.util.functions.Func1;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -50,10 +50,15 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
+import org.junit.Test;
+
+import rx.Observable;
+import rx.Observer;
+import rx.util.functions.Action0;
+import rx.util.functions.Action1;
+import rx.util.functions.Func1;
 
 public class HttpClientTest {
     private static HttpServer<FullHttpRequest, Object> server;
@@ -79,6 +84,7 @@ public class HttpClientTest {
 
         @Override
         protected void decode(ChannelHandlerContext ctx, FullHttpResponse msg, List<Object> out) throws Exception {
+            ctx.fireChannelRead(new DefaultHttpResponse(msg.getProtocolVersion(), msg.getStatus()));
             ByteBuf buf = msg.content();
             String content = buf.toString(Charset.defaultCharset());
             out.add(content);
@@ -148,6 +154,46 @@ public class HttpClientTest {
         assertEquals(RequestProcessor.largeStreamContent, result);
         
     }
+    
+    @Test
+    public void testMultipleChunksWithTransformation() throws Exception {
+        FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "test/largeStream");
+        HttpClient<FullHttpRequest, SSEEvent> client = RxNetty.createSseClient("localhost", port);
+        Observable<ObservableHttpResponse<SSEEvent>> response = client.submit(request);
+        final List<String> result = new ArrayList<String>();
+        Observable<String> transformed = response.flatMap(new Func1<ObservableHttpResponse<SSEEvent>, Observable<String>>() {
+            @Override
+            public Observable<String> call(final ObservableHttpResponse<SSEEvent> observableResponse) {
+                Observable<HttpResponse> headerObservable = observableResponse.header();
+                return headerObservable.flatMap(new Func1<HttpResponse, Observable<String>>() {
+
+                    @Override
+                    public Observable<String> call(HttpResponse t1) {
+                        if (t1.getStatus().code() == 200) {
+                            return observableResponse.content().map(new Func1<SSEEvent, String>() {
+                                @Override
+                                public String call(SSEEvent t1) {
+                                    return t1.getEventData();
+                                }
+                                
+                            });
+                        } else {
+                            return Observable.error(new RuntimeException("Unexpected response"));
+                        }
+                    }
+                });
+            }
+        });
+        transformed.toBlockingObservable().forEach(new Action1<String>() {
+
+            @Override
+            public void call(String t1) {
+                result.add(t1);
+            }
+        });
+        assertEquals(RequestProcessor.largeStreamContent, result);
+    }
+
 
     @Test
     public void testSingleEntity() throws Exception {
@@ -227,9 +273,9 @@ public class HttpClientTest {
     @Test
     public void testConnectException() throws Exception {
         HttpClientBuilder<FullHttpRequest, FullHttpResponse> clientBuilder =
-                new HttpClientBuilder<FullHttpRequest, FullHttpResponse>("www.google.com", 81);
+                new HttpClientBuilder<FullHttpRequest, FullHttpResponse>("localhost", 8182);
         HttpClient<FullHttpRequest, FullHttpResponse> client = clientBuilder.channelOption(
-                ChannelOption.CONNECT_TIMEOUT_MILLIS, 10).build();
+                ChannelOption.CONNECT_TIMEOUT_MILLIS, 100).build();
         FullHttpRequest request = new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
         Observable<ObservableHttpResponse<FullHttpResponse>> response = client.submit(request);
         final CountDownLatch latch = new CountDownLatch(1);
@@ -237,18 +283,23 @@ public class HttpClientTest {
         response.subscribe(new Action1<ObservableHttpResponse<FullHttpResponse>>() {
             @Override
             public void call(ObservableHttpResponse<FullHttpResponse> t1) {
-                latch.countDown();
             }
-            
         }, new Action1<Throwable>() {
             @Override
             public void call(Throwable t1) {
                 ex.set(t1);
                 latch.countDown();
             }
+        }, new Action0() {
+            @Override
+            public void call() {
+                latch.countDown();
+            }
+            
         });
-        latch.await(2, TimeUnit.SECONDS);
-        assertTrue(ex.get() instanceof ConnectTimeoutException);
+        latch.await();
+        assertNotNull(ex.get());
+        assertTrue(ex.get() instanceof java.net.ConnectException);
     }
     
     @Test
@@ -280,7 +331,7 @@ public class HttpClientTest {
                 latch.countDown();
             }
         });
-        latch.await(100000, TimeUnit.SECONDS);
+        latch.await(10, TimeUnit.SECONDS);
         assertTrue(ex.get() instanceof ConnectTimeoutException);
     }
 

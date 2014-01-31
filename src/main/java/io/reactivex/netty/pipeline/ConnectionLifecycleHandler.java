@@ -15,13 +15,15 @@
  */
 package io.reactivex.netty.pipeline;
 
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.reactivex.netty.ObservableConnection;
 import rx.Observer;
 import rx.subjects.PublishSubject;
 
-public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
+public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter implements ChannelFutureListener {
 
     private final Observer<? super ObservableConnection<I, O>> connectObserver;
     private final ObservableAdapter observableAdapter;
@@ -52,5 +54,12 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
         }
         connectObserver.onNext(connection);
         super.channelActive(ctx);
+    }
+
+    @Override
+    public void operationComplete(ChannelFuture future) throws Exception {
+        if (!future.isSuccess()) {
+            connectObserver.onError(future.cause());
+        }
     }
 }

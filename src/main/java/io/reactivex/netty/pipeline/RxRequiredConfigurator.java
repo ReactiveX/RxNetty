@@ -19,17 +19,22 @@ public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<Object
     public static final String CONN_LIFECYCLE_HANDLER_NAME = "conn_lifecycle_handler";
     public static final String NETTY_OBSERVABLE_ADAPTER_NAME = "netty_observable_adapter";
 
-    private final Observer<? super ObservableConnection<I, O>> connectionObserver;
+    private final ConnectionLifecycleHandler<I, O> lifecycleHandler;
+    private final ObservableAdapter observableAdapter;
 
     public RxRequiredConfigurator(final Observer<? super ObservableConnection<I, O>> connectionObserver) {
-        this.connectionObserver = connectionObserver;
+        observableAdapter = new ObservableAdapter();
+        lifecycleHandler =  new ConnectionLifecycleHandler<I, O>(connectionObserver, observableAdapter);
+        
+    }
+
+    public RxRequiredConfigurator(ConnectionLifecycleHandler<I, O> lifecycleHandler, ObservableAdapter observableAdapter) {
+        this.lifecycleHandler = lifecycleHandler;
+        this.observableAdapter = observableAdapter;
     }
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        ObservableAdapter observableAdapter = new ObservableAdapter();
-        ConnectionLifecycleHandler<I, O> lifecycleHandler =
-                new ConnectionLifecycleHandler<I, O>(connectionObserver, observableAdapter);
         pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
         pipeline.addLast(NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
     }

@@ -155,6 +155,7 @@ public class ObservableHttpResponse<T> {
 
         @Override
         public void onCompleted() {
+            // System.err.println("onCompleted called");
             super.onCompleted();
             ReadTimeoutPipelineConfigurator.removeTimeoutHandler(context.pipeline());
         }
@@ -169,6 +170,7 @@ public class ObservableHttpResponse<T> {
                 contentSubject.onNext(msg);
                 onCompleted();
             } else if (HttpResponse.class.isAssignableFrom(msgClass)) {
+                // System.err.println("header completed called");
                 headerSubject.onNext((HttpResponse) msg);
                 headerSubject.onCompleted();
             } else if (LastHttpContent.class.isAssignableFrom(msgClass)) {
@@ -180,6 +182,7 @@ public class ObservableHttpResponse<T> {
             } else if (HttpContent.class.isAssignableFrom(msgClass)) {
                 contentSubject.onNext(msg);
             } else { // Custom object case.
+                // System.err.println("custom object onNext called");
                 contentSubject.onNext(msg);
             }
         }
