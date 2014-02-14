@@ -23,7 +23,10 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import rx.Observable;
 import rx.Observer;
+import rx.Subscriber;
 import rx.Subscription;
+import rx.subscriptions.Subscriptions;
+import rx.util.functions.Action0;
 import rx.util.functions.Action1;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpResponse<O>> implements HttpClient<I, O> {
@@ -56,19 +59,19 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
                                                  final ClientConfig config) {
         enrichRequest(request, config);
 
-        return Observable.create(new Observable.OnSubscribeFunc<HttpResponse<O>>() {
+        return Observable.create(new Observable.OnSubscribe<HttpResponse<O>>() {
             @Override
-            public Subscription onSubscribe(final Observer<? super HttpResponse<O>> observer) {
+            public void call(final Subscriber<? super HttpResponse<O>> subscriber) {
                 final Subscription connectSubscription =
-                        connectionObservable.subscribe(new ConnectObserver<I, O>(request, observer));
+                        connectionObservable.subscribe(new ConnectObserver<I, O>(request, subscriber));
 
-                return new Subscription() {
+                subscriber.add(Subscriptions.create(new Action0() {
                     @Override
-                    public void unsubscribe() {
+                    public void call() {
                         //TODO: Cancel write & if the response is not over, disconnect the channel.
                         connectSubscription.unsubscribe();
                     }
-                };
+                }));
             }
         });
     }
