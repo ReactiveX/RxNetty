@@ -1,15 +1,28 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.reactivex.netty.protocol.http;
 
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpMessage;
-import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 /**
  * An implementation of {@link PipelineConfigurator} that can be applied with an implementation of
- * {@link HttpPipelineConfigurator} so that instead of multiple events per Http request/response, they are aggregated
+ * {@link AbstractHttpConfigurator} so that instead of multiple events per Http request/response, they are aggregated
  * as a single request/response. <p/>
  *
  * @see {@link HttpObjectAggregator}
@@ -19,38 +32,21 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 public class HttpObjectAggregationConfigurator<R extends FullHttpMessage, W> implements PipelineConfigurator<R, W> {
 
     public static final String AGGREGATOR_HANDLER_NAME = "http-aggregator";
-    public static final String READ_TIMEOUT_REMOVING_HANDLER_NAME = "http-readtimout-removing-handler";
 
     public static final int DEFAULT_CHUNK_SIZE = 1048576; // 1 MB
 
     private final int maxChunkSize;
-    private final HttpPipelineConfigurator<? extends HttpObject, W> httpPipelineConfigurator;
 
-    public <I extends HttpObject> HttpObjectAggregationConfigurator(HttpPipelineConfigurator<I, W> httpConfigurator) {
-        this(DEFAULT_CHUNK_SIZE, httpConfigurator);
+    public HttpObjectAggregationConfigurator() {
+        this(DEFAULT_CHUNK_SIZE);
     }
 
-    public <I extends HttpObject> HttpObjectAggregationConfigurator(int maxChunkSize,
-                                                                    HttpPipelineConfigurator<I, W> httpConfigurator) {
-        if (null == httpConfigurator) {
-            throw new IllegalArgumentException("Http configurator can not be null.");
-        }
+    public HttpObjectAggregationConfigurator(int maxChunkSize) {
         this.maxChunkSize = maxChunkSize;
-        httpPipelineConfigurator = httpConfigurator;
     }
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        httpPipelineConfigurator.configureNewPipeline(pipeline);
-        ChannelHandlerContext completerCtx = pipeline.context(HttpServerPipelineConfigurator.FullHttpResponseCompleter.class);
-        if (completerCtx != null) {
-            pipeline.addBefore(completerCtx.name(), AGGREGATOR_HANDLER_NAME,
-                               new HttpObjectAggregator(maxChunkSize));
-        } else {
-            pipeline.addLast(AGGREGATOR_HANDLER_NAME, new HttpObjectAggregator(maxChunkSize));
-            if (HttpClientPipelineConfigurator.class.isAssignableFrom(httpPipelineConfigurator.getClass())) {
-                //pipeline.addLast(READ_TIMEOUT_REMOVING_HANDLER_NAME)
-            }
-        }
+        pipeline.addLast(AGGREGATOR_HANDLER_NAME, new HttpObjectAggregator(maxChunkSize));
     }
 }

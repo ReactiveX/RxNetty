@@ -1,12 +1,12 @@
-/**
- * Copyright 2013 Netflix, Inc.
- * 
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,9 +20,8 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
+import io.reactivex.netty.ConnectionHandler;
 import io.reactivex.netty.ObservableConnection;
-import io.reactivex.netty.pipeline.ConnectionLifecycleHandler;
-import io.reactivex.netty.pipeline.ObservableAdapter;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
@@ -32,6 +31,7 @@ import rx.Observable.OnSubscribeFunc;
 import rx.Observer;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
+import rx.util.functions.Action0;
 
 import java.util.concurrent.TimeUnit;
 
@@ -46,8 +46,9 @@ public class RxClientImpl<I, O> implements RxClient<I,O> {
     private final ServerInfo serverInfo;
     private final Bootstrap clientBootstrap;
     /**
-     * This should NOT be used directly. {@link #getPipelineConfiguratorForAChannel(Observer)} is the correct way of
-     * getting the pipeline configurator.
+     * This should NOT be used directly.
+     * {@link #getPipelineConfiguratorForAChannel(ClientConnectionHandler, PipelineConfigurator)}
+     * is the correct way of getting the pipeline configurator.
      */
     private final PipelineConfigurator<O, I> incompleteConfigurator;
     protected final ClientConfig clientConfig;
@@ -78,26 +79,28 @@ public class RxClientImpl<I, O> implements RxClient<I,O> {
 
             @Override
             public Subscription onSubscribe(final Observer<? super ObservableConnection<O, I>> observer) {
-                final ObservableAdapter adapter = new ObservableAdapter();
-                final ConnectionLifecycleHandler<O, I> connectionLifeCycleHandler = new ConnectionLifecycleHandler<O, I>(observer, adapter);
                 try {
+                    final ClientConnectionHandler clientConnectionHandler = new ClientConnectionHandler(observer);
                     clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
-                            PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(connectionLifeCycleHandler, adapter);
+                            PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
+                                                                                                         incompleteConfigurator);
                             configurator.configureNewPipeline(ch.pipeline());
                         }
                     });
 
                     // make the connection
-                    final ChannelFuture f = clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort()).addListener(connectionLifeCycleHandler);
+                    final ChannelFuture connectFuture =
+                            clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort())
+                                           .addListener(clientConnectionHandler);
 
                     // return a subscription that can shut down the connection
                     return new Subscription() {
 
                         @Override
                         public void unsubscribe() {
-                            f.channel().close(); // Async close, no need to wait for close or give any callback for failures.
+                            connectFuture.channel().close(); // Async close, no need to wait for close or give any callback for failures.
                         }
                     };
                 } catch (Throwable e) {
@@ -108,10 +111,41 @@ public class RxClientImpl<I, O> implements RxClient<I,O> {
         });
     }
 
-    protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(ConnectionLifecycleHandler<O, I> lifecycleHandler, 
-            ObservableAdapter observableAdapter) {
-        RxRequiredConfigurator<O, I> requiredConfigurator = new RxRequiredConfigurator<O, I>(lifecycleHandler, observableAdapter);
-        return new PipelineConfiguratorComposite<I, O>(incompleteConfigurator, requiredConfigurator);
+    protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(ClientConnectionHandler clientConnectionHandler,
+                                                                            PipelineConfigurator<O, I> pipelineConfigurator) {
+        RxRequiredConfigurator<O, I> requiredConfigurator = new RxRequiredConfigurator<O, I>(clientConnectionHandler);
+        return new PipelineConfiguratorComposite<I, O>(pipelineConfigurator, requiredConfigurator);
     }
 
+    protected class ClientConnectionHandler implements ConnectionHandler<O, I>, ChannelFutureListener{
+
+        private final Observer<? super ObservableConnection<O, I>> connectionObserver;
+
+        private ClientConnectionHandler(Observer<? super ObservableConnection<O, I>> connectionObserver) {
+            this.connectionObserver = connectionObserver;
+        }
+
+        @Override
+        public Observable<Void> handle(final ObservableConnection<O, I> newConnection) {
+            return Observable.create(new OnSubscribeFunc<Void>() {
+                @Override
+                public Subscription onSubscribe(Observer<? super Void> voidSub) {
+                    connectionObserver.onNext(newConnection);
+                    return Subscriptions.create(new Action0() {
+                        @Override
+                        public void call() {
+                            // TODO: How to cancel?
+                        }
+                    });
+                }
+            });
+        }
+
+        @Override
+        public void operationComplete(ChannelFuture future) throws Exception {
+            if (!future.isSuccess()) {
+                connectionObserver.onError(future.cause());
+            }
+        }
+    }
 }

@@ -1,71 +1,48 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.reactivex.netty.examples.java;
 
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.reactivex.netty.ObservableConnection;
+import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.HttpServer;
-import rx.Observer;
-import rx.util.functions.Action1;
+import io.reactivex.netty.protocol.http.server.HttpRequest;
+import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.RequestHandler;
+import rx.Observable;
+
+import java.util.Map;
 
 /**
  * @author Nitesh Kant
  */
 public final class HttpWelcomeServer {
 
-    public static void main(final String[] args) throws InterruptedException {
+    public static void main(final String[] args) {
         final int port = 8080;
 
-        HttpServer<FullHttpRequest, FullHttpResponse> server = RxNetty.createHttpServer(port);
-
-        server.start(new Action1<ObservableConnection<FullHttpRequest, FullHttpResponse>>() {
+        RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
-            public void call(final ObservableConnection<FullHttpRequest, FullHttpResponse> connection) {
-                connection.getInput().subscribe(new Observer<FullHttpRequest>() {
-
-                    @Override
-                    public void onCompleted() {
-                        System.out.println("Request/response completed.");
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        System.out.println("Error while reading request. Error: ");
-                        e.printStackTrace(System.out);
-                    }
-
-                    @Override
-                    public void onNext(FullHttpRequest httpRequest) {
-                        System.out.println("New request recieved: " + httpRequest);
-                        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
-                                                                                HttpResponseStatus.OK);
-                        response.content().writeBytes("Welcome! \n\n".getBytes());
-                        // writing to the connection is the only place where anything is remote
-                        connection.write(response).subscribe(new Observer<Void>() {
-                            @Override
-                            public void onCompleted() {
-                                System.out.println("Response write successful.");
-                            }
-
-                            @Override
-                            public void onError(Throwable e) {
-                                System.out.println("Response write failed. Error: ");
-                                e.printStackTrace(System.out);
-                            }
-
-                            @Override
-                            public void onNext(Void args) {
-                                // No op.
-                            }
-                        });
-                    }
-                });
+            public Observable<Void> handle(HttpRequest<ByteBuf> request, final HttpResponse<ByteBuf> response) {
+                System.out.println("New request recieved");
+                System.out.println(request.getHttpMethod() + " " + request.getUri() + ' ' + request.getHttpVersion());
+                for (Map.Entry<String, String> header : request.getHeaders().entries()) {
+                    System.out.println(header.getKey() + ": " + header.getValue());
+                }
+                // This does not consume request content, need to figure out an elegant/correct way of doing that.
+                return response.writeContentAndFlush("Welcome!!! \n\n");
             }
-        });
-
-        server.waitTillShutdown();
+        }).startAndWait();
     }
 }

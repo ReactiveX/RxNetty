@@ -1,17 +1,34 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.reactivex.netty.examples.java;
 
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.reactivex.netty.ObservableConnection;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.HttpServer;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.protocol.http.server.HttpRequest;
+import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import rx.Notification;
 import rx.Observable;
-import rx.Observer;
-import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
 import java.util.concurrent.TimeUnit;
@@ -21,48 +38,34 @@ import java.util.concurrent.TimeUnit;
  */
 public final class HttpSseServer {
 
-    public static void main(String[] args) throws InterruptedException {
+    public static void main(String[] args) {
         final int port = 8080;
 
-        HttpServer<FullHttpRequest, Object> httpSseServer = RxNetty.createSseServer(port);
+        RxNetty.createHttpServer(port,
+                                 new RequestHandler<ByteBuf, SSEEvent>() {
+                                     @Override
+                                     public Observable<Void> handle(HttpRequest<ByteBuf> request,
+                                                                    HttpResponse<SSEEvent> response) {
+                                         return getIntervalObservable(response);
+                                     }
+                                 }, new PipelineConfiguratorComposite<HttpRequest<ByteBuf>, HttpResponse<SSEEvent>>(new PipelineConfigurator() {
 
-        httpSseServer.start(new Action1<ObservableConnection<FullHttpRequest, Object>>() {
             @Override
-            public void call(final ObservableConnection<FullHttpRequest, Object> observableConnection) {
-                observableConnection.getInput().subscribe(new Observer<FullHttpRequest>() {
-                    @Override
-                    public void onCompleted() {
-                        System.out.println("Request/response completed.");
-                    }
-
-                    @Override
-                    public void onError(Throwable e) {
-                        System.out.println("Error while reading request. Error: ");
-                        e.printStackTrace(System.out);
-                    }
-
-                    @Override
-                    public void onNext(FullHttpRequest httpRequest) {
-                        System.out.println("New request recieved: " + httpRequest);
-                        observableConnection.write(new DefaultHttpResponse(HttpVersion.HTTP_1_1,
-                                                                           HttpResponseStatus.OK));
-                        getIntervalObservable(observableConnection).subscribe();
-                    }
-                });
+            public void configureNewPipeline(ChannelPipeline pipeline) {
+                pipeline.addFirst(new LoggingHandler(LogLevel.ERROR));
             }
-        });
-
-        httpSseServer.waitTillShutdown();
+        }, PipelineConfigurators.<ByteBuf>sseServerConfigurator())).startAndWait();
     }
 
 
-    private static Observable<Void> getIntervalObservable(final ObservableConnection<FullHttpRequest, Object> connection) {
+    private static Observable<Void> getIntervalObservable(final HttpResponse<SSEEvent> response) {
         return Observable.interval(1000, TimeUnit.MILLISECONDS)
                          .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
                              @Override
                              public Observable<Notification<Void>> call(Long interval) {
                                  System.out.println("Writing SSE event for interval: " + interval);
-                                 return connection.write(new SSEEvent("1", "data: ", String.valueOf(interval))).materialize();
+                                 return response.writeContentAndFlush(new SSEEvent("1", "data: ", String.valueOf(
+                                         interval))).materialize();
                              }
                          })
                          .takeWhile(new Func1<Notification<Void>, Boolean>() {

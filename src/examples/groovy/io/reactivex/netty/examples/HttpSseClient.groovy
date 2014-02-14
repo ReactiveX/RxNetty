@@ -1,5 +1,5 @@
-/**
- * Copyright 2013 Netflix, Inc.
+/*
+ * Copyright 2014 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,17 +15,10 @@
  */
 package io.reactivex.netty.examples
 
-import io.netty.handler.codec.http.DefaultFullHttpRequest
-import io.netty.handler.codec.http.HttpMethod
-import io.netty.handler.codec.http.HttpResponse
-import io.netty.handler.codec.http.HttpVersion
-import io.reactivex.netty.RxNetty
-import io.reactivex.netty.protocol.http.ObservableHttpResponse
-import io.reactivex.netty.protocol.text.sse.SSEEvent
-
 class HttpSseClient {
 
     public static void main(String[] args) {
+/*
 
         RxNetty.createSseClient("localhost", 8080)
                 .submit(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/hello"))
@@ -43,5 +36,6 @@ class HttpSseClient {
                 })
                 .take(10)
                 .toBlockingObservable().forEach({ println(it)});
+*/
     }
 }

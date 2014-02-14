@@ -1,42 +1,34 @@
-/**
- *
+/*
  * Copyright 2014 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- * http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
  */
 package io.reactivex.netty.protocol.http;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpContent;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.protocol.http.server.HttpRequest;
+import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.RequestHandler;
 import rx.Observable;
-import rx.util.functions.Action1;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-public class RequestProcessor implements Action1<ObservableConnection<FullHttpRequest, Object>> {
+public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
 
     public static final List<String> smallStreamContent;
 
@@ -57,37 +49,30 @@ public class RequestProcessor implements Action1<ObservableConnection<FullHttpRe
         largeStreamContent = Collections.unmodifiableList(largeStreamListLocal);
     }
     
-    public Observable<Void> handleSingleEntity(ObservableConnection<FullHttpRequest, Object> connection) {
+    public Observable<Void> handleSingleEntity(HttpResponse<ByteBuf> response) {
         byte[] responseBytes = "Hello world".getBytes();
-        DefaultFullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK,
-                                                                       connection.channelContext().alloc()
-                                                                                 .buffer(responseBytes.length)
-                                                                                 .writeBytes(responseBytes));
-        return connection.write(response);
+        return response.writeContentAndFlush(responseBytes);
     }
 
-    public Observable<Void> handleStreamWithoutChunking(ObservableConnection<FullHttpRequest, Object> connection) {
-        ByteBuf content = connection.channelContext().alloc().buffer();
-        StringBuilder contentBuilder = new StringBuilder();
+    public Observable<Void> handleStreamWithoutChunking(HttpResponse<ByteBuf> response) {
+        response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         for (String contentPart : smallStreamContent) {
-            contentBuilder.append("data:").append(contentPart).append("\n\n");
+            response.writeContent("data:");
+            response.writeContent(contentPart);
+            response.writeContent("\n\n");
         }
-        content.writeBytes(contentBuilder.toString().getBytes());
-        DefaultFullHttpResponse header = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK, content);
-        header.headers().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
-        return connection.write(header);
+        return response.flush();
     }
 
-    public Observable<Void> handleStream(ObservableConnection<FullHttpRequest, Object> connection) {
-        return sendStreamingResponse(connection, smallStreamContent);
+    public Observable<Void> handleStream(HttpResponse<ByteBuf> response) {
+        return sendStreamingResponse(response, smallStreamContent);
     }
 
-    public Observable<Void> handleLargeStream(ObservableConnection<FullHttpRequest, Object> connection) {
-        return sendStreamingResponse(connection, largeStreamContent);
+    public Observable<Void> handleLargeStream(HttpResponse<ByteBuf> response) {
+        return sendStreamingResponse(response, largeStreamContent);
     }
 
-    public Observable<Void> simulateTimeout(FullHttpRequest httpRequest,
-                                            final ObservableConnection<FullHttpRequest, Object> connection) {
+    public Observable<Void> simulateTimeout(HttpRequest<ByteBuf> httpRequest, HttpResponse<ByteBuf> response) {
         String uri = httpRequest.getUri();
         QueryStringDecoder decoder = new QueryStringDecoder(uri);
         List<String> timeout = decoder.parameters().get("timeout");
@@ -105,46 +90,38 @@ public class RequestProcessor implements Action1<ObservableConnection<FullHttpRe
             status = HttpResponseStatus.BAD_REQUEST;
             contentBytes = "Please provide a timeout parameter.".getBytes();
         }
-        ByteBuf content = connection.channelContext().alloc().buffer(contentBytes.length)
-                                    .writeBytes(contentBytes);
-        return connection.write(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, status, content));
+
+        response.setStatus(status);
+        return response.writeContentAndFlush(contentBytes);
     }
 
-    private static Observable<Void> sendStreamingResponse(ObservableConnection<FullHttpRequest, Object> connection,
-                                                          List<String> data) {
-        HttpResponse header = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        header.headers().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
-        header.headers().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
-        connection.write(header);
+    private static Observable<Void> sendStreamingResponse(HttpResponse<ByteBuf> response, List<String> data) {
+        response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
+        response.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
         for (String line : data) {
             byte[] contentBytes = ("data:" + line + "\n\n").getBytes();
-            connection.write(new DefaultHttpContent(connection.channelContext().alloc().buffer(contentBytes.length)
-                                                              .writeBytes(contentBytes)));
+            response.writeContent(contentBytes);
         }
 
-        return connection.write(new DefaultLastHttpContent());
+        return response.flush();
     }
 
     @Override
-    public void call(final ObservableConnection<FullHttpRequest, Object> connection) {
-        connection.getInput().subscribe(new Action1<FullHttpRequest>() {
-            @Override
-            public void call(FullHttpRequest httpRequest) {
-                String uri = httpRequest.getUri();
-                if (uri.startsWith("test/singleEntity")) {
-                    handleSingleEntity(connection);
-                } else if (uri.startsWith("test/stream")) {
-                    handleStream(connection);
-                } else if (uri.startsWith("test/nochunk_stream")) {
-                    handleStreamWithoutChunking(connection);
-                } else if (uri.startsWith("test/largeStream")) {
-                    handleLargeStream(connection);
-                } else if (uri.startsWith("test/timeout")) {
-                    simulateTimeout(httpRequest, connection);
-                } else {
-                    connection.write(new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND));
-                }
-            }
-        });
+    public Observable<Void> handle(HttpRequest<ByteBuf> request, HttpResponse<ByteBuf> response) {
+        String uri = request.getUri();
+        if (uri.startsWith("test/singleEntity")) {
+            return handleSingleEntity(response);
+        } else if (uri.startsWith("test/stream")) {
+            return handleStream(response);
+        } else if (uri.startsWith("test/nochunk_stream")) {
+            return handleStreamWithoutChunking(response);
+        } else if (uri.startsWith("test/largeStream")) {
+            return handleLargeStream(response);
+        } else if (uri.startsWith("test/timeout")) {
+            return simulateTimeout(request, response);
+        } else {
+            response.setStatus(HttpResponseStatus.NOT_FOUND);
+            return response.flush();
+        }
     }
 }

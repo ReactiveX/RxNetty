@@ -1,31 +1,27 @@
-package io.reactivex.netty.protocol.http;
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reactivex.netty.protocol.http.client;
 
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpClientCodec;
-import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.protocol.http.AbstractHttpConfigurator;
 
 /**
  * An implementation of {@link PipelineConfigurator} to configure the pipeline for an HTTP client. <br/>
- * This will configure the pipeline that will produce the following events:
- *
- * <h2>Request</h2>
- * <ul>
- <li>One {@link HttpRequest} object.</li>
- <li>Zero or more {@link HttpContent} object</li>
- <li>One {@link LastHttpContent} object.</li>
- </ul>
- *
- * <h2>Response</h2>
- * <ul>
- <li>One {@link HttpResponse} object.</li>
- <li>Zero or more {@link HttpContent} object</li>
- <li>One {@link LastHttpContent} object.</li>
- </ul>
  *
  * <h2>Configuration parameters</h2>
  * This class provides all the configuration options provided by {@link HttpClientCodec}, with the following defaults:<br/>
@@ -56,16 +52,14 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  * </tr>
  * </table>
  *
- * @param <W> The request object type.
- * @param <R> The response object type.
- *
  * @see {@link HttpClientCodec}
  *
  * @author Nitesh Kant
  */
-public class HttpClientPipelineConfigurator<W extends HttpObject, R>
-        extends HttpPipelineConfigurator<R, W> {
+public class HttpClientPipelineConfigurator<I, O> extends AbstractHttpConfigurator
+        implements PipelineConfigurator<HttpResponse<O>, HttpRequest<I>> {
 
+    public static final String REQUEST_RESPONSE_CONVERTER_HANDLER_NAME = "request-response-converter";
     public static final String HTTP_CODEC_HANDLER_NAME = "http-client-codec";
 
     public static final boolean FAIL_ON_MISSING_RESPONSE_DEFAULT = true;
@@ -93,11 +87,11 @@ public class HttpClientPipelineConfigurator<W extends HttpObject, R>
         this.failOnMissingResponse = failOnMissingResponse;
     }
 
-
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
         pipeline.addLast(HTTP_CODEC_HANDLER_NAME,
                          new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize, failOnMissingResponse,
                                              validateHeaders));
+        pipeline.addLast(REQUEST_RESPONSE_CONVERTER_HANDLER_NAME, new ClientRequestResponseConverter());
     }
 }

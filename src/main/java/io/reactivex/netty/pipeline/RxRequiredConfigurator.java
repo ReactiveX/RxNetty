@@ -1,9 +1,23 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelPipeline;
-import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.ConnectionHandler;
 import rx.Observable;
-import rx.Observer;
 
 /**
  * An implementation of {@link PipelineConfigurator} which is ALWAYS added at the end of the pipeline. This
@@ -19,22 +33,22 @@ public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<Object
     public static final String CONN_LIFECYCLE_HANDLER_NAME = "conn_lifecycle_handler";
     public static final String NETTY_OBSERVABLE_ADAPTER_NAME = "netty_observable_adapter";
 
-    private final ConnectionLifecycleHandler<I, O> lifecycleHandler;
-    private final ObservableAdapter observableAdapter;
+    private final ConnectionHandler<I, O> connectionHandler;
 
-    public RxRequiredConfigurator(final Observer<? super ObservableConnection<I, O>> connectionObserver) {
-        observableAdapter = new ObservableAdapter();
-        lifecycleHandler =  new ConnectionLifecycleHandler<I, O>(connectionObserver, observableAdapter);
-        
-    }
-
-    public RxRequiredConfigurator(ConnectionLifecycleHandler<I, O> lifecycleHandler, ObservableAdapter observableAdapter) {
-        this.lifecycleHandler = lifecycleHandler;
-        this.observableAdapter = observableAdapter;
+    public RxRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler) {
+        this.connectionHandler = connectionHandler;
     }
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
+
+        /**
+         * This method is called for each new connection & the following two channel handlers are not shareable, so
+         * we need to create a new instance every time.
+         */
+        ObservableAdapter observableAdapter = new ObservableAdapter();
+        ConnectionLifecycleHandler<I, O> lifecycleHandler =
+                new ConnectionLifecycleHandler<I, O>(connectionHandler, observableAdapter);
         pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
         pipeline.addLast(NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
     }

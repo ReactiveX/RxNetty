@@ -1,36 +1,42 @@
-package io.reactivex.netty.protocol.http;
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reactivex.netty.protocol.http.server;
 
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelPromise;
-import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMessage;
-import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
-import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
+import io.reactivex.netty.protocol.http.AbstractHttpConfigurator;
 
 /**
  * An implementation of {@link PipelineConfigurator} to configure the pipeline for an HTTP server. <br/>
- * This will configure the pipeline that will produce the following events:
+ * This will configure the pipeline that will produce/consume the following events:
  *
- * <h2>Request</h2>
+ * <h2>Produce</h2>
  * <ul>
  <li>One {@link HttpRequest} object.</li>
  <li>Zero or more {@link HttpContent} object</li>
  <li>One {@link LastHttpContent} object.</li>
  </ul>
  *
- * <h2>Response</h2>
+ * <h2>Consume</h2>
  * <ul>
  <li>One {@link HttpResponse} object.</li>
  <li>Zero or more {@link HttpContent} object</li>
@@ -62,21 +68,17 @@ import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_LENGTH;
  * </tr>
  * </table>
  *
- * @param <R> The request type for the server.
- * @param <W> The response type for the server.
- *
- *
  * @see {@link HttpRequestDecoder}
  * @see {@link HttpResponseEncoder}
  *
  * @author Nitesh Kant
  */
-public class HttpServerPipelineConfigurator<R extends HttpObject, W>
-        extends HttpPipelineConfigurator<R, W> {
+public class HttpServerPipelineConfigurator<I, O> extends AbstractHttpConfigurator
+        implements PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpRequest<I>,
+        io.reactivex.netty.protocol.http.server.HttpResponse<O>> {
 
     public static final String HTTP_REQUEST_DECODER_HANDLER_NAME = "http-request-decoder";
     public static final String HTTP_RESPONSE_ENCODER_HANDLER_NAME = "http-response-encoder";
-    public static final String FULL_HTTP_RESPONSE_COMPLETER_HANDLER_NAME = "full_http_response_completer";
 
     public HttpServerPipelineConfigurator() {
         this(MAX_INITIAL_LINE_LENGTH_DEFAULT, MAX_CHUNK_SIZE_DEFAULT, MAX_HEADER_SIZE_DEFAULT);
@@ -96,31 +98,5 @@ public class HttpServerPipelineConfigurator<R extends HttpObject, W>
         pipeline.addLast(HTTP_REQUEST_DECODER_HANDLER_NAME, new HttpRequestDecoder(maxInitialLineLength, maxHeaderSize,
                                                                                    maxChunkSize, validateHeaders));
         pipeline.addLast(HTTP_RESPONSE_ENCODER_HANDLER_NAME, new HttpResponseEncoder());
-        pipeline.addLast(FULL_HTTP_RESPONSE_COMPLETER_HANDLER_NAME, new FullHttpResponseCompleter());
-    }
-
-    static class FullHttpResponseCompleter extends ChannelDuplexHandler {
-
-        private boolean keepAlive;
-
-        @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            if (HttpRequest.class.isAssignableFrom(msg.getClass())) {
-                keepAlive = HttpHeaders.isKeepAlive((HttpMessage) msg);
-            }
-            super.channelRead(ctx, msg);
-        }
-
-        @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (FullHttpResponse.class.isAssignableFrom(msg.getClass())) {
-                FullHttpResponse httpResponse = (FullHttpResponse) msg;
-                if (keepAlive) {
-                    httpResponse.headers().set(CONTENT_LENGTH, httpResponse.content().readableBytes());
-                    httpResponse.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-                }
-            }
-            super.write(ctx, msg, promise);
-        }
     }
 }
