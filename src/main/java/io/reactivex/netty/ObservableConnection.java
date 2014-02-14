@@ -20,9 +20,8 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
-import rx.Observable.OnSubscribeFunc;
-import rx.Observer;
-import rx.Subscription;
+import rx.Observable.OnSubscribe;
+import rx.Subscriber;
 import rx.subjects.PublishSubject;
 import rx.subscriptions.Subscriptions;
 import rx.util.functions.Action0;
@@ -43,20 +42,14 @@ public class ObservableConnection<I, O> {
      */
     private static final IllegalStateException CHANNEL_ALREADY_CLOSED_EXCEPTION = new IllegalStateException("Channel already closed.");
 
-    public static final Subscription DO_NOTHING_SUBSCRIPTION = Subscriptions.create(new Action0() {
-        @Override
-        public void call() { }
-    });
-
     /**
      * Since, there isn't any state here in this observable, this is a static constant.
      */
     public static final Observable<Void> WRITE_WHEN_CONNECTION_CLOSED_OBSERVABLE = Observable.create(
-            new OnSubscribeFunc<Void>() {
+            new OnSubscribe<Void>() {
                 @Override
-                public Subscription onSubscribe(Observer<? super Void> observer) {
+                public void call(Subscriber<? super Void> observer) {
                     observer.onError(CHANNEL_ALREADY_CLOSED_EXCEPTION);
-                    return DO_NOTHING_SUBSCRIPTION;
                 }
             });
 
@@ -81,9 +74,9 @@ public class ObservableConnection<I, O> {
 
         final ChannelFuture f = ctx.writeAndFlush(msg);
 
-        Observable<Void> o = Observable.create(new OnSubscribeFunc<Void>() {
+        Observable<Void> o = Observable.create(new OnSubscribe<Void>() {
             @Override
-            public Subscription onSubscribe(final Observer<? super Void> observer) {
+            public void call(final Subscriber<? super Void> observer) {
                 f.addListener(new ChannelFutureListener() {
 
                     @Override
@@ -96,12 +89,12 @@ public class ObservableConnection<I, O> {
                     }
                 });
 
-                return Subscriptions.create(new Action0() {
+                observer.add(Subscriptions.create(new Action0() {
                     @Override
                     public void call() {
                         f.cancel(true);
                     }
-                });
+                }));
             }
         });
 
