@@ -1,24 +1,27 @@
-package io.reactivex.netty.protocol.http;
+package io.reactivex.netty.protocol.http.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.handler.codec.http.HttpRequest;
 import io.reactivex.netty.client.AbstractClientBuilder;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 
 /**
+ * @param <I> The type of the content of request.
+ * @param <O> The type of the content of response.
+ *
  * @author Nitesh Kant
  */
-public class HttpClientBuilder<I extends HttpRequest, O>
-        extends AbstractClientBuilder<I, O, HttpClientBuilder<I, O>, HttpClient<I, O>> {
+public class HttpClientBuilder<I, O>
+        extends AbstractClientBuilder<HttpRequest<I>, HttpResponse<O>, HttpClientBuilder<I, O>, HttpClient<I, O>> {
 
     public HttpClientBuilder(String host, int port) {
         super(host, port);
         clientConfig = HttpClient.HttpClientConfig.DEFAULT_CONFIG;
-        pipelineConfigurator(new HttpClientPipelineConfigurator<I, O>());
+        pipelineConfigurator(PipelineConfigurators.<I, O>httpClientConfigurator());
     }
 
     public HttpClientBuilder(Bootstrap bootstrap, String host, int port) {
         super(bootstrap, host, port);
-        pipelineConfigurator(new HttpClientPipelineConfigurator<I, O>());
+        pipelineConfigurator(PipelineConfigurators.<I, O>httpClientConfigurator());
     }
 
     @Override

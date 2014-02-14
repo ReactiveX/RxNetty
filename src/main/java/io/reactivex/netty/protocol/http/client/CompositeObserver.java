@@ -1,4 +1,4 @@
-package io.reactivex.netty.protocol.http;
+package io.reactivex.netty.protocol.http.client;
 
 import rx.Observer;
 

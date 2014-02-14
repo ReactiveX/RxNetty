@@ -1,12 +1,9 @@
 package io.reactivex.netty.protocol.http;
 
-import io.reactivex.netty.pipeline.PipelineConfigurator;
-
 /**
  * @author Nitesh Kant
  */
-public abstract class HttpPipelineConfigurator<R, W>
-        implements PipelineConfigurator<R, W> {
+public abstract class AbstractHttpConfigurator {
 
     public static final int MAX_INITIAL_LINE_LENGTH_DEFAULT = 4096;
     public static final int MAX_HEADER_SIZE_DEFAULT = 8192;
@@ -17,7 +14,7 @@ public abstract class HttpPipelineConfigurator<R, W>
     protected final int maxChunkSize;
     protected final boolean validateHeaders;
 
-    protected HttpPipelineConfigurator(int maxInitialLineLength, int maxChunkSize, int maxHeaderSize,
+    protected AbstractHttpConfigurator(int maxInitialLineLength, int maxChunkSize, int maxHeaderSize,
                                        boolean validateHeaders) {
         this.maxInitialLineLength = maxInitialLineLength;
         this.validateHeaders = validateHeaders;

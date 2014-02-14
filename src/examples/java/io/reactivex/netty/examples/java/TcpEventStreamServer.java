@@ -1,13 +1,12 @@
 package io.reactivex.netty.examples.java;
 
+import io.reactivex.netty.ConnectionHandler;
 import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.server.RxServer;
 import rx.Notification;
 import rx.Observable;
 import rx.util.functions.Action0;
-import rx.util.functions.Action1;
 import rx.util.functions.Func1;
 
 import java.util.concurrent.TimeUnit;
@@ -17,16 +16,14 @@ import java.util.concurrent.TimeUnit;
  */
 public final class TcpEventStreamServer {
 
-    public static void main(String[] args) throws InterruptedException {
-        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator());
-        tcpServer.start(new Action1<ObservableConnection<String, String>>() {
-            @Override
-            public void call(ObservableConnection<String, String> connection) {
-                startEventStream(connection).subscribe();
-            }
-        });
-
-        tcpServer.waitTillShutdown();
+    public static void main(String[] args) {
+        RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator(),
+                                new ConnectionHandler<String, String>() {
+                                    @Override
+                                    public Observable<Void> handle(ObservableConnection<String, String> newConnection) {
+                                        return startEventStream(newConnection);
+                                    }
+                                }).startAndWait();
     }
 
     private static Observable<Void> startEventStream(final ObservableConnection<String, String> connection) {
@@ -38,7 +35,7 @@ public final class TcpEventStreamServer {
                                          System.out.println(
                                                  "Writing event: "
                                                  + interval);
-                                         return connection.write(
+                                         return connection.writeAndFlush(
                                                  "data: {\"type\":\"Command\",\"name\":\"GetAccount\",\"currentTime\":1376957348166,\"errorPercentage\":0,\"errorCount\":0,\"requestCount\":"
                                                  + interval + "}\n")
                                                           .materialize();

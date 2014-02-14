@@ -25,7 +25,7 @@ class TcpEchoServer {
 
     def static void main(String[] args) {
 
-        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator());
+        RxServer<String, String> tcpServer = RxNetty.createTcpServer(8181, PipelineConfigurators.textOnlyConfigurator(), null);
         tcpServer.start(new Action1<ObservableConnection<String, String>>() {
             @Override
             void call(ObservableConnection<String, String> connection) {

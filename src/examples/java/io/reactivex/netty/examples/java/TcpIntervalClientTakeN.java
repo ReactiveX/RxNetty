@@ -28,7 +28,7 @@ public final class TcpIntervalClientTakeN {
             @Override
             public Observable<String> call(ObservableConnection<String, ByteBuf> connection) {
                 ByteBuf request = Unpooled.copiedBuffer("subscribe:".getBytes());
-                Observable<String> subscribeWrite = connection.write(request).map(new Func1<Void, String>() {
+                Observable<String> subscribeWrite = connection.writeAndFlush(request).map(new Func1<Void, String>() {
                     @Override
                     public String call(Void aVoid) {
                         return "";

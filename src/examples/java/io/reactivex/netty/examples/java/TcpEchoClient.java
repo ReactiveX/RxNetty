@@ -40,7 +40,7 @@ public final class TcpEchoClient {
                                   .flatMap(new Func1<Long, Observable<String>>() {
                                       @Override
                                       public Observable<String> call(Long aLong) {
-                                          return connection.write(String.valueOf(aLong + 1))
+                                          return connection.writeAndFlush(String.valueOf(aLong + 1))
                                                            .map(new Func1<Void, String>() {
                                                                @Override
                                                                public String call(Void aVoid) {

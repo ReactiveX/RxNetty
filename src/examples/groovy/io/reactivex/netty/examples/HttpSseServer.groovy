@@ -6,7 +6,7 @@ import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.HttpVersion
 import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
-import io.reactivex.netty.protocol.http.HttpServer
+import io.reactivex.netty.protocol.http.server.HttpServer
 import io.reactivex.netty.protocol.text.sse.SSEEvent
 import rx.Notification
 import rx.util.functions.Action1
@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit
 class HttpSseServer {
 
     public static void main(String[] args) {
-        HttpServer<FullHttpRequest, Object> server = RxNetty.createSseServer(8080)
+        HttpServer<FullHttpRequest, Object> server = RxNetty.createSseServer(8080, null)
         server.start(new Action1<ObservableConnection<FullHttpRequest, Object>>() {
             @Override
             void call(ObservableConnection<FullHttpRequest, Object> connection) {

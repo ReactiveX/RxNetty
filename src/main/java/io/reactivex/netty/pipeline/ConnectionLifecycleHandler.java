@@ -15,51 +15,40 @@
  */
 package io.reactivex.netty.pipeline;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.reactivex.netty.ConnectionHandler;
 import io.reactivex.netty.ObservableConnection;
-import rx.Observer;
 import rx.subjects.PublishSubject;
 
-public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter implements ChannelFutureListener {
+public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
 
-    private final Observer<? super ObservableConnection<I, O>> connectObserver;
+    private final ConnectionHandler<I, O> connectionHandler;
     private final ObservableAdapter observableAdapter;
-    private PublishSubject<I> responseSubject;
+    private PublishSubject<I> inputSubject;
+    private ObservableConnection<I,O> connection;
 
-    public ConnectionLifecycleHandler(final Observer<? super ObservableConnection<I, O>> connectObserver,
-                                      final ObservableAdapter observableAdapter) {
-        this.connectObserver = connectObserver;
+    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableAdapter observableAdapter) {
+        this.connectionHandler = connectionHandler;
         this.observableAdapter = observableAdapter;
     }
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        connectObserver.onCompleted();
-        if (null != responseSubject) {
-            responseSubject.onCompleted();
-            ReadTimeoutPipelineConfigurator.removeTimeoutHandler(ctx.pipeline());
+        if (null != connection) {
+            connection.close();
         }
         super.channelUnregistered(ctx);
     }
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        responseSubject = PublishSubject.create();
-        ObservableConnection<I, O> connection = new ObservableConnection<I, O>(ctx, responseSubject);
+        inputSubject = PublishSubject.create();
+        connection = new ObservableConnection<I, O>(ctx, inputSubject);
         if (null != observableAdapter) {
-            observableAdapter.activate(responseSubject);
+            observableAdapter.activate(inputSubject);
         }
-        connectObserver.onNext(connection);
         super.channelActive(ctx);
-    }
-
-    @Override
-    public void operationComplete(ChannelFuture future) throws Exception {
-        if (!future.isSuccess()) {
-            connectObserver.onError(future.cause());
-        }
+        connectionHandler.handle(connection).subscribe();// TODO: Manage currently processing connections pool
     }
 }

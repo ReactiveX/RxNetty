@@ -41,7 +41,7 @@ public interface RxClient<I, O> {
             return readTimeoutInMillis;
         }
 
-        public void setReadTimeoutInMillis(long readTimeoutInMillis) {
+        void setReadTimeoutInMillis(long readTimeoutInMillis) {
             this.readTimeoutInMillis = readTimeoutInMillis;
         }
 

@@ -6,6 +6,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.reactivex.netty.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 /**
@@ -16,18 +17,24 @@ public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilde
 
     protected final int port;
     protected final ServerBootstrap serverBootstrap;
+    protected final ConnectionHandler<I, O> connectionHandler;
     protected Class<? extends ServerChannel> serverChannelClass;
     protected PipelineConfigurator<I, O> pipelineConfigurator;
 
-    protected AbstractServerBuilder(int port) {
-        serverBootstrap = new ServerBootstrap();
-        this.port = port;
-        serverChannelClass = NioServerSocketChannel.class;
+    protected AbstractServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
+        this(port, connectionHandler, new ServerBootstrap());
     }
 
-    protected AbstractServerBuilder(ServerBootstrap bootstrap, int port) {
+    protected AbstractServerBuilder(int port, ConnectionHandler<I, O> connectionHandler, ServerBootstrap bootstrap) {
+        if (null == connectionHandler) {
+            throw new IllegalArgumentException("Connection handler can not be null");
+        }
+        if (null == bootstrap) {
+            throw new IllegalArgumentException("Server bootstrap can not be null");
+        }
         serverBootstrap = bootstrap;
         this.port = port;
+        this.connectionHandler = connectionHandler;
         serverChannelClass = NioServerSocketChannel.class;
     }
 

@@ -15,19 +15,17 @@
  */
 package io.reactivex.netty;
 
-import io.netty.handler.codec.http.FullHttpRequest;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpObject;
-import io.netty.handler.codec.http.HttpRequest;
+import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.protocol.http.HttpClient;
-import io.reactivex.netty.protocol.http.HttpClientBuilder;
-import io.reactivex.netty.protocol.http.HttpServer;
-import io.reactivex.netty.protocol.http.HttpServerBuilder;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
+import io.reactivex.netty.protocol.http.client.HttpClient;
+import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
+import io.reactivex.netty.protocol.http.server.HttpRequest;
+import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.HttpServer;
+import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
+import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
 
@@ -36,44 +34,32 @@ public final class RxNetty {
     private RxNetty() {
     }
 
-    public static <I, O> RxServer<I, O> createTcpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator) {
-        return new ServerBuilder<I, O>(port).pipelineConfigurator(pipelineConfigurator).build();
+    public static <I, O> RxServer<I, O> createTcpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
+                                                        ConnectionHandler<I, O> connectionHandler) {
+        return new ServerBuilder<I, O>(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
     }
 
-    public static <I, O> RxClient<I, O> createTcpClient(String host, int port, PipelineConfigurator<O, I> handler) {
-        return new ClientBuilder<I, O>(host, port).pipelineConfigurator(handler).build();
+    public static <I, O> RxClient<I, O> createTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
+        return new ClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
     }
 
-    public static HttpServer<FullHttpRequest, FullHttpResponse> createHttpServer(int port) {
-        return createHttpServer(port, PipelineConfigurators.fullHttpMessageServerConfigurator());
+    public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
+        return new HttpServerBuilder<ByteBuf, ByteBuf>(port, requestHandler).build();
     }
 
-    public static HttpClient<FullHttpRequest, FullHttpResponse> createHttpClient(String host, int port) {
-        return createHttpClient(host, port, PipelineConfigurators.fullHttpMessageClientConfigurator());
+    public static HttpClient<ByteBuf, ByteBuf> createHttpClient(String host, int port) {
+        return new HttpClientBuilder<ByteBuf, ByteBuf>(host, port).build();
     }
 
-    public static <I extends HttpObject, O> HttpServer<I, O> createStreamingHttpServer(int port) {
-        return new HttpServerBuilder<I, O>(port).build();
+    public static <I, O> HttpServer<I, O> createHttpServer(int port,
+                                                           RequestHandler<I, O> requestHandler,
+                                                           PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> configurator) {
+        return new HttpServerBuilder<I, O>(port, requestHandler).pipelineConfigurator(configurator).build();
     }
 
-    public static <O extends HttpObject> HttpClient<FullHttpRequest, O> createStreamingHttpClient(String host, int port) {
-        return new HttpClientBuilder<FullHttpRequest, O>(host, port).build();
-    }
-
-    public static <I extends HttpObject, O> HttpServer<I, O> createHttpServer(int port, PipelineConfigurator<I, O> pipelineConfigurator) {
-        return new HttpServerBuilder<I, O>(port).pipelineConfigurator(pipelineConfigurator).build();
-    }
-
-    public static <I extends HttpRequest, O> HttpClient<I, O> createHttpClient(String host, int port,
-                                                                               PipelineConfigurator<O, I> pipelineConfigurator) {
-        return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(pipelineConfigurator).build();
-    }
-
-    public static HttpServer<FullHttpRequest, Object> createSseServer(int port) {
-        return createHttpServer(port, PipelineConfigurators.sseServerConfigurator());
-    }
-
-    public static HttpClient<FullHttpRequest, SSEEvent> createSseClient(String host, int port) {
-        return createHttpClient(host, port, PipelineConfigurators.sseClientConfigurator());
+    public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
+                                                           PipelineConfigurator<io.reactivex.netty.protocol.http.client.HttpResponse<O>,
+                                                                                io.reactivex.netty.protocol.http.client.HttpRequest<I>> configurator) {
+        return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
     }
 }

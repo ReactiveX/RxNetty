@@ -1,14 +1,18 @@
-package io.reactivex.netty.protocol.http;
+package io.reactivex.netty.protocol.http.client;
 
-import io.netty.handler.codec.http.HttpRequest;
 import io.reactivex.netty.client.RxClient;
 import rx.Observable;
 
-public interface HttpClient<I extends HttpRequest, O> extends RxClient<I, O>{
+/**
+ *
+ * @param <I> The type of the content of request.
+ * @param <O> The type of the content of response.
+ */
+public interface HttpClient<I, O> extends RxClient<HttpRequest<I>, HttpResponse<O>>{
 
-    Observable<ObservableHttpResponse<O>> submit(I request);
+    Observable<HttpResponse<O>> submit(HttpRequest<I> request);
 
-    Observable<ObservableHttpResponse<O>> submit(I request, ClientConfig config);
+    Observable<HttpResponse<O>> submit(HttpRequest<I> request, ClientConfig config);
 
     /**
      * A configuration to be used for this client.
