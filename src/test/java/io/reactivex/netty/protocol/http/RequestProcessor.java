@@ -51,15 +51,15 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     
     public Observable<Void> handleSingleEntity(HttpResponse<ByteBuf> response) {
         byte[] responseBytes = "Hello world".getBytes();
-        return response.writeContentAndFlush(responseBytes);
+        return response.writeAndFlush(responseBytes);
     }
 
     public Observable<Void> handleStreamWithoutChunking(HttpResponse<ByteBuf> response) {
         response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         for (String contentPart : smallStreamContent) {
-            response.writeContent("data:");
-            response.writeContent(contentPart);
-            response.writeContent("\n\n");
+            response.write("data:");
+            response.write(contentPart);
+            response.write("\n\n");
         }
         return response.flush();
     }
@@ -92,7 +92,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         }
 
         response.setStatus(status);
-        return response.writeContentAndFlush(contentBytes);
+        return response.writeAndFlush(contentBytes);
     }
 
     private static Observable<Void> sendStreamingResponse(HttpResponse<ByteBuf> response, List<String> data) {
@@ -100,7 +100,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         response.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
         for (String line : data) {
             byte[] contentBytes = ("data:" + line + "\n\n").getBytes();
-            response.writeContent(contentBytes);
+            response.write(contentBytes);
         }
 
         return response.flush();
