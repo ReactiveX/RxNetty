@@ -67,7 +67,8 @@ public class HttpServer<I, O> extends RxServer<HttpRequest<I>, HttpResponse<O>> 
                     return requestHandler.handle(newRequest, response).onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
                         @Override
                         public Observable<Void> call(Throwable throwable) {
-                            System.out.println("Error occured in request handling. Error: ");
+                            System.err.println("Error occured in request handling. Error: ");
+                            throwable.printStackTrace(System.err);
                             return null;
                         }
                     }).finallyDo(new Action0() {
