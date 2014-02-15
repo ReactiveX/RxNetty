@@ -69,38 +69,38 @@ public class HttpResponse<T> {
         nettyResponse.setStatus(status);
     }
 
-    public Observable<Void> writeContentAndFlush(final T content) {
+    public Observable<Void> writeAndFlush(final T content) {
         return writeOnChannelAndFlush(content);
     }
 
-    public <R> Observable<Void> writeContentAndFlush(final R content, final ContentTransformer<R> transformer) {
+    public <R> Observable<Void> writeAndFlush(final R content, final ContentTransformer<R> transformer) {
         ByteBuf contentBytes = transformer.transform(content, getAllocator());
         return writeOnChannelAndFlush(contentBytes);
     }
 
-    public Observable<Void> writeContentAndFlush(String content) {
-        return writeContentAndFlush(content, new StringTransformer());
+    public Observable<Void> writeAndFlush(String content) {
+        return writeAndFlush(content, new StringTransformer());
     }
 
-    public Observable<Void> writeContentAndFlush(byte[] content) {
-        return writeContentAndFlush(content, new ByteTransformer());
+    public Observable<Void> writeAndFlush(byte[] content) {
+        return writeAndFlush(content, new ByteTransformer());
     }
 
-    public void writeContent(final T content) {
+    public void write(final T content) {
         writeOnChannel(content);
     }
 
-    public <R> void writeContent(final R content, final ContentTransformer<R> transformer) {
+    public <R> void write(final R content, final ContentTransformer<R> transformer) {
         ByteBuf contentBytes = transformer.transform(content, getAllocator());
         writeOnChannel(contentBytes);
     }
 
-    public void writeContent(String content) {
-        writeContent(content, new StringTransformer());
+    public void write(String content) {
+        write(content, new StringTransformer());
     }
 
-    public void writeContent(byte[] content) {
-        writeContent(content, new ByteTransformer());
+    public void write(byte[] content) {
+        write(content, new ByteTransformer());
     }
 
     public Observable<Void> flush() {

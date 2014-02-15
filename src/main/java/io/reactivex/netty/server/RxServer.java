@@ -63,7 +63,7 @@ public class RxServer<I, O> {
         }
     }
 
-    public void start() {
+    public RxServer<I, O> start() {
         if (!serverStateRef.compareAndSet(ServerState.Created, ServerState.Starting)) {
             throw new IllegalStateException("Server already started");
         }
@@ -71,6 +71,8 @@ public class RxServer<I, O> {
         bindFuture = bootstrap.bind(port);
 
         serverStateRef.set(ServerState.Started); // It will come here only if this was the thread that transitioned to Starting
+        
+        return this;
     }
 
     public void shutdown() throws InterruptedException {
