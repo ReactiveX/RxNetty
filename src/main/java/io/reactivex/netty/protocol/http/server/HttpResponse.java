@@ -105,10 +105,10 @@ public class HttpResponse<T> {
 
     public Observable<Void> flush() {
         ctx.flush();
-        return unflushedWritesListener.listenForNextCompletion().map(new Func1<ChannelFuture, Void>() {
+        return unflushedWritesListener.listenForNextCompletion().take(1).flatMap(new Func1<ChannelFuture, Observable<Void>>() {
             @Override
-            public Void call(ChannelFuture future) {
-                return null;
+            public Observable<Void> call(ChannelFuture future) {
+                return Observable.empty();
             }
         });
     }

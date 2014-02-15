@@ -48,18 +48,19 @@ public final class HttpSseServer {
                                                                     HttpResponse<SSEEvent> response) {
                                          return getIntervalObservable(response);
                                      }
-                                 }, new PipelineConfiguratorComposite<HttpRequest<ByteBuf>, HttpResponse<SSEEvent>>(new PipelineConfigurator() {
+                                 }, new PipelineConfiguratorComposite<HttpRequest<ByteBuf>, HttpResponse<SSEEvent>>(
+                                         new PipelineConfigurator() {
 
-            @Override
-            public void configureNewPipeline(ChannelPipeline pipeline) {
-                pipeline.addFirst(new LoggingHandler(LogLevel.ERROR));
-            }
-        }, PipelineConfigurators.<ByteBuf>sseServerConfigurator())).startAndWait();
+                                             @Override
+                                             public void configureNewPipeline(ChannelPipeline pipeline) {
+                                                 pipeline.addFirst(new LoggingHandler(LogLevel.ERROR));
+                                              }
+                                  },
+                                         PipelineConfigurators.<ByteBuf>sseServerConfigurator())).startAndWait();
     }
 
-
     private static Observable<Void> getIntervalObservable(final HttpResponse<SSEEvent> response) {
-        return Observable.interval(1000, TimeUnit.MILLISECONDS)
+        return Observable.interval(1, TimeUnit.SECONDS)
                          .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
                              @Override
                              public Observable<Notification<Void>> call(Long interval) {
@@ -71,7 +72,7 @@ public final class HttpSseServer {
                          .takeWhile(new Func1<Notification<Void>, Boolean>() {
                              @Override
                              public Boolean call(Notification<Void> notification) {
-                                 return !notification.isOnError();
+                                 return notification.isOnNext();
                              }
                          })
                          .map(new Func1<Notification<Void>, Void>() {

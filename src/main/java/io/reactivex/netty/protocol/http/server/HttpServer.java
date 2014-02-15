@@ -22,6 +22,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.server.RxServer;
 import rx.Observable;
+import rx.util.functions.Action0;
 import rx.util.functions.Func1;
 
 /**
@@ -63,10 +64,16 @@ public class HttpServer<I, O> extends RxServer<HttpRequest<I>, HttpResponse<O>> 
                 public Observable<Void> call(HttpRequest<I> newRequest) {
                     final HttpResponse<O> response = new HttpResponse<O>(newConnection.getChannelHandlerContext(),
                                                                    newRequest.getHttpVersion());
-                    return requestHandler.handle(newRequest, response).flatMap(new Func1<Void, Observable<Void>>() {
+                    return requestHandler.handle(newRequest, response).onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
                         @Override
-                        public Observable<Void> call(Void aVoid) {
-                            return response.close();
+                        public Observable<Void> call(Throwable throwable) {
+                            System.out.println("Error occured in request handling. Error: ");
+                            return null;
+                        }
+                    }).finallyDo(new Action0() {
+                        @Override
+                        public void call() {
+                            response.close();
                         }
                     });
                 }
