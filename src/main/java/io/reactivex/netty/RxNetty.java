@@ -27,10 +27,8 @@ import io.reactivex.netty.protocol.http.server.HttpResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import io.reactivex.netty.server.ErrorHandler;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
-import rx.Observable;
 
 public final class RxNetty {
 
@@ -73,19 +71,5 @@ public final class RxNetty {
                                                            PipelineConfigurator<io.reactivex.netty.protocol.http.client.HttpResponse<O>,
                                                                                 io.reactivex.netty.protocol.http.client.HttpRequest<I>> configurator) {
         return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
-    }
-
-    public static void main(String[] args) {
-        createHttpServer(9999, new RequestHandler<ByteBuf, ByteBuf>() {
-            @Override
-            public Observable<Void> handle(HttpRequest<ByteBuf> request, HttpResponse<ByteBuf> response) {
-                throw new UnsupportedOperationException("I am writing code now.");
-            }
-        }).withErrorHandler(new ErrorHandler() {
-            @Override
-            public Observable<Void> handleError(Throwable throwable) {
-                throw new NullPointerException();
-            }
-        }).startAndWait();
     }
 }
