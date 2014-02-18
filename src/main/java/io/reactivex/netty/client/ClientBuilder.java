@@ -34,6 +34,10 @@ public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilde
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig);
+        if (null != pipelineConfigurator) {
+            return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig);
+        } else {
+            return new RxClientImpl<I, O>(serverInfo, bootstrap, clientConfig);
+        }
     }
 }

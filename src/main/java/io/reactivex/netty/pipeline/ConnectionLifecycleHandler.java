@@ -17,20 +17,29 @@ package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.reactivex.netty.ConnectionHandler;
-import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.server.ErrorHandler;
+import rx.Subscriber;
 import rx.subjects.PublishSubject;
 
 public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
 
     private final ConnectionHandler<I, O> connectionHandler;
     private final ObservableAdapter observableAdapter;
+    private final ErrorHandler errorHandler;
     private PublishSubject<I> inputSubject;
     private ObservableConnection<I,O> connection;
 
-    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableAdapter observableAdapter) {
+    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableAdapter observableAdapter,
+                                      ErrorHandler errorHandler) {
         this.connectionHandler = connectionHandler;
         this.observableAdapter = observableAdapter;
+        this.errorHandler = null == errorHandler ? new DefaultErrorHandler() : errorHandler;
+    }
+
+    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableAdapter observableAdapter) {
+        this(connectionHandler, observableAdapter, null);
     }
 
     @Override
@@ -49,6 +58,36 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
             observableAdapter.activate(inputSubject);
         }
         super.channelActive(ctx);
-        connectionHandler.handle(connection).subscribe();// TODO: Manage currently processing connections pool
+        try {
+            connectionHandler.handle(connection)
+                             .subscribe(new Subscriber<Void>() {
+                                 @Override
+                                 public void onCompleted() {
+                                     connection.close();
+                                 }
+
+                                 @Override
+                                 public void onError(Throwable e) {
+                                     invokeErrorHandler(e);
+                                     connection.close();
+                                 }
+
+                                 @Override
+                                 public void onNext(Void aVoid) {
+                                     // No Op.
+                                 }
+                             });
+        } catch (Throwable throwable) {
+            invokeErrorHandler(throwable);
+        }
+    }
+
+    private void invokeErrorHandler(Throwable throwable) {
+        try {
+            errorHandler.handleError(throwable);
+        } catch (Exception e) {
+            System.err.println("Error while invoking error handler. Error: " + e.getMessage());
+            e.printStackTrace(System.err);
+        }
     }
 }

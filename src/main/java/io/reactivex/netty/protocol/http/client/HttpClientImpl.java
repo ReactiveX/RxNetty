@@ -17,7 +17,7 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.RxClientImpl;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;

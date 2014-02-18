@@ -43,6 +43,8 @@ public class ObservableAdapter extends ChannelInboundHandlerAdapter {
         if (null != bridgedObserver) {
             try {
                 bridgedObserver.onNext(msg);
+            } catch (ClassCastException cce) {
+                bridgedObserver.onError(new RuntimeException("Mismatched message type.", cce));
             } finally {
                 ReferenceCountUtil.release(msg);
             }

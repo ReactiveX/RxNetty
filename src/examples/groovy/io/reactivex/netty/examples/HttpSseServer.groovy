@@ -19,8 +19,8 @@ import io.netty.handler.codec.http.DefaultHttpResponse
 import io.netty.handler.codec.http.FullHttpRequest
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.HttpVersion
-import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
+import io.reactivex.netty.channel.ObservableConnection
 import io.reactivex.netty.protocol.http.server.HttpServer
 import io.reactivex.netty.protocol.text.sse.SSEEvent
 import rx.Notification

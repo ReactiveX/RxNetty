@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
 
 import java.util.concurrent.TimeUnit;

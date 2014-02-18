@@ -19,7 +19,7 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import io.reactivex.netty.ConnectionHandler;
+import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
@@ -29,6 +29,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class RxServer<I, O> {
 
     private ChannelFuture bindFuture;
+    private ErrorHandler errorHandler;
 
     private enum ServerState {Created, Starting, Started, Shutdown}
 
@@ -36,17 +37,28 @@ public class RxServer<I, O> {
     private final int port;
     private final AtomicReference<ServerState> serverStateRef;
 
+    public RxServer(ServerBootstrap bootstrap, int port, final ConnectionHandler<I, O> connectionHandler) {
+        this(bootstrap, port, null, connectionHandler);
+    }
+
     public RxServer(ServerBootstrap bootstrap, int port, final PipelineConfigurator<I, O> pipelineConfigurator,
                     final ConnectionHandler<I, O> connectionHandler) {
+        if (null == bootstrap) {
+            throw new NullPointerException("Bootstrap can not be null.");
+        }
         this.bootstrap = bootstrap;
         this.port = port;
-
         this.bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
-                RxRequiredConfigurator<I, O> requiredConfigurator = new RxRequiredConfigurator<I, O>(connectionHandler);
-                PipelineConfigurator<O, I> configurator = new PipelineConfiguratorComposite<O, I>(pipelineConfigurator,
-                                                                                                  requiredConfigurator);
+                RxRequiredConfigurator<I, O> requiredConfigurator = new RxRequiredConfigurator<I, O>(connectionHandler,
+                                                                                                     errorHandler);
+                PipelineConfigurator<I, O> configurator;
+                if (null == pipelineConfigurator) {
+                    configurator = requiredConfigurator;
+                } else {
+                    configurator = new PipelineConfiguratorComposite<I, O>(pipelineConfigurator, requiredConfigurator);
+                }
                 configurator.configureNewPipeline(ch.pipeline());
             }
         });
@@ -68,10 +80,33 @@ public class RxServer<I, O> {
             throw new IllegalStateException("Server already started");
         }
 
-        bindFuture = bootstrap.bind(port);
+        try {
+            bindFuture = bootstrap.bind(port).sync();
+            if (!bindFuture.isSuccess()) {
+                throw new RuntimeException(bindFuture.cause());
+            }
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
 
         serverStateRef.set(ServerState.Started); // It will come here only if this was the thread that transitioned to Starting
         
+        return this;
+    }
+
+    /**
+     * A catch all error handler which gets invoked if any error happens during connection handling by the configured
+     * {@link ConnectionHandler}.
+     *
+     * @param errorHandler Error handler to invoke when {@link ConnectionHandler} threw an error.
+     *
+     * @return This server instance.
+     */
+    public RxServer<I, O> withErrorHandler(ErrorHandler errorHandler) {
+        if (serverStateRef.get() == ServerState.Started) {
+            throw new IllegalStateException("Error handler can not be set after starting the server.");
+        }
+        this.errorHandler = errorHandler;
         return this;
     }
 
@@ -91,7 +126,6 @@ public class RxServer<I, O> {
             case Starting:
                 throw new IllegalStateException("Server not started yet.");
             case Started:
-                bindFuture.sync();
                 bindFuture.channel().closeFuture().await();
                 break;
             case Shutdown:

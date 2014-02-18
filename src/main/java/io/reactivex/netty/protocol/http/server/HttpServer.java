@@ -16,8 +16,8 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.reactivex.netty.ConnectionHandler;
-import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.server.RxServer;
@@ -64,14 +64,7 @@ public class HttpServer<I, O> extends RxServer<HttpRequest<I>, HttpResponse<O>> 
                 public Observable<Void> call(HttpRequest<I> newRequest) {
                     final HttpResponse<O> response = new HttpResponse<O>(newConnection.getChannelHandlerContext(),
                                                                    newRequest.getHttpVersion());
-                    return requestHandler.handle(newRequest, response).onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
-                        @Override
-                        public Observable<Void> call(Throwable throwable) {
-                            System.err.println("Error occured in request handling. Error: ");
-                            throwable.printStackTrace(System.err);
-                            return null;
-                        }
-                    }).finallyDo(new Action0() {
+                    return requestHandler.handle(newRequest, response).finallyDo(new Action0() {
                         @Override
                         public void call() {
                             response.close();

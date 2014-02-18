@@ -47,7 +47,9 @@ public class PipelineConfiguratorComposite<I, O> implements PipelineConfigurator
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
         for (@SuppressWarnings("rawtypes") PipelineConfigurator configurator : configurators) {
-            configurator.configureNewPipeline(pipeline);
+            if (null != configurator) {
+                configurator.configureNewPipeline(pipeline);
+            }
         }
     }
 }

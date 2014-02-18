@@ -20,21 +20,20 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
-import io.reactivex.netty.ConnectionHandler;
-import io.reactivex.netty.ObservableConnection;
+import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
-
-import java.util.concurrent.TimeUnit;
-
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Observer;
 import rx.Subscriber;
 import rx.subscriptions.Subscriptions;
 import rx.util.functions.Action0;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * The base class for all connection oriented clients inside RxNetty.
@@ -54,16 +53,33 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     private final PipelineConfigurator<O, I> incompleteConfigurator;
     protected final ClientConfig clientConfig;
 
+    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
+        this(serverInfo, clientBootstrap, null, clientConfig);
+    }
+
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
             PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig) {
+        if (null == clientBootstrap) {
+            throw new NullPointerException("Client bootstrap can not be null.");
+        }
+        if (null == serverInfo) {
+            throw new NullPointerException("Server info can not be null.");
+        }
+        if (null == clientConfig) {
+            throw new NullPointerException("Client config can not be null.");
+        }
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
         if (clientConfig.isReadTimeoutSet()) {
             ReadTimeoutPipelineConfigurator readTimeoutConfigurator =
                     new ReadTimeoutPipelineConfigurator(clientConfig.getReadTimeoutInMillis(), TimeUnit.MILLISECONDS);
-            pipelineConfigurator = new PipelineConfiguratorComposite<O, I>(pipelineConfigurator,
-                    readTimeoutConfigurator);
+            if (null != pipelineConfigurator) {
+                pipelineConfigurator = new PipelineConfiguratorComposite<O, I>(pipelineConfigurator,
+                                                                               readTimeoutConfigurator);
+            } else {
+                pipelineConfigurator = new PipelineConfiguratorComposite<O, I>(readTimeoutConfigurator);
+            }
         }
         incompleteConfigurator = pipelineConfigurator;
     }
@@ -115,7 +131,13 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(ClientConnectionHandler clientConnectionHandler,
             PipelineConfigurator<O, I> pipelineConfigurator) {
         RxRequiredConfigurator<O, I> requiredConfigurator = new RxRequiredConfigurator<O, I>(clientConnectionHandler);
-        return new PipelineConfiguratorComposite<I, O>(pipelineConfigurator, requiredConfigurator);
+        PipelineConfiguratorComposite<I, O> toReturn;
+        if (null != pipelineConfigurator) {
+            toReturn = new PipelineConfiguratorComposite<I, O>(pipelineConfigurator, requiredConfigurator);
+        } else {
+            toReturn = new PipelineConfiguratorComposite<I, O>(requiredConfigurator);
+        }
+        return toReturn;
     }
 
     protected class ClientConnectionHandler implements ConnectionHandler<O, I>, ChannelFutureListener {

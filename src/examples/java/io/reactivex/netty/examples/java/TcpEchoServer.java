@@ -15,15 +15,12 @@
  */
 package io.reactivex.netty.examples.java;
 
-import io.reactivex.netty.ConnectionHandler;
-import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
-import rx.Observer;
-import rx.Subscription;
-import rx.subscriptions.Subscriptions;
-import rx.util.functions.Action0;
+import rx.Subscriber;
 import rx.util.functions.Func1;
 
 /**
@@ -31,16 +28,11 @@ import rx.util.functions.Func1;
  */
 public final class TcpEchoServer {
 
-    public static final Observable<Void> COMPLETED_OBSERVABLE = Observable.create(
-            new Observable.OnSubscribeFunc<Void>() {
+    public static final Observable<Void> COMPLETED_OBSERVABLE = Observable.create(new Observable.OnSubscribe<Void>() {
+
                 @Override
-                public Subscription onSubscribe(Observer<? super Void> observer) {
-                    observer.onCompleted();
-                    return Subscriptions.create(new Action0() {
-                        @Override
-                        public void call() {
-                        }
-                    });
+                public void call(Subscriber<? super Void> subscriber) {
+                    subscriber.onCompleted();
                 }
             });
 

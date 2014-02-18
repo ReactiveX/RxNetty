@@ -41,7 +41,7 @@ public final class HttpWelcomeServer {
                     System.out.println(header.getKey() + ": " + header.getValue());
                 }
                 // This does not consume request content, need to figure out an elegant/correct way of doing that.
-                return response.writeContentAndFlush("Welcome!!! \n\n");
+                return response.writeStringAndFlush("Welcome!!! \n\n");
             }
         }).startAndWait();
     }

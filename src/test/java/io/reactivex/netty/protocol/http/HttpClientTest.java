@@ -18,7 +18,6 @@ package io.reactivex.netty.protocol.http;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ConnectTimeoutException;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
@@ -26,6 +25,7 @@ import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
+import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.text.sse.SSEEvent;
@@ -47,7 +47,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static io.reactivex.netty.client.RxClient.ClientConfig.Builder;
-import static io.reactivex.netty.protocol.http.client.HttpRequest.RequestBuilder;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -77,7 +76,7 @@ public class HttpClientTest {
         HttpClient<ByteBuf, SSEEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators.<ByteBuf>sseClientConfigurator());
         Observable<HttpResponse<SSEEvent>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "test/stream").build());
+                client.submit(HttpRequest.createGet("test/stream"));
 
         final List<String> result = new ArrayList<String>();
         readResponseContent(response, result);
@@ -90,7 +89,7 @@ public class HttpClientTest {
                                                                         PipelineConfigurators
                                                                                 .<ByteBuf>sseClientConfigurator());
         Observable<HttpResponse<SSEEvent>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "test/largeStream").build());
+                client.submit(HttpRequest.createDelete("test/largeStream"));
 
         final List<String> result = new ArrayList<String>();
         readResponseContent(response, result);
@@ -103,7 +102,7 @@ public class HttpClientTest {
                                                                         PipelineConfigurators
                                                                                 .<ByteBuf>sseClientConfigurator());
         Observable<HttpResponse<SSEEvent>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "test/largeStream").build());
+                client.submit(HttpRequest.createGet("test/largeStream"));
         Observable<String> transformed = response.flatMap(new Func1<HttpResponse<SSEEvent>, Observable<String>>() {
             @Override
             public Observable<String> call(HttpResponse<SSEEvent> httpResponse) {
@@ -133,8 +132,7 @@ public class HttpClientTest {
     @Test
     public void testSingleEntity() throws Exception {
         HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port);
-        Observable<HttpResponse<ByteBuf>> response = client.submit(
-                new RequestBuilder<ByteBuf>(HttpMethod.GET, "test/singleEntity").build());
+        Observable<HttpResponse<ByteBuf>> response = client.submit(HttpRequest.createGet("test/singleEntity"));
         final List<String> result = new ArrayList<String>();
         response.flatMap(new Func1<HttpResponse<ByteBuf>, Observable<String>>() {
             @Override
@@ -162,7 +160,7 @@ public class HttpClientTest {
         HttpClient<ByteBuf, SSEEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators.<ByteBuf>sseClientConfigurator());
         Observable<HttpResponse<SSEEvent>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "test/nochunk_stream").build());
+                client.submit(HttpRequest.createGet("test/nochunk_stream"));
         final List<String> result = new ArrayList<String>();
         response.flatMap(new Func1<HttpResponse<SSEEvent>, Observable<SSEEvent>>() {
             @Override
@@ -183,7 +181,7 @@ public class HttpClientTest {
         HttpClientBuilder<ByteBuf, ByteBuf> clientBuilder = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", 8182);
         HttpClient<ByteBuf, ByteBuf> client = clientBuilder.channelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 100).build();
         Observable<HttpResponse<ByteBuf>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "/").build());
+                client.submit(HttpRequest.createGet("/"));
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
         response.subscribe(new Observer<HttpResponse<ByteBuf>>() {
@@ -211,8 +209,7 @@ public class HttpClientTest {
     public void testConnectException2() throws Exception {
         HttpClientBuilder<ByteBuf, ByteBuf> clientBuilder = new HttpClientBuilder<ByteBuf, ByteBuf>("www.google.com", 81);
         HttpClient<ByteBuf, ByteBuf> client = clientBuilder.channelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10).build();
-        Observable<HttpResponse<ByteBuf>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "/").build());
+        Observable<HttpResponse<ByteBuf>> response = client.submit(HttpRequest.createGet("/"));
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
         response.subscribe(new Observer<HttpResponse<ByteBuf>>() {
@@ -242,7 +239,7 @@ public class HttpClientTest {
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(
                 clientConfig).build();
         Observable<HttpResponse<ByteBuf>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "test/timeout?timeout=10000").build());
+                client.submit(HttpRequest.createGet("test/timeout?timeout=10000"));
 
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
@@ -277,7 +274,7 @@ public class HttpClientTest {
                 .readTimeout(2, TimeUnit.SECONDS).build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(clientConfig).build();
         Observable<HttpResponse<ByteBuf>> response =
-                client.submit(new RequestBuilder<ByteBuf>(HttpMethod.GET, "test/singleEntity").build());
+                client.submit(HttpRequest.createGet("test/singleEntity"));
 
         final AtomicReference<Throwable> exceptionHolder = new AtomicReference<Throwable>();
         final int[] status = {0};
