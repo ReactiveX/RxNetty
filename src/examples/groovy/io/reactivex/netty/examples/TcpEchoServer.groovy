@@ -30,7 +30,7 @@ class TcpEchoServer {
             @Override
             void call(ObservableConnection<String, String> connection) {
                 // writing to the connection is the only place where anything is remote
-                connection.write("Welcome! \n\n")
+                connection.writeString("Welcome! \n\n")
 
                 // perform echo logic and return the transformed output stream that will be subscribed to
                 connection.getInput()
@@ -38,7 +38,7 @@ class TcpEchoServer {
                         .filter({ String msg -> !msg.isEmpty() })
                         .flatMap({ String msg ->
                     // echo the input to the output stream
-                    return connection.write("echo => " + msg + "\n")
+                    return connection.writeString("echo => " + msg + "\n")
                 }).subscribe({})
             }
         })

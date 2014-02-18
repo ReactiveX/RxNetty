@@ -69,7 +69,7 @@ class TcpIntervalServer {
                         return Observable.empty();
                     } else {
                         if (!(msg.isEmpty() || "unsubscribe:".equals(msg))) {
-                            connection.write("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
+                            connection.writeString("\nERROR => Unknown command: " + msg + "\nCommands => subscribe:, unsubscribe:\n");
                         }
                         return Observable.empty();
                     }
@@ -86,7 +86,7 @@ class TcpIntervalServer {
         .flatMap({ Long interval ->
             System.out.println("Writing interval: " + interval);
             // emit the interval to the output and return the notification received from it
-            return connection.write("interval => " + interval + "\n").materialize();
+            return connection.writeString("interval => " + interval + "\n").materialize();
         })
         .takeWhile({ Notification<Void> n ->
             // unsubscribe from interval if we receive an error

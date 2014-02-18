@@ -61,7 +61,7 @@ class TcpEchoClient {
                             .flatMap({ long l ->
                                 // write the output and convert from Void to String so it can merge with others
                                 // (nothing will be emitted since 'write' is Observable<Void>)
-                                return connection.write(String.valueOf(l+1)).map({ return ""});
+                                return connection.writeString(String.valueOf(l+1)).map({ return ""});
                             })
 
                     // capture the output from the server

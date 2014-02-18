@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.http;
+package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelOption;
@@ -23,10 +23,6 @@ import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
-import io.reactivex.netty.protocol.http.client.HttpRequest;
-import io.reactivex.netty.protocol.http.client.HttpResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import org.junit.AfterClass;

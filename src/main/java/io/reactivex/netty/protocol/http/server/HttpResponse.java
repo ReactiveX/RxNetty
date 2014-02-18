@@ -20,8 +20,10 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.ServerCookieEncoder;
 import io.reactivex.netty.channel.DefaultChannelWriter;
 import rx.Observable;
 
@@ -42,9 +44,14 @@ public class HttpResponse<T> extends DefaultChannelWriter<T> {
     }
 
     public HttpResponse(ChannelHandlerContext ctx, HttpVersion httpVersion) {
+        this(ctx, httpVersion, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK));
+    }
+
+    /*Visible for testing */ HttpResponse(ChannelHandlerContext ctx, HttpVersion httpVersion,
+                                          io.netty.handler.codec.http.HttpResponse nettyResponse) {
         super(ctx);
         this.httpVersion = httpVersion;
-        nettyResponse = new DefaultHttpResponse(this.httpVersion, HttpResponseStatus.OK);
+        this.nettyResponse = nettyResponse;
         headers = new HttpResponseHeaders(nettyResponse);
     }
 
@@ -52,8 +59,8 @@ public class HttpResponse<T> extends DefaultChannelWriter<T> {
         return headers;
     }
 
-    public void addCookie(@SuppressWarnings("unused") Cookie cookie) {
-        //TODO: Cookie handling.
+    public void addCookie(Cookie cookie) {
+        headers.add(HttpHeaders.Names.SET_COOKIE, ServerCookieEncoder.encode(cookie));
     }
 
     public void setStatus(HttpResponseStatus status) {

@@ -18,6 +18,7 @@ package io.reactivex.netty.protocol.http.client;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.protocol.http.CookiesHolder;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 import rx.util.functions.Func1;
@@ -40,6 +41,7 @@ public class HttpResponse<T> {
     private final HttpResponseHeaders responseHeaders;
     private final HttpVersion httpVersion;
     private final HttpResponseStatus status;
+    private final CookiesHolder cookiesHolder;
 
     public HttpResponse(io.netty.handler.codec.http.HttpResponse nettyResponse, PublishSubject<T> contentSubject) {
         this.nettyResponse = nettyResponse;
@@ -47,6 +49,7 @@ public class HttpResponse<T> {
         httpVersion = this.nettyResponse.getProtocolVersion();
         status = this.nettyResponse.getStatus();
         responseHeaders = new HttpResponseHeaders(nettyResponse);
+        cookiesHolder = CookiesHolder.newClientResponseHolder(nettyResponse.headers());
     }
 
     public HttpResponseHeaders getHeaders() {
@@ -62,8 +65,7 @@ public class HttpResponse<T> {
     }
 
     public Map<String, Set<Cookie>> getCookies() {
-        //TODO: Cookie handling.
-        return null;
+        return cookiesHolder.getAllCookies();
     }
 
     public Observable<T> getContent() {
@@ -72,6 +74,6 @@ public class HttpResponse<T> {
 
     public <R> Observable<R> getContent(@SuppressWarnings("unused") Func1<T, R> somestuff) {
         // TODO: SerDe Framework
-        return null;
+        return Observable.error(new UnsupportedOperationException("On-demand de-serialization is not supported."));
     }
 }

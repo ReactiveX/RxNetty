@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.http;
+package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -57,9 +57,9 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     public Observable<Void> handleStreamWithoutChunking(HttpResponse<ByteBuf> response) {
         response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         for (String contentPart : smallStreamContent) {
-            response.write("data:");
-            response.write(contentPart);
-            response.write("\n\n");
+            response.writeString("data:");
+            response.writeString(contentPart);
+            response.writeString("\n\n");
         }
         return response.flush();
     }
@@ -100,7 +100,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         response.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
         for (String line : data) {
             byte[] contentBytes = ("data:" + line + "\n\n").getBytes();
-            response.write(contentBytes);
+            response.writeBytes(contentBytes);
         }
 
         return response.flush();

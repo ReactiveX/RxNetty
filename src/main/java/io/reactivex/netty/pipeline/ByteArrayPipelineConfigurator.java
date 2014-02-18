@@ -25,6 +25,7 @@ public class ByteArrayPipelineConfigurator implements PipelineConfigurator<byte[
                         int readableBytes = byteBuf.readableBytes();
                         byte[] msgToPass = new byte[readableBytes];
                         byteBuf.readBytes(msgToPass);
+                        handled = true;
                         ctx.fireChannelRead(msgToPass);
                     }
                 }

@@ -18,6 +18,7 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.protocol.http.CookiesHolder;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 import rx.util.functions.Func1;
@@ -36,15 +37,17 @@ public class HttpRequest<T> {
     private final PublishSubject<T> contentSubject;
     private final HttpMethod method;
     private final HttpVersion protocolVersion;
-    private final String uri;
+    private final UriInfoHolder uriInfoHolder;
+    private final CookiesHolder cookiesHolder;
 
     public HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, PublishSubject<T> contentSubject) {
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(this.nettyRequest);
         method = this.nettyRequest.getMethod();
         protocolVersion = this.nettyRequest.getProtocolVersion();
-        uri = this.nettyRequest.getUri();
         this.contentSubject = contentSubject;
+        uriInfoHolder = new UriInfoHolder(this.nettyRequest.getUri());
+        cookiesHolder = CookiesHolder.newServerRequestHolder(nettyRequest.headers());
     }
 
     public HttpRequestHeaders getHeaders() {
@@ -60,27 +63,23 @@ public class HttpRequest<T> {
     }
 
     public String getUri() {
-        return uri;
+        return uriInfoHolder.getRawUriString();
     }
 
     public String getPath() {
-        // TODO: Parse URI
-        return null;
+        return uriInfoHolder.getPath();
     }
 
     public String getQueryString() {
-        // TODO: Parse URI
-        return null;
+        return uriInfoHolder.getQueryString();
     }
 
     public Map<String, List<String>> getQueryParameters() {
-        // TODO: Parse URI
-        return null;
+        return uriInfoHolder.getQueryParameters();
     }
 
     public Map<String, Set<Cookie>> getCookies() {
-        //TODO: Cookie handling.
-        return null;
+        return cookiesHolder.getAllCookies();
     }
 
     public Observable<T> getContent() {
@@ -89,6 +88,6 @@ public class HttpRequest<T> {
 
     public <R> Observable<R> getContent(@SuppressWarnings("unused") Func1<T, R> somestuff) {
         // TODO: SerDe Framework
-        return null;
+        return Observable.error(new UnsupportedOperationException("On demand de-serialization is not supported."));
     }
 }
