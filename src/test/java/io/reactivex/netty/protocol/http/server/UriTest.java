@@ -4,8 +4,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import org.junit.Assert;
 import org.junit.Test;
-import org.testng.Assert;
 import rx.subjects.PublishSubject;
 
 import java.util.List;
@@ -14,7 +14,7 @@ import java.util.Map;
 /**
  * @author Nitesh Kant
  */
-public class TestUri {
+public class UriTest {
 
     @Test
     public void testRequestUri() throws Exception {
@@ -28,22 +28,22 @@ public class TestUri {
         String uri = path + '?' + queryString;
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
         HttpRequest<ByteBuf> request = new HttpRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
-        Assert.assertEquals(request.getUri(), uri, "Unexpected uri string");
-        Assert.assertEquals(request.getQueryString(), queryString,  "Unexpected query string");
-        Assert.assertEquals(request.getPath(), path, "Unexpected path string");
+        Assert.assertEquals("Unexpected uri string", uri, request.getUri());
+        Assert.assertEquals("Unexpected query string", queryString,request.getQueryString());
+        Assert.assertEquals("Unexpected path string", path, request.getPath());
         Map<String,List<String>> qpsGot = request.getQueryParameters();
-        Assert.assertNotNull(qpsGot, "Got null query parameters");
-        Assert.assertEquals(qpsGot.size(), 2, "Unexpected number of query parameters");
+        Assert.assertNotNull("Got null query parameters", qpsGot);
+        Assert.assertEquals("Unexpected number of query parameters", 2, qpsGot.size());
         List<String> qp1Got = qpsGot.get(qp1Name);
-        Assert.assertNotNull(qp1Got, "Got no query parameters with name: " + qp1Name);
-        Assert.assertEquals(qp1Got.size(), 1, "Unexpected number of query parameters with name: " + qp1Name);
-        Assert.assertEquals(qp1Got.get(0), qp1Val, "Unexpected query parameter value with name: " + qp1Name);
+        Assert.assertNotNull("Got no query parameters with name: " + qp1Name, qp1Got);
+        Assert.assertEquals("Unexpected number of query parameters with name: " + qp1Name, 1, qp1Got.size());
+        Assert.assertEquals("Unexpected query parameter value with name: " + qp1Name, qp1Val, qp1Got.get(0));
 
         List<String> qp2Got = qpsGot.get(qp2Name);
-        Assert.assertNotNull(qp2Got, "Got no query parameters with name: " + qp2Name);
-        Assert.assertEquals(qp2Got.size(), 2, "Unexpected number of query parameters with name: " + qp2Name);
-        Assert.assertEquals(qp2Got.get(0), qp2Val, "Unexpected query parameter value with name: " + qp2Name);
-        Assert.assertEquals(qp2Got.get(1), qp2Val2, "Unexpected query parameter second value with name: " + qp2Name);
+        Assert.assertNotNull("Got no query parameters with name: " + qp2Name, qp2Got);
+        Assert.assertEquals("Unexpected number of query parameters with name: " + qp2Name, 2, qp2Got.size());
+        Assert.assertEquals("Unexpected query parameter value with name: " + qp2Name, qp2Got.get(0), qp2Val);
+        Assert.assertEquals("Unexpected query parameter second value with name: " + qp2Name, qp2Got.get(1), qp2Val2);
     }
 
     @Test
@@ -52,8 +52,8 @@ public class TestUri {
         String uri = path + '?';
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
         HttpRequest<ByteBuf> request = new HttpRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
-        Assert.assertEquals(request.getUri(), uri, "Unexpected uri string");
-        Assert.assertEquals(request.getQueryString(), "",  "Unexpected query string");
+        Assert.assertEquals("Unexpected uri string", uri, request.getUri());
+        Assert.assertEquals("Unexpected query string", "", request.getQueryString());
     }
 
     @Test
@@ -62,7 +62,7 @@ public class TestUri {
         String uri = path;
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
         HttpRequest<ByteBuf> request = new HttpRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
-        Assert.assertEquals(request.getUri(), uri, "Unexpected uri string");
-        Assert.assertEquals(request.getQueryString(), "",  "Unexpected query string");
+        Assert.assertEquals("Unexpected uri string", uri, request.getUri());
+        Assert.assertEquals("Unexpected query string", "", request.getQueryString());
     }
 }

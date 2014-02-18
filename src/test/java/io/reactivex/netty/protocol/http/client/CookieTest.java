@@ -10,8 +10,8 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import org.junit.Assert;
 import org.junit.Test;
-import org.testng.Assert;
 import rx.subjects.PublishSubject;
 
 import java.util.Map;
@@ -34,16 +34,16 @@ public class CookieTest {
         nettyResponse.headers().add(HttpHeaders.Names.SET_COOKIE, cookie1Header);
         HttpResponse<ByteBuf> response = new HttpResponse<ByteBuf>(nettyResponse, PublishSubject.<ByteBuf>create());
         Map<String,Set<Cookie>> cookies = response.getCookies();
-        Assert.assertNotNull(cookies, "Cookies are null.");
-        Assert.assertEquals(cookies.size(), 1, "Cookies are empty.");
+        Assert.assertNotNull("Cookies are null.", cookies);
+        Assert.assertEquals("Cookies are empty.", 1, cookies.size());
         Set<Cookie> cookies1 = cookies.get(cookie1Name);
-        Assert.assertNotNull(cookies1, "No cookies found with name: " + cookie1Name);
-        Assert.assertEquals(cookies1.size(), 1, "Unexpected number of cookies found.");
+        Assert.assertNotNull("No cookies found with name: " + cookie1Name, cookies1);
+        Assert.assertEquals("Unexpected number of cookies found.", 1, cookies1.size());
         Cookie cookieFound = cookies1.iterator().next();
-        Assert.assertEquals(cookieFound.getName(), cookie1Name, "unexpected cookie name.");
-        Assert.assertEquals(cookieFound.getValue(), cookie1Value, "unexpected cookie value.");
-        Assert.assertEquals(cookieFound.getPath(), cookie1Path, "unexpected cookie path.");
-        Assert.assertEquals(cookieFound.getDomain(), cookie1Domain, "unexpected cookie domain.");
+        Assert.assertEquals("unexpected cookie name.", cookie1Name, cookieFound.getName());
+        Assert.assertEquals("unexpected cookie value.", cookie1Value, cookieFound.getValue());
+        Assert.assertEquals("unexpected cookie path.", cookie1Path, cookieFound.getPath());
+        Assert.assertEquals("unexpected cookie domain.", cookie1Domain, cookieFound.getDomain());
     }
 
     @Test
@@ -58,13 +58,13 @@ public class CookieTest {
         cookie.setDomain(cookie1Domain);
         new HttpRequest<ByteBuf>(nettyRequest).withCookie(cookie);
         String cookieHeader = nettyRequest.headers().get(HttpHeaders.Names.COOKIE);
-        Assert.assertNotNull(cookieHeader, "No cookie header found.");
+        Assert.assertNotNull("No cookie header found.", cookieHeader);
         Set<Cookie> decodeCookies = CookieDecoder.decode(cookieHeader);
-        Assert.assertNotNull(decodeCookies, "No cookie found with name.");
-        Assert.assertEquals(decodeCookies.size(), 1, "Unexpected number of cookies.");
+        Assert.assertNotNull("No cookie found with name.", decodeCookies);
+        Assert.assertEquals("Unexpected number of cookies.", 1, decodeCookies.size());
         Cookie decodedCookie = decodeCookies.iterator().next();
-        Assert.assertEquals(decodedCookie.getName(), cookie1Name, "Unexpected cookie name.");
-        Assert.assertEquals(decodedCookie.getPath(), cookie1Path, "Unexpected cookie path.");
-        Assert.assertEquals(decodedCookie.getDomain(), cookie1Domain, "Unexpected cookie domain.");
+        Assert.assertEquals("Unexpected cookie name.", cookie1Name, decodedCookie.getName());
+        Assert.assertEquals("Unexpected cookie path.", cookie1Path, decodedCookie.getPath());
+        Assert.assertEquals("Unexpected cookie domain.", cookie1Domain, decodedCookie.getDomain());
     }
 }
