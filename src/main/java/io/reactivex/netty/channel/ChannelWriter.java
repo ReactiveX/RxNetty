@@ -17,9 +17,9 @@ public interface ChannelWriter<O> {
 
     <R> void write(R msg, ContentTransformer<R> transformer);
 
-    void write(byte[] msg);
+    void writeBytes(byte[] msg);
 
-    void write(String msg);
+    void writeString(String msg);
 
     Observable<Void> flush();
 

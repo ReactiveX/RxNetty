@@ -40,7 +40,7 @@ class TcpIntervalClientTakeN {
                 .flatMap({ ObservableConnection<String, String> connection ->
 
                     // output 10 values at intervals and receive the echo back
-                    Observable<String> subscribeWrite = connection.write("subscribe:").map({ return ""});
+                    Observable<String> subscribeWrite = connection.writeString("subscribe:").map({ return ""});
 
                     // capture the output from the server
                     Observable<String> data = connection.getInput().map({ String msg ->

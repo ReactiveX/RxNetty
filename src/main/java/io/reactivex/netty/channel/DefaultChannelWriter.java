@@ -51,12 +51,12 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     }
 
     @Override
-    public void write(byte[] msg) {
+    public void writeBytes(byte[] msg) {
         write(msg, new ByteTransformer());
     }
 
     @Override
-    public void write(String msg) {
+    public void writeString(String msg) {
         write(msg, new StringTransformer());
     }
 

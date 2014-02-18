@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -35,9 +36,9 @@ public class HttpRequest<T> {
     private RawContentSource<?> rawContentSource;
     private ContentSource<T> contentSource;
 
-    private HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, HttpRequestHeaders headers) {
+    /*Visible for testing*/ HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
-        this.headers = headers;
+        headers = new HttpRequestHeaders(nettyRequest);
         contentSource = null;
         rawContentSource = null;
     }
@@ -60,7 +61,7 @@ public class HttpRequest<T> {
 
     public static <T> HttpRequest<T> create(HttpVersion httpVersion, HttpMethod method, String uri) {
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(httpVersion, method, uri);
-        return new HttpRequest<T>(nettyRequest, new HttpRequestHeaders(nettyRequest));
+        return new HttpRequest<T>(nettyRequest);
     }
 
     public static <T> HttpRequest<T> create(HttpMethod method, String uri) {
@@ -72,9 +73,9 @@ public class HttpRequest<T> {
         return this;
     }
 
-    public HttpRequest<T> withCookie(@SuppressWarnings("unused") Cookie cookie) {
-        //TODO: Cookie handling.
-        return this;
+    public HttpRequest<T> withCookie(Cookie cookie) {
+        String cookieHeader = ClientCookieEncoder.encode(cookie);
+        return withHeader(HttpHeaders.Names.COOKIE, cookieHeader);
     }
 
     public HttpRequest<T> withContentSource(ContentSource<T> contentSource) {
