@@ -16,7 +16,8 @@
 package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelPipeline;
-import io.reactivex.netty.ConnectionHandler;
+import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.server.ErrorHandler;
 import rx.Observable;
 
 /**
@@ -28,15 +29,21 @@ import rx.Observable;
  *
  * @author Nitesh Kant
  */
-public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<Object, Object> {
+public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<I, O> {
 
     public static final String CONN_LIFECYCLE_HANDLER_NAME = "conn_lifecycle_handler";
     public static final String NETTY_OBSERVABLE_ADAPTER_NAME = "netty_observable_adapter";
 
     private final ConnectionHandler<I, O> connectionHandler;
+    private final ErrorHandler errorHandler;
 
     public RxRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler) {
+        this(connectionHandler, null);
+    }
+
+    public RxRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler, ErrorHandler errorHandler) {
         this.connectionHandler = connectionHandler;
+        this.errorHandler = errorHandler;
     }
 
     @Override
@@ -48,7 +55,7 @@ public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<Object
          */
         ObservableAdapter observableAdapter = new ObservableAdapter();
         ConnectionLifecycleHandler<I, O> lifecycleHandler =
-                new ConnectionLifecycleHandler<I, O>(connectionHandler, observableAdapter);
+                new ConnectionLifecycleHandler<I, O>(connectionHandler, observableAdapter, errorHandler);
         pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
         pipeline.addLast(NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
     }

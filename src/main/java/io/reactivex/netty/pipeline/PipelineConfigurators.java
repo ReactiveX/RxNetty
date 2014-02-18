@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.pipeline;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpRequest;
@@ -32,7 +34,19 @@ import java.nio.charset.Charset;
  */
 public final class PipelineConfigurators {
 
+    private static final PipelineConfigurator<ByteBuf,ByteBuf> EMPTY_CONFIGURATOR =
+            new PipelineConfigurator<ByteBuf, ByteBuf>() {
+                @Override
+                public void configureNewPipeline(ChannelPipeline pipeline) {
+                    // Do Nothing
+                }
+            };
+
     private PipelineConfigurators() {
+    }
+
+    public static PipelineConfigurator<byte[], byte[]> byteArrayConfigurator() {
+        return new ByteArrayPipelineConfigurator();
     }
 
     public static PipelineConfigurator<String, String> textOnlyConfigurator() {
@@ -66,5 +80,9 @@ public final class PipelineConfigurators {
     public static <I> PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpRequest<I>,
                                            io.reactivex.netty.protocol.http.server.HttpResponse<SSEEvent>> sseServerConfigurator() {
         return new SseOverHttpServerPipelineConfigurator<I>();
+    }
+
+    public static PipelineConfigurator<ByteBuf, ByteBuf> empty() {
+        return EMPTY_CONFIGURATOR;
     }
 }

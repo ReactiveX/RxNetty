@@ -53,7 +53,7 @@ public final class HttpSseServer {
 
                                              @Override
                                              public void configureNewPipeline(ChannelPipeline pipeline) {
-                                                 pipeline.addFirst(new LoggingHandler(LogLevel.ERROR));
+                                                 pipeline.addFirst(new LoggingHandler(LogLevel.DEBUG));
                                               }
                                   },
                                          PipelineConfigurators.<ByteBuf>sseServerConfigurator())).startAndWait();
@@ -65,14 +65,18 @@ public final class HttpSseServer {
                              @Override
                              public Observable<Notification<Void>> call(Long interval) {
                                  System.out.println("Writing SSE event for interval: " + interval);
-                                 return response.writeContentAndFlush(new SSEEvent("1", "data: ", String.valueOf(
+                                 return response.writeAndFlush(new SSEEvent("1", "data: ", String.valueOf(
                                          interval))).materialize();
                              }
                          })
                          .takeWhile(new Func1<Notification<Void>, Boolean>() {
                              @Override
                              public Boolean call(Notification<Void> notification) {
-                                 return notification.isOnNext();
+                                 if (notification.isOnError()) {
+                                     System.out.println("Write to client failed, stopping response sending.");
+                                     notification.getThrowable().printStackTrace(System.err);
+                                 }
+                                 return !notification.isOnError();
                              }
                          })
                          .map(new Func1<Notification<Void>, Void>() {

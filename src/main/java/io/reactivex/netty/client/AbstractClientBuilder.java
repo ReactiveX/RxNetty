@@ -80,13 +80,13 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
             if (null == eventLoopGroup) {
-                eventLoopGroup = new NioEventLoopGroup();
+                eventLoopGroup = new NioEventLoopGroup(0 /*means default in netty*/, new RxClientThreadFactory());
             }
         }
 
         if (null == eventLoopGroup) {
             if (NioSocketChannel.class == socketChannel) {
-                eventLoopGroup = new NioEventLoopGroup();
+                eventLoopGroup = new NioEventLoopGroup(0 /*means default in netty*/, new RxClientThreadFactory());
             } else {
                 // Fail fast for defaults we do not support.
                 throw new IllegalStateException("Specified a channel class but not the event loop group.");

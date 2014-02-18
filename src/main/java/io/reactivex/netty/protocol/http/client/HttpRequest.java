@@ -38,24 +38,8 @@ public class HttpRequest<T> {
     private HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, HttpRequestHeaders headers) {
         this.nettyRequest = nettyRequest;
         this.headers = headers;
-        this.contentSource = null;
-        this.rawContentSource = null;
-    }
-
-    private HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, HttpRequestHeaders headers,
-            ContentSource<T> contentSource) {
-        this.nettyRequest = nettyRequest;
-        this.headers = headers;
-        this.contentSource = contentSource;
-        this.rawContentSource = null;
-    }
-
-    private HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, HttpRequestHeaders headers,
-            RawContentSource<?> rawContentSource) {
-        this.nettyRequest = nettyRequest;
-        this.headers = headers;
-        this.rawContentSource = rawContentSource;
-        this.contentSource = null;
+        contentSource = null;
+        rawContentSource = null;
     }
 
     public static HttpRequest<ByteBuf> createGet(String uri) {
@@ -119,13 +103,6 @@ public class HttpRequest<T> {
         headers.set(HttpHeaders.Names.CONTENT_LENGTH, content.length);
         rawContentSource = new RawContentSource.SingletonRawSource<byte[]>(content, new ByteTransformer());
         return this;
-    }
-
-    public HttpRequest<T> build() {
-        if (null != rawContentSource) {
-            return new HttpRequest<T>(nettyRequest, headers, rawContentSource);
-        }
-        return new HttpRequest<T>(nettyRequest, headers, contentSource);
     }
 
     public HttpRequestHeaders getHeaders() {

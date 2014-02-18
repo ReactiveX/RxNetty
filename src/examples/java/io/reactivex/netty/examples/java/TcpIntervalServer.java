@@ -15,9 +15,9 @@
  */
 package io.reactivex.netty.examples.java;
 
-import io.reactivex.netty.ConnectionHandler;
-import io.reactivex.netty.ObservableConnection;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Notification;
 import rx.Observable;

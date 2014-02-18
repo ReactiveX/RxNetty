@@ -15,8 +15,8 @@
  */
 package io.reactivex.netty.examples
 
-import io.reactivex.netty.ObservableConnection
 import io.reactivex.netty.RxNetty
+import io.reactivex.netty.channel.ObservableConnection
 import io.reactivex.netty.pipeline.PipelineConfigurators
 import io.reactivex.netty.server.RxServer
 import rx.util.functions.Action1

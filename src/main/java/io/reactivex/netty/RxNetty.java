@@ -16,6 +16,7 @@
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -26,8 +27,10 @@ import io.reactivex.netty.protocol.http.server.HttpResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
+import io.reactivex.netty.server.ErrorHandler;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
+import rx.Observable;
 
 public final class RxNetty {
 
@@ -41,6 +44,15 @@ public final class RxNetty {
 
     public static <I, O> RxClient<I, O> createTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
         return new ClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
+    }
+
+    public static RxServer<ByteBuf, ByteBuf> createTcpServer(final int port,
+                                                             ConnectionHandler<ByteBuf, ByteBuf> connectionHandler) {
+        return new ServerBuilder<ByteBuf, ByteBuf>(port, connectionHandler).build();
+    }
+
+    public static RxClient<ByteBuf, ByteBuf> createTcpClient(String host, int port) {
+        return new ClientBuilder<ByteBuf, ByteBuf>(host, port).build();
     }
 
     public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
@@ -61,5 +73,19 @@ public final class RxNetty {
                                                            PipelineConfigurator<io.reactivex.netty.protocol.http.client.HttpResponse<O>,
                                                                                 io.reactivex.netty.protocol.http.client.HttpRequest<I>> configurator) {
         return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
+    }
+
+    public static void main(String[] args) {
+        createHttpServer(9999, new RequestHandler<ByteBuf, ByteBuf>() {
+            @Override
+            public Observable<Void> handle(HttpRequest<ByteBuf> request, HttpResponse<ByteBuf> response) {
+                throw new UnsupportedOperationException("I am writing code now.");
+            }
+        }).withErrorHandler(new ErrorHandler() {
+            @Override
+            public Observable<Void> handleError(Throwable throwable) {
+                throw new NullPointerException();
+            }
+        }).startAndWait();
     }
 }

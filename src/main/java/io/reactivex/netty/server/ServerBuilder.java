@@ -16,7 +16,7 @@
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.reactivex.netty.ConnectionHandler;
+import io.reactivex.netty.channel.ConnectionHandler;
 
 /**
  * A convenience builder for creating instances of {@link RxServer}
@@ -35,6 +35,10 @@ public class ServerBuilder<I, O> extends AbstractServerBuilder<I,O, ServerBuilde
 
     @Override
     protected RxServer<I, O> createServer() {
-        return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
+        if (null != pipelineConfigurator) {
+            return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
+        } else {
+            return new RxServer<I, O>(serverBootstrap, port, connectionHandler);
+        }
     }
 }

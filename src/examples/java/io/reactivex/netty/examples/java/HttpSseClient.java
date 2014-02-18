@@ -17,7 +17,6 @@ package io.reactivex.netty.examples.java;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
@@ -29,7 +28,6 @@ import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
 import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import rx.Observable;
-import rx.Observer;
 import rx.util.functions.Action1;
 
 import java.util.Map;
@@ -46,25 +44,14 @@ public final class HttpSseClient {
 
                                              @Override
                                              public void configureNewPipeline(ChannelPipeline pipeline) {
-                                                 pipeline.addFirst(new LoggingHandler(LogLevel.ERROR));
+                                                 pipeline.addFirst(new LoggingHandler(LogLevel.DEBUG));
                                              }
                                          }, PipelineConfigurators.<ByteBuf>sseClientConfigurator()));
 
-        Observable<HttpResponse<SSEEvent>> response = client.submit(new HttpRequest.RequestBuilder<ByteBuf>(HttpMethod.GET, "/hello").build());
-        response.subscribe(new Observer<HttpResponse<SSEEvent>>() {
+        Observable<HttpResponse<SSEEvent>> response = client.submit(HttpRequest.createGet("/hello"));
+        response.toBlockingObservable().forEach(new Action1<HttpResponse<SSEEvent>>() {
             @Override
-            public void onCompleted() {
-                System.out.println("Response complete.");
-            }
-
-            @Override
-            public void onError(Throwable e) {
-                System.out.println("Error occured while sending/recieving Http request/response. Error: ");
-                e.printStackTrace(System.out);
-            }
-
-            @Override
-            public void onNext(HttpResponse<SSEEvent> response) {
+            public void call(HttpResponse<SSEEvent> response) {
                 System.out.println("New response recieved.");
                 System.out.println("========================");
                 System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()
@@ -77,7 +64,6 @@ public final class HttpSseClient {
                     @Override
                     public void call(SSEEvent event) {
                         System.out.print(event.getEventData());
-                        System.out.println("========================");
                     }
                 });
             }

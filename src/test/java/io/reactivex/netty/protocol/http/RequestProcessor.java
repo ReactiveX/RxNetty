@@ -51,7 +51,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     
     public Observable<Void> handleSingleEntity(HttpResponse<ByteBuf> response) {
         byte[] responseBytes = "Hello world".getBytes();
-        return response.writeAndFlush(responseBytes);
+        return response.writeBytesAndFlush(responseBytes);
     }
 
     public Observable<Void> handleStreamWithoutChunking(HttpResponse<ByteBuf> response) {
@@ -92,7 +92,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         }
 
         response.setStatus(status);
-        return response.writeAndFlush(contentBytes);
+        return response.writeBytesAndFlush(contentBytes);
     }
 
     private static Observable<Void> sendStreamingResponse(HttpResponse<ByteBuf> response, List<String> data) {

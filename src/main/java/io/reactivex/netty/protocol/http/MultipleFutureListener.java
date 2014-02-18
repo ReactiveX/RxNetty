@@ -69,6 +69,8 @@ public class MultipleFutureListener implements ChannelFutureListener {
         if (!future.isSuccess()) {
             if (null != finalPromise) {
                 finalPromise.tryFailure(future.cause());// TODO: Cancel pending futures (good to have)
+            } else {
+                lastCompletedFuture.onError(future.cause());
             }
         } else if (nowListeningTo <= 0) {
             if (null != finalPromise) {
