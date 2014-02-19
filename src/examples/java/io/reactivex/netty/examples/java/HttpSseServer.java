@@ -16,12 +16,7 @@
 package io.reactivex.netty.examples.java;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelPipeline;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpRequest;
 import io.reactivex.netty.protocol.http.server.HttpResponse;
@@ -48,15 +43,7 @@ public final class HttpSseServer {
                                                                     HttpResponse<ServerSentEvent> response) {
                                          return getIntervalObservable(response);
                                      }
-                                 }, new PipelineConfiguratorComposite<HttpRequest<ByteBuf>, HttpResponse<ServerSentEvent>>(
-                                         new PipelineConfigurator() {
-
-                                             @Override
-                                             public void configureNewPipeline(ChannelPipeline pipeline) {
-                                                 pipeline.addFirst(new LoggingHandler(LogLevel.DEBUG));
-                                              }
-                                  },
-                                         PipelineConfigurators.<ByteBuf>sseServerConfigurator())).startAndWait();
+                                 }, PipelineConfigurators.<ByteBuf>sseServerConfigurator()).startAndWait();
     }
 
     private static Observable<Void> getIntervalObservable(final HttpResponse<ServerSentEvent> response) {

@@ -16,18 +16,14 @@
 package io.reactivex.netty.examples.java;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelPipeline;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Observable;
+import rx.util.functions.Action0;
 import rx.util.functions.Action1;
 
 import java.util.Map;
@@ -39,14 +35,7 @@ public final class HttpSseClient {
 
     public static void main(String[] args) {
         HttpClient<ByteBuf, ServerSentEvent> client =
-                RxNetty.createHttpClient("localhost", 8080,
-                                         new PipelineConfiguratorComposite<HttpResponse<ServerSentEvent>, HttpRequest<ByteBuf>>(new PipelineConfigurator() {
-
-                                             @Override
-                                             public void configureNewPipeline(ChannelPipeline pipeline) {
-                                                 pipeline.addFirst(new LoggingHandler(LogLevel.DEBUG));
-                                             }
-                                         }, PipelineConfigurators.<ByteBuf>sseClientConfigurator()));
+                RxNetty.createHttpClient("localhost", 8080, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
 
         Observable<HttpResponse<ServerSentEvent>> response = client.submit(HttpRequest.createGet("/hello"));
         response.toBlockingObservable().forEach(new Action1<HttpResponse<ServerSentEvent>>() {
@@ -60,7 +49,12 @@ public final class HttpSseClient {
                     System.out.println(header.getKey() + ": " + header.getValue());
                 }
 
-                response.getContent().subscribe(new Action1<ServerSentEvent>() {
+                response.getContent().take(1).finallyDo(new Action0() {
+                    @Override
+                    public void call() {
+                        System.out.println("HttpSseClient.call");
+                    }
+                }).subscribe(new Action1<ServerSentEvent>() {
                     @Override
                     public void call(ServerSentEvent event) {
                         System.out.print(event.getEventData());
