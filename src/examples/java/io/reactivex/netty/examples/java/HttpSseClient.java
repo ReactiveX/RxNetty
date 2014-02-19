@@ -23,7 +23,6 @@ import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Observable;
-import rx.util.functions.Action0;
 import rx.util.functions.Action1;
 
 import java.util.Map;
@@ -49,15 +48,10 @@ public final class HttpSseClient {
                     System.out.println(header.getKey() + ": " + header.getValue());
                 }
 
-                response.getContent().take(1).finallyDo(new Action0() {
-                    @Override
-                    public void call() {
-                        System.out.println("HttpSseClient.call");
-                    }
-                }).subscribe(new Action1<ServerSentEvent>() {
+                response.getContent().subscribe(new Action1<ServerSentEvent>() {
                     @Override
                     public void call(ServerSentEvent event) {
-                        System.out.print(event.getEventData());
+                        System.out.println(event.getEventName() + ':' + event.getEventData());
                     }
                 });
             }
