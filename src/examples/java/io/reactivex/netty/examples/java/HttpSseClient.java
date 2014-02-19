@@ -26,7 +26,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
+import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Observable;
 import rx.util.functions.Action1;
 
@@ -38,9 +38,9 @@ import java.util.Map;
 public final class HttpSseClient {
 
     public static void main(String[] args) {
-        HttpClient<ByteBuf, SSEEvent> client =
+        HttpClient<ByteBuf, ServerSentEvent> client =
                 RxNetty.createHttpClient("localhost", 8080,
-                                         new PipelineConfiguratorComposite<HttpResponse<SSEEvent>, HttpRequest<ByteBuf>>(new PipelineConfigurator() {
+                                         new PipelineConfiguratorComposite<HttpResponse<ServerSentEvent>, HttpRequest<ByteBuf>>(new PipelineConfigurator() {
 
                                              @Override
                                              public void configureNewPipeline(ChannelPipeline pipeline) {
@@ -48,10 +48,10 @@ public final class HttpSseClient {
                                              }
                                          }, PipelineConfigurators.<ByteBuf>sseClientConfigurator()));
 
-        Observable<HttpResponse<SSEEvent>> response = client.submit(HttpRequest.createGet("/hello"));
-        response.toBlockingObservable().forEach(new Action1<HttpResponse<SSEEvent>>() {
+        Observable<HttpResponse<ServerSentEvent>> response = client.submit(HttpRequest.createGet("/hello"));
+        response.toBlockingObservable().forEach(new Action1<HttpResponse<ServerSentEvent>>() {
             @Override
-            public void call(HttpResponse<SSEEvent> response) {
+            public void call(HttpResponse<ServerSentEvent> response) {
                 System.out.println("New response recieved.");
                 System.out.println("========================");
                 System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()
@@ -60,9 +60,9 @@ public final class HttpSseClient {
                     System.out.println(header.getKey() + ": " + header.getValue());
                 }
 
-                response.getContent().subscribe(new Action1<SSEEvent>() {
+                response.getContent().subscribe(new Action1<ServerSentEvent>() {
                     @Override
-                    public void call(SSEEvent event) {
+                    public void call(ServerSentEvent event) {
                         System.out.print(event.getEventData());
                     }
                 });

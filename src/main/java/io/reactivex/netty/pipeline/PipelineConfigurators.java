@@ -25,7 +25,7 @@ import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.SimpleTextProtocolConfigurator;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
+import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 
 import java.nio.charset.Charset;
 
@@ -73,12 +73,12 @@ public final class PipelineConfigurators {
                                                                                   new HttpObjectAggregationConfigurator());
     }
 
-    public static <I> PipelineConfigurator<HttpResponse<SSEEvent>, HttpRequest<I>> sseClientConfigurator() {
+    public static <I> PipelineConfigurator<HttpResponse<ServerSentEvent>, HttpRequest<I>> sseClientConfigurator() {
         return new SseOverHttpClientPipelineConfigurator<I>();
     }
 
     public static <I> PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpRequest<I>,
-                                           io.reactivex.netty.protocol.http.server.HttpResponse<SSEEvent>> sseServerConfigurator() {
+                                           io.reactivex.netty.protocol.http.server.HttpResponse<ServerSentEvent>> sseServerConfigurator() {
         return new SseOverHttpServerPipelineConfigurator<I>();
     }
 

@@ -23,8 +23,8 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpRequest;
 import io.reactivex.netty.protocol.http.server.HttpResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator;
+import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import io.reactivex.netty.protocol.text.sse.ServerSentEventEncoder;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
@@ -39,7 +39,7 @@ import static io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator
  * @author Nitesh Kant
  */
 public class SseOverHttpServerPipelineConfigurator<I>
-        implements PipelineConfigurator<HttpRequest<I>, HttpResponse<SSEEvent>> {
+        implements PipelineConfigurator<HttpRequest<I>, HttpResponse<ServerSentEvent>> {
 
     public static final String SSE_RESPONSE_HEADERS_COMPLETER = "sse-response-headers-completer";
 

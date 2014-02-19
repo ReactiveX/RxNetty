@@ -26,7 +26,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpRequest;
 import io.reactivex.netty.protocol.http.server.HttpResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
+import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Notification;
 import rx.Observable;
 import rx.util.functions.Func1;
@@ -42,13 +42,13 @@ public final class HttpSseServer {
         final int port = 8080;
 
         RxNetty.createHttpServer(port,
-                                 new RequestHandler<ByteBuf, SSEEvent>() {
+                                 new RequestHandler<ByteBuf, ServerSentEvent>() {
                                      @Override
                                      public Observable<Void> handle(HttpRequest<ByteBuf> request,
-                                                                    HttpResponse<SSEEvent> response) {
+                                                                    HttpResponse<ServerSentEvent> response) {
                                          return getIntervalObservable(response);
                                      }
-                                 }, new PipelineConfiguratorComposite<HttpRequest<ByteBuf>, HttpResponse<SSEEvent>>(
+                                 }, new PipelineConfiguratorComposite<HttpRequest<ByteBuf>, HttpResponse<ServerSentEvent>>(
                                          new PipelineConfigurator() {
 
                                              @Override
@@ -59,13 +59,13 @@ public final class HttpSseServer {
                                          PipelineConfigurators.<ByteBuf>sseServerConfigurator())).startAndWait();
     }
 
-    private static Observable<Void> getIntervalObservable(final HttpResponse<SSEEvent> response) {
+    private static Observable<Void> getIntervalObservable(final HttpResponse<ServerSentEvent> response) {
         return Observable.interval(1, TimeUnit.SECONDS)
                          .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
                              @Override
                              public Observable<Notification<Void>> call(Long interval) {
                                  System.out.println("Writing SSE event for interval: " + interval);
-                                 return response.writeAndFlush(new SSEEvent("1", "data: ", String.valueOf(
+                                 return response.writeAndFlush(new ServerSentEvent("1", "data: ", String.valueOf(
                                          interval))).materialize();
                              }
                          })

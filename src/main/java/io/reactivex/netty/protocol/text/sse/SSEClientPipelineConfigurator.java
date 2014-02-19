@@ -24,7 +24,7 @@ import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurato
 /**
  * An implementation of {@link PipelineConfigurator} that will setup Netty's pipeline for a client recieving
  * Server Sent Events. <br/>
- * This will convert {@link ByteBuf} objects to {@link SSEEvent}. So, if the client is an HTTP client, then you would
+ * This will convert {@link ByteBuf} objects to {@link ServerSentEvent}. So, if the client is an HTTP client, then you would
  * have to use {@link SseOverHttpClientPipelineConfigurator} instead.
  *
  * @param <W> The request type for the client pipeline.
@@ -33,7 +33,7 @@ import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurato
  *
  * @author Nitesh Kant
  */
-public class SSEClientPipelineConfigurator<W> implements PipelineConfigurator<SSEEvent, W> {
+public class SSEClientPipelineConfigurator<W> implements PipelineConfigurator<ServerSentEvent, W> {
 
     public static final SSEInboundHandler SSE_INBOUND_HANDLER = new SSEInboundHandler();
 

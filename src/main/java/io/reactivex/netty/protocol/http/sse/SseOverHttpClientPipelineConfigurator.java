@@ -21,7 +21,7 @@ import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
 import io.reactivex.netty.protocol.text.sse.SSEClientPipelineConfigurator;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
+import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
@@ -32,7 +32,7 @@ import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
  *
  * @author Nitesh Kant
  */
-public class SseOverHttpClientPipelineConfigurator<I> implements PipelineConfigurator<HttpResponse<SSEEvent>, HttpRequest<I>> {
+public class SseOverHttpClientPipelineConfigurator<I> implements PipelineConfigurator<HttpResponse<ServerSentEvent>, HttpRequest<I>> {
 
     private final HttpClientPipelineConfigurator<I, ?> httpClientPipelineConfigurator;
 
