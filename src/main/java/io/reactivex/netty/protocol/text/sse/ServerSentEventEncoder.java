@@ -23,19 +23,19 @@ import io.netty.handler.codec.MessageToMessageEncoder;
 import java.util.List;
 
 /**
- * An encoder to convert {@link SSEEvent} to a {@link ByteBuf}
+ * An encoder to convert {@link ServerSentEvent} to a {@link ByteBuf}
  *
  * @author Nitesh Kant
  */
 @ChannelHandler.Sharable
-public class ServerSentEventEncoder extends MessageToMessageEncoder<SSEEvent> {
+public class ServerSentEventEncoder extends MessageToMessageEncoder<ServerSentEvent> {
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, SSEEvent sseEvent, List<Object> out) throws Exception {
+    protected void encode(ChannelHandlerContext ctx, ServerSentEvent serverSentEvent, List<Object> out) throws Exception {
         StringBuilder eventBuilder = new StringBuilder();
-        eventBuilder.append(sseEvent.getEventName());
+        eventBuilder.append(serverSentEvent.getEventName());
         eventBuilder.append(": ");
-        eventBuilder.append(sseEvent.getEventData());
+        eventBuilder.append(serverSentEvent.getEventData());
         eventBuilder.append("\n\n");
         String data = eventBuilder.toString();
         out.add(ctx.alloc().buffer(data.length()).writeBytes(data.getBytes()));

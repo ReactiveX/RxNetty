@@ -22,7 +22,7 @@ class HttpSseClient {
 
         RxNetty.createSseClient("localhost", 8080)
                 .submit(new DefaultFullHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/hello"))
-                .flatMap({ ObservableHttpResponse<SSEEvent> response ->
+                .flatMap({ ObservableHttpResponse<ServerSentEvent> response ->
                     response.header().subscribe({HttpResponse header ->
                         println("New response recieved.");
                         println("========================");

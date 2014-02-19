@@ -24,7 +24,6 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
 import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
@@ -36,7 +35,7 @@ import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
  *
  * <h1>Http response with no chunking</h1>
  * In this case, the {@link ServerSentEventDecoder} is inserted as the first handler in the pipeline. This makes the
- * {@link ByteBuf} at the origin to be converted to {@link SSEEvent} and hence any other handler will not look at this
+ * {@link ByteBuf} at the origin to be converted to {@link io.reactivex.netty.protocol.text.sse.ServerSentEvent} and hence any other handler will not look at this
  * message unless it is really interested.
  * <h3>Caveat</h3>
  * In some cases where any message is buffered before this pipeline change is made by this handler (i.e. adding

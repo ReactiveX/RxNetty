@@ -23,7 +23,7 @@ import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurato
 /**
  * An implementation of {@link PipelineConfigurator} that will setup Netty's pipeline for a server sending
  * Server Sent Events. <br/>
- * This will convert {@link SSEEvent} objects to {@link ByteBuf}. So, if the server is an HTTP server, then you would
+ * This will convert {@link ServerSentEvent} objects to {@link ByteBuf}. So, if the server is an HTTP server, then you would
  * have to use {@link SseOverHttpServerPipelineConfigurator} instead.
  *
  * @see {@link ServerSentEventEncoder}

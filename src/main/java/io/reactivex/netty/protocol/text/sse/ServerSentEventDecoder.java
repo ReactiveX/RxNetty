@@ -76,8 +76,8 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
             return this;
         }
 
-        public SSEEvent toMessage() {
-            SSEEvent message = new SSEEvent(
+        public ServerSentEvent toMessage() {
+            ServerSentEvent message = new ServerSentEvent(
                     eventId.toString(),
                     eventName.toString(),
                     eventData.toString()

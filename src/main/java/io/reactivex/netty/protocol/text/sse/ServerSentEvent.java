@@ -18,13 +18,13 @@ package io.reactivex.netty.protocol.text.sse;
 /**
  * This class represents a single server-sent event.
  */
-public class SSEEvent {
+public class ServerSentEvent {
 
     private final String eventId;
     private final String eventName;
     private final String eventData;
 
-    public SSEEvent(String eventId, String eventName, String eventData) {
+    public ServerSentEvent(String eventId, String eventName, String eventData) {
         this.eventId = eventId;
         this.eventName = eventName;
         this.eventData = eventData;

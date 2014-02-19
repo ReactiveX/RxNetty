@@ -24,7 +24,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpServer;
-import io.reactivex.netty.protocol.text.sse.SSEEvent;
+import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -69,9 +69,9 @@ public class HttpClientTest {
     
     @Test
     public void testChunkedStreaming() throws Exception {
-        HttpClient<ByteBuf, SSEEvent> client = RxNetty.createHttpClient("localhost", port,
+        HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators.<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<SSEEvent>> response =
+        Observable<HttpResponse<ServerSentEvent>> response =
                 client.submit(HttpRequest.createGet("test/stream"));
 
         final List<String> result = new ArrayList<String>();
@@ -81,10 +81,10 @@ public class HttpClientTest {
 
     @Test
     public void testMultipleChunks() throws Exception {
-        HttpClient<ByteBuf, SSEEvent> client = RxNetty.createHttpClient("localhost", port,
+        HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators
                                                                                 .<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<SSEEvent>> response =
+        Observable<HttpResponse<ServerSentEvent>> response =
                 client.submit(HttpRequest.createDelete("test/largeStream"));
 
         final List<String> result = new ArrayList<String>();
@@ -94,18 +94,18 @@ public class HttpClientTest {
 
     @Test
     public void testMultipleChunksWithTransformation() throws Exception {
-        HttpClient<ByteBuf, SSEEvent> client = RxNetty.createHttpClient("localhost", port,
+        HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators
                                                                                 .<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<SSEEvent>> response =
+        Observable<HttpResponse<ServerSentEvent>> response =
                 client.submit(HttpRequest.createGet("test/largeStream"));
-        Observable<String> transformed = response.flatMap(new Func1<HttpResponse<SSEEvent>, Observable<String>>() {
+        Observable<String> transformed = response.flatMap(new Func1<HttpResponse<ServerSentEvent>, Observable<String>>() {
             @Override
-            public Observable<String> call(HttpResponse<SSEEvent> httpResponse) {
+            public Observable<String> call(HttpResponse<ServerSentEvent> httpResponse) {
                 if (httpResponse.getStatus().equals(HttpResponseStatus.OK)) {
-                    return httpResponse.getContent().map(new Func1<SSEEvent, String>() {
+                    return httpResponse.getContent().map(new Func1<ServerSentEvent, String>() {
                         @Override
-                        public String call(SSEEvent sseEvent) {
+                        public String call(ServerSentEvent sseEvent) {
                             return sseEvent.getEventData();
                         }
                     });
@@ -153,19 +153,19 @@ public class HttpClientTest {
 
     @Test
     public void testNonChunkingStream() throws Exception {
-        HttpClient<ByteBuf, SSEEvent> client = RxNetty.createHttpClient("localhost", port,
+        HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators.<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<SSEEvent>> response =
+        Observable<HttpResponse<ServerSentEvent>> response =
                 client.submit(HttpRequest.createGet("test/nochunk_stream"));
         final List<String> result = new ArrayList<String>();
-        response.flatMap(new Func1<HttpResponse<SSEEvent>, Observable<SSEEvent>>() {
+        response.flatMap(new Func1<HttpResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
             @Override
-            public Observable<SSEEvent> call(HttpResponse<SSEEvent> httpResponse) {
+            public Observable<ServerSentEvent> call(HttpResponse<ServerSentEvent> httpResponse) {
                 return httpResponse.getContent();
             }
-        }).toBlockingObservable().forEach(new Action1<SSEEvent>() {
+        }).toBlockingObservable().forEach(new Action1<ServerSentEvent>() {
             @Override
-            public void call(SSEEvent event) {
+            public void call(ServerSentEvent event) {
                 result.add(event.getEventData());
             }
         });
@@ -294,19 +294,19 @@ public class HttpClientTest {
         assertEquals(200, status[0]);
     }
 
-    private static void readResponseContent(Observable<HttpResponse<SSEEvent>> response,
+    private static void readResponseContent(Observable<HttpResponse<ServerSentEvent>> response,
                                             final List<String> result) {
         response.flatMap(
-                new Func1<HttpResponse<SSEEvent>, Observable<SSEEvent>>() {
+                new Func1<HttpResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
                     @Override
-                    public Observable<SSEEvent> call(HttpResponse<SSEEvent> sseEventHttpResponse) {
+                    public Observable<ServerSentEvent> call(HttpResponse<ServerSentEvent> sseEventHttpResponse) {
                         return sseEventHttpResponse.getContent();
                     }
                 })
-                .toBlockingObservable().forEach(new Action1<SSEEvent>() {
+                .toBlockingObservable().forEach(new Action1<ServerSentEvent>() {
             @Override
-            public void call(SSEEvent sseEvent) {
-                result.add(sseEvent.getEventData());
+            public void call(ServerSentEvent serverSentEvent) {
+                result.add(serverSentEvent.getEventData());
             }
         });
     }
