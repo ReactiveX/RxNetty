@@ -86,6 +86,10 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
     }
 
     private void enrichRequest(HttpRequest<I> request, ClientConfig config) {
+        if(!request.getHeaders().contains(HttpHeaders.Names.HOST)) {
+            request.getHeaders().add(HttpHeaders.Names.HOST, serverInfo.getHost());
+        }
+
         if (config instanceof HttpClientConfig) {
             HttpClientConfig httpClientConfig = (HttpClientConfig) config;
             if (httpClientConfig.getUserAgent() != null && request.getHeaders().get(HttpHeaders.Names.USER_AGENT) == null) {
