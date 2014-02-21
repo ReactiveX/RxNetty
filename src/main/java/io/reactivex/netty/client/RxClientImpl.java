@@ -45,8 +45,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class RxClientImpl<I, O> implements RxClient<I, O> {
 
-    private final ServerInfo serverInfo;
-    private final Bootstrap clientBootstrap;
+    protected final ServerInfo serverInfo;
+    protected final Bootstrap clientBootstrap;
     /**
      * This should NOT be used directly. {@link #getPipelineConfiguratorForAChannel(ClientConnectionHandler, PipelineConfigurator)} is the correct way of getting the pipeline configurator.
      */
