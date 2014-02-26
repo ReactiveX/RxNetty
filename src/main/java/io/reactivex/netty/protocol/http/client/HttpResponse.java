@@ -20,8 +20,8 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import rx.Observable;
+import rx.functions.Func1;
 import rx.subjects.PublishSubject;
-import rx.util.functions.Func1;
 
 import java.util.Map;
 import java.util.Set;

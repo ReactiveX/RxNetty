@@ -25,9 +25,9 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
 import rx.Subscription;
+import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.subscriptions.Subscriptions;
-import rx.util.functions.Action0;
-import rx.util.functions.Action1;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpResponse<O>> implements HttpClient<I, O> {
 

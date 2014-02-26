@@ -30,8 +30,8 @@ import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Observer;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
-import rx.util.functions.Action0;
 
 import java.util.concurrent.TimeUnit;
 
@@ -116,7 +116,6 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                         @Override
                         public void call() {
                             connectFuture.channel().close(); // Async close, no need to wait for close or give any callback for failures.
-                            // TODO can this throw an error? if so what should be done? unsubscribe should not throw.
                         }
 
                     }));

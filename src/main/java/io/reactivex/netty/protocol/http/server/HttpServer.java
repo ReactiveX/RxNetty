@@ -22,8 +22,8 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.server.RxServer;
 import rx.Observable;
-import rx.util.functions.Action0;
-import rx.util.functions.Func1;
+import rx.functions.Action0;
+import rx.functions.Func1;
 
 /**
  * @author Nitesh Kant
