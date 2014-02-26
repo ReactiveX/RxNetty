@@ -20,7 +20,6 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import rx.Observable;
-import rx.functions.Func1;
 import rx.subjects.PublishSubject;
 
 import java.util.Map;
@@ -29,8 +28,7 @@ import java.util.Set;
 /**
  * A Http response object used by {@link HttpClient}
  *
- * @param <T> The type of the default response content. This can be converted to a user defined entity by using
- * {@link #getContent(Func1)}
+ * @param <T> The type of the default response content.
  *
  * @author Nitesh Kant
  */
@@ -70,10 +68,5 @@ public class HttpResponse<T> {
 
     public Observable<T> getContent() {
         return contentSubject;
-    }
-
-    public <R> Observable<R> getContent(@SuppressWarnings("unused") Func1<T, R> somestuff) {
-        // TODO: SerDe Framework
-        return Observable.error(new UnsupportedOperationException("On-demand de-serialization is not supported."));
     }
 }
