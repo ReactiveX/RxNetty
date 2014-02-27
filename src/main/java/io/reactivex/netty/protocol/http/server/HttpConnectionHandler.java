@@ -47,7 +47,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpRequest<I>, H
                             @Override
                             public Observable<Void> call(Throwable throwable) {
                                 if (!response.isHeaderWritten()) {
-                                    responseGenerator.updateResponse(response, throwable); // If there is an error here
+                                    responseGenerator.updateResponse(response, throwable);
                                 }
                                 return Observable.empty();
                             }

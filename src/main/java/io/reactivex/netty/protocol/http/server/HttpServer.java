@@ -33,7 +33,7 @@ public class HttpServer<I, O> extends RxServer<HttpRequest<I>, HttpResponse<O>> 
         this(bootstrap, port, pipelineConfigurator, new HttpConnectionHandler<I, O>(requestHandler));
     }
 
-    HttpServer(ServerBootstrap bootstrap, int port,
+    protected HttpServer(ServerBootstrap bootstrap, int port,
                PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> pipelineConfigurator,
                HttpConnectionHandler<I, O> connectionHandler) {
         super(bootstrap, port, addRequiredConfigurator(pipelineConfigurator), connectionHandler);
