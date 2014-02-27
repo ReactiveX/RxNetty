@@ -115,9 +115,10 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
                         @Override
                         public void call() {
-                            connectFuture.channel().close(); // Async close, no need to wait for close or give any callback for failures.
+                            if (!connectFuture.isDone()) {
+                                connectFuture.cancel(true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
+                            }
                         }
-
                     }));
 
                 } catch (Throwable e) {
@@ -153,7 +154,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                 @Override
                 public void call(Subscriber<? super Void> voidSub) {
                     connectionObserver.onNext(newConnection);
-                    // TODO: How to cancel?
+                    connectionObserver.onCompleted(); // The observer is no longer looking for any more connections.
                 }
             });
         }
@@ -162,7 +163,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         public void operationComplete(ChannelFuture future) throws Exception {
             if (!future.isSuccess()) {
                 connectionObserver.onError(future.cause());
-            }
+            } // onComplete() needs to be send after onNext(), calling it here will cause a race-condition between next & complete.
         }
     }
 }
