@@ -152,6 +152,58 @@ public class HttpClientTest {
     }
 
     @Test
+    public void testPost() throws Exception {
+        HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port);
+        HttpRequest<ByteBuf> request = HttpRequest.createPost("test/post")
+                .withContent("Hello world");
+        RepeatableContentHttpRequest<ByteBuf> repeatable = new RepeatableContentHttpRequest<ByteBuf>(request);
+        Observable<HttpResponse<ByteBuf>> response = client.submit(repeatable);
+        final List<String> result = new ArrayList<String>();
+        response.flatMap(new Func1<HttpResponse<ByteBuf>, Observable<String>>() {
+            @Override
+            public Observable<String> call(HttpResponse<ByteBuf> response) {
+                return response.getContent().map(new Func1<ByteBuf, String>() {
+                    @Override
+                    public String call(ByteBuf byteBuf) {
+                        return byteBuf.toString(Charset.defaultCharset());
+                    }
+                });
+            }
+        }).toBlockingObservable().forEach(new Action1<String>() {
+
+            @Override
+            public void call(String t1) {
+                result.add(t1);
+            }
+        });
+        assertEquals(1, result.size());
+        assertEquals("Hello world", result.get(0));
+        
+        // resend the same request to make sure it is repeatable
+        response = client.submit(repeatable);
+        result.clear();
+        response.flatMap(new Func1<HttpResponse<ByteBuf>, Observable<String>>() {
+            @Override
+            public Observable<String> call(HttpResponse<ByteBuf> response) {
+                return response.getContent().map(new Func1<ByteBuf, String>() {
+                    @Override
+                    public String call(ByteBuf byteBuf) {
+                        return byteBuf.toString(Charset.defaultCharset());
+                    }
+                });
+            }
+        }).toBlockingObservable().forEach(new Action1<String>() {
+
+            @Override
+            public void call(String t1) {
+                result.add(t1);
+            }
+        });
+        assertEquals(1, result.size());
+        assertEquals("Hello world", result.get(0));
+    }
+    
+    @Test
     public void testNonChunkingStream() throws Exception {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators.<ByteBuf>sseClientConfigurator());
@@ -263,6 +315,7 @@ public class HttpClientTest {
         }
     }
 
+    
 
     @Test
     public void testNoReadTimeout() throws Exception {

@@ -23,7 +23,10 @@ import io.reactivex.netty.protocol.http.server.HttpRequest;
 import io.reactivex.netty.protocol.http.server.HttpResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import rx.Observable;
+import rx.Observer;
+import rx.functions.Func1;
 
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -95,6 +98,16 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         return response.writeBytesAndFlush(contentBytes);
     }
 
+    public Observable<Void> handlePost(final HttpRequest<ByteBuf> request, final HttpResponse<ByteBuf> response) {
+        return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
+            @Override
+            public Observable<Void> call(ByteBuf t1) {
+                String content = t1.toString(Charset.defaultCharset());
+                return response.writeBytesAndFlush(content.getBytes(Charset.defaultCharset()));
+            }}
+        );
+    }
+    
     private static Observable<Void> sendStreamingResponse(HttpResponse<ByteBuf> response, List<String> data) {
         response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         response.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
@@ -119,6 +132,8 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
             return handleLargeStream(response);
         } else if (uri.startsWith("test/timeout")) {
             return simulateTimeout(request, response);
+        } else if (uri.startsWith("test/post")) {
+            return handlePost(request, response);
         } else {
             response.setStatus(HttpResponseStatus.NOT_FOUND);
             return response.flush();
