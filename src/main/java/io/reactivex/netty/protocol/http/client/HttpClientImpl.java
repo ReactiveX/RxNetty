@@ -25,9 +25,9 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
 import rx.Subscription;
+import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.subscriptions.Subscriptions;
-import rx.util.functions.Action0;
-import rx.util.functions.Action1;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpResponse<O>> implements HttpClient<I, O> {
 
@@ -59,6 +59,8 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
                                                  final ClientConfig config) {
         enrichRequest(request, config);
 
+        // Here we do not map the connection Observable and return because the onComplete() of connectionObservable,
+        // does not indicate onComplete of the request processing.
         return Observable.create(new Observable.OnSubscribe<HttpResponse<O>>() {
             @Override
             public void call(final Subscriber<? super HttpResponse<O>> subscriber) {
@@ -107,6 +109,11 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
             super(requestProcessingObserver);
             this.request = request;
             this.requestProcessingObserver = requestProcessingObserver;
+        }
+
+        @Override
+        public void onCompleted() {
+            // We do not want an onComplete() call to Request Processing Observer on onComplete of connection observable.
         }
 
         @Override

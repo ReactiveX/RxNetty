@@ -21,7 +21,6 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import rx.Observable;
 import rx.subjects.PublishSubject;
-import rx.util.functions.Func1;
 
 import java.util.List;
 import java.util.Map;
@@ -84,10 +83,5 @@ public class HttpRequest<T> {
 
     public Observable<T> getContent() {
         return contentSubject;
-    }
-
-    public <R> Observable<R> getContent(@SuppressWarnings("unused") Func1<T, R> somestuff) {
-        // TODO: SerDe Framework
-        return Observable.error(new UnsupportedOperationException("On demand de-serialization is not supported."));
     }
 }

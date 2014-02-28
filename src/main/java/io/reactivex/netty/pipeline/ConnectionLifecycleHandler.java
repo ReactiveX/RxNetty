@@ -20,6 +20,7 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.server.ErrorHandler;
+import rx.Observable;
 import rx.Subscriber;
 import rx.subjects.PublishSubject;
 
@@ -59,24 +60,28 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
         }
         super.channelActive(ctx);
         try {
-            connectionHandler.handle(connection)
-                             .subscribe(new Subscriber<Void>() {
-                                 @Override
-                                 public void onCompleted() {
-                                     connection.close();
-                                 }
+            Observable<Void> handledObservable = connectionHandler.handle(connection);
+            if (null == handledObservable) {
+                handledObservable = Observable.empty();
+            }
 
-                                 @Override
-                                 public void onError(Throwable e) {
-                                     invokeErrorHandler(e);
-                                     connection.close();
-                                 }
+            handledObservable.subscribe(new Subscriber<Void>() {
+                @Override
+                public void onCompleted() {
+                    connection.close();
+                }
 
-                                 @Override
-                                 public void onNext(Void aVoid) {
-                                     // No Op.
-                                 }
-                             });
+                @Override
+                public void onError(Throwable e) {
+                    invokeErrorHandler(e);
+                    connection.close();
+                }
+
+                @Override
+                public void onNext(Void aVoid) {
+                    // No Op.
+                }
+            });
         } catch (Throwable throwable) {
             invokeErrorHandler(throwable);
         }

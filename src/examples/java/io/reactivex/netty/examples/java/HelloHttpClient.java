@@ -20,7 +20,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
 import rx.Observable;
-import rx.util.functions.Action1;
+import rx.functions.Action1;
 
 import java.nio.charset.Charset;
 import java.util.Map;

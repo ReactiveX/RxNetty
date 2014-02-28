@@ -93,7 +93,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
                 // encoding as chunked as we always send data in multiple HttpContent.
                 // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
                 // as expected.
-                rxResponse.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
+                rxResponse.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
             }
             super.write(ctx, rxResponse.getNettyResponse(), promise);
         } else if (ByteBuf.class.isAssignableFrom(recievedMsgClass)) {

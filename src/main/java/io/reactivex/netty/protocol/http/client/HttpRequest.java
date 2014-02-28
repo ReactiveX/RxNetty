@@ -89,9 +89,6 @@ public class HttpRequest<T> {
     }
 
     public HttpRequest<T> withContent(T content) {
-        if (!headers.isContentLengthSet()) {
-            headers.set(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
-        }
         contentSource = new ContentSource.SingletonSource<T>(content);
         return this;
     }
