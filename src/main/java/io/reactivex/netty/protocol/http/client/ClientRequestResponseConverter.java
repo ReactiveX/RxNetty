@@ -23,6 +23,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
@@ -92,16 +93,18 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         Class<?> recievedMsgClass = msg.getClass();
 
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
-            @SuppressWarnings("rawtypes")
-            HttpRequest rxRequest = (HttpRequest) msg;
+            HttpRequest<?> rxRequest = (HttpRequest<?>) msg;
             if (rxRequest.getHeaders().hasContent()) {
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
                 }
                 MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
                 allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
+                ContentSource<?> contentSource;
                 if (rxRequest.hasRawContentSource()) {
-                    RawContentSource<?> rawContentSource = rxRequest.getRawContentSource();
+                    contentSource = rxRequest.getRawContentSource();
+                    @SuppressWarnings("rawtypes")
+                    RawContentSource<?> rawContentSource = (RawContentSource) contentSource;
                     while (rawContentSource.hasNext()) {
                         @SuppressWarnings("rawtypes")
                         ContentTransformer transformer = rawContentSource.getTransformer();
@@ -110,14 +113,13 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                         allWritesListener.listen(ctx.write(byteBuf));
                     }
                 } else {
-                    @SuppressWarnings("rawtypes")
-                    ContentSource contentSource = rxRequest.getContentSource();
+                    contentSource = rxRequest.getContentSource();
                     while (contentSource.hasNext()) {
                         allWritesListener.listen(ctx.write(contentSource.next()));
                     }
                 }
             } else {
-                if (!rxRequest.getHeaders().isContentLengthSet()) {
+                if (!rxRequest.getHeaders().isContentLengthSet() && rxRequest.getMethod() != HttpMethod.GET) {
                     rxRequest.getHeaders().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
                 }
                 ctx.write(rxRequest.getNettyRequest(), promise);

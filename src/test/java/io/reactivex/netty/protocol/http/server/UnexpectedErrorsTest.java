@@ -1,5 +1,6 @@
 package io.reactivex.netty.protocol.http.server;
 
+import static org.junit.Assert.*;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
@@ -9,7 +10,6 @@ import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
-import org.testng.Assert;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -47,7 +47,7 @@ public class UnexpectedErrorsTest {
 
         Thread.sleep(1000); // Sucks but we want to wait for the server connection handling to finish
 
-        Assert.assertTrue(errorHandler.invoked, "Error handler not invoked.");
+        assertTrue("Error handler not invoked.", errorHandler.invoked);
     }
 
     @Test
@@ -61,7 +61,7 @@ public class UnexpectedErrorsTest {
 
         Thread.sleep(1000); // Sucks but we want to wait for the server connection handling to finish
 
-        Assert.assertTrue(errorHandler.invoked, "Error handler not invoked.");
+        assertTrue("Error handler not invoked.", errorHandler.invoked);
     }
 
     private static void blockTillConnected() throws InterruptedException, ExecutionException {
