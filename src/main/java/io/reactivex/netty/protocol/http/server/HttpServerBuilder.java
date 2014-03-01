@@ -19,8 +19,6 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.server.AbstractServerBuilder;
 
-import static io.reactivex.netty.protocol.http.server.HttpServer.HttpConnectionHandler;
-
 /**
  * A convenience builder to create instances of {@link HttpServer}
  *

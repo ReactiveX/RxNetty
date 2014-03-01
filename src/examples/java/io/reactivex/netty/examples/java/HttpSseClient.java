@@ -23,7 +23,7 @@ import io.reactivex.netty.protocol.http.client.HttpRequest;
 import io.reactivex.netty.protocol.http.client.HttpResponse;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Observable;
-import rx.util.functions.Action1;
+import rx.functions.Action1;
 
 import java.util.Map;
 

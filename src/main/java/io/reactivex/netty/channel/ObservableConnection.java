@@ -33,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
+    private static final Observable<Void> CONNECTION_ALREADY_CLOSED =
+            Observable.error(new IllegalStateException("Connection is already closed."));
     private final PublishSubject<I> inputSubject;
     private final AtomicBoolean closeIssued = new AtomicBoolean();
 
@@ -45,29 +47,36 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         return inputSubject;
     }
 
+    /**
+     * Closes this connection. This method is idempotent, so it can be called multiple times without any side-effect on
+     * the channel.
+     *
+     * @return Observable signifying the close on the connection. Returns {@link Observable#error(Throwable)} if the
+     * close is already issued (may not be completed)
+     */
     public Observable<Void> close() {
         final ChannelFuture closeFuture;
         if (closeIssued.compareAndSet(false, true)) {
             ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
             closeFuture = getChannelHandlerContext().close();
             inputSubject.onCompleted();
-        } else {
-            return Observable.error(new IllegalStateException("Connection is already closed."));
-        }
-        return Observable.create(new Observable.OnSubscribe<Void>() {
-            @Override
-            public void call(final Subscriber<? super Void> subscriber) {
-                closeFuture.addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if (future.isSuccess()) {
-                            subscriber.onCompleted();
-                        } else {
-                            subscriber.onError(future.cause());
+            return Observable.create(new Observable.OnSubscribe<Void>() {
+                @Override
+                public void call(final Subscriber<? super Void> subscriber) {
+                    closeFuture.addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture future) throws Exception {
+                            if (future.isSuccess()) {
+                                subscriber.onCompleted();
+                            } else {
+                                subscriber.onError(future.cause());
+                            }
                         }
-                    }
-                });
-            }
-        });
+                    });
+                }
+            });
+        } else {
+            return CONNECTION_ALREADY_CLOSED;
+        }
     }
 }

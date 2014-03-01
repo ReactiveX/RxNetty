@@ -145,9 +145,6 @@ public class HttpRequest<T> {
         if (!contentSet.compareAndSet(false, true)) {
             throw new IllegalStateException("Content has already been set");
         }
-        if (!headers.isContentLengthSet()) {
-            headers.set(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
-        }
         contentFactory = new SimpleContentSourceFactory<T>(new ContentSource.SingletonSource<T>(content));
         return this;
     }

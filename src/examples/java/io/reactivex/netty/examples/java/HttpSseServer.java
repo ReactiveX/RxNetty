@@ -24,7 +24,7 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Notification;
 import rx.Observable;
-import rx.util.functions.Func1;
+import rx.functions.Func1;
 
 import java.util.concurrent.TimeUnit;
 

@@ -9,7 +9,7 @@ import io.reactivex.netty.serialization.ByteTransformer;
 import io.reactivex.netty.serialization.ContentTransformer;
 import io.reactivex.netty.serialization.StringTransformer;
 import rx.Observable;
-import rx.util.functions.Func1;
+import rx.functions.Func1;
 
 /**
  * @author Nitesh Kant

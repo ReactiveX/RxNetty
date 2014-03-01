@@ -22,6 +22,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
@@ -93,6 +95,9 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             HttpRequest<?> rxRequest = (HttpRequest<?>) msg;
             if (rxRequest.getHeaders().hasContent()) {
+                if (!rxRequest.getHeaders().isContentLengthSet()) {
+                    rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
+                }
                 MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
                 allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
                 ContentSource<?> contentSource;
@@ -114,6 +119,9 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                     }
                 }
             } else {
+                if (!rxRequest.getHeaders().isContentLengthSet() && rxRequest.getMethod() != HttpMethod.GET) {
+                    rxRequest.getHeaders().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+                }
                 ctx.write(rxRequest.getNettyRequest(), promise);
             }
         } else {
