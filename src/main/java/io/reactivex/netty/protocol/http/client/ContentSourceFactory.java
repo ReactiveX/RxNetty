@@ -16,7 +16,7 @@
 package io.reactivex.netty.protocol.http.client;
 
 /**
- * A {@link ContentSource} factory where its {@link ContentFactory#newContentSource()}
+ * A {@link ContentSource} factory where its {@link ContentSourceFactory#newContentSource()}
  * method should always return a new {@link ContentSource} that starts from the 
  * beginning.
  *
@@ -24,6 +24,6 @@ package io.reactivex.netty.protocol.http.client;
  *
  * @param <T>
  */
-public interface ContentFactory<T, R extends ContentSource<T>> {
+public interface ContentSourceFactory<T, R extends ContentSource<T>> {
     public R newContentSource();
 }

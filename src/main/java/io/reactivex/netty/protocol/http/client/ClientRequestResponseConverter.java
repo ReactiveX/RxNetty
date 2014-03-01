@@ -91,18 +91,13 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         Class<?> recievedMsgClass = msg.getClass();
 
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
-            @SuppressWarnings("rawtypes")
-            HttpRequest rxRequest = (HttpRequest) msg;
+            HttpRequest<?> rxRequest = (HttpRequest<?>) msg;
             if (rxRequest.getHeaders().hasContent()) {
                 MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
                 allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
-                ContentSource<?> contentSource = null;
-                if (rxRequest.getContentFactory() != null) {
-                    contentSource = rxRequest.getContentFactory().newContentSource();
-                } else {
-                    contentSource = rxRequest.getContentSource();
-                }
-                if (contentSource instanceof RawContentSource) {
+                ContentSource<?> contentSource;
+                if (rxRequest.hasRawContentSource()) {
+                    contentSource = rxRequest.getRawContentSource();
                     @SuppressWarnings("rawtypes")
                     RawContentSource<?> rawContentSource = (RawContentSource) contentSource;
                     while (rawContentSource.hasNext()) {
@@ -113,6 +108,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                         allWritesListener.listen(ctx.write(byteBuf));
                     }
                 } else {
+                    contentSource = rxRequest.getContentSource();
                     while (contentSource.hasNext()) {
                         allWritesListener.listen(ctx.write(contentSource.next()));
                     }

@@ -50,7 +50,7 @@ public class RepeatableRequestTest {
         HttpRequest<Integer> request = HttpRequest.<Integer>create(HttpVersion.HTTP_1_1, HttpMethod.POST, "/")
                 .withContentSource(source);
         HttpRequest<Integer> repeatable = new RepeatableContentHttpRequest<Integer>(request);
-        ContentFactory<Integer, ContentSource<Integer>> factory = (ContentFactory<Integer, ContentSource<Integer>>) repeatable.contentFactory;
+        ContentSourceFactory<Integer, ContentSource<Integer>> factory = repeatable.contentFactory;
         ContentSource<Integer> source2 = factory.newContentSource();
         source2.next();
         source2.next();
