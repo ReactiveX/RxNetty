@@ -25,5 +25,7 @@ package io.reactivex.netty.protocol.http.client;
  * @param <T>
  */
 public interface ContentSourceFactory<T, R extends ContentSource<T>> {
-    public R newContentSource();
+
+    R newContentSource();
+
 }
