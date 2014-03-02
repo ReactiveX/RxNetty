@@ -29,10 +29,12 @@ import java.util.concurrent.LinkedBlockingQueue;
  * @param <T>
  */
 public class RepeatableContentHttpRequest<T> extends HttpRequest<T> {
+
     static class RepeatableContentFactory<T> implements ContentSourceFactory<T, ReplayingContentSource<T>> {
 
-        private ReplayingContentSource<T> replayingSource;
-            
+        private final ReplayingContentSource<T> replayingSource;
+
+        @SuppressWarnings({"rawtypes", "unchecked"})
         public RepeatableContentFactory(ContentSource<T> original) {
             if (original instanceof RawContentSource) {
                 replayingSource = new ReplayingRawContentSource<T>((RawContentSource) original);
@@ -50,7 +52,7 @@ public class RepeatableContentHttpRequest<T> extends HttpRequest<T> {
 
     static class ReplayingContentSource<T> implements ContentSource<T> {
         private ContentSource<T> original;
-        private LinkedBlockingQueue<T> recorded = new LinkedBlockingQueue<T>();
+        private final LinkedBlockingQueue<T> recorded = new LinkedBlockingQueue<T>();
         private Iterator<T> iteratorOfRecorded;
         
         ReplayingContentSource() {
@@ -90,7 +92,7 @@ public class RepeatableContentHttpRequest<T> extends HttpRequest<T> {
         
         public ReplayingRawContentSource(RawContentSource<T> original) {
             super(original);
-            this.transformer = original.getTransformer();
+            transformer = original.getTransformer();
         }
         
         @Override
@@ -104,13 +106,13 @@ public class RepeatableContentHttpRequest<T> extends HttpRequest<T> {
         super(request.getNettyRequest());
         if (!request.userPassedInFactory) {
             if (request.hasRawContentSource()) {
-                this.rawContentFactory = new RepeatableContentFactory(request.getRawContentSource());
+                rawContentFactory = new RepeatableContentFactory(request.getRawContentSource());
             } else if (request.contentFactory != null) {
-                this.contentFactory = new RepeatableContentFactory(request.getContentSource());
+                contentFactory = new RepeatableContentFactory(request.getContentSource());
             }
         } else {
-            this.rawContentFactory = request.rawContentFactory;
-            this.contentFactory = request.contentFactory;
+            rawContentFactory = request.rawContentFactory;
+            contentFactory = request.contentFactory;
         }
     }
 }
