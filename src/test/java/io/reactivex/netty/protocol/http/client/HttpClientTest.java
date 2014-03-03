@@ -249,9 +249,6 @@ public class HttpClientTest {
             }
         });
         latch.await();
-        if (ex.get() != null) {
-            ex.get().printStackTrace();
-        }
         assertNotNull(ex.get());
         assertTrue(ex.get() instanceof ConnectException);
     }
@@ -346,6 +343,9 @@ public class HttpClientTest {
             }
         });
         Thread.sleep(3000);
+        if (exceptionHolder.get() != null) {
+            exceptionHolder.get().printStackTrace();
+        }
         assertNull(exceptionHolder.get());
         assertEquals(200, status[0]);
     }
