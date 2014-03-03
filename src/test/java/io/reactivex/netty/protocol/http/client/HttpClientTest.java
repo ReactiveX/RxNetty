@@ -320,7 +320,7 @@ public class HttpClientTest {
     @Test
     public void testNoReadTimeout() throws Exception {
         RxClient.ClientConfig clientConfig = new Builder(RxClient.ClientConfig.DEFAULT_CONFIG)
-                .readTimeout(2, TimeUnit.SECONDS).build();
+                .readTimeout(4, TimeUnit.SECONDS).build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(clientConfig).build();
         Observable<HttpResponse<ByteBuf>> response =
                 client.submit(HttpRequest.createGet("test/singleEntity"));
@@ -342,12 +342,12 @@ public class HttpClientTest {
                 status[0] = response.getStatus().code();
             }
         });
-        Thread.sleep(3000);
+        Thread.sleep(5000);
         if (exceptionHolder.get() != null) {
             exceptionHolder.get().printStackTrace();
         }
-        assertNull(exceptionHolder.get());
         assertEquals(200, status[0]);
+        assertNull(exceptionHolder.get());
     }
 
     private static void readResponseContent(Observable<HttpResponse<ServerSentEvent>> response,
