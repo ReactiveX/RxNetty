@@ -249,6 +249,9 @@ public class HttpClientTest {
             }
         });
         latch.await();
+        if (ex.get() != null) {
+            ex.get().printStackTrace();
+        }
         assertNotNull(ex.get());
         assertTrue(ex.get() instanceof ConnectException);
     }
