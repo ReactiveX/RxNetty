@@ -25,7 +25,6 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.serialization.ByteTransformer;
 
 import java.nio.charset.Charset;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 import static io.reactivex.netty.protocol.http.client.RawContentSource.SingletonRawSource;
 
@@ -52,8 +51,6 @@ public class HttpRequest<T> {
     protected ContentSourceFactory<T, ContentSource<T>> contentFactory;
     protected ContentSourceFactory<?, RawContentSource<?>> rawContentFactory;
     protected boolean userPassedInFactory;
-
-    private final AtomicBoolean contentSet = new AtomicBoolean();
 
     /*Visible for testing*/ HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
@@ -98,46 +95,31 @@ public class HttpRequest<T> {
     }
 
     public HttpRequest<T> withContentSource(ContentSource<T> contentSource) {
-        if (!contentSet.compareAndSet(false, true)) {
-            throw new IllegalStateException("Content has already been set");
-        }
-        contentFactory = new SimpleContentSourceFactory<T, ContentSource<T>>(contentSource);
+        setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(contentSource));
         return this;
     }
     
     public HttpRequest<T> withContentFactory(ContentSourceFactory<T, ContentSource<T>> contentFactory) {
-        if (!contentSet.compareAndSet(false, true)) {
-            throw new IllegalStateException("Content has already been set");
-        }
         userPassedInFactory = true;
-        this.contentFactory = contentFactory;
+        setContentFactory(contentFactory);
         return this;
     }
     
     public HttpRequest<T> withRawContentFactory(ContentSourceFactory<?, RawContentSource<?>> rawContentFactory) {
-        if (!contentSet.compareAndSet(false, true)) {
-            throw new IllegalStateException("Content has already been set");
-        }
         userPassedInFactory = true;
-        this.rawContentFactory = rawContentFactory;
+        setRawContentFactory(rawContentFactory);
         return this;
     }
 
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
     public HttpRequest<T> withRawContentSource(final RawContentSource<?> rawContentSource) {
-        if (!contentSet.compareAndSet(false, true)) {
-            throw new IllegalStateException("Content has already been set");
-        }
-        rawContentFactory = new SimpleContentSourceFactory(rawContentSource);
+        setRawContentFactory(new SimpleContentSourceFactory(rawContentSource));
         return this;
     }
 
     public HttpRequest<T> withContent(T content) {
-        if (!contentSet.compareAndSet(false, true)) {
-            throw new IllegalStateException("Content has already been set");
-        }
-        contentFactory = new SimpleContentSourceFactory<T, ContentSource<T>>(new ContentSource.SingletonSource<T>(content));
+        setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(new ContentSource.SingletonSource<T>(content)));
         return this;
     }
 
@@ -147,11 +129,8 @@ public class HttpRequest<T> {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     public HttpRequest<T> withContent(byte[] content) {
-        if (!contentSet.compareAndSet(false, true)) {
-            throw new IllegalStateException("Content has already been set");
-        }
         headers.set(HttpHeaders.Names.CONTENT_LENGTH, content.length);
-        rawContentFactory = new SimpleContentSourceFactory(new SingletonRawSource<byte[]>(content, new ByteTransformer()));
+        setRawContentFactory(new SimpleContentSourceFactory(new SingletonRawSource<byte[]>(content, new ByteTransformer())));
         return this;
     }
 
@@ -171,12 +150,29 @@ public class HttpRequest<T> {
         return nettyRequest.getUri();
     }
 
+    private void setRawContentFactory(ContentSourceFactory<?, RawContentSource<?>> rawContentFactory) {
+        // raw content factory and content factory is mutually exclusive
+        this.rawContentFactory = rawContentFactory;
+        this.contentFactory = null;
+    }
+    
+    private void setContentFactory(ContentSourceFactory<T, ContentSource<T>> contentFactory) {
+        // raw content factory and content factory is mutually exclusive
+        this.contentFactory = contentFactory;
+        this.rawContentFactory = null;
+    }
+
+    
     io.netty.handler.codec.http.HttpRequest getNettyRequest() {
         return nettyRequest;
     }
 
     boolean hasRawContentSource() {
         return rawContentFactory != null;
+    }
+    
+    boolean hasContentSource() {
+        return rawContentFactory != null || contentFactory != null;
     }
     
     ContentSource<T> getContentSource() {
