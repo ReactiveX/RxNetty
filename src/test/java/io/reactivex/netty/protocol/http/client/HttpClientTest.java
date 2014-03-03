@@ -15,16 +15,22 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
+import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ConnectTimeoutException;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpServer;
+import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
+import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.server.RxServerThreadFactory;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -57,7 +63,11 @@ public class HttpClientTest {
     @BeforeClass
     public static void init() {
         port = new Random().nextInt(1000) + 4000;
-        server = RxNetty.createHttpServer(port, new RequestProcessor());
+        HttpServerBuilder<ByteBuf, ByteBuf> builder 
+            = new HttpServerBuilder<ByteBuf, ByteBuf>(new ServerBootstrap().group(new NioEventLoopGroup(10, new RxServerThreadFactory())), port, new RequestProcessor());
+        server = builder.build();
+        // server = RxNetty.createHttpServer(port, new RequestProcessor());
+        
         server.start();
     }
 
@@ -343,8 +353,11 @@ public class HttpClientTest {
             }
         });
         Thread.sleep(3000);
-        assertNull(exceptionHolder.get());
+        if (exceptionHolder.get() != null) {
+            exceptionHolder.get().printStackTrace();
+        }
         assertEquals(200, status[0]);
+        assertNull(exceptionHolder.get());
     }
 
     private static void readResponseContent(Observable<HttpResponse<ServerSentEvent>> response,
