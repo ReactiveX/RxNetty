@@ -100,22 +100,24 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 }
                 MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
                 allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
-                ContentSource<?> contentSource;
-                if (rxRequest.hasRawContentSource()) {
-                    contentSource = rxRequest.getRawContentSource();
-                    @SuppressWarnings("rawtypes")
-                    RawContentSource<?> rawContentSource = (RawContentSource) contentSource;
-                    while (rawContentSource.hasNext()) {
+                if (rxRequest.hasContentSource()) {
+                    ContentSource<?> contentSource;
+                    if (rxRequest.hasRawContentSource()) {
+                        contentSource = rxRequest.getRawContentSource();
                         @SuppressWarnings("rawtypes")
-                        ContentTransformer transformer = rawContentSource.getTransformer();
-                        @SuppressWarnings("unchecked")
-                        ByteBuf byteBuf = transformer.transform(rawContentSource.next(), ctx.alloc());
-                        allWritesListener.listen(ctx.write(byteBuf));
-                    }
-                } else {
-                    contentSource = rxRequest.getContentSource();
-                    while (contentSource.hasNext()) {
-                        allWritesListener.listen(ctx.write(contentSource.next()));
+                        RawContentSource<?> rawContentSource = (RawContentSource) contentSource;
+                        while (rawContentSource.hasNext()) {
+                            @SuppressWarnings("rawtypes")
+                            ContentTransformer transformer = rawContentSource.getTransformer();
+                            @SuppressWarnings("unchecked")
+                            ByteBuf byteBuf = transformer.transform(rawContentSource.next(), ctx.alloc());
+                            allWritesListener.listen(ctx.write(byteBuf));
+                        }
+                    } else {
+                        contentSource = rxRequest.getContentSource();
+                        while (contentSource.hasNext()) {
+                            allWritesListener.listen(ctx.write(contentSource.next()));
+                        }
                     }
                 }
             } else {

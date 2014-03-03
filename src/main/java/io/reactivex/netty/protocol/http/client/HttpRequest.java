@@ -171,6 +171,10 @@ public class HttpRequest<T> {
         return rawContentFactory != null;
     }
     
+    boolean hasContentSource() {
+        return rawContentFactory != null || contentFactory != null;
+    }
+    
     ContentSource<T> getContentSource() {
         return contentFactory.newContentSource();
     }
