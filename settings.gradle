@@ -1,1 +1,3 @@
 rootProject.name='rx-netty'
+include 'rx-netty'
+
