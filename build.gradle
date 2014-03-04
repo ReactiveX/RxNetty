@@ -1,4 +1,4 @@
-ext.githubProjectName = "rx-netty"
+ext.githubProjectName = "RxNetty"
 
 buildscript {
     repositories {

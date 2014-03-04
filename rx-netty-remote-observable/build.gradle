@@ -1,0 +1,18 @@
+apply plugin: 'osgi'
+
+sourceCompatibility = JavaVersion.VERSION_1_6
+targetCompatibility = JavaVersion.VERSION_1_6
+
+dependencies {
+	compile project(':rx-netty')
+    testCompile 'junit:junit:4.10'
+}
+
+jar {
+    manifest {
+        name = 'rx-netty-remote-observable'
+        instruction 'Bundle-Vendor', 'Netflix'
+        instruction 'Bundle-DocURL', 'https://github.com/Netflix/RxNetty'
+        instruction 'Import-Package', '!org.junit,!junit.framework,!org.mockito.*,*'
+    }
+}
