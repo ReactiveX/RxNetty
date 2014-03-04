@@ -1,3 +1,4 @@
+subprojects {
 // Checkstyle
 apply plugin: 'checkstyle'
 checkstyle {
@@ -21,4 +22,5 @@ cobertura {
     format = 'html'
     includes = ['**/*.java', '**/*.groovy']
     excludes = []
+}
 }
