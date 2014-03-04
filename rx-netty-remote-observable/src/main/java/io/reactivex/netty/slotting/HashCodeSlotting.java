@@ -52,9 +52,6 @@ public class HashCodeSlotting<T> implements SlottingStrategy<T> {
 			public Boolean call(SlotValuePair<T> pair) {
 				T value = pair.getValue();
 				int slot = pair.getSlot();
-				System.out.println("value::"+value);
-				System.out.println("slot::"+value);
-				System.out.println("outcome::"+(((value.hashCode() & Integer.MAX_VALUE) % numSlots) == slot));
 				return ((value.hashCode() & Integer.MAX_VALUE) % numSlots) == slot;
 			}
 		};
