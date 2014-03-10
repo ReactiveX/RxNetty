@@ -20,8 +20,8 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.protocol.http.server.HttpRequest;
-import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.HttpServerRequest;
+import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
@@ -39,7 +39,7 @@ import static io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator
  * @author Nitesh Kant
  */
 public class SseOverHttpServerPipelineConfigurator<I>
-        implements PipelineConfigurator<HttpRequest<I>, HttpResponse<ServerSentEvent>> {
+        implements PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<ServerSentEvent>> {
 
     public static final String SSE_RESPONSE_HEADERS_COMPLETER = "sse-response-headers-completer";
 
@@ -60,9 +60,9 @@ public class SseOverHttpServerPipelineConfigurator<I>
         pipeline.addLast(SSE_RESPONSE_HEADERS_COMPLETER, new ChannelOutboundHandlerAdapter() {
             @Override
             public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-                if (HttpResponse.class.isAssignableFrom(msg.getClass())) {
+                if (HttpServerResponse.class.isAssignableFrom(msg.getClass())) {
                     @SuppressWarnings("rawtypes")
-                    HttpResponse rxResponse = (HttpResponse) msg;
+                    HttpServerResponse rxResponse = (HttpServerResponse) msg;
                     String contentTypeHeader = rxResponse.getHeaders().get(CONTENT_TYPE);
                     if (null == contentTypeHeader) {
                         rxResponse.getHeaders().set(CONTENT_TYPE, "text/event-stream");

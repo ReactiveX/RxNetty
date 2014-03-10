@@ -33,7 +33,7 @@ public class CookieTest {
         String cookie1Header = cookie1Name + '=' + cookie1Value
                                + "; expires=Thu, 18-Feb-2016 07:47:08 GMT; path=" + cookie1Path + "; domain=" + cookie1Domain;
         nettyRequest.headers().add(HttpHeaders.Names.COOKIE, cookie1Header);
-        HttpRequest<ByteBuf> request = new HttpRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
+        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
         Map<String,Set<Cookie>> cookies = request.getCookies();
         Assert.assertEquals("Unexpected number of cookies.", 1, cookies.size());
         Set<Cookie> cookies1 = cookies.get(cookie1Name);
@@ -47,7 +47,7 @@ public class CookieTest {
     @Test
     public void testSetCookie() throws Exception {
         DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
-        HttpResponse<ByteBuf> response = new HttpResponse<ByteBuf>(new NoOpChannelHandlerContext(),
+        HttpServerResponse<ByteBuf> response = new HttpServerResponse<ByteBuf>(new NoOpChannelHandlerContext(),
                                                                    nettyResponse);
         String cookieName = "name";
         String cookieValue = "value";

@@ -22,6 +22,6 @@ import rx.Observable;
  */
 public interface RequestHandler<I, O> {
 
-    Observable<Void> handle(HttpRequest<I> request, HttpResponse<O> response);
+    Observable<Void> handle(HttpServerRequest<I> request, HttpServerResponse<O> response);
 
 }

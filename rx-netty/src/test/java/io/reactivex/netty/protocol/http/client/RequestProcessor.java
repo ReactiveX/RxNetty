@@ -19,8 +19,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
-import io.reactivex.netty.protocol.http.server.HttpRequest;
-import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.HttpServerRequest;
+import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import rx.Observable;
 import rx.Observer;
@@ -52,12 +52,12 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         largeStreamContent = Collections.unmodifiableList(largeStreamListLocal);
     }
     
-    public Observable<Void> handleSingleEntity(HttpResponse<ByteBuf> response) {
+    public Observable<Void> handleSingleEntity(HttpServerResponse<ByteBuf> response) {
         byte[] responseBytes = "Hello world".getBytes();
         return response.writeBytesAndFlush(responseBytes);
     }
 
-    public Observable<Void> handleStreamWithoutChunking(HttpResponse<ByteBuf> response) {
+    public Observable<Void> handleStreamWithoutChunking(HttpServerResponse<ByteBuf> response) {
         response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         for (String contentPart : smallStreamContent) {
             response.writeString("data:");
@@ -67,15 +67,15 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         return response.flush();
     }
 
-    public Observable<Void> handleStream(HttpResponse<ByteBuf> response) {
+    public Observable<Void> handleStream(HttpServerResponse<ByteBuf> response) {
         return sendStreamingResponse(response, smallStreamContent);
     }
 
-    public Observable<Void> handleLargeStream(HttpResponse<ByteBuf> response) {
+    public Observable<Void> handleLargeStream(HttpServerResponse<ByteBuf> response) {
         return sendStreamingResponse(response, largeStreamContent);
     }
 
-    public Observable<Void> simulateTimeout(HttpRequest<ByteBuf> httpRequest, HttpResponse<ByteBuf> response) {
+    public Observable<Void> simulateTimeout(HttpServerRequest<ByteBuf> httpRequest, HttpServerResponse<ByteBuf> response) {
         String uri = httpRequest.getUri();
         QueryStringDecoder decoder = new QueryStringDecoder(uri);
         List<String> timeout = decoder.parameters().get("timeout");
@@ -98,7 +98,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         return response.writeBytesAndFlush(contentBytes);
     }
 
-    public Observable<Void> handlePost(final HttpRequest<ByteBuf> request, final HttpResponse<ByteBuf> response) {
+    public Observable<Void> handlePost(final HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
         return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
             @Override
             public Observable<Void> call(ByteBuf t1) {
@@ -108,7 +108,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         );
     }
     
-    private static Observable<Void> sendStreamingResponse(HttpResponse<ByteBuf> response, List<String> data) {
+    private static Observable<Void> sendStreamingResponse(HttpServerResponse<ByteBuf> response, List<String> data) {
         response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         response.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
         for (String line : data) {
@@ -120,7 +120,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     }
 
     @Override
-    public Observable<Void> handle(HttpRequest<ByteBuf> request, HttpResponse<ByteBuf> response) {
+    public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
         String uri = request.getUri();
         if (uri.startsWith("test/singleEntity")) {
             return handleSingleEntity(response);

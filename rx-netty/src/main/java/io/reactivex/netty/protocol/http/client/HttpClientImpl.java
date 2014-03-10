@@ -29,41 +29,41 @@ import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.subscriptions.Subscriptions;
 
-public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpResponse<O>> implements HttpClient<I, O> {
+public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
     public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                          PipelineConfigurator<HttpResponse<O>, HttpRequest<I>> pipelineConfigurator, ClientConfig clientConfig) {
+                          PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator, ClientConfig clientConfig) {
         super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
     }
 
     @Override
-    public Observable<HttpResponse<O>> submit(HttpRequest<I> request) {
-        Observable<ObservableConnection<HttpResponse<O>, HttpRequest<I>>> connectionObservable = connect();
+    public Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request) {
+        Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable = connect();
         return submit(request, connectionObservable);
     }
 
     @Override
-    public Observable<HttpResponse<O>> submit(HttpRequest<I> request, ClientConfig config) {
-        Observable<ObservableConnection<HttpResponse<O>, HttpRequest<I>>> connectionObservable = connect();
+    public Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request, ClientConfig config) {
+        Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable = connect();
         return submit(request, connectionObservable, config);
     }
 
-    protected Observable<HttpResponse<O>> submit(final HttpRequest<I> request,
-                                              Observable<ObservableConnection<HttpResponse<O>, HttpRequest<I>>> connectionObservable) {
+    protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
+                                              Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable) {
         return submit(request, connectionObservable, null == clientConfig
                                                      ? HttpClientConfig.DEFAULT_CONFIG : clientConfig);
     }
 
-    protected Observable<HttpResponse<O>> submit(final HttpRequest<I> request,
-                                                 final Observable<ObservableConnection<HttpResponse<O>, HttpRequest<I>>> connectionObservable,
+    protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
+                                                 final Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable,
                                                  final ClientConfig config) {
         enrichRequest(request, config);
 
         // Here we do not map the connection Observable and return because the onComplete() of connectionObservable,
         // does not indicate onComplete of the request processing.
-        return Observable.create(new Observable.OnSubscribe<HttpResponse<O>>() {
+        return Observable.create(new Observable.OnSubscribe<HttpClientResponse<O>>() {
             @Override
-            public void call(final Subscriber<? super HttpResponse<O>> subscriber) {
+            public void call(final Subscriber<? super HttpClientResponse<O>> subscriber) {
                 final Subscription connectSubscription =
                         connectionObservable.subscribe(new ConnectObserver<I, O>(request, subscriber));
 
@@ -71,7 +71,9 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
                     @Override
                     public void call() {
                         //TODO: Cancel write & if the response is not over, disconnect the channel.
+                        System.err.println("connectSubscription.unsubscribe();");
                         connectSubscription.unsubscribe();
+                        
                     }
                 }));
             }
@@ -79,15 +81,15 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
     }
 
     @Override
-    protected PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> getPipelineConfiguratorForAChannel(ClientConnectionHandler clientConnectionHandler,
-                                                                                                       PipelineConfigurator<HttpResponse<O>, HttpRequest<I>> pipelineConfigurator) {
-        PipelineConfigurator<HttpResponse<O>, HttpRequest<I>> configurator =
-                new PipelineConfiguratorComposite<HttpResponse<O>, HttpRequest<I>>(pipelineConfigurator,
+    protected PipelineConfigurator<HttpClientRequest<I>, HttpClientResponse<O>> getPipelineConfiguratorForAChannel(ClientConnectionHandler clientConnectionHandler,
+                                                                                                       PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator) {
+        PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator =
+                new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator,
                                                                                    new ClientRequiredConfigurator<I, O>());
         return super.getPipelineConfiguratorForAChannel(clientConnectionHandler, configurator);
     }
 
-    private void enrichRequest(HttpRequest<I> request, ClientConfig config) {
+    private void enrichRequest(HttpClientRequest<I> request, ClientConfig config) {
         if(!request.getHeaders().contains(HttpHeaders.Names.HOST)) {
             request.getHeaders().add(HttpHeaders.Names.HOST, serverInfo.getHost());
         }
@@ -100,12 +102,12 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
         }
     }
 
-    private class ConnectObserver<I, O> extends CompositeObserver<ObservableConnection<HttpResponse<O>, HttpRequest<I>>> {
+    private class ConnectObserver<I, O> extends CompositeObserver<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> {
 
-        private final HttpRequest<I> request;
-        private final Observer<? super HttpResponse<O>> requestProcessingObserver;
+        private final HttpClientRequest<I> request;
+        private final Observer<? super HttpClientResponse<O>> requestProcessingObserver;
 
-        public ConnectObserver(HttpRequest<I> request, Observer<? super HttpResponse<O>> requestProcessingObserver) {
+        public ConnectObserver(HttpClientRequest<I> request, Observer<? super HttpClientResponse<O>> requestProcessingObserver) {
             super(requestProcessingObserver);
             this.request = request;
             this.requestProcessingObserver = requestProcessingObserver;
@@ -114,10 +116,11 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpRequest<I>, HttpRespo
         @Override
         public void onCompleted() {
             // We do not want an onComplete() call to Request Processing Observer on onComplete of connection observable.
+            System.err.println("ConnectObserver.onCompleted()");
         }
 
         @Override
-        public void onNext(ObservableConnection<HttpResponse<O>, HttpRequest<I>> connection) {
+        public void onNext(ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
             ClientRequestResponseConverter converter =
                     connection.getChannelHandlerContext().pipeline().get(ClientRequestResponseConverter.class);
             if (null != converter) {

@@ -7,7 +7,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 */
 class DefaultErrorResponseGenerator<O> implements ErrorResponseGenerator<O> {
     @Override
-    public void updateResponse(HttpResponse<O> response, Throwable error) {
+    public void updateResponse(HttpServerResponse<O> response, Throwable error) {
         response.setStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR);
     }
 }

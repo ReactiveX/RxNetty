@@ -22,13 +22,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A request that uses a {@link ContentSourceFactory} where its {@link ContentSourceFactory#newContentSource()}
- * method always iterates from the start of the {@link ContentSource} of the wrapped {@link HttpRequest} 
+ * method always iterates from the start of the {@link ContentSource} of the wrapped {@link HttpClientRequest} 
  * 
  * @author awang
  *
  * @param <T>
  */
-public class RepeatableContentHttpRequest<T> extends HttpRequest<T> {
+public class RepeatableContentHttpRequest<T> extends HttpClientRequest<T> {
 
     static class RepeatableContentFactory<T> implements ContentSourceFactory<T, ReplayingContentSource<T>> {
 
@@ -102,7 +102,7 @@ public class RepeatableContentHttpRequest<T> extends HttpRequest<T> {
     }
     
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public RepeatableContentHttpRequest(HttpRequest<T> request) {
+    public RepeatableContentHttpRequest(HttpClientRequest<T> request) {
         super(request.getNettyRequest());
         if (!request.userPassedInFactory) {
             if (request.hasRawContentSource()) {

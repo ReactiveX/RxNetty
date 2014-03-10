@@ -5,5 +5,5 @@ package io.reactivex.netty.protocol.http.server;
  */
 public interface ErrorResponseGenerator<T> {
 
-    void updateResponse(HttpResponse<T> response, Throwable error);
+    void updateResponse(HttpServerResponse<T> response, Throwable error);
 }

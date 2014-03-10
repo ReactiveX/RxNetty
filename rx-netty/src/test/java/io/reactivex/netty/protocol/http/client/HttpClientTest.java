@@ -36,6 +36,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import rx.Observable;
 import rx.Observer;
+import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func1;
 
@@ -81,8 +82,8 @@ public class HttpClientTest {
     public void testChunkedStreaming() throws Exception {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators.<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<ServerSentEvent>> response =
-                client.submit(HttpRequest.createGet("test/stream"));
+        Observable<HttpClientResponse<ServerSentEvent>> response =
+                client.submit(HttpClientRequest.createGet("test/stream"));
 
         final List<String> result = new ArrayList<String>();
         readResponseContent(response, result);
@@ -94,8 +95,8 @@ public class HttpClientTest {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators
                                                                                 .<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<ServerSentEvent>> response =
-                client.submit(HttpRequest.createDelete("test/largeStream"));
+        Observable<HttpClientResponse<ServerSentEvent>> response =
+                client.submit(HttpClientRequest.createDelete("test/largeStream"));
 
         final List<String> result = new ArrayList<String>();
         readResponseContent(response, result);
@@ -107,11 +108,11 @@ public class HttpClientTest {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators
                                                                                 .<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<ServerSentEvent>> response =
-                client.submit(HttpRequest.createGet("test/largeStream"));
-        Observable<String> transformed = response.flatMap(new Func1<HttpResponse<ServerSentEvent>, Observable<String>>() {
+        Observable<HttpClientResponse<ServerSentEvent>> response =
+                client.submit(HttpClientRequest.createGet("test/largeStream"));
+        Observable<String> transformed = response.flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<String>>() {
             @Override
-            public Observable<String> call(HttpResponse<ServerSentEvent> httpResponse) {
+            public Observable<String> call(HttpClientResponse<ServerSentEvent> httpResponse) {
                 if (httpResponse.getStatus().equals(HttpResponseStatus.OK)) {
                     return httpResponse.getContent().map(new Func1<ServerSentEvent, String>() {
                         @Override
@@ -138,11 +139,11 @@ public class HttpClientTest {
     @Test
     public void testSingleEntity() throws Exception {
         HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port);
-        Observable<HttpResponse<ByteBuf>> response = client.submit(HttpRequest.createGet("test/singleEntity"));
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"));
         final List<String> result = new ArrayList<String>();
-        response.flatMap(new Func1<HttpResponse<ByteBuf>, Observable<String>>() {
+        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
             @Override
-            public Observable<String> call(HttpResponse<ByteBuf> response) {
+            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
                 return response.getContent().map(new Func1<ByteBuf, String>() {
                     @Override
                     public String call(ByteBuf byteBuf) {
@@ -157,21 +158,25 @@ public class HttpClientTest {
                 result.add(t1);
             }
         });
+        // Thread.sleep(2000);
         assertEquals(1, result.size());
         assertEquals("Hello world", result.get(0));
+        // subscription.unsubscribe();
+        // Thread.sleep(1000000);
+        
     }
 
     @Test
     public void testPost() throws Exception {
         HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port);
-        HttpRequest<ByteBuf> request = HttpRequest.createPost("test/post")
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/post")
                 .withContent("Hello world");
         RepeatableContentHttpRequest<ByteBuf> repeatable = new RepeatableContentHttpRequest<ByteBuf>(request);
-        Observable<HttpResponse<ByteBuf>> response = client.submit(repeatable);
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(repeatable);
         final List<String> result = new ArrayList<String>();
-        response.flatMap(new Func1<HttpResponse<ByteBuf>, Observable<String>>() {
+        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
             @Override
-            public Observable<String> call(HttpResponse<ByteBuf> response) {
+            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
                 return response.getContent().map(new Func1<ByteBuf, String>() {
                     @Override
                     public String call(ByteBuf byteBuf) {
@@ -192,9 +197,9 @@ public class HttpClientTest {
         // resend the same request to make sure it is repeatable
         response = client.submit(repeatable);
         result.clear();
-        response.flatMap(new Func1<HttpResponse<ByteBuf>, Observable<String>>() {
+        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
             @Override
-            public Observable<String> call(HttpResponse<ByteBuf> response) {
+            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
                 return response.getContent().map(new Func1<ByteBuf, String>() {
                     @Override
                     public String call(ByteBuf byteBuf) {
@@ -217,12 +222,12 @@ public class HttpClientTest {
     public void testNonChunkingStream() throws Exception {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators.<ByteBuf>sseClientConfigurator());
-        Observable<HttpResponse<ServerSentEvent>> response =
-                client.submit(HttpRequest.createGet("test/nochunk_stream"));
+        Observable<HttpClientResponse<ServerSentEvent>> response =
+                client.submit(HttpClientRequest.createGet("test/nochunk_stream"));
         final List<String> result = new ArrayList<String>();
-        response.flatMap(new Func1<HttpResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
+        response.flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
             @Override
-            public Observable<ServerSentEvent> call(HttpResponse<ServerSentEvent> httpResponse) {
+            public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> httpResponse) {
                 return httpResponse.getContent();
             }
         }).toBlockingObservable().forEach(new Action1<ServerSentEvent>() {
@@ -238,11 +243,11 @@ public class HttpClientTest {
     public void testConnectException() throws Exception {
         HttpClientBuilder<ByteBuf, ByteBuf> clientBuilder = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", 8182);
         HttpClient<ByteBuf, ByteBuf> client = clientBuilder.channelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 100).build();
-        Observable<HttpResponse<ByteBuf>> response =
-                client.submit(HttpRequest.createGet("/"));
+        Observable<HttpClientResponse<ByteBuf>> response =
+                client.submit(HttpClientRequest.createGet("/"));
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
-        response.subscribe(new Observer<HttpResponse<ByteBuf>>() {
+        response.subscribe(new Observer<HttpClientResponse<ByteBuf>>() {
             @Override
             public void onCompleted() {
                 latch.countDown();
@@ -255,7 +260,7 @@ public class HttpClientTest {
             }
 
             @Override
-            public void onNext(HttpResponse<ByteBuf> args) {
+            public void onNext(HttpClientResponse<ByteBuf> args) {
             }
         });
         latch.await();
@@ -267,10 +272,10 @@ public class HttpClientTest {
     public void testConnectException2() throws Exception {
         HttpClientBuilder<ByteBuf, ByteBuf> clientBuilder = new HttpClientBuilder<ByteBuf, ByteBuf>("www.google.com", 81);
         HttpClient<ByteBuf, ByteBuf> client = clientBuilder.channelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10).build();
-        Observable<HttpResponse<ByteBuf>> response = client.submit(HttpRequest.createGet("/"));
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("/"));
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> ex = new AtomicReference<Throwable>();
-        response.subscribe(new Observer<HttpResponse<ByteBuf>>() {
+        response.subscribe(new Observer<HttpClientResponse<ByteBuf>>() {
             @Override
             public void onCompleted() {
                 latch.countDown();
@@ -283,7 +288,7 @@ public class HttpClientTest {
             }
 
             @Override
-            public void onNext(HttpResponse<ByteBuf> args) {
+            public void onNext(HttpClientResponse<ByteBuf> args) {
             }
         });
         latch.await(10, TimeUnit.SECONDS);
@@ -296,12 +301,12 @@ public class HttpClientTest {
                 .readTimeout(10, TimeUnit.MILLISECONDS).build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(
                 clientConfig).build();
-        Observable<HttpResponse<ByteBuf>> response =
-                client.submit(HttpRequest.createGet("test/timeout?timeout=10000"));
+        Observable<HttpClientResponse<ByteBuf>> response =
+                client.submit(HttpClientRequest.createGet("test/timeout?timeout=10000"));
 
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
-        response.subscribe(new Observer<HttpResponse<ByteBuf>>() {
+        response.subscribe(new Observer<HttpClientResponse<ByteBuf>>() {
             @Override
             public void onCompleted() {
                 latch.countDown();
@@ -314,7 +319,7 @@ public class HttpClientTest {
             }
 
             @Override
-            public void onNext(HttpResponse<ByteBuf> response) {
+            public void onNext(HttpClientResponse<ByteBuf> response) {
                 latch.countDown();
             }
         });
@@ -332,12 +337,12 @@ public class HttpClientTest {
         RxClient.ClientConfig clientConfig = new Builder(RxClient.ClientConfig.DEFAULT_CONFIG)
                 .readTimeout(2, TimeUnit.SECONDS).build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(clientConfig).build();
-        Observable<HttpResponse<ByteBuf>> response =
-                client.submit(HttpRequest.createGet("test/singleEntity"));
+        Observable<HttpClientResponse<ByteBuf>> response =
+                client.submit(HttpClientRequest.createGet("test/singleEntity"));
 
         final AtomicReference<Throwable> exceptionHolder = new AtomicReference<Throwable>();
         final int[] status = {0};
-        response.subscribe(new Observer<HttpResponse<ByteBuf>>() {
+        response.subscribe(new Observer<HttpClientResponse<ByteBuf>>() {
             @Override
             public void onCompleted() {
             }
@@ -348,7 +353,7 @@ public class HttpClientTest {
             }
 
             @Override
-            public void onNext(HttpResponse<ByteBuf> response) {
+            public void onNext(HttpClientResponse<ByteBuf> response) {
                 status[0] = response.getStatus().code();
             }
         });
@@ -360,12 +365,12 @@ public class HttpClientTest {
         assertNull(exceptionHolder.get());
     }
 
-    private static void readResponseContent(Observable<HttpResponse<ServerSentEvent>> response,
+    private static void readResponseContent(Observable<HttpClientResponse<ServerSentEvent>> response,
                                             final List<String> result) {
         response.flatMap(
-                new Func1<HttpResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
+                new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
                     @Override
-                    public Observable<ServerSentEvent> call(HttpResponse<ServerSentEvent> sseEventHttpResponse) {
+                    public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> sseEventHttpResponse) {
                         return sseEventHttpResponse.getContent();
                     }
                 })

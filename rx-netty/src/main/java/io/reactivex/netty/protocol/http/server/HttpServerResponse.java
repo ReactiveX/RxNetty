@@ -32,22 +32,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author Nitesh Kant
  */
-public class HttpResponse<T> extends DefaultChannelWriter<T> {
+public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
     private final HttpResponseHeaders headers;
     private final io.netty.handler.codec.http.HttpResponse nettyResponse;
     private final AtomicBoolean headerWritten = new AtomicBoolean();
     private ChannelFuture headerWriteFuture;
 
-    public HttpResponse(ChannelHandlerContext ctx) {
+    public HttpServerResponse(ChannelHandlerContext ctx) {
         this(ctx, HttpVersion.HTTP_1_1);
     }
 
-    public HttpResponse(ChannelHandlerContext ctx, HttpVersion httpVersion) {
+    public HttpServerResponse(ChannelHandlerContext ctx, HttpVersion httpVersion) {
         this(ctx, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK));
     }
 
-    /*Visible for testing */ HttpResponse(ChannelHandlerContext ctx,
+    /*Visible for testing */ HttpServerResponse(ChannelHandlerContext ctx,
                                           io.netty.handler.codec.http.HttpResponse nettyResponse) {
         super(ctx);
         this.nettyResponse = nettyResponse;
@@ -81,7 +81,7 @@ public class HttpResponse<T> extends DefaultChannelWriter<T> {
 
     @Override
     protected ChannelFuture writeOnChannel(Object msg) {
-        if (!HttpResponse.class.isAssignableFrom(msg.getClass()) && headerWritten.compareAndSet(false, true)) {
+        if (!HttpServerResponse.class.isAssignableFrom(msg.getClass()) && headerWritten.compareAndSet(false, true)) {
             headerWriteFuture = super.writeOnChannel(this);
         }
 

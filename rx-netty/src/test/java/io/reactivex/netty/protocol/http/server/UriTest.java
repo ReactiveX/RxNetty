@@ -27,7 +27,7 @@ public class UriTest {
         String queryString = qp1Name + '=' + qp1Val + '&' + qp2Name + '=' + qp2Val + '&' + qp2Name + '=' + qp2Val2 ;
         String uri = path + '?' + queryString;
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
-        HttpRequest<ByteBuf> request = new HttpRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
+        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
         Assert.assertEquals("Unexpected query string", queryString,request.getQueryString());
         Assert.assertEquals("Unexpected path string", path, request.getPath());
@@ -51,7 +51,7 @@ public class UriTest {
         String path = "a/b/c";
         String uri = path + '?';
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
-        HttpRequest<ByteBuf> request = new HttpRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
+        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
         Assert.assertEquals("Unexpected query string", "", request.getQueryString());
     }
@@ -61,7 +61,7 @@ public class UriTest {
         String path = "a/b/c";
         String uri = path;
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
-        HttpRequest<ByteBuf> request = new HttpRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
+        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
         Assert.assertEquals("Unexpected query string", "", request.getQueryString());
     }

@@ -36,16 +36,16 @@ import rx.subjects.PublishSubject;
  *
  * <h2>Reading Objects</h2>
  * <ul>
- <li>{@link io.netty.handler.codec.http.HttpResponse: Converts it to {@link HttpResponse} </li>
+ <li>{@link io.netty.handler.codec.http.HttpResponse: Converts it to {@link HttpClientResponse} </li>
  <li>{@link HttpContent}: Converts it to the content of the previously generated
-{@link HttpResponse}</li>
- <li>{@link FullHttpResponse}: Converts it to a {@link HttpResponse} with pre-populated content observable.</li>
+{@link HttpClientResponse}</li>
+ <li>{@link FullHttpResponse}: Converts it to a {@link HttpClientResponse} with pre-populated content observable.</li>
  <li>Any other object: Assumes that it is a transformed HTTP content & pass it through to the content observable.</li>
  </ul>
  *
  * <h2>Writing Objects</h2>
  * <ul>
- <li>{@link HttpRequest}: Converts it to a {@link io.netty.handler.codec.http.HttpRequest}</li>
+ <li>{@link HttpClientRequest}: Converts it to a {@link io.netty.handler.codec.http.HttpRequest}</li>
  <li>{@link ByteBuf} to an {@link HttpContent}</li>
  <li>Pass through any other message type.</li>
  </ul>
@@ -67,7 +67,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
         if (io.netty.handler.codec.http.HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpResponse rxResponse = new HttpResponse((io.netty.handler.codec.http.HttpResponse)msg, contentSubject);
+            HttpClientResponse rxResponse = new HttpClientResponse((io.netty.handler.codec.http.HttpResponse)msg, contentSubject);
             super.channelRead(ctx, rxResponse); // For FullHttpResponse, this assumes that after this call returns,
                                                 // someone has subscribed to the content observable, if not the content will be lost.
         }
@@ -92,8 +92,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
-        if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
-            HttpRequest<?> rxRequest = (HttpRequest<?>) msg;
+        if (HttpClientRequest.class.isAssignableFrom(recievedMsgClass)) {
+            HttpClientRequest<?> rxRequest = (HttpClientRequest<?>) msg;
             if (rxRequest.getHeaders().hasContent()) {
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);

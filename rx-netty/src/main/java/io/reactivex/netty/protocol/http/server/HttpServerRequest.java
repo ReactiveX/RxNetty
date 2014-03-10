@@ -29,7 +29,7 @@ import java.util.Set;
 /**
  * @author Nitesh Kant
  */
-public class HttpRequest<T> {
+public class HttpServerRequest<T> {
 
     private final io.netty.handler.codec.http.HttpRequest nettyRequest;
     private final HttpRequestHeaders headers;
@@ -39,7 +39,7 @@ public class HttpRequest<T> {
     private final UriInfoHolder uriInfoHolder;
     private final CookiesHolder cookiesHolder;
 
-    public HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, PublishSubject<T> contentSubject) {
+    public HttpServerRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, PublishSubject<T> contentSubject) {
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(this.nettyRequest);
         method = this.nettyRequest.getMethod();

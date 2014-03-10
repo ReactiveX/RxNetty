@@ -22,8 +22,8 @@ import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
-import io.reactivex.netty.protocol.http.server.HttpRequest;
-import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.HttpServerRequest;
+import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
@@ -63,13 +63,13 @@ public final class RxNetty {
 
     public static <I, O> HttpServer<I, O> createHttpServer(int port,
                                                            RequestHandler<I, O> requestHandler,
-                                                           PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> configurator) {
+                                                           PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> configurator) {
         return new HttpServerBuilder<I, O>(port, requestHandler).pipelineConfigurator(configurator).build();
     }
 
     public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
-                                                           PipelineConfigurator<io.reactivex.netty.protocol.http.client.HttpResponse<O>,
-                                                                                io.reactivex.netty.protocol.http.client.HttpRequest<I>> configurator) {
+                                                           PipelineConfigurator<io.reactivex.netty.protocol.http.client.HttpClientResponse<O>,
+                                                                                io.reactivex.netty.protocol.http.client.HttpClientRequest<I>> configurator) {
         return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
     }
 }

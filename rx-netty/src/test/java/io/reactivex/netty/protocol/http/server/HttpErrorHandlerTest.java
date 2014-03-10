@@ -16,7 +16,7 @@ public class HttpErrorHandlerTest {
 
     public static final String X_TEST_RESP_GEN_CALLED_HEADER_NAME = "X-TEST-RESP-GEN-CALLED";
 
-    private RxServer<HttpRequest<ByteBuf>, HttpResponse<ByteBuf>> server;
+    private RxServer<HttpServerRequest<ByteBuf>, HttpServerResponse<ByteBuf>> server;
 
     @After
     public void tearDown() throws Exception {
@@ -31,8 +31,8 @@ public class HttpErrorHandlerTest {
         server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(
-                    HttpRequest<ByteBuf> request,
-                    HttpResponse<ByteBuf> response) {
+                    HttpServerRequest<ByteBuf> request,
+                    HttpServerResponse<ByteBuf> response) {
                 return Observable
                         .error(new IllegalStateException(
                                 "I always throw an error."));
@@ -40,7 +40,7 @@ public class HttpErrorHandlerTest {
         }).withErrorResponseGenerator(new ErrorResponseGenerator<ByteBuf>() {
             @Override
             public void updateResponse(
-                    HttpResponse<ByteBuf> response,
+                    HttpServerResponse<ByteBuf> response,
                     Throwable error) {
                 response.setStatus(
                         HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -50,10 +50,10 @@ public class HttpErrorHandlerTest {
             }
         }).start();
 
-        io.reactivex.netty.protocol.http.client.HttpRequest<ByteBuf> request =
-                io.reactivex.netty.protocol.http.client.HttpRequest.createGet("/");
+        io.reactivex.netty.protocol.http.client.HttpClientRequest<ByteBuf> request =
+                io.reactivex.netty.protocol.http.client.HttpClientRequest.createGet("/");
 
-        io.reactivex.netty.protocol.http.client.HttpResponse<ByteBuf> response =
+        io.reactivex.netty.protocol.http.client.HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpClient("localhost", port).submit(request).toBlockingObservable().last();
 
         Assert.assertEquals("Unexpected response status", HttpResponseStatus.INTERNAL_SERVER_ERROR.code(),
@@ -67,21 +67,21 @@ public class HttpErrorHandlerTest {
         int port = 9998;
         server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
-            public Observable<Void> handle(HttpRequest<ByteBuf> request, HttpResponse<ByteBuf> response) {
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
                 throw new IllegalStateException("I always throw an error.");
             }
         }).withErrorResponseGenerator(new ErrorResponseGenerator<ByteBuf>() {
             @Override
-            public void updateResponse(HttpResponse<ByteBuf> response, Throwable error) {
+            public void updateResponse(HttpServerResponse<ByteBuf> response, Throwable error) {
                 response.setStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR);
                 response.getHeaders().add(X_TEST_RESP_GEN_CALLED_HEADER_NAME, "true");
             }
         }).start();
 
-        io.reactivex.netty.protocol.http.client.HttpRequest<ByteBuf> request =
-                io.reactivex.netty.protocol.http.client.HttpRequest.createGet("/");
+        io.reactivex.netty.protocol.http.client.HttpClientRequest<ByteBuf> request =
+                io.reactivex.netty.protocol.http.client.HttpClientRequest.createGet("/");
 
-        io.reactivex.netty.protocol.http.client.HttpResponse<ByteBuf> response =
+        io.reactivex.netty.protocol.http.client.HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpClient("localhost", port).submit(request).toBlockingObservable().last();
 
         Assert.assertEquals("Unexpected response status", HttpResponseStatus.INTERNAL_SERVER_ERROR.code(),

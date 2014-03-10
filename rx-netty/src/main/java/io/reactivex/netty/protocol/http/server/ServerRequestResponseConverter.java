@@ -33,16 +33,16 @@ import rx.subjects.PublishSubject;
  *
  * <h2>Reading Objects</h2>
  * <ul>
- <li>{@link io.netty.handler.codec.http.HttpRequest: Converts it to {@link HttpRequest } </li>
+ <li>{@link io.netty.handler.codec.http.HttpRequest: Converts it to {@link HttpServerRequest } </li>
  <li>{@link HttpContent}: Converts it to the content of the previously generated
-{@link HttpRequest }</li>
- <li>{@link FullHttpRequest}: Converts it to a {@link HttpRequest } with pre-populated content observable.</li>
+{@link HttpServerRequest }</li>
+ <li>{@link FullHttpRequest}: Converts it to a {@link HttpServerRequest } with pre-populated content observable.</li>
  <li>Any other object: Assumes that it is a transformed HTTP content & pass it through to the content observable.</li>
  </ul>
  *
  * <h2>Writing Objects</h2>
  * <ul>
- <li>{@link HttpResponse}: Converts it to a {@link io.netty.handler.codec.http.HttpResponse}</li>
+ <li>{@link HttpServerResponse}: Converts it to a {@link io.netty.handler.codec.http.HttpResponse}</li>
  <li>{@link ByteBuf} to an {@link HttpContent}</li>
  <li>Pass through any other message type.</li>
  </ul>
@@ -64,7 +64,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
         if (io.netty.handler.codec.http.HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpRequest rxRequest = new HttpRequest((io.netty.handler.codec.http.HttpRequest) msg, contentSubject);
+            HttpServerRequest rxRequest = new HttpServerRequest((io.netty.handler.codec.http.HttpRequest) msg, contentSubject);
             keepAlive = rxRequest.getHeaders().isKeepAlive();
             super.channelRead(ctx, rxRequest); // For FullHttpRequest, this assumes that after this call returns,
                                                // someone has subscribed to the content observable, if not the content will be lost.
@@ -85,9 +85,9 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
-        if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
+        if (HttpServerResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings("rawtypes")
-            HttpResponse rxResponse = (HttpResponse) msg;
+            HttpServerResponse rxResponse = (HttpServerResponse) msg;
             if (keepAlive && !rxResponse.getHeaders().contains(HttpHeaders.Names.CONTENT_LENGTH)) {
                 // If there is no content length & it is a keep alive connection. We need to specify the transfer
                 // encoding as chunked as we always send data in multiple HttpContent.
