@@ -65,26 +65,20 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
                 handledObservable = Observable.empty();
             }
 
-            System.err.println("handledObservable.subscribe");
-            
             handledObservable.subscribe(new Subscriber<Void>() {
                 @Override
                 public void onCompleted() {
-                    System.err.println("onCompleted()");
-                    Thread.dumpStack();
                     connection.close();
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    System.err.println("onError(e)");
                     invokeErrorHandler(e);
                     connection.close();
                 }
 
                 @Override
                 public void onNext(Void aVoid) {
-                    System.err.println("onNext(void)");
                     // No Op.
                 }
             });

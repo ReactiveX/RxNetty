@@ -59,8 +59,6 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
      * close is already issued (may not be completed)
      */
     public Observable<Void> close() {
-        System.err.println("Closing connection");
-        Thread.dumpStack();
         final ChannelFuture closeFuture;
         if (closeIssued.compareAndSet(false, true)) {
             inputSubject.onCompleted();
