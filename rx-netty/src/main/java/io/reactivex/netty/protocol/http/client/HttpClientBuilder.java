@@ -26,7 +26,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
  * @author Nitesh Kant
  */
 public class HttpClientBuilder<I, O>
-        extends AbstractClientBuilder<HttpRequest<I>, HttpResponse<O>, HttpClientBuilder<I, O>, HttpClient<I, O>> {
+        extends AbstractClientBuilder<HttpClientRequest<I>, HttpClientResponse<O>, HttpClientBuilder<I, O>, HttpClient<I, O>> {
 
     public HttpClientBuilder(String host, int port) {
         super(host, port);

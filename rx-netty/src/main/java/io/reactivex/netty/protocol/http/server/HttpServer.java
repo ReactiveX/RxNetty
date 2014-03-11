@@ -23,18 +23,18 @@ import io.reactivex.netty.server.RxServer;
 /**
  * @author Nitesh Kant
  */
-public class HttpServer<I, O> extends RxServer<HttpRequest<I>, HttpResponse<O>> {
+public class HttpServer<I, O> extends RxServer<HttpServerRequest<I>, HttpServerResponse<O>> {
 
     private final HttpConnectionHandler<I, O> connectionHandler;
 
     public HttpServer(ServerBootstrap bootstrap, int port,
-                      PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> pipelineConfigurator,
+                      PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
                       RequestHandler<I, O> requestHandler) {
         this(bootstrap, port, pipelineConfigurator, new HttpConnectionHandler<I, O>(requestHandler));
     }
 
     protected HttpServer(ServerBootstrap bootstrap, int port,
-               PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> pipelineConfigurator,
+               PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
                HttpConnectionHandler<I, O> connectionHandler) {
         super(bootstrap, port, addRequiredConfigurator(pipelineConfigurator), connectionHandler);
         this.connectionHandler = connectionHandler;
@@ -48,9 +48,9 @@ public class HttpServer<I, O> extends RxServer<HttpRequest<I>, HttpResponse<O>> 
         return this;
     }
 
-    private static <I, O> PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> addRequiredConfigurator(
-            PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> pipelineConfigurator) {
-        return new PipelineConfiguratorComposite<HttpRequest<I>, HttpResponse<O>>(pipelineConfigurator,
+    private static <I, O> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> addRequiredConfigurator(
+            PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator) {
+        return new PipelineConfiguratorComposite<HttpServerRequest<I>, HttpServerResponse<O>>(pipelineConfigurator,
                                                                                   new ServerRequiredConfigurator<I, O>());
     }
 }

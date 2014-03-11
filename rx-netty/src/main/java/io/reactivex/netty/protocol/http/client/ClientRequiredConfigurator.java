@@ -25,7 +25,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  *
  * @author Nitesh Kant
  */
-class ClientRequiredConfigurator<I, O> implements PipelineConfigurator<HttpResponse<O>, HttpRequest<I>> {
+class ClientRequiredConfigurator<I, O> implements PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> {
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {

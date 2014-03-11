@@ -57,7 +57,7 @@ import io.reactivex.netty.protocol.http.AbstractHttpConfigurator;
  * @author Nitesh Kant
  */
 public class HttpClientPipelineConfigurator<I, O> extends AbstractHttpConfigurator
-        implements PipelineConfigurator<HttpResponse<O>, HttpRequest<I>> {
+        implements PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> {
 
     public static final String REQUEST_RESPONSE_CONVERTER_HANDLER_NAME = "request-response-converter";
     public static final String HTTP_CODEC_HANDLER_NAME = "http-client-codec";

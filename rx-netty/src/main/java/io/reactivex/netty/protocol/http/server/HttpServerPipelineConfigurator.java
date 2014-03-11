@@ -74,8 +74,8 @@ import io.reactivex.netty.protocol.http.AbstractHttpConfigurator;
  * @author Nitesh Kant
  */
 public class HttpServerPipelineConfigurator<I, O> extends AbstractHttpConfigurator
-        implements PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpRequest<I>,
-        io.reactivex.netty.protocol.http.server.HttpResponse<O>> {
+        implements PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpServerRequest<I>,
+        io.reactivex.netty.protocol.http.server.HttpServerResponse<O>> {
 
     public static final String HTTP_REQUEST_DECODER_HANDLER_NAME = "http-request-decoder";
     public static final String HTTP_RESPONSE_ENCODER_HANDLER_NAME = "http-response-encoder";

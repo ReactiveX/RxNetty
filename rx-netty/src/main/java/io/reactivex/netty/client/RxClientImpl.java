@@ -112,7 +112,6 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                                     .addListener(clientConnectionHandler);
 
                     subscriber.add(Subscriptions.create(new Action0() {
-
                         @Override
                         public void call() {
                             if (!connectFuture.isDone()) {

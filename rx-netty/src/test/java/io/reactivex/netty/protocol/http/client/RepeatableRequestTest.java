@@ -47,9 +47,9 @@ public class RepeatableRequestTest {
             }
         };
         
-        HttpRequest<Integer> request = HttpRequest.<Integer>create(HttpVersion.HTTP_1_1, HttpMethod.POST, "/")
+        HttpClientRequest<Integer> request = HttpClientRequest.<Integer>create(HttpVersion.HTTP_1_1, HttpMethod.POST, "/")
                 .withContentSource(source);
-        HttpRequest<Integer> repeatable = new RepeatableContentHttpRequest<Integer>(request);
+        HttpClientRequest<Integer> repeatable = new RepeatableContentHttpRequest<Integer>(request);
         ContentSourceFactory<Integer, ContentSource<Integer>> factory = repeatable.contentFactory;
         ContentSource<Integer> source2 = factory.newContentSource();
         source2.next();

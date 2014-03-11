@@ -32,7 +32,7 @@ import java.util.Set;
  *
  * @author Nitesh Kant
  */
-public class HttpResponse<T> {
+public class HttpClientResponse<T> {
 
     private final io.netty.handler.codec.http.HttpResponse nettyResponse;
     private final PublishSubject<T> contentSubject;
@@ -41,7 +41,7 @@ public class HttpResponse<T> {
     private final HttpResponseStatus status;
     private final CookiesHolder cookiesHolder;
 
-    public HttpResponse(io.netty.handler.codec.http.HttpResponse nettyResponse, PublishSubject<T> contentSubject) {
+    public HttpClientResponse(io.netty.handler.codec.http.HttpResponse nettyResponse, PublishSubject<T> contentSubject) {
         this.nettyResponse = nettyResponse;
         this.contentSubject = contentSubject;
         httpVersion = this.nettyResponse.getProtocolVersion();

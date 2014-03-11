@@ -32,7 +32,7 @@ public class CookieTest {
         String cookie1Header = cookie1Name + '=' + cookie1Value
                                + "; expires=Thu, 18-Feb-2016 07:47:08 GMT; path=" + cookie1Path + "; domain=" + cookie1Domain;
         nettyResponse.headers().add(HttpHeaders.Names.SET_COOKIE, cookie1Header);
-        HttpResponse<ByteBuf> response = new HttpResponse<ByteBuf>(nettyResponse, PublishSubject.<ByteBuf>create());
+        HttpClientResponse<ByteBuf> response = new HttpClientResponse<ByteBuf>(nettyResponse, PublishSubject.<ByteBuf>create());
         Map<String,Set<Cookie>> cookies = response.getCookies();
         Assert.assertNotNull("Cookies are null.", cookies);
         Assert.assertEquals("Cookies are empty.", 1, cookies.size());
@@ -56,7 +56,7 @@ public class CookieTest {
         Cookie cookie = new DefaultCookie(cookie1Name, cookie1Value);
         cookie.setPath(cookie1Path);
         cookie.setDomain(cookie1Domain);
-        new HttpRequest<ByteBuf>(nettyRequest).withCookie(cookie);
+        new HttpClientRequest<ByteBuf>(nettyRequest).withCookie(cookie);
         String cookieHeader = nettyRequest.headers().get(HttpHeaders.Names.COOKIE);
         Assert.assertNotNull("No cookie header found.", cookieHeader);
         Set<Cookie> decodeCookies = CookieDecoder.decode(cookieHeader);

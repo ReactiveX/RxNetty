@@ -24,7 +24,7 @@ import io.reactivex.netty.server.AbstractServerBuilder;
  *
  * @author Nitesh Kant
  */
-public class HttpServerBuilder<I, O> extends AbstractServerBuilder<HttpRequest<I>, HttpResponse<O>,
+public class HttpServerBuilder<I, O> extends AbstractServerBuilder<HttpServerRequest<I>, HttpServerResponse<O>,
         HttpServerBuilder<I, O>, HttpServer<I, O>> {
 
     public HttpServerBuilder(int port, RequestHandler<I, O> requestHandler) {

@@ -9,7 +9,7 @@ import rx.functions.Func1;
 /**
 * @author Nitesh Kant
 */
-class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpRequest<I>, HttpResponse<O>> {
+class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest<I>, HttpServerResponse<O>> {
 
     private ErrorResponseGenerator<O> responseGenerator = new DefaultErrorResponseGenerator<O>();
 
@@ -24,12 +24,12 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpRequest<I>, H
     }
 
     @Override
-    public Observable<Void> handle(final ObservableConnection<HttpRequest<I>, HttpResponse<O>> newConnection) {
+    public Observable<Void> handle(final ObservableConnection<HttpServerRequest<I>, HttpServerResponse<O>> newConnection) {
 
-        return newConnection.getInput().flatMap(new Func1<HttpRequest<I>, Observable<Void>>() {
+        return newConnection.getInput().flatMap(new Func1<HttpServerRequest<I>, Observable<Void>>() {
             @Override
-            public Observable<Void> call(HttpRequest<I> newRequest) {
-                final HttpResponse<O> response = new HttpResponse<O>(newConnection.getChannelHandlerContext(),
+            public Observable<Void> call(HttpServerRequest<I> newRequest) {
+                final HttpServerResponse<O> response = new HttpServerResponse<O>(newConnection.getChannelHandlerContext(),
                                                                newRequest.getHttpVersion());
                 Observable<Void> toReturn;
 

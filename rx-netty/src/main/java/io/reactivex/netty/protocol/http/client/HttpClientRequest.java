@@ -31,7 +31,7 @@ import static io.reactivex.netty.protocol.http.client.RawContentSource.Singleton
 /**
  * @author Nitesh Kant
  */
-public class HttpRequest<T> {
+public class HttpClientRequest<T> {
 
     static class SimpleContentSourceFactory<T, R extends ContentSource<T>> implements ContentSourceFactory<T, R> {
 
@@ -52,60 +52,60 @@ public class HttpRequest<T> {
     protected ContentSourceFactory<?, RawContentSource<?>> rawContentFactory;
     protected boolean userPassedInFactory;
 
-    /*Visible for testing*/ HttpRequest(io.netty.handler.codec.http.HttpRequest nettyRequest) {
+    /*Visible for testing*/ HttpClientRequest(io.netty.handler.codec.http.HttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(nettyRequest);
         contentFactory = null;
         rawContentFactory = null;
     }
 
-    public static HttpRequest<ByteBuf> createGet(String uri) {
+    public static HttpClientRequest<ByteBuf> createGet(String uri) {
         return create(HttpMethod.GET, uri);
     }
 
-    public static HttpRequest<ByteBuf> createPost(String uri) {
+    public static HttpClientRequest<ByteBuf> createPost(String uri) {
         return create(HttpMethod.POST, uri);
     }
 
-    public static HttpRequest<ByteBuf> createPut(String uri) {
+    public static HttpClientRequest<ByteBuf> createPut(String uri) {
         return create(HttpMethod.PUT, uri);
     }
 
-    public static HttpRequest<ByteBuf> createDelete(String uri) {
+    public static HttpClientRequest<ByteBuf> createDelete(String uri) {
         return create(HttpMethod.DELETE, uri);
     }
 
-    public static <T> HttpRequest<T> create(HttpVersion httpVersion, HttpMethod method, String uri) {
+    public static <T> HttpClientRequest<T> create(HttpVersion httpVersion, HttpMethod method, String uri) {
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(httpVersion, method, uri);
-        return new HttpRequest<T>(nettyRequest);
+        return new HttpClientRequest<T>(nettyRequest);
     }
 
-    public static <T> HttpRequest<T> create(HttpMethod method, String uri) {
+    public static <T> HttpClientRequest<T> create(HttpMethod method, String uri) {
         return create(HttpVersion.HTTP_1_1, method, uri);
     }
 
-    public HttpRequest<T> withHeader(String name, String value) {
+    public HttpClientRequest<T> withHeader(String name, String value) {
         headers.add(name, value);
         return this;
     }
 
-    public HttpRequest<T> withCookie(Cookie cookie) {
+    public HttpClientRequest<T> withCookie(Cookie cookie) {
         String cookieHeader = ClientCookieEncoder.encode(cookie);
         return withHeader(HttpHeaders.Names.COOKIE, cookieHeader);
     }
 
-    public HttpRequest<T> withContentSource(ContentSource<T> contentSource) {
+    public HttpClientRequest<T> withContentSource(ContentSource<T> contentSource) {
         setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(contentSource));
         return this;
     }
     
-    public HttpRequest<T> withContentFactory(ContentSourceFactory<T, ContentSource<T>> contentFactory) {
+    public HttpClientRequest<T> withContentFactory(ContentSourceFactory<T, ContentSource<T>> contentFactory) {
         userPassedInFactory = true;
         setContentFactory(contentFactory);
         return this;
     }
     
-    public HttpRequest<T> withRawContentFactory(ContentSourceFactory<?, RawContentSource<?>> rawContentFactory) {
+    public HttpClientRequest<T> withRawContentFactory(ContentSourceFactory<?, RawContentSource<?>> rawContentFactory) {
         userPassedInFactory = true;
         setRawContentFactory(rawContentFactory);
         return this;
@@ -113,22 +113,22 @@ public class HttpRequest<T> {
 
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
-    public HttpRequest<T> withRawContentSource(final RawContentSource<?> rawContentSource) {
+    public HttpClientRequest<T> withRawContentSource(final RawContentSource<?> rawContentSource) {
         setRawContentFactory(new SimpleContentSourceFactory(rawContentSource));
         return this;
     }
 
-    public HttpRequest<T> withContent(T content) {
+    public HttpClientRequest<T> withContent(T content) {
         setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(new ContentSource.SingletonSource<T>(content)));
         return this;
     }
 
-    public HttpRequest<T> withContent(String content) {
+    public HttpClientRequest<T> withContent(String content) {
         return withContent(content.getBytes(Charset.defaultCharset()));
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    public HttpRequest<T> withContent(byte[] content) {
+    public HttpClientRequest<T> withContent(byte[] content) {
         headers.set(HttpHeaders.Names.CONTENT_LENGTH, content.length);
         setRawContentFactory(new SimpleContentSourceFactory(new SingletonRawSource<byte[]>(content, new ByteTransformer())));
         return this;

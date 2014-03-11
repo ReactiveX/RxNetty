@@ -19,8 +19,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
-import io.reactivex.netty.protocol.http.client.HttpRequest;
-import io.reactivex.netty.protocol.http.client.HttpResponse;
+import io.reactivex.netty.protocol.http.client.HttpClientRequest;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
@@ -61,24 +61,24 @@ public final class PipelineConfigurators {
         return new SimpleTextProtocolConfigurator();
     }
 
-    public static <I, O> PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpRequest<I>,
-            io.reactivex.netty.protocol.http.server.HttpResponse<O>> httpServerConfigurator() {
-        return new PipelineConfiguratorComposite<io.reactivex.netty.protocol.http.server.HttpRequest<I>,
-                io.reactivex.netty.protocol.http.server.HttpResponse<O>>(new HttpServerPipelineConfigurator<I, O>(),
+    public static <I, O> PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpServerRequest<I>,
+            io.reactivex.netty.protocol.http.server.HttpServerResponse<O>> httpServerConfigurator() {
+        return new PipelineConfiguratorComposite<io.reactivex.netty.protocol.http.server.HttpServerRequest<I>,
+                io.reactivex.netty.protocol.http.server.HttpServerResponse<O>>(new HttpServerPipelineConfigurator<I, O>(),
                                                                          new HttpObjectAggregationConfigurator());
     }
 
-    public static <I, O> PipelineConfigurator<HttpResponse<O>, HttpRequest<I>> httpClientConfigurator() {
-        return new PipelineConfiguratorComposite<HttpResponse<O>, HttpRequest<I>>(new HttpClientPipelineConfigurator<I, O>(),
+    public static <I, O> PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpClientConfigurator() {
+        return new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(new HttpClientPipelineConfigurator<I, O>(),
                                                                                   new HttpObjectAggregationConfigurator());
     }
 
-    public static <I> PipelineConfigurator<HttpResponse<ServerSentEvent>, HttpRequest<I>> sseClientConfigurator() {
+    public static <I> PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>> sseClientConfigurator() {
         return new SseOverHttpClientPipelineConfigurator<I>();
     }
 
-    public static <I> PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpRequest<I>,
-                                           io.reactivex.netty.protocol.http.server.HttpResponse<ServerSentEvent>> sseServerConfigurator() {
+    public static <I> PipelineConfigurator<io.reactivex.netty.protocol.http.server.HttpServerRequest<I>,
+                                           io.reactivex.netty.protocol.http.server.HttpServerResponse<ServerSentEvent>> sseServerConfigurator() {
         return new SseOverHttpServerPipelineConfigurator<I>();
     }
 

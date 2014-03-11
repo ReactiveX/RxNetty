@@ -2,8 +2,8 @@ package io.reactivex.netty.examples
 
 import io.netty.buffer.ByteBuf
 import io.reactivex.netty.RxNetty
-import io.reactivex.netty.protocol.http.server.HttpRequest
-import io.reactivex.netty.protocol.http.server.HttpResponse
+import io.reactivex.netty.protocol.http.server.HttpServerRequest
+import io.reactivex.netty.protocol.http.server.HttpServerResponse
 import rx.Observable
 
 import java.util.concurrent.TimeUnit
@@ -12,7 +12,7 @@ class HttpServerRequestResponse {
 
     public static void main(String[] args) {
 
-        RxNetty.createHttpServer(8080, { HttpRequest<ByteBuf> request, HttpResponse<ByteBuf> response ->
+        RxNetty.createHttpServer(8080, { HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response ->
             if(request.getUri().equals("/hello")) {
                 return response.writeStringAndFlush("Hello World!\n");
             } else if(request.getUri().equals("/events")) {

@@ -25,7 +25,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  *
  * @author Nitesh Kant
  */
-class ServerRequiredConfigurator<I, O> implements PipelineConfigurator<HttpRequest<I>, HttpResponse<O>> {
+class ServerRequiredConfigurator<I, O> implements PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> {
 
     public static final String REQUEST_RESPONSE_CONVERTER_HANDLER_NAME = "request-response-converter";
 

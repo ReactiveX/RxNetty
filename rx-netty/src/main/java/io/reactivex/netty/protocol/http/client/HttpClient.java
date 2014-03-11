@@ -23,11 +23,11 @@ import rx.Observable;
  * @param <I> The type of the content of request.
  * @param <O> The type of the content of response.
  */
-public interface HttpClient<I, O> extends RxClient<HttpRequest<I>, HttpResponse<O>>{
+public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpClientResponse<O>>{
 
-    Observable<HttpResponse<O>> submit(HttpRequest<I> request);
+    Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request);
 
-    Observable<HttpResponse<O>> submit(HttpRequest<I> request, ClientConfig config);
+    Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request, ClientConfig config);
 
     /**
      * A configuration to be used for this client.
