@@ -18,6 +18,9 @@ package io.reactivex.netty.channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.Attribute;
+import io.netty.util.AttributeKey;
+import io.reactivex.netty.client.ChannelPool;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
 import rx.Subscriber;
@@ -37,6 +40,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
             Observable.error(new IllegalStateException("Connection is already closed."));
     private final PublishSubject<I> inputSubject;
     private final AtomicBoolean closeIssued = new AtomicBoolean();
+    public static final AttributeKey<ChannelPool> POOL_ATTR = AttributeKey.<ChannelPool>valueOf("CHANNEL_POOL");
 
     public ObservableConnection(final ChannelHandlerContext ctx, final PublishSubject<I> inputSubject) {
         super(ctx);
@@ -59,24 +63,29 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         Thread.dumpStack();
         final ChannelFuture closeFuture;
         if (closeIssued.compareAndSet(false, true)) {
-            ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
-            closeFuture = getChannelHandlerContext().close();
             inputSubject.onCompleted();
-            return Observable.create(new Observable.OnSubscribe<Void>() {
-                @Override
-                public void call(final Subscriber<? super Void> subscriber) {
-                    closeFuture.addListener(new ChannelFutureListener() {
-                        @Override
-                        public void operationComplete(ChannelFuture future) throws Exception {
-                            if (future.isSuccess()) {
-                                subscriber.onCompleted();
-                            } else {
-                                subscriber.onError(future.cause());
+            ChannelPool pool = getChannelHandlerContext().attr(POOL_ATTR).get();
+            if (pool == null) {
+                ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
+                closeFuture = getChannelHandlerContext().close();
+                return Observable.create(new Observable.OnSubscribe<Void>() {
+                    @Override
+                    public void call(final Subscriber<? super Void> subscriber) {
+                        closeFuture.addListener(new ChannelFutureListener() {
+                            @Override
+                            public void operationComplete(ChannelFuture future) throws Exception {
+                                if (future.isSuccess()) {
+                                    subscriber.onCompleted();
+                                } else {
+                                    subscriber.onError(future.cause());
+                                }
                             }
-                        }
-                    });
-                }
-            });
+                        });
+                    }
+                });
+            } else {
+                return pool.releaseChannel(getChannelHandlerContext().channel());
+            }
         } else {
             return CONNECTION_ALREADY_CLOSED;
         }
