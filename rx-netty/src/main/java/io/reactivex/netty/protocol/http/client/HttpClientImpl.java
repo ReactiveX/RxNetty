@@ -71,7 +71,6 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                     @Override
                     public void call() {
                         //TODO: Cancel write & if the response is not over, disconnect the channel.
-                        System.err.println("connectSubscription.unsubscribe();");
                         connectSubscription.unsubscribe();
                         
                     }
@@ -116,7 +115,6 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         @Override
         public void onCompleted() {
             // We do not want an onComplete() call to Request Processing Observer on onComplete of connection observable.
-            System.err.println("ConnectObserver.onCompleted()");
         }
 
         @Override
