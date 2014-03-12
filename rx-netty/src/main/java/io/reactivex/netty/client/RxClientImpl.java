@@ -106,8 +106,17 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             public void call(final Subscriber<? super ObservableConnection<O, I>> subscriber) {
                 try {
                     final ClientConnectionHandler clientConnectionHandler = new ClientConnectionHandler(subscriber);
+                    ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
+                        @Override
+                        public void initChannel(SocketChannel ch) throws Exception {
+                            System.err.println("initChannel");
+                            PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
+                                    incompleteConfigurator);
+                            configurator.configureNewPipeline(ch.pipeline());
+                        }
+                    };
                     if (pool != null) {
-                        Observable<Channel> channelObservable = pool.requestChannel(serverInfo.getHost(), serverInfo.getPort(), clientBootstrap);
+                        Observable<Channel> channelObservable = pool.requestChannel(serverInfo.getHost(), serverInfo.getPort(), clientBootstrap, initializer);
                         final Subscription channelSubscription = channelObservable.subscribe(new Observer<Channel>() {
 
                             @Override
@@ -121,9 +130,11 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
                             @Override
                             public void onNext(Channel t) {
+                                /*
                                 PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
                                         incompleteConfigurator);
                                 configurator.configureNewPipeline(t.pipeline());
+                                */
                                 t.attr(ObservableConnection.POOL_ATTR).set(pool);
                             }
                         });
@@ -134,16 +145,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                             }
                         }));
                     } else {
-                        clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
-                            @Override
-                            public void initChannel(SocketChannel ch) throws Exception {
-                                PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
-                                        incompleteConfigurator);
-                                configurator.configureNewPipeline(ch.pipeline());
-                            }
-                        });
-
                         // make the connection
+                        clientBootstrap.handler(initializer);
                         final ChannelFuture connectFuture =
                                 clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort())
                                 .addListener(clientConnectionHandler);
@@ -201,5 +204,9 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                 connectionObserver.onError(future.cause());
             } // onComplete() needs to be send after onNext(), calling it here will cause a race-condition between next & complete.
         }
+    }
+    
+    public ChannelPool getChannelPool() {
+        return this.pool;
     }
 }

@@ -62,7 +62,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         final ChannelFuture closeFuture;
         if (closeIssued.compareAndSet(false, true)) {
             inputSubject.onCompleted();
-            ChannelPool pool = getChannelHandlerContext().attr(POOL_ATTR).get();
+            ChannelPool pool = getChannelHandlerContext().channel().attr(POOL_ATTR).get();
             if (pool == null) {
                 ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
                 closeFuture = getChannelHandlerContext().close();

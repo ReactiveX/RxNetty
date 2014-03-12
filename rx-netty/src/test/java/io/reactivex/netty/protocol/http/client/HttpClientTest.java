@@ -23,6 +23,8 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.client.ChannelPool;
+import io.reactivex.netty.client.RouteSpecificPool;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -365,6 +367,71 @@ public class HttpClientTest {
         assertNull(exceptionHolder.get());
     }
 
+    private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client) {
+        final AtomicReference<String> content = new AtomicReference<String>();
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("/"));
+        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
+            @Override
+            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
+                return response.getContent().map(new Func1<ByteBuf, String>() {
+                    @Override
+                    public String call(ByteBuf byteBuf) {
+                        return byteBuf.toString(Charset.defaultCharset());
+                    }
+                });
+            }
+        }).toBlockingObservable().forEach(new Action1<String>() {
+
+            @Override
+            public void call(String t1) {
+                System.err.println("=== Content ===");
+                System.out.println(t1);
+                content.set(t1);
+            }
+        });
+        return content.get();
+    }
+    
+    @Test
+    public void testChannelPool() throws Exception {
+        HttpClientBuilder<ByteBuf, ByteBuf> clientBuilder = new HttpClientBuilder<ByteBuf, ByteBuf>("www.google.com", 80);
+        RouteSpecificPool pool = new RouteSpecificPool(10);
+        clientBuilder.channelPool(pool);
+        HttpClient<ByteBuf, ByteBuf> client = clientBuilder.build();
+        String content = invokeBlockingCall(client);
+        assertNotNull(content);
+        // connection recycling happen asynchronously
+        Thread.sleep(1000);
+        assertEquals(1, pool.getIdleChannels());
+        
+        content = invokeBlockingCall(client);
+        assertNotNull(content);
+        // connection recycling happen asynchronously
+        Thread.sleep(1000);
+        assertEquals(1, pool.getIdleChannels());
+        assertEquals(1, pool.getCurrentPoolSize());
+        assertEquals(1, pool.getCreationCount());
+        assertEquals(1, pool.getReuseCount());
+        assertEquals(2, pool.getRequestCount());
+        assertEquals(2, pool.getReleaseCount());
+        assertEquals(0, pool.getDeletionCount());
+        
+        // create a new client using the same pool
+        clientBuilder = new HttpClientBuilder<ByteBuf, ByteBuf>("www.google.com", 80);
+        clientBuilder.channelPool(pool);        
+        client = clientBuilder.build();
+        content = invokeBlockingCall(client);
+        assertNotNull(content);
+        Thread.sleep(1000);
+        assertEquals(1, pool.getIdleChannels());
+        assertEquals(1, pool.getCurrentPoolSize());
+        assertEquals(1, pool.getCreationCount());
+        assertEquals(2, pool.getReuseCount());
+        assertEquals(3, pool.getRequestCount());
+        assertEquals(3, pool.getReleaseCount());
+        assertEquals(0, pool.getDeletionCount());
+    }
+    
     private static void readResponseContent(Observable<HttpClientResponse<ServerSentEvent>> response,
                                             final List<String> result) {
         response.flatMap(

@@ -18,6 +18,7 @@ package io.reactivex.netty.protocol.http.client;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.ChannelPool;
 import io.reactivex.netty.client.RxClientImpl;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
@@ -31,6 +32,11 @@ import rx.subscriptions.Subscriptions;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
+    public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
+            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator, ClientConfig clientConfig, ChannelPool pool) {
+        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool);
+    }
+    
     public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
                           PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator, ClientConfig clientConfig) {
         super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
@@ -119,10 +125,12 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
 
         @Override
         public void onNext(ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
+            System.err.println("Connection established");
             ClientRequestResponseConverter converter =
                     connection.getChannelHandlerContext().pipeline().get(ClientRequestResponseConverter.class);
             if (null != converter) {
                 converter.setRequestProcessingObserver(requestProcessingObserver);
+                converter.setObservableConnection(connection);
             }
 
             connection.getInput().subscribe(requestProcessingObserver);

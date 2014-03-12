@@ -25,6 +25,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
 import rx.Observer;
@@ -56,6 +57,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
     @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
     @SuppressWarnings("rawtypes") private Observer requestProcessingObserver;
+    private ObservableConnection<?, ?> observableConnection;
 
     public ClientRequestResponseConverter() {
         contentSubject = PublishSubject.create();
@@ -82,6 +84,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                     requestProcessingObserver.onCompleted();
                 }
                 contentSubject.onCompleted();
+                observableConnection.close();
             }
         } else if(!io.netty.handler.codec.http.HttpResponse.class.isAssignableFrom(recievedMsgClass)){
             invokeContentOnNext(msg);
@@ -134,7 +137,11 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     void setRequestProcessingObserver(@SuppressWarnings("rawtypes") Observer requestProcessingObserver) {
         this.requestProcessingObserver = requestProcessingObserver;
     }
-
+    
+    void setObservableConnection(ObservableConnection<?, ?> connection) {
+        this.observableConnection = connection;
+    }
+    
     @SuppressWarnings("unchecked")
     private void invokeContentOnNext(Object nextObject) {
         try {
