@@ -22,7 +22,9 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import rx.Notification;
 import rx.Observable;
@@ -36,20 +38,34 @@ public class RemoteObservable {
 
 	private RemoteObservable(){}
 	
-	public static <T> Observable<T> connect(final String host, final int port, final Decoder<T> decoder){
+	public static <T> Observable<T> connect(final String host, final int port, final String name, 
+			final Map<String,String> subscribeParameters, final Decoder<T> decoder){
 		return Observable.create(new OnSubscribe<T>(){
 			@Override
 			public void call(Subscriber<? super T> subscriber) {
-				RemoteUnsubscribe remoteUnsubscribe = new RemoteUnsubscribe();
+				RemoteUnsubscribe remoteUnsubscribe = new RemoteUnsubscribe(name);
 				// wrapped in Observable.create() to inject unsubscribe callback
 				subscriber.add(remoteUnsubscribe); // unsubscribed callback
-				createTcpConnectionToServer(host, port, decoder, remoteUnsubscribe).subscribe(subscriber);
+				createTcpConnectionToServer(host, port, name, subscribeParameters, decoder, remoteUnsubscribe).subscribe(subscriber);
 			}
 		});
 	}
 	
-	private static <T> Observable<T> createTcpConnectionToServer(String host, int port, final Decoder<T> decoder, 
-			final RemoteUnsubscribe remoteUnsubscribe){
+	public static <T> Observable<T> connect(final String host, final int port, String name, final Decoder<T> decoder){
+		return connect(host, port, name, null, decoder);
+	}
+	
+	public static <T> Observable<T> connect(final String host, final int port, final Decoder<T> decoder){
+		return connect(host, port, null, null, decoder);
+	}
+	
+	public static <T> Observable<T> connect(final String host, final int port, final Map<String,String> subscribeParameters, 
+			final Decoder<T> decoder){
+		return connect(host, port, null, subscribeParameters, decoder);
+	}
+	
+	private static <T> Observable<T> createTcpConnectionToServer(String host, int port, final String name, 
+			final Map<String,String> subscribeParameters, final Decoder<T> decoder, final RemoteUnsubscribe remoteUnsubscribe){
 		return RxNetty.createTcpClient(host, port, new PipelineConfiguratorComposite<RemoteRxEvent, RemoteRxEvent>(
 				new PipelineConfigurator<RemoteRxEvent, RemoteRxEvent>(){
 					@Override
@@ -62,7 +78,7 @@ public class RemoteObservable {
 			.connect().flatMap(new Func1<ObservableConnection<RemoteRxEvent, RemoteRxEvent>, Observable<RemoteRxEvent>>(){
 			@Override
 			public Observable<RemoteRxEvent> call(final ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {
-				connection.writeAndFlush(RemoteRxEvent.subscribed()); // send subscribe event to server
+				connection.writeAndFlush(RemoteRxEvent.subscribed(name, subscribeParameters)); // send subscribe event to server
 				remoteUnsubscribe.setConnection(connection);
 				return connection.getInput();
 			}
@@ -84,56 +100,25 @@ public class RemoteObservable {
 		})
 		.<T>dematerialize();
 	}
-	
-	public static <T> void serve(int port, final Observable<T> observable, final Encoder<T> encoder){
-		serveMany(port, toObservableListOfOne(observable), encoder, false, SlottingStrategies.<T>noSlotting(), 
-				IngressPolicies.allowAll());
+	public static <T> RemoteObservableServer serve(int port, final Observable<T> observable, final Encoder<T> encoder){
+		return serve(configureServerFromParams(null, port, toObservableListOfOne(observable), encoder, SlottingStrategies.<T>noSlotting(), 
+				IngressPolicies.allowAll()));
 	}
 	
-	public static <T> void serve(int port, final Observable<T> observable, final Encoder<T> encoder, 
-			SlottingStrategy<T> slottingStrategy){
-		serveMany(port, toObservableListOfOne(observable), encoder, false, slottingStrategy, IngressPolicies.allowAll());
+	public static <T> RemoteObservableServer serve(int port, String name, final Observable<T> observable, final Encoder<T> encoder){
+				return serve(configureServerFromParams(name, port, toObservableListOfOne(observable), encoder, SlottingStrategies.<T>noSlotting(),
+						IngressPolicies.allowAll()));
 	}
 	
-	public static <T> void serveAndWait(int port, final Observable<T> observable, final Encoder<T> encoder){
-		serveMany(port, toObservableListOfOne(observable), encoder, true, SlottingStrategies.<T>noSlotting(),
-				IngressPolicies.allowAll());
-	}
-	
-	public static <T> void serveAndWait(int port, final Observable<T> observable, final Encoder<T> encoder,
-			SlottingStrategy<T> slottingStrategy, IngressPolicy ingressPolicy){
-		serveMany(port, toObservableListOfOne(observable), encoder, true, slottingStrategy,
-				ingressPolicy);
-	}
-	
-	public static <T> void serveMany(int port, final Observable<List<Observable<T>>> observable, final Encoder<T> encoder,
-			SlottingStrategy<T> slottingStrategy, IngressPolicy ingressPolicy){
-		serveMany(port, observable, encoder, false, slottingStrategy, ingressPolicy);
-	}
-	
-	public static <T> void serveMany(int port, final Observable<List<Observable<T>>> observable, final Encoder<T> encoder){
-		serveMany(port, observable, encoder, false, SlottingStrategies.<T>noSlotting(), IngressPolicies.allowAll());
-	}
-	
-	public static <T> void serveManyAndWait(int port, final Observable<List<Observable<T>>> observable, final Encoder<T> encoder,
-			SlottingStrategy<T> slottingStrategy, IngressPolicy ingressPolicy){
-		serveMany(port, observable, encoder, true, slottingStrategy, ingressPolicy);
-	}
-	
-	public static <T> void serveManyAndWait(int port, final Observable<List<Observable<T>>> observable, final Encoder<T> encoder){
-		serveMany(port, observable, encoder, true, SlottingStrategies.<T>noSlotting(), IngressPolicies.allowAll());
-	}
-	
-	private static <T> Observable<List<Observable<T>>> toObservableListOfOne(Observable<T> observable){
-		List<Observable<T>> list = new ArrayList<Observable<T>>(1);
-		list.add(observable);
-		ReplaySubject<List<Observable<T>>> subject = ReplaySubject.create(1);
-		subject.onNext(list);
-		return subject;
-	}
-	
-	private static <T> void serveMany(int port, final Observable<List<Observable<T>>> observable, final Encoder<T> encoder,
-			boolean startAndWait, SlottingStrategy<T> slottingStrategy, IngressPolicy ingressPolicy){
+	@SuppressWarnings("rawtypes") // allow many different type configurations to be served
+	static RemoteObservableServer serve(RemoteObservableServer.Builder builder){
+		int port = builder.getPort();
+		// setup configuration state for server
+		Map<String,RemoteObservableConfiguration> configLookupByName = new HashMap<String, RemoteObservableConfiguration>();
+		for(RemoteObservableConfiguration config : builder.getObservablesConfigured()){
+			configLookupByName.put(config.getName(), config);
+		}
+		// create server
 		RxServer<RemoteRxEvent, RemoteRxEvent> server 
 			= RxNetty.createTcpServer(port, new PipelineConfiguratorComposite<RemoteRxEvent, RemoteRxEvent>(
 				new PipelineConfigurator<RemoteRxEvent, RemoteRxEvent>(){
@@ -144,14 +129,32 @@ public class RemoteObservable {
 						pipeline.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(524288, 0, 4, 0, 4)); // max frame = half MB
 					}
 				}, new RxEventPipelineConfigurator()), 	
-				new RemoteObservableConnectionHandler<T>(observable, encoder, slottingStrategy, ingressPolicy));
-		if(startAndWait){
-			server.startAndWait();
-		}else{
-			server.start();
-		}
+				new RemoteObservableConnectionHandler(configLookupByName, builder.getIngressPolicy()));
+		return new RemoteObservableServer(server);
 	}
 	
+	private static <T> RemoteObservableServer.Builder configureServerFromParams(String name, int port, Observable<List<Observable<T>>> observable, 
+			Encoder<T> encoder,	SlottingStrategy<T> slottingStrategy, IngressPolicy ingressPolicy){
+		return new RemoteObservableServer
+				.Builder()
+				.port(port)
+				.ingressPolicy(ingressPolicy)
+				.addObservable(new RemoteObservableConfiguration.Builder<T>()
+						.name(name)
+						.encoder(encoder)
+						.slottingStrategy(slottingStrategy)
+						.observableList(observable)
+						.build());
+	}
+	
+	static <T> Observable<List<Observable<T>>> toObservableListOfOne(Observable<T> observable){
+		List<Observable<T>> list = new ArrayList<Observable<T>>(1);
+		list.add(observable);
+		ReplaySubject<List<Observable<T>>> subject = ReplaySubject.create(1);
+		subject.onNext(list);
+		return subject;
+	}
+		
 	static byte[] fromThrowableToBytes(Throwable t){
 		ByteArrayOutputStream baos = null;
 		ObjectOutput out = null;

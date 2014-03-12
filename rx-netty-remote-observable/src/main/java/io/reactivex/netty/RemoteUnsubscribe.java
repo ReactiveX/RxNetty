@@ -9,11 +9,16 @@ public class RemoteUnsubscribe implements Subscription{
 
 	private ObservableConnection<RemoteRxEvent,RemoteRxEvent> connection;
 	private BooleanSubscription subscription = new BooleanSubscription();
+	private String observableName;
 	
+	public RemoteUnsubscribe(String observableName) {
+		this.observableName = observableName;
+	}
+
 	@Override
 	public void unsubscribe() {
 		if (connection != null){
-			connection.write(RemoteRxEvent.unsubscribed()); // write unsubscribe event to server
+			connection.writeAndFlush(RemoteRxEvent.unsubscribed(observableName)); // write unsubscribe event to server
 		}
 		subscription.unsubscribe();
 	}
