@@ -21,9 +21,7 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import rx.Notification;
@@ -31,7 +29,6 @@ import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Func1;
-import rx.subjects.ReplaySubject;
 
 
 public class RemoteObservable {
@@ -75,7 +72,8 @@ public class RemoteObservable {
 						pipeline.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(524288, 0, 4, 0, 4)); // max frame = half MB
 					}
 				}, new RxEventPipelineConfigurator()))
-			.connect().flatMap(new Func1<ObservableConnection<RemoteRxEvent, RemoteRxEvent>, Observable<RemoteRxEvent>>(){
+			.connect()
+			.flatMap(new Func1<ObservableConnection<RemoteRxEvent, RemoteRxEvent>, Observable<RemoteRxEvent>>(){
 			@Override
 			public Observable<RemoteRxEvent> call(final ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {
 				connection.writeAndFlush(RemoteRxEvent.subscribed(name, subscribeParameters)); // send subscribe event to server
@@ -101,12 +99,12 @@ public class RemoteObservable {
 		.<T>dematerialize();
 	}
 	public static <T> RemoteObservableServer serve(int port, final Observable<T> observable, final Encoder<T> encoder){
-		return serve(configureServerFromParams(null, port, toObservableListOfOne(observable), encoder, SlottingStrategies.<T>noSlotting(), 
+		return serve(configureServerFromParams(null, port, observable, encoder, SlottingStrategies.<T>noSlotting(), 
 				IngressPolicies.allowAll()));
 	}
 	
 	public static <T> RemoteObservableServer serve(int port, String name, final Observable<T> observable, final Encoder<T> encoder){
-				return serve(configureServerFromParams(name, port, toObservableListOfOne(observable), encoder, SlottingStrategies.<T>noSlotting(),
+				return serve(configureServerFromParams(name, port, observable, encoder, SlottingStrategies.<T>noSlotting(),
 						IngressPolicies.allowAll()));
 	}
 	
@@ -133,7 +131,7 @@ public class RemoteObservable {
 		return new RemoteObservableServer(server);
 	}
 	
-	private static <T> RemoteObservableServer.Builder configureServerFromParams(String name, int port, Observable<List<Observable<T>>> observable, 
+	private static <T> RemoteObservableServer.Builder configureServerFromParams(String name, int port, Observable<T> observable, 
 			Encoder<T> encoder,	SlottingStrategy<T> slottingStrategy, IngressPolicy ingressPolicy){
 		return new RemoteObservableServer
 				.Builder()
@@ -143,16 +141,8 @@ public class RemoteObservable {
 						.name(name)
 						.encoder(encoder)
 						.slottingStrategy(slottingStrategy)
-						.observableList(observable)
+						.observable(observable)
 						.build());
-	}
-	
-	static <T> Observable<List<Observable<T>>> toObservableListOfOne(Observable<T> observable){
-		List<Observable<T>> list = new ArrayList<Observable<T>>(1);
-		list.add(observable);
-		ReplaySubject<List<Observable<T>>> subject = ReplaySubject.create(1);
-		subject.onNext(list);
-		return subject;
 	}
 		
 	static byte[] fromThrowableToBytes(Throwable t){

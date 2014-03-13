@@ -5,7 +5,6 @@ import io.reactivex.netty.filter.ServerSideFilters;
 import io.reactivex.netty.slotting.SlottingStrategies;
 import io.reactivex.netty.slotting.SlottingStrategy;
 
-import java.util.List;
 import java.util.Map;
 
 import rx.Observable;
@@ -14,7 +13,7 @@ import rx.functions.Func1;
 public class RemoteObservableConfiguration<T> {
 
 	private String name;
-	private Observable<List<Observable<T>>> observable;
+	private Observable<T> observable;
 	private SlottingStrategy<T> slottingStrategy;
 	private Encoder<T> encoder;
 	private Func1<Map<String,String>, Func1<T,Boolean>> filterFunction;
@@ -31,7 +30,7 @@ public class RemoteObservableConfiguration<T> {
 		return name;
 	}
 
-	Observable<List<Observable<T>>> getObservable() {
+	Observable<T> getObservable() {
 		return observable;
 	}
 
@@ -50,7 +49,7 @@ public class RemoteObservableConfiguration<T> {
 	public static class Builder<T>{
 		
 		private String name;
-		private Observable<List<Observable<T>>> observable;
+		private Observable<T> observable;
 		private SlottingStrategy<T> slottingStrategy = SlottingStrategies.noSlotting();
 		private Encoder<T> encoder;
 		private Func1<Map<String,String>, Func1<T,Boolean>> filterFunction = ServerSideFilters.noFiltering();
@@ -63,13 +62,8 @@ public class RemoteObservableConfiguration<T> {
 			return this;
 		}
 		
-		public Builder<T> observableList(Observable<List<Observable<T>>> observable){
-			this.observable = observable;
-			return this;
-		}
-		
 		public Builder<T> observable(Observable<T> observable){
-			this.observable = RemoteObservable.toObservableListOfOne(observable);
+			this.observable = observable;
 			return this;
 		}
 		
@@ -93,5 +87,4 @@ public class RemoteObservableConfiguration<T> {
 			return new RemoteObservableConfiguration<T>(this);
 		}
 	}
-	
 }
