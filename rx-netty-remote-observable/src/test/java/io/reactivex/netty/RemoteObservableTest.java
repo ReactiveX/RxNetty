@@ -4,15 +4,13 @@ import io.reactivex.netty.codec.Codecs;
 import io.reactivex.netty.filter.ServerSideFilters;
 import io.reactivex.netty.slotting.SlottingStrategies;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import org.junit.Assert;
 import org.junit.Test;
 
+import rx.Notification;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -20,7 +18,8 @@ import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.functions.Func2;
-import rx.subjects.BehaviorSubject;
+import rx.schedulers.Schedulers;
+import rx.subjects.PublishSubject;
 import rx.subjects.ReplaySubject;
 
 public class RemoteObservableTest {
@@ -37,7 +36,6 @@ public class RemoteObservableTest {
 		// connect
 		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
 		// assert
-		System.out.println("waiting for results");
 		Observable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
@@ -115,15 +113,14 @@ public class RemoteObservableTest {
 	}
 	
 	@Test
-	public void testServeListObservables(){
+	public void testServedMergedObservables(){
 		// setup
 		Observable<Integer> os1 = Observable.range(0, 101);
 		Observable<Integer> os2 = Observable.range(100, 101);
-		List<Observable<Integer>> toServe = new LinkedList<Observable<Integer>>();
-		toServe.add(os1);
-		toServe.add(os2);
-		ReplaySubject <List<Observable<Integer>>> subject = ReplaySubject.create();
-		subject.onNext(toServe);
+		ReplaySubject<Observable<Integer>> subject = ReplaySubject.create();
+		subject.onNext(os1);
+		subject.onNext(os2);
+		subject.onCompleted();
 		
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int port = portSelector.acquirePort();
@@ -132,7 +129,7 @@ public class RemoteObservableTest {
 			.port(port)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.encoder(Codecs.integer())
-					.observableList(subject)
+					.observable(Observable.merge(subject))
 					.build())
 			.build();
 		
@@ -151,16 +148,13 @@ public class RemoteObservableTest {
 	}
 	
 	@Test
-	public void testServeListObservablesThenObserveNewList(){
+	public void testServedMergedObservablesAddAfterServe(){
 		// setup
-		Observable<Integer> os1 = Observable.range(0, 101);
-		Observable<Integer> os2 = Observable.range(100, 101);
-		List<Observable<Integer>> toServe = new LinkedList<Observable<Integer>>();
-		toServe.add(os1);
-		toServe.add(os2);
-		List<Observable<Integer>> initialValue = new ArrayList<Observable<Integer>>(0);
-		BehaviorSubject <List<Observable<Integer>>> subject = BehaviorSubject.create(initialValue);
-		subject.onNext(toServe);
+		Observable<Integer> os1 = Observable.range(0, 100);
+		Observable<Integer> os2 = Observable.range(100, 100);
+		ReplaySubject<Observable<Integer>> subject = ReplaySubject.create();
+		subject.onNext(os1);
+		subject.onNext(os2);
 		// serve
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
@@ -169,10 +163,15 @@ public class RemoteObservableTest {
 			.port(serverPort)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.encoder(Codecs.integer())
-					.observableList(subject)
+					.observable(Observable.merge(subject))
 					.build())
 			.build();
 		server.start();
+		
+		// add after serve
+		Observable<Integer> os3 = Observable.range(200, 101);
+		subject.onNext(os3);
+		subject.onCompleted();
 				
 		// connect
 		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
@@ -180,21 +179,49 @@ public class RemoteObservableTest {
 		Observable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
-				Assert.assertEquals(20200, t1.intValue()); // sum of number 0-200
+				Assert.assertEquals(45150, t1.intValue()); // sum of number 0-200
 			}
 		});
-		// add new list
-		Observable<Integer> os11 = Observable.range(0, 51);
-		Observable<Integer> os22 = Observable.range(51, 50);
-		List<Observable<Integer>> newList = new LinkedList<Observable<Integer>>();
-		newList.add(os11);
-		newList.add(os22);
-		subject.onNext(newList);
-		Observable<Integer> oc1 = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
-		Observable.sumInteger(oc1).toBlockingObservable().forEach(new Action1<Integer>(){
+	}
+	
+	@Test
+	public void testServedMergedObservablesAddAfterConnect(){
+		// setup
+		Observable<Integer> os1 = Observable.range(0, 100);
+		Observable<Integer> os2 = Observable.range(100, 100);
+		ReplaySubject<Observable<Integer>> subject = ReplaySubject.create();
+		subject.onNext(os1);
+		subject.onNext(os2);
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		int serverPort = portSelector.acquirePort();
+		
+		RemoteObservableServer server = new RemoteObservableServer.Builder()
+			.port(serverPort)
+			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
+					.encoder(Codecs.integer())
+					.observable(Observable.merge(subject))
+					.build())
+			.build();
+		server.start();
+		
+		// add after serve
+		Observable<Integer> os3 = Observable.range(200, 100);
+		subject.onNext(os3);
+				
+		// connect
+		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
+		
+		// add after connect
+		Observable<Integer> os4 = Observable.range(300, 101);
+		subject.onNext(os4);
+		subject.onCompleted();
+		
+		// assert
+		Observable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
-				Assert.assertEquals(5050, t1.intValue()); // sum of number 0-200
+				Assert.assertEquals(80200, t1.intValue()); // sum of number 0-200
 			}
 		});
 	}
@@ -310,7 +337,7 @@ public class RemoteObservableTest {
 					sourceSubscriptionUnsubscribed.setValue(subscriber.isUnsubscribed());
 				}
 			}
-		});
+		}).subscribeOn(Schedulers.io());
 		
 		int serverPort = portSelector.acquirePort();
 		RemoteObservable.serve(serverPort, os, Codecs.integer())
@@ -323,8 +350,9 @@ public class RemoteObservableTest {
 		Assert.assertEquals(false, sub.isUnsubscribed());
 		Thread.sleep(1000); // allow a few iterations
 		sub.unsubscribe();
+		Thread.sleep(1000); // allow time for unsubscribe to propagate
 		Assert.assertEquals(true, sub.isUnsubscribed());
-//		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue()); // TODO fails due to blocking nature of OnSubscribe call
+		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue()); // TODO fails due to blocking nature of OnSubscribe call
 	}
 	
 	@Test
@@ -340,15 +368,14 @@ public class RemoteObservableTest {
 				sourceSubscriptionUnsubscribed.setValue(subscriber.isUnsubscribed());
 				while(!sourceSubscriptionUnsubscribed.getValue()){
 					subscriber.onNext(i++);
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
+					System.out.println(i);
+					System.out.println(subscriber.isUnsubscribed());
 					sourceSubscriptionUnsubscribed.setValue(subscriber.isUnsubscribed());
 				}
+				System.out.println("outcome"+sourceSubscriptionUnsubscribed.getValue());
+				System.out.println("stoppped");
 			}
-		});
+		}).subscribeOn(Schedulers.io());
 		int serverPort = portSelector.acquirePort();
 		RemoteObservable.serve(serverPort, os, Codecs.integer())
 			.start();
@@ -371,10 +398,11 @@ public class RemoteObservableTest {
 		
 		// unsubscribe to client subscription
 		subscription.unsubscribe();
+		Thread.sleep(1000); // allow time for unsubscribe to propagate
 		// check client
 		Assert.assertEquals(true, subscription.isUnsubscribed());
 		// check source
-//		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue()); // TODO fails due to blocking nature of OnSubscribe call
+		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue()); // TODO fails due to blocking nature of OnSubscribe call
 	}
 	
 	@Test
@@ -408,6 +436,37 @@ public class RemoteObservableTest {
 		});	
 	}
 	
-	
+	@Test
+	public void testOnCompletedFromReplaySubject(){
+		PublishSubject<Integer> subject = PublishSubject.create();
+		subject.onNext(1);
+		subject.onNext(2);
+		subject.onNext(3);
+		subject.onCompleted();
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		int serverPort = portSelector.acquirePort();
+		RemoteObservableServer server = new RemoteObservableServer.Builder()
+			.port(serverPort)
+			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
+					.encoder(Codecs.integer())
+					.observable(subject)
+					.serverSideFilter(ServerSideFilters.oddsAndEvens())
+					.build())
+			.build();
+		server.start();
+		// connect
+		Observable<Integer> ro = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
+		final MutableReference<Boolean> completed = new MutableReference<Boolean>();
+		ro.materialize().toBlockingObservable().forEach(new Action1<Notification<Integer>>(){
+			@Override
+			public void call(Notification<Integer> notification) {
+				if (notification.isOnCompleted()){
+					completed.setValue(true);
+				}
+			}
+		});
+		Assert.assertEquals(true, completed.getValue());
+	}
 	
 }
