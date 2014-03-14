@@ -24,7 +24,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.ChannelPool;
-import io.reactivex.netty.client.RouteSpecificPool;
+import io.reactivex.netty.client.DefaultChannelPool;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -395,7 +395,7 @@ public class HttpClientTest {
     @Test
     public void testChannelPool() throws Exception {
         HttpClientBuilder<ByteBuf, ByteBuf> clientBuilder = new HttpClientBuilder<ByteBuf, ByteBuf>("www.google.com", 80);
-        RouteSpecificPool pool = new RouteSpecificPool(10);
+        DefaultChannelPool pool = new DefaultChannelPool(10);
         clientBuilder.channelPool(pool);
         HttpClient<ByteBuf, ByteBuf> client = clientBuilder.build();
         String content = invokeBlockingCall(client);
@@ -409,7 +409,7 @@ public class HttpClientTest {
         // connection recycling happen asynchronously
         Thread.sleep(1000);
         assertEquals(1, pool.getIdleChannels());
-        assertEquals(1, pool.getCurrentPoolSize());
+        assertEquals(1, pool.getTotalChannelsInPool());
         assertEquals(1, pool.getCreationCount());
         assertEquals(1, pool.getReuseCount());
         assertEquals(2, pool.getRequestCount());
@@ -424,7 +424,7 @@ public class HttpClientTest {
         assertNotNull(content);
         Thread.sleep(1000);
         assertEquals(1, pool.getIdleChannels());
-        assertEquals(1, pool.getCurrentPoolSize());
+        assertEquals(1, pool.getTotalChannelsInPool());
         assertEquals(1, pool.getCreationCount());
         assertEquals(2, pool.getReuseCount());
         assertEquals(3, pool.getRequestCount());

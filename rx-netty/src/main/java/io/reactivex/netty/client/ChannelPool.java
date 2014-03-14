@@ -14,5 +14,7 @@ public interface ChannelPool {
     
     public int getIdleChannels();
     
-    public int getCurrentPoolSize();
+    public int getTotalChannelsInPool();
+    
+    public void setMaxTotal(int newMax);
 }
