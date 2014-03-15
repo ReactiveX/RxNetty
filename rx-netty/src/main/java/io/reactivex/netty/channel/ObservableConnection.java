@@ -40,7 +40,6 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
             Observable.error(new IllegalStateException("Connection is already closed."));
     private final PublishSubject<I> inputSubject;
     private final AtomicBoolean closeIssued = new AtomicBoolean();
-    public static final AttributeKey<ChannelPool> POOL_ATTR = AttributeKey.<ChannelPool>valueOf("CHANNEL_POOL");
 
     public ObservableConnection(final ChannelHandlerContext ctx, final PublishSubject<I> inputSubject) {
         super(ctx);
@@ -62,7 +61,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         final ChannelFuture closeFuture;
         if (closeIssued.compareAndSet(false, true)) {
             inputSubject.onCompleted();
-            ChannelPool pool = getChannelHandlerContext().channel().attr(POOL_ATTR).get();
+            ChannelPool pool = getChannelHandlerContext().channel().attr(ChannelPool.POOL_ATTR).get();
             if (pool == null) {
                 ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
                 closeFuture = getChannelHandlerContext().close();

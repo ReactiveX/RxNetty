@@ -135,7 +135,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                                         incompleteConfigurator);
                                 configurator.configureNewPipeline(t.pipeline());
                                 */
-                                t.attr(ObservableConnection.POOL_ATTR).set(pool);
+                                t.attr(ChannelPool.POOL_ATTR).set(pool);
                             }
                         });
                         subscriber.add(Subscriptions.create(new Action0() {

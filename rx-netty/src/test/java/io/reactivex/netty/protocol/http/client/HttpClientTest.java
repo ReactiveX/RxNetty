@@ -368,9 +368,8 @@ public class HttpClientTest {
     }
 
     private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client) {
-        final AtomicReference<String> content = new AtomicReference<String>();
         Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("/"));
-        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
+        return response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
             @Override
             public Observable<String> call(HttpClientResponse<ByteBuf> response) {
                 return response.getContent().map(new Func1<ByteBuf, String>() {
@@ -380,16 +379,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
-
-            @Override
-            public void call(String t1) {
-                System.err.println("=== Content ===");
-                System.out.println(t1);
-                content.set(t1);
-            }
-        });
-        return content.get();
+        }).toBlockingObservable().single();
     }
     
     @Test

@@ -53,7 +53,6 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        System.err.println("ConnectionLifecycleHandler.channelActive");
         inputSubject = PublishSubject.create();
         connection = new ObservableConnection<I, O>(ctx, inputSubject);
         if (null != observableAdapter) {

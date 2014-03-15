@@ -26,6 +26,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.ChannelPool;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
 import rx.Observer;
@@ -63,13 +64,44 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         contentSubject = PublishSubject.create();
     }
 
+    private Long getKeepAliveTimeout(String keepAlive) {
+        try {
+            if (keepAlive != null) {
+                String[] pairs = keepAlive.split(",");
+                if (pairs != null) {
+                    for (String pair: pairs) {
+                        String[] nameValue = pair.trim().split("=");
+                        if (nameValue != null && nameValue.length == 2 && nameValue[0].trim().equals("timeout")) {
+                            return Long.valueOf(nameValue[1].trim());
+                        }
+                    }
+                }
+            } 
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
         if (io.netty.handler.codec.http.HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpClientResponse rxResponse = new HttpClientResponse((io.netty.handler.codec.http.HttpResponse)msg, contentSubject);
+            io.netty.handler.codec.http.HttpResponse response = (io.netty.handler.codec.http.HttpResponse) msg;
+            HttpHeaders headers = response.headers();
+            String connectionHeaderValue = headers.get(HttpHeaders.Names.CONNECTION);
+            if ("close".equals(connectionHeaderValue)) {
+                ctx.attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(Long.valueOf(0));
+            } else {
+                String keepAlive = headers.get("Keep-Alive");
+                Long timeout = getKeepAliveTimeout(keepAlive);
+                if (timeout != null) {
+                    ctx.attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(timeout);
+                }
+            }
+            HttpClientResponse rxResponse = new HttpClientResponse(response, contentSubject);
             super.channelRead(ctx, rxResponse); // For FullHttpResponse, this assumes that after this call returns,
                                                 // someone has subscribed to the content observable, if not the content will be lost.
         }
