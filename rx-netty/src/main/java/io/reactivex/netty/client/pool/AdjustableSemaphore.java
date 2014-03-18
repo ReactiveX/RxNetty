@@ -1,4 +1,4 @@
-package io.reactivex.netty.client;
+package io.reactivex.netty.client.pool;
 
 import java.util.concurrent.Semaphore;
 
@@ -31,8 +31,6 @@ class AdjustableSemaphore {
      * to block after the call will wait until enough permits have been released to
      * have the number of outstanding permits fall below the new maximum. In
      * other words, it does what you probably think it should.
-     *
-     * @param newMax
      */
     synchronized void setMaxPermits(int newMax) {
         if (newMax < 1) {

@@ -48,10 +48,10 @@ public class HttpObjectAggregationConfigurator<R extends FullHttpMessage, W> imp
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        if (pipeline.get(HttpClientPipelineConfigurator.HTTP_CODEC_HANDLER_NAME) != null) {
+        /* if (pipeline.get(HttpClientPipelineConfigurator.HTTP_CODEC_HANDLER_NAME) != null) {
             pipeline.addAfter(HttpClientPipelineConfigurator.HTTP_CODEC_HANDLER_NAME, AGGREGATOR_HANDLER_NAME, new HttpObjectAggregator(maxChunkSize));
-        } else {
+        } else { */
             pipeline.addLast(AGGREGATOR_HANDLER_NAME, new HttpObjectAggregator(maxChunkSize));
-        }
+        // }
     }
 }

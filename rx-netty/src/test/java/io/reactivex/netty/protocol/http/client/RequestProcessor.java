@@ -108,6 +108,19 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         );
     }
     
+    public Observable<Void> handleCloseConnection(final HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().add("Connection", "close");
+        byte[] responseBytes = "Hello world".getBytes();
+        return response.writeBytesAndFlush(responseBytes);
+    }
+    
+    public Observable<Void> handleKeepAliveTimeout(final HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().add("Keep-Alive", "timeout=1");
+        byte[] responseBytes = "Hello world".getBytes();
+        return response.writeBytesAndFlush(responseBytes);
+    }
+
+    
     private static Observable<Void> sendStreamingResponse(HttpServerResponse<ByteBuf> response, List<String> data) {
         response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         response.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
@@ -134,6 +147,10 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
             return simulateTimeout(request, response);
         } else if (uri.startsWith("test/post")) {
             return handlePost(request, response);
+        } else if (uri.startsWith("test/closeConnection")) {
+            return handleCloseConnection(response);
+        } else if (uri.startsWith("test/keepAliveTimeout")) {
+            return handleKeepAliveTimeout(response);
         } else {
             response.setStatus(HttpResponseStatus.NOT_FOUND);
             return response.flush();

@@ -21,6 +21,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 /**

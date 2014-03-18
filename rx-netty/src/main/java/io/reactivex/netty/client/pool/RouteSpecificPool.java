@@ -1,4 +1,7 @@
-package io.reactivex.netty.client;
+package io.reactivex.netty.client.pool;
+
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import rx.Observable;
 import io.netty.bootstrap.Bootstrap;
@@ -8,7 +11,7 @@ import io.reactivex.netty.client.RxClient.ServerInfo;
 
 public class RouteSpecificPool extends AbstractQueueBasedChannelPool {
 
-    private final ChannelQueues queues = new ChannelQueues();
+    private final Queue<Channel> idleQueue = new ConcurrentLinkedQueue<Channel>();
     private final ServerInfo serverInfo;
     
     public RouteSpecificPool(ServerInfo serverInfo, int maxConnections, long defaultIdleTimeout) {
@@ -24,27 +27,18 @@ public class RouteSpecificPool extends AbstractQueueBasedChannelPool {
 
     @Override
     public int getIdleChannels() {
-        return queues.getIdleChannels().size();
+        return idleQueue.size();
     }
 
-    @Override
-    public int getTotalChannelsInPool() {
-        return queues.getBusyChannels().size() + queues.getIdleChannels().size();
-    }
 
     @Override
-    protected ChannelQueues getOrCreateChannelQueues(ServerInfo serverInfo) {
-        return getQueues(serverInfo);
-    }
-
-    @Override
-    protected ChannelQueues getChannelQueues(ServerInfo serverInfo) {
+    protected Queue<Channel> getIdleQueue(ServerInfo serverInfo) {
         return getQueues(serverInfo);
     }
     
-    private ChannelQueues getQueues(ServerInfo serverInfo) {
+    private Queue<Channel> getQueues(ServerInfo serverInfo) {
         checkServer(serverInfo);
-        return queues;
+        return idleQueue;
     }
 
     private void checkServer(ServerInfo serverInfo) {
@@ -54,11 +48,11 @@ public class RouteSpecificPool extends AbstractQueueBasedChannelPool {
     }
     
     @Override
-    public Observable<Channel> requestChannel(String host, int port,
+    public Observable<Channel> requestChannel(ServerInfo serverInfo,
             Bootstrap bootStrap, ChannelInitializer<? extends Channel> initializer) {
         try {
-            checkServer(new ServerInfo(host, port));
-            return super.requestChannel(host, port, bootStrap, initializer);
+            checkServer(serverInfo);
+            return super.requestChannel(serverInfo, bootStrap, initializer);
         } catch (Exception e) {
             return Observable.<Channel>error(e);
         }

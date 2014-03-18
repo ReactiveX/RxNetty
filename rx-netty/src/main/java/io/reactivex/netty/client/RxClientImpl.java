@@ -23,6 +23,7 @@ import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
@@ -109,16 +110,14 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                     ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
-                            System.err.println("initChannel");
                             PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
                                     incompleteConfigurator);
                             configurator.configureNewPipeline(ch.pipeline());
                         }
                     };
                     if (pool != null) {
-                        Observable<Channel> channelObservable = pool.requestChannel(serverInfo.getHost(), serverInfo.getPort(), clientBootstrap, initializer);
+                        Observable<Channel> channelObservable = pool.requestChannel(serverInfo, clientBootstrap, initializer);
                         final Subscription channelSubscription = channelObservable.subscribe(new Observer<Channel>() {
-
                             @Override
                             public void onCompleted() {
                             }
@@ -130,11 +129,6 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
                             @Override
                             public void onNext(Channel t) {
-                                /*
-                                PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
-                                        incompleteConfigurator);
-                                configurator.configureNewPipeline(t.pipeline());
-                                */
                                 t.attr(ChannelPool.POOL_ATTR).set(pool);
                             }
                         });

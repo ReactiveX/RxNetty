@@ -1,4 +1,4 @@
-package io.reactivex.netty.client;
+package io.reactivex.netty.client.pool;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
@@ -22,18 +22,6 @@ import rx.Observable.OnSubscribe;
 
 public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
 
-    public static class ChannelQueues {
-        private final Queue<Channel> idleChannels = new ConcurrentLinkedQueue<Channel>();
-        private final Queue<Channel> busyChannels = new ConcurrentLinkedQueue<Channel>();
-        
-        public final Queue<Channel> getIdleChannels() {
-            return idleChannels;
-        }
-        public final Queue<Channel> getBusyChannels() {
-            return busyChannels;
-        }
-    }
-    
     public static class PoolExhaustedException extends Exception {
         private static final long serialVersionUID = 1L;
 
@@ -52,14 +40,14 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
     private final AtomicLong creationCounter = new AtomicLong();
     private final AtomicLong deleteCounter = new AtomicLong();
     private final AtomicLong releaseCounter = new AtomicLong();
-    private final AtomicLong requestCounter = new AtomicLong();
+    private final AtomicLong failureRequestCounter = new AtomicLong();
     private final AtomicLong successfulRequestCounter = new AtomicLong();
 
 
-    public AbstractQueueBasedChannelPool(int maxConnections, long defaultIdleTimeout) {
+    public AbstractQueueBasedChannelPool(int maxConnections, long defaultIdleTimeoutMillis) {
         this.maxConnectionsLimit = new AdjustableSemaphore(maxConnections);
         this.maxTotal = maxConnections;
-        this.defaultIdleTimeout = defaultIdleTimeout;
+        this.defaultIdleTimeout = defaultIdleTimeoutMillis;
     }
     
     public AbstractQueueBasedChannelPool(int maxConnections) {
@@ -68,15 +56,15 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
 
     
     private Channel getFreeChannel(ServerInfo serverInfo) {
-        final ChannelQueues routePool = getChannelQueues(serverInfo);
-        if (routePool == null) {
+        final Queue<Channel> idleQueue = getIdleQueue(serverInfo);
+        if (idleQueue == null) {
             return null;
         } else {
-            Channel freeChannel = routePool.getIdleChannels().poll();
+            Channel freeChannel = idleQueue.poll();
             while (freeChannel != null) {
                 if (!isReusable(freeChannel))  {
                     closeChannel(freeChannel);
-                    freeChannel = routePool.getIdleChannels().poll();
+                    freeChannel = idleQueue.poll();
                 } else {
                     return freeChannel;
                 }
@@ -91,13 +79,18 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
         } else {
             Long idleTimeout = channel.attr(ChannelPool.IDLE_TIMEOUT_ATTR).get();
             Long idleStart = channel.attr(ChannelPool.IDLE_START_ATTR).get();
+
             if (idleStart != null) {
                 // this is the case where we are checking if an idle channel 
                 // can be reused
                 if (idleTimeout == null) {
                     idleTimeout = defaultIdleTimeout;
+                } else {
+                    // the Keep-Alive timeout is second
+                    idleTimeout = idleTimeout * 1000;
                 }
-                return idleStart + idleTimeout > System.currentTimeMillis();
+                long currentTime = System.currentTimeMillis();
+                return idleStart + idleTimeout > currentTime;
             } else if (idleTimeout != null && idleTimeout.longValue() == 0) {
                 // this is when we check if channel being released is reusable 
                 return false;
@@ -108,19 +101,17 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
         }
     }
     
-    protected abstract ChannelQueues getOrCreateChannelQueues(ServerInfo serverInfo);
+    // protected abstract Queue<Channel> getOrCreateIdleQueue(ServerInfo serverInfo);
     
-    protected abstract ChannelQueues getChannelQueues(ServerInfo serverInfo);
+    protected abstract Queue<Channel> getIdleQueue(ServerInfo serverInfo);
     
     @Override
-    public Observable<Channel> requestChannel(final String host, final int port,
+    public Observable<Channel> requestChannel(final ServerInfo serverInfo,
             final Bootstrap bootStrap, final ChannelInitializer<? extends Channel> initializer) {
-        requestCounter.incrementAndGet();
         return Observable.<Channel>create(new OnSubscribe<Channel>() {
             @SuppressWarnings({ "rawtypes", "unchecked" })
             @Override
             public void call(final Subscriber<? super Channel> subscriber) {  
-                final ServerInfo serverInfo = new ServerInfo(host, port);
                 Channel freeChannel = getFreeChannel(serverInfo);
                 if (freeChannel != null) {
                     reuseCounter.incrementAndGet();
@@ -149,13 +140,14 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
                             } else {
                                 // something is wrong in the channel re-initialization, close the channel
                                 closeChannel(channel);
+                                failureRequestCounter.incrementAndGet();
                                 subscriber.onError(future.cause());
                             }
                         }
 
                     });
                 } else if (maxConnectionsLimit.tryAcquire()) {
-                    bootStrap.handler(initializer).connect(host, port).addListener(new ChannelFutureListener() {                            
+                    bootStrap.handler(initializer).connect(serverInfo.getHost(), serverInfo.getPort()).addListener(new ChannelFutureListener() {                            
                         @Override
                         public void operationComplete(ChannelFuture future) throws Exception {
                             if (future.isSuccess()) {
@@ -165,11 +157,13 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
                             } else {
                                 // channel is not created, release the permit previously acquired
                                 maxConnectionsLimit.release();
+                                failureRequestCounter.incrementAndGet();
                                 subscriber.onError(future.cause());
                             }
                         }
                     });    
                 } else {
+                    failureRequestCounter.incrementAndGet();
                     subscriber.onError(new PoolExhaustedException("Pool has reached its maximal size " + maxTotal));
                 }
             };
@@ -186,9 +180,7 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
     }
     
     private void completeChannelRequest(ServerInfo serverInfo, Channel channel, final Subscriber<? super Channel> subscriber) {
-        ChannelQueues pool = getOrCreateChannelQueues(serverInfo);
         channel.attr(ChannelPool.IDLE_START_ATTR).getAndRemove();
-        pool.getBusyChannels().add(channel);
         successfulRequestCounter.incrementAndGet();
         subscriber.onNext(channel);
         subscriber.onCompleted();        
@@ -198,21 +190,16 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
     public Observable<Void> releaseChannel(Channel channel) {
         InetSocketAddress remoteAddress = (InetSocketAddress) channel.remoteAddress();
         ServerInfo serverInfo = new ServerInfo(remoteAddress.getHostName(), remoteAddress.getPort());
-        ChannelQueues pool = getChannelQueues(serverInfo);
-        if (pool == null) {
-            return Observable.error(new Exception(String.format("The channel %s is not associated with this pool", channel)));
-        }
-        if (!pool.getBusyChannels().remove(channel)) {
-            return Observable.<Void>error(new IllegalArgumentException(String.format("Channel %s cannot be found in this pool", channel)));
-        }
+        Queue<Channel> idleQueue = getIdleQueue(serverInfo);
         releaseCounter.incrementAndGet();
         final ChannelFuture closeFuture;
         if (!isReusable(channel)) {
             closeFuture = closeChannel(channel);
         } else {
             closeFuture = null;
-            pool.getIdleChannels().add(channel);
-            channel.attr(ChannelPool.IDLE_START_ATTR).set(System.currentTimeMillis());
+            idleQueue.add(channel);
+            long currentTime = System.currentTimeMillis();
+            channel.attr(ChannelPool.IDLE_START_ATTR).set(currentTime);
         }
         return Observable.<Void>create(new OnSubscribe<Void>() {
             @Override
@@ -255,21 +242,26 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
         return deleteCounter.get();
     }
     
-    public long getRequestCount() {
-        return requestCounter.get();
+    public long getSuccessfulRequestCount() {
+        return successfulRequestCounter.get();
     }
     
     public long getReleaseCount() {
         return releaseCounter.get();
     }
-    
-    public long getSuccessuflRequestCount() {
-        return successfulRequestCounter.get();
+        
+    public long getFailedRequestCount() {
+        return failureRequestCounter.get();
     }
 
     @Override
-    public void setMaxTotal(int newMax) {
+    public synchronized void setMaxTotal(int newMax) {
+        maxTotal = newMax;
         maxConnectionsLimit.setMaxPermits(newMax);
     }
 
+    @Override
+    public int getTotalChannelsInPool() {
+        return maxTotal - maxConnectionsLimit.availablePermits();
+    }
 }

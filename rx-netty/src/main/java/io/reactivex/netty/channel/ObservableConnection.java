@@ -20,7 +20,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
-import io.reactivex.netty.client.ChannelPool;
+import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
 import rx.Subscriber;

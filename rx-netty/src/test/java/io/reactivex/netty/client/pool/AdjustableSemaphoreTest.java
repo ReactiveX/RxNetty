@@ -1,6 +1,7 @@
-package io.reactivex.netty.client;
+package io.reactivex.netty.client.pool;
 
 import static org.junit.Assert.*;
+import io.reactivex.netty.client.pool.AdjustableSemaphore;
 
 import org.junit.Test;
 

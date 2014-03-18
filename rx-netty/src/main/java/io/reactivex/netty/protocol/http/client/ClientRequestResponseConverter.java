@@ -26,7 +26,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.client.ChannelPool;
+import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
 import rx.Observer;
@@ -93,12 +93,12 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             HttpHeaders headers = response.headers();
             String connectionHeaderValue = headers.get(HttpHeaders.Names.CONNECTION);
             if ("close".equals(connectionHeaderValue)) {
-                ctx.attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(Long.valueOf(0));
+                ctx.channel().attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(Long.valueOf(0));
             } else {
                 String keepAlive = headers.get("Keep-Alive");
                 Long timeout = getKeepAliveTimeout(keepAlive);
                 if (timeout != null) {
-                    ctx.attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(timeout);
+                    ctx.channel().attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(timeout);
                 }
             }
             HttpClientResponse rxResponse = new HttpClientResponse(response, contentSubject);
