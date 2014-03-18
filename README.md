@@ -18,8 +18,6 @@ Example
 ==========
 
 ```java
-package test;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
@@ -69,6 +67,20 @@ public class RxNettyExample {
         server.shutdown();
     }
 }
+```
+
+Outputs:
+
+```
+Server => Request: /
+Client => Path Requested =>: /
+
+Server => Request: /error
+Server => Error [/error] => java.lang.RuntimeException: forced error
+Client => Error 500: Bad Request
+
+Server => Request: /data
+Client => Path Requested =>: /data
 ```
 
 
