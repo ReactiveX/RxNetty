@@ -8,64 +8,105 @@ import io.reactivex.netty.slotting.SlotAssignment;
 import io.reactivex.netty.slotting.SlotValuePair;
 import io.reactivex.netty.slotting.SlottingStrategy;
 
-import java.util.List;
+import java.util.Map;
 
 import rx.Observable;
 import rx.Observer;
 import rx.Subscription;
 import rx.functions.Action0;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
-public class RemoteObservableConnectionHandler<T> implements
+public class RemoteObservableConnectionHandler implements
 		ConnectionHandler<RemoteRxEvent, RemoteRxEvent> {
-		
-	private SlottingStrategy<T> slottingStrategy;	
-	private Observable<List<Observable<T>>> observable;
-	private Encoder<T> encoder;
-	private Func1<SlotValuePair<T>,Boolean> slotAssignmentFunction;
+	
+	@SuppressWarnings("rawtypes")
+	private Map<String,RemoteObservableConfiguration> observables;
 	private IngressPolicy ingressPolicy;
 
+	@SuppressWarnings("rawtypes")
 	public RemoteObservableConnectionHandler(
-			Observable<List<Observable<T>>> observable,
-			Encoder<T> encoder, SlottingStrategy<T> slottingStrategy, 
+			Map<String,RemoteObservableConfiguration> observables,
 			IngressPolicy ingressPolicy) {
-		this.observable = observable;
-		this.encoder = encoder;
-		this.slottingStrategy = slottingStrategy;
-		this.slotAssignmentFunction = slottingStrategy.slottingFunction();
+		this.observables = observables;
 		this.ingressPolicy = ingressPolicy;
 	}
 
 	@Override
 	public Observable<Void> handle(final
-			ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {
-		
-		// used to initiate 'unsubscribe' callback to subscriber
-		MutableReference<Subscription> unsubscribeCallbackReference = new MutableReference<Subscription>();
-		// used to signal a new list of observables is available for processing
-		MutableReference<Subscription> mergedObservableListReference = new MutableReference<Subscription>();
-
+			ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {		
 		if (ingressPolicy.allowed(connection)){
-			SlotAssignment slotAssignment = slottingStrategy.assignSlot(connection);
-			if (slotAssignment.isAssigned()){
-				return setupConnection(connection, slotAssignment, unsubscribeCallbackReference, mergedObservableListReference);
-			}else{
-				Exception e = new RemoteObservableException("Slot could not be assigned for connection.");
-				connection.writeAndFlush(RemoteRxEvent.error(RemoteObservable.fromThrowableToBytes(e)));
-				return Observable.error(e); // TODO disconnect stale connection
-			}
+				return setupConnection(connection);
 		}else{
 			Exception e = new RemoteObservableException("Connection rejected due to ingress policy");
-			connection.writeAndFlush(RemoteRxEvent.error(RemoteObservable.fromThrowableToBytes(e)));
 			return Observable.error(e);
 		}
 	}
+	
+	private <T> void subscribe(final MutableReference<Subscription> unsubscribeCallbackReference, 
+			final RemoteRxEvent event, final ObservableConnection<RemoteRxEvent,RemoteRxEvent> connection, 
+			RemoteObservableConfiguration<T> configuration, final SlotAssignment slotAssignment){
+	
+			final Observable<T> observable = configuration.getObservable();
+			final Func1<Map<String,String>, Func1<T,Boolean>> filterFunction = configuration.getFilterFunction();
+			SlottingStrategy<T> slottingStrategy = configuration.getSlottingStrategy();
+			final Func1<SlotValuePair<T>,Boolean> slotAssignmentFunction = slottingStrategy.slottingFunction();
+			final Encoder<T> encoder = configuration.getEncoder();
+			
+			// write RxEvents over the connection		
+			Subscription subscription = observable.
+					filter(filterFunction.call(event.getSubscribeParameters()))
+					// setup slotting
+					.map(new Func1<T, SlotValuePair<T>>(){
+						@Override
+						public SlotValuePair<T> call(
+								T t1) {
+							return new SlotValuePair<T>(slotAssignment.getSlotAssignment(), t1);
+						}
+					})
+					// apply slotting function
+					.filter(slotAssignmentFunction)
+					// get value for processing
+					.map(new Func1<SlotValuePair<T>,T>(){
+						@Override
+						public T call(
+								SlotValuePair<T> pair) {
+							return pair.getValue();
+						}
+					})
+					// send results out
+					.subscribe(new Observer<T>(){
+						@Override
+						public void onCompleted() {
+							connection.writeAndFlush(RemoteRxEvent.completed(event.getObservableName()));
+						}
+						@Override
+						public void onError(
+								Throwable e) {
+							connection.writeAndFlush(RemoteRxEvent.error(event.getObservableName(), RemoteObservable.fromThrowableToBytes(e)));
+						}
+						@Override
+						public void onNext(T t) {
+							connection.writeAndFlush(RemoteRxEvent.next(event.getObservableName(), encoder.encode(t)));
+						}
+			});
+			unsubscribeCallbackReference.setValue(subscription);
+	}
+	
+	private void unsubscribe(MutableReference<Subscription> unsubscribeCallbackReference){
+		Subscription subscription = unsubscribeCallbackReference.getValue();
+		if (subscription != null){
+			// unsubscribe to list of observables
+			unsubscribeCallbackReference.getValue().unsubscribe();
+		}
+	}
 
-	private Observable<Void> setupConnection(
-			final ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection, 
-			final SlotAssignment slotAssignment, final MutableReference<Subscription> unsubscribeCallbackReference, 
-			final MutableReference<Subscription> mergedObservableListReference) {
+	@SuppressWarnings("rawtypes")
+	private Observable<Void> setupConnection(final ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {
+		
+		// used to initiate 'unsubscribe' callback to subscriber
+		final MutableReference<Subscription> unsubscribeCallbackReference = new MutableReference<Subscription>();
+		final MutableReference<SlottingStrategy> slottingStrategyReference = new MutableReference<SlottingStrategy>();
+		
 		return connection.getInput()
 				// filter out unsupported operations
 				.filter(new Func1<RemoteRxEvent,Boolean>(){
@@ -78,78 +119,44 @@ public class RemoteObservableConnectionHandler<T> implements
 						}
 						return supportedOperation;
 					}
+				})
 				// handle request
-				}).map(new Func1<RemoteRxEvent,Void>(){
+				.flatMap(new Func1<RemoteRxEvent,Observable<Void>>(){
+					@SuppressWarnings({ "unchecked" })
 					@Override
-					public Void call(RemoteRxEvent event) {
-						if (event.getType() == RemoteRxEvent.Type.subscribed){
-							// write RxEvents over the connection
-							Subscription subscribedSubscription = observable
-								.subscribe(new Action1<List<Observable<T>>>(){
-									@Override
-									public void call(
-											List<Observable<T>> list) {
-										// check if connection has set of merged subscriptions
-										Subscription mergedSubscriptionCheck = mergedObservableListReference.getValue();
-										if (mergedSubscriptionCheck != null){
-											// initiate unsubscribe callback to 
-											mergedSubscriptionCheck.unsubscribe();
-										}
-										if (list != null && !list.isEmpty()){													
-											Subscription mergedSubscription = Observable
-													.merge(list)
-													.map(new Func1<T, SlotValuePair<T>>(){
-														@Override
-														public SlotValuePair<T> call(
-																T t1) {
-															return new SlotValuePair<T>(slotAssignment.getSlotAssignment(), t1);
-														}
-													})
-													.filter(slotAssignmentFunction)
-													.map(new Func1<SlotValuePair<T>,T>(){
-														@Override
-														public T call(
-																SlotValuePair<T> pair) {
-															return pair.getValue();
-														}
-													})
-													.subscribe(new Observer<T>(){
-														@Override
-														public void onCompleted() {
-															connection.writeAndFlush(RemoteRxEvent.completed());
-														}
-														@Override
-														public void onError(
-																Throwable e) {
-															connection.writeAndFlush(RemoteRxEvent.error(RemoteObservable.fromThrowableToBytes(e)));
-														}
-														@Override
-														public void onNext(T t) {															
-															connection.writeAndFlush(RemoteRxEvent.next(encoder.encode(t)));
-														}
-											});
-											mergedObservableListReference.setValue(mergedSubscription);
-										}
-									}
-								});
-								unsubscribeCallbackReference.setValue(subscribedSubscription);
-						}else if (event.getType() == RemoteRxEvent.Type.unsubscribed){
-							Subscription subscription = unsubscribeCallbackReference.getValue();
-							if (subscription != null){
-								unsubscribeCallbackReference.getValue().unsubscribe();
-							}
+					public Observable<Void> call(final RemoteRxEvent event) {
+						// check if observable exists
+						String observableName = event.getObservableName();
+						RemoteObservableConfiguration config = observables.get(observableName);
+						if (config == null){
+							return Observable.error(new RemoteObservableException("No remote observable configuration found for name: "+observableName));
 						}
-						return null;
+						if (event.getType() == RemoteRxEvent.Type.subscribed){
+							SlottingStrategy slottingStrategy = config.getSlottingStrategy();
+							slottingStrategyReference.setValue(slottingStrategy);
+							SlotAssignment slotAssignment = slottingStrategy.assignSlot(connection);
+							if (slotAssignment.isAssigned()){
+								subscribe(unsubscribeCallbackReference, event, 
+										connection,	config, slotAssignment);
+							}else{
+								return Observable.error(new RemoteObservableException("Slot could not be assigned for connection."));
+							}
+						}else if (event.getType() == RemoteRxEvent.Type.unsubscribed){
+							unsubscribe(unsubscribeCallbackReference);
+						}
+						return Observable.empty();
 					}
-				}).doOnCompleted(new Action0(){
+				})
+				.doOnCompleted(new Action0(){
+					@SuppressWarnings("unchecked")
 					@Override
 					public void call() {
 						// connection closed, remote slot
-						slottingStrategy.releaseSlot(connection);
+						SlottingStrategy slottingStrategy = slottingStrategyReference.getValue();
+						if (slottingStrategy != null){
+							slottingStrategy.releaseSlot(connection);
+						}
 					}
 				});
 	}
-	
-	
-
 }
