@@ -158,12 +158,8 @@ public class HttpClientTest {
                 result.add(t1);
             }
         });
-        // Thread.sleep(2000);
         assertEquals(1, result.size());
         assertEquals("Hello world", result.get(0));
-        // subscription.unsubscribe();
-        // Thread.sleep(1000000);
-        
     }
 
     @Test
@@ -554,6 +550,17 @@ public class HttpClientTest {
         Throwable error = waitForError(client, "test/timeout?timeout=2000");
         assertNotNull(error);
         assertTrue(error instanceof PoolExhaustedException);
+        assertEquals(1, pool.getFailedRequestCount());
+    }
+    
+    @Test
+    public void testConnectExceptionFromPool() throws Exception {
+        DefaultChannelPool pool = new DefaultChannelPool(2);
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", 12345).channelPool(pool).build();
+        Throwable error = waitForError(client, "/");
+        assertNotNull(error);
+        assertTrue(error instanceof ConnectException);
+        assertEquals(1, pool.getFailedRequestCount());
     }
 
 
