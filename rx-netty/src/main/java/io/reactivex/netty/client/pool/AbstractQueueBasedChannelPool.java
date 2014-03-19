@@ -13,13 +13,18 @@ import io.reactivex.netty.client.RxClient.ServerInfo;
 
 import java.net.InetSocketAddress;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import rx.Observable;
 import rx.Subscriber;
 import rx.Observable.OnSubscribe;
 
+/**
+ * A base implementation of {@link ChannelPool} that keeps all idle connections in a single queue
+ * 
+ * @author awang
+ *
+ */
 public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
 
     public static class PoolExhaustedException extends Exception {
@@ -100,9 +105,7 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
 
         }
     }
-    
-    // protected abstract Queue<Channel> getOrCreateIdleQueue(ServerInfo serverInfo);
-    
+        
     protected abstract Queue<Channel> getIdleQueue(ServerInfo serverInfo);
     
     @Override
@@ -114,6 +117,7 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
             public void call(final Subscriber<? super Channel> subscriber) {  
                 Channel freeChannel = getFreeChannel(serverInfo);
                 if (freeChannel != null) {
+                    // get an idle channel for the route that is reusable
                     reuseCounter.incrementAndGet();
                     final Channel channel = freeChannel;
                     // make sure the channel manipulation is done in the channel's 
@@ -147,37 +151,59 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
 
                     });
                 } else if (maxConnectionsLimit.tryAcquire()) {
-                    bootStrap.handler(initializer).connect(serverInfo.getHost(), serverInfo.getPort()).addListener(new ChannelFutureListener() {                            
-                        @Override
-                        public void operationComplete(ChannelFuture future) throws Exception {
-                            if (future.isSuccess()) {
-                                creationCounter.incrementAndGet();
-                                Channel channel = future.channel();
-                                completeChannelRequest(serverInfo, channel, subscriber);
-                            } else {
-                                // channel is not created, release the permit previously acquired
-                                maxConnectionsLimit.release();
-                                failureRequestCounter.incrementAndGet();
-                                subscriber.onError(future.cause());
-                            }
-                        }
-                    });    
+                    // No idle channel for the route, but can create new channel
+                    createChannel(serverInfo, bootStrap, initializer, subscriber);
                 } else {
-                    failureRequestCounter.incrementAndGet();
-                    subscriber.onError(new PoolExhaustedException("Pool has reached its maximal size " + maxTotal));
+                    // get one idle channel from other route
+                    Queue<Channel> idleChannels = removeFromIdleChannels(1);
+                    Channel idleChannel = idleChannels.poll();
+                    if (idleChannel != null) {
+                        // close channel, but do not release permit as this is just an exchange
+                        closeChannel(idleChannel, false);
+                        createChannel(serverInfo, bootStrap, initializer, subscriber);
+                    } else {
+                        failureRequestCounter.incrementAndGet();
+                        subscriber.onError(new PoolExhaustedException("Pool has reached its maximal size " + maxTotal));
+                    }
                 }
             };
         });
     }
 
+    private ChannelFuture createChannel(final ServerInfo serverInfo, final Bootstrap bootStrap, 
+            final ChannelInitializer<? extends Channel> initializer,  final Subscriber<? super Channel> subscriber) {
+        return bootStrap.handler(initializer).connect(serverInfo.getHost(), serverInfo.getPort()).addListener(new ChannelFutureListener() {                            
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess()) {
+                    creationCounter.incrementAndGet();
+                    Channel channel = future.channel();
+                    completeChannelRequest(serverInfo, channel, subscriber);
+                } else {
+                    // channel is not created, release the permit previously acquired
+                    maxConnectionsLimit.release();
+                    failureRequestCounter.incrementAndGet();
+                    subscriber.onError(future.cause());
+                }
+            }
+        });            
+    }
+    
     private ChannelFuture closeChannel(Channel channel) {
+        return closeChannel(channel, true);
+    }
+    
+    private ChannelFuture closeChannel(Channel channel, boolean returnPermit) {
         deleteCounter.incrementAndGet();
-        maxConnectionsLimit.release();
+        if (returnPermit) {
+            maxConnectionsLimit.release();
+        }
         channel.attr(ChannelPool.POOL_ATTR).getAndRemove();
         channel.attr(ChannelPool.IDLE_START_ATTR).getAndRemove();
         channel.attr(ChannelPool.IDLE_TIMEOUT_ATTR).getAndRemove();
         return channel.close();
     }
+
     
     private void completeChannelRequest(ServerInfo serverInfo, Channel channel, final Subscriber<? super Channel> subscriber) {
         channel.attr(ChannelPool.IDLE_START_ATTR).getAndRemove();
@@ -225,6 +251,34 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
         });        
     }
 
+    /**
+     * Remove a number of idle channels from any route and put them into the
+     * queue to be returned. This is used by {@link #requestChannel(ServerInfo, Bootstrap, ChannelInitializer)}
+     * when the pool has reached its channel limit, but has idle channels that can be 
+     * removed so that new ones can be created. It is also used by {@link #cleanUpIdleChannels()}.
+     *  
+     * @param numberDesired number of channels to be removed from idle queue. If 0, all 
+     *           idle channels are to be removed.
+     * @return Queue that contains the channels that are removed from idle queues.
+     */
+    protected abstract Queue<Channel> removeFromIdleChannels(int numberDesired);
+    
+    /**
+     * Remove all idle channels. 
+     *  
+     * @return number of idle channels removed
+     */
+    public int cleanUpIdleChannels() {
+        Queue<Channel> idleChannels = removeFromIdleChannels(0);
+        Channel channel;
+        int count = 0;
+        while ((channel = idleChannels.poll()) != null) {
+            closeChannel(channel);
+            count++;
+        }
+        return count;
+    }
+    
     @Override
     public int getMaxTotal() {
         return maxTotal;

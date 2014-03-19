@@ -9,6 +9,13 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.reactivex.netty.client.RxClient.ServerInfo;
 
+/**
+ * An implementation of {@link ChannelPool} that holds connections to a specific route. Exception will be
+ * thrown if channel requested or released does not belong to the pool.
+ * 
+ * @author awang
+ *
+ */
 public class RouteSpecificPool extends AbstractQueueBasedChannelPool {
 
     private final Queue<Channel> idleQueue = new ConcurrentLinkedQueue<Channel>();
@@ -56,5 +63,17 @@ public class RouteSpecificPool extends AbstractQueueBasedChannelPool {
         } catch (Exception e) {
             return Observable.<Channel>error(e);
         }
+    }
+
+    @Override
+    protected Queue<Channel> removeFromIdleChannels(int numberDesired) {
+        Queue<Channel> idleQueueToRemove = new ConcurrentLinkedQueue<Channel>();
+        Channel idle;
+        int count = 0;
+        while ((idle = idleQueue.poll()) != null && (numberDesired <= 0  || count < numberDesired)) {
+            idleQueueToRemove.add(idle);
+            count++;
+        }
+        return idleQueueToRemove;
     }
 }

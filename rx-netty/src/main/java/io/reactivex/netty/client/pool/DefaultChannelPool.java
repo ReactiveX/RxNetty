@@ -21,7 +21,7 @@ public class DefaultChannelPool extends AbstractQueueBasedChannelPool {
 
         
     @Override
-    protected Queue<Channel> getIdleQueue(ServerInfo serverInfo) {
+    public Queue<Channel> getIdleQueue(ServerInfo serverInfo) {
         Queue<Channel> pool = routeSpecificIdleQueues.get(serverInfo);
         if  (pool != null) {
             return pool; 
@@ -43,5 +43,29 @@ public class DefaultChannelPool extends AbstractQueueBasedChannelPool {
             total += pool.size();
         }
         return total;
+    }
+
+    @Override
+    protected Queue<Channel> removeFromIdleChannels(int numberDesired) {
+        int count = 0;
+        Queue<Channel> idleQueue = new ConcurrentLinkedQueue<Channel>();
+        boolean done = false;
+        for (Queue<Channel> queue: routeSpecificIdleQueues.values()) {
+            while (!done) {
+                Channel channel = queue.poll();
+                if (channel == null) {
+                    break;
+                }
+                idleQueue.add(channel);
+                count++;
+                if (numberDesired > 0 && count == numberDesired) {
+                    done = true;
+                }
+            }
+            if (done) {
+                break;
+            }
+        }
+        return idleQueue;
     }
 }

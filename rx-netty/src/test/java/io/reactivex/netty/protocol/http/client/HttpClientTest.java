@@ -30,6 +30,7 @@ import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClient.ClientConfig.Builder;
+import io.reactivex.netty.client.RxClient.ServerInfo;
 import io.reactivex.netty.client.pool.AbstractQueueBasedChannelPool.PoolExhaustedException;
 import io.reactivex.netty.client.pool.DefaultChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
@@ -563,6 +564,43 @@ public class HttpClientTest {
         assertEquals(1, pool.getFailedRequestCount());
     }
 
+    @Test
+    public void testIdleChannelsRemoval() throws Exception {
+        DefaultChannelPool pool = new DefaultChannelPool(2);
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).channelPool(pool).build();
+        client.submit(HttpClientRequest.createGet("test/timeout?timeout=1000")).subscribe(new Action1<HttpClientResponse<ByteBuf>>() {
+            @Override
+            public void call(HttpClientResponse<ByteBuf> t1) {
+            }
+        });
+        client.submit(HttpClientRequest.createGet("test/timeout?timeout=1000")).subscribe(new Action1<HttpClientResponse<ByteBuf>>() {
+            @Override
+            public void call(HttpClientResponse<ByteBuf> t1) {
+            }
+        });
+        Thread.sleep(1500);
+        assertEquals(2, pool.getTotalChannelsInPool());
+        assertEquals(2, pool.getIdleChannels());
+        // pool has reached to its capacity, but we should be able to create new channel since there are
+        // idle channels that can be removed
+        client = new HttpClientBuilder<ByteBuf, ByteBuf>("www.google.com", 80).channelPool(pool).build();
+        String content = invokeBlockingCall(client, "/");
+        assertNotNull(content);
+        Thread.sleep(1000);
+        assertEquals(2, pool.getIdleChannels());
+        assertEquals(2, pool.getTotalChannelsInPool());
+        assertEquals(3, pool.getCreationCount());
+        assertEquals(3, pool.getSuccessfulRequestCount());
+        assertEquals(3, pool.getReleaseCount());
+        assertEquals(1, pool.getDeletionCount());
+        assertEquals(1, pool.getIdleQueue(new ServerInfo("localhost", port)).size());
+        assertEquals(1, pool.getIdleQueue(new ServerInfo("www.google.com", 80)).size());
+        
+        int count = pool.cleanUpIdleChannels();
+        assertEquals(2, count);
+        assertEquals(0, pool.getIdleChannels());
+        assertEquals(0, pool.getTotalChannelsInPool());
+    }
 
     private static void readResponseContent(Observable<HttpClientResponse<ServerSentEvent>> response,
                                             final List<String> result) {

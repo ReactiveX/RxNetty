@@ -92,6 +92,5 @@ public class HttpClientPipelineConfigurator<I, O> extends AbstractHttpConfigurat
         pipeline.addLast(HTTP_CODEC_HANDLER_NAME,
                          new HttpClientCodec(maxInitialLineLength, maxHeaderSize, maxChunkSize, failOnMissingResponse,
                                              validateHeaders));
-        // pipeline.addLast(REQUEST_RESPONSE_CONVERTER_HANDLER_NAME, new ClientRequestResponseConverter());
     }
 }
