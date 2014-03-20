@@ -31,12 +31,4 @@ public interface ChannelPool {
     public Observable<Channel> requestChannel(ServerInfo serverInfo, Bootstrap bootStrap, ChannelInitializer<? extends Channel> initializer);
     
     public Observable<Void> releaseChannel(Channel channel);
-    
-    public int getMaxTotal();
-    
-    public int getIdleChannels();
-    
-    public int getTotalChannelsInPool();
-    
-    public void setMaxTotal(int newMax);
 }

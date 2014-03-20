@@ -35,7 +35,7 @@ import rx.Subscriber;
 import rx.Observable.OnSubscribe;
 
 /**
- * A base implementation of {@link ChannelPool} that keeps all idle connections in a single queue
+ * A base implementation of {@link ChannelPool} that keeps idle connection for a route in a single queue
  * 
  * @author awang
  *
@@ -294,7 +294,6 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
         return count;
     }
     
-    @Override
     public int getMaxTotal() {
         return maxTotal;
     }
@@ -323,14 +322,12 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
         return failureRequestCounter.get();
     }
 
-    @Override
     public synchronized void setMaxTotal(int newMax) {
         maxTotal = newMax;
         maxConnectionsLimit.setMaxPermits(newMax);
     }
 
-    @Override
-    public int getTotalChannelsInPool() {
+    public synchronized int getTotalChannelsInPool() {
         return maxTotal - maxConnectionsLimit.availablePermits();
     }
 }

@@ -58,7 +58,6 @@ public class DefaultChannelPool extends AbstractQueueBasedChannelPool {
         }
     }
         
-    @Override
     public int getIdleChannels() {
         int total = 0;
         for (Queue<Channel> pool: routeSpecificIdleQueues.values()) {
