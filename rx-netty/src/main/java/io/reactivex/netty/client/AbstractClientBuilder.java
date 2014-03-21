@@ -21,6 +21,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 /**
@@ -35,6 +36,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected Class<? extends SocketChannel> socketChannel;
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
+    protected ChannelPool channelPool;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
@@ -76,6 +78,11 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B channelPool(ChannelPool pool) {
+        this.channelPool = pool;
+        return returnBuilder();
+    }
+    
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;

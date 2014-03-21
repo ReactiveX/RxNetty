@@ -41,6 +41,6 @@ public class HttpClientBuilder<I, O>
 
     @Override
     protected HttpClient<I, O> createClient() {
-        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig);
+        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelPool);
     }
 }

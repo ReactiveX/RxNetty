@@ -19,6 +19,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpMessage;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 
 /**
  * An implementation of {@link PipelineConfigurator} that can be applied with an implementation of

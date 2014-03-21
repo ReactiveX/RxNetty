@@ -16,12 +16,14 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
@@ -30,6 +32,7 @@ import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Observer;
 import rx.Subscriber;
+import rx.Subscription;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
@@ -52,6 +55,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
      */
     private final PipelineConfigurator<O, I> incompleteConfigurator;
     protected final ClientConfig clientConfig;
+    private ChannelPool pool;
 
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
         this(serverInfo, clientBootstrap, null, clientConfig);
@@ -59,6 +63,11 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
             PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig) {
+        this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, null);
+    }
+    
+    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
+            PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig, ChannelPool pool) {
         if (null == clientBootstrap) {
             throw new NullPointerException("Client bootstrap can not be null.");
         }
@@ -82,6 +91,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             }
         }
         incompleteConfigurator = pipelineConfigurator;
+        this.pool = pool;
     }
 
     /**
@@ -97,29 +107,53 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             public void call(final Subscriber<? super ObservableConnection<O, I>> subscriber) {
                 try {
                     final ClientConnectionHandler clientConnectionHandler = new ClientConnectionHandler(subscriber);
-                    clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
+                    ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
                         @Override
                         public void initChannel(SocketChannel ch) throws Exception {
                             PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
                                     incompleteConfigurator);
                             configurator.configureNewPipeline(ch.pipeline());
                         }
-                    });
-
-                    // make the connection
-                    final ChannelFuture connectFuture =
-                            clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort())
-                                    .addListener(clientConnectionHandler);
-
-                    subscriber.add(Subscriptions.create(new Action0() {
-                        @Override
-                        public void call() {
-                            if (!connectFuture.isDone()) {
-                                connectFuture.cancel(true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
+                    };
+                    if (pool != null) {
+                        Observable<Channel> channelObservable = pool.requestChannel(serverInfo, clientBootstrap, initializer);
+                        final Subscription channelSubscription = channelObservable.subscribe(new Observer<Channel>() {
+                            @Override
+                            public void onCompleted() {
                             }
-                        }
-                    }));
 
+                            @Override
+                            public void onError(Throwable e) {
+                                subscriber.onError(e);
+                            }
+
+                            @Override
+                            public void onNext(Channel t) {
+                                t.attr(ChannelPool.POOL_ATTR).set(pool);
+                            }
+                        });
+                        subscriber.add(Subscriptions.create(new Action0() {
+                            @Override
+                            public void call() {
+                                channelSubscription.unsubscribe();
+                            }
+                        }));
+                    } else {
+                        // make the connection
+                        clientBootstrap.handler(initializer);
+                        final ChannelFuture connectFuture =
+                                clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort())
+                                .addListener(clientConnectionHandler);
+
+                        subscriber.add(Subscriptions.create(new Action0() {
+                            @Override
+                            public void call() {
+                                if (!connectFuture.isDone()) {
+                                    connectFuture.cancel(true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
+                                }
+                            }
+                        }));
+                    }
                 } catch (Throwable e) {
                     subscriber.onError(e);
                 }
@@ -164,5 +198,9 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                 connectionObserver.onError(future.cause());
             } // onComplete() needs to be send after onNext(), calling it here will cause a race-condition between next & complete.
         }
+    }
+    
+    public ChannelPool getChannelPool() {
+        return this.pool;
     }
 }

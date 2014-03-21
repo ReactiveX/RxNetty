@@ -25,6 +25,8 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
 import rx.Observer;
@@ -56,9 +58,29 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
     @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
     @SuppressWarnings("rawtypes") private Observer requestProcessingObserver;
+    private ObservableConnection<?, ?> observableConnection;
 
     public ClientRequestResponseConverter() {
         contentSubject = PublishSubject.create();
+    }
+
+    private Long getKeepAliveTimeout(String keepAlive) {
+        try {
+            if (keepAlive != null) {
+                String[] pairs = keepAlive.split(",");
+                if (pairs != null) {
+                    for (String pair: pairs) {
+                        String[] nameValue = pair.trim().split("=");
+                        if (nameValue != null && nameValue.length == 2 && nameValue[0].trim().equals("timeout")) {
+                            return Long.valueOf(nameValue[1].trim());
+                        }
+                    }
+                }
+            } 
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
@@ -67,7 +89,19 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
         if (io.netty.handler.codec.http.HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpClientResponse rxResponse = new HttpClientResponse((io.netty.handler.codec.http.HttpResponse)msg, contentSubject);
+            io.netty.handler.codec.http.HttpResponse response = (io.netty.handler.codec.http.HttpResponse) msg;
+            HttpHeaders headers = response.headers();
+            String connectionHeaderValue = headers.get(HttpHeaders.Names.CONNECTION);
+            if ("close".equals(connectionHeaderValue)) {
+                ctx.channel().attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(Long.valueOf(0));
+            } else {
+                String keepAlive = headers.get("Keep-Alive");
+                Long timeout = getKeepAliveTimeout(keepAlive);
+                if (timeout != null) {
+                    ctx.channel().attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(timeout);
+                }
+            }
+            HttpClientResponse rxResponse = new HttpClientResponse(response, contentSubject);
             super.channelRead(ctx, rxResponse); // For FullHttpResponse, this assumes that after this call returns,
                                                 // someone has subscribed to the content observable, if not the content will be lost.
         }
@@ -82,6 +116,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                     requestProcessingObserver.onCompleted();
                 }
                 contentSubject.onCompleted();
+                observableConnection.close();
             }
         } else if(!io.netty.handler.codec.http.HttpResponse.class.isAssignableFrom(recievedMsgClass)){
             invokeContentOnNext(msg);
@@ -134,7 +169,11 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     void setRequestProcessingObserver(@SuppressWarnings("rawtypes") Observer requestProcessingObserver) {
         this.requestProcessingObserver = requestProcessingObserver;
     }
-
+    
+    void setObservableConnection(ObservableConnection<?, ?> connection) {
+        this.observableConnection = connection;
+    }
+    
     @SuppressWarnings("unchecked")
     private void invokeContentOnNext(Object nextObject) {
         try {
