@@ -16,6 +16,7 @@
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
@@ -69,12 +70,13 @@ public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilde
     }
 
     public <T> B channelOption(ChannelOption<T> option, T value) {
-        serverBootstrap.option(option, value);
+        serverBootstrap.childOption(option, value);
         return returnBuilder();
     }
 
     public B defaultChannelOptions() {
         channelOption(ChannelOption.SO_KEEPALIVE, true);
+        channelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         return returnBuilder();
     }
 
