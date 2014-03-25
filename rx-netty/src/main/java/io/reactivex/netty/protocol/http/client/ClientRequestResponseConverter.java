@@ -24,8 +24,9 @@ import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
@@ -38,7 +39,7 @@ import rx.subjects.PublishSubject;
  *
  * <h2>Reading Objects</h2>
  * <ul>
- <li>{@link io.netty.handler.codec.http.HttpResponse: Converts it to {@link HttpClientResponse} </li>
+ <li>{@link HttpResponse: Converts it to {@link HttpClientResponse} </li>
  <li>{@link HttpContent}: Converts it to the content of the previously generated
 {@link HttpClientResponse}</li>
  <li>{@link FullHttpResponse}: Converts it to a {@link HttpClientResponse} with pre-populated content observable.</li>
@@ -47,7 +48,7 @@ import rx.subjects.PublishSubject;
  *
  * <h2>Writing Objects</h2>
  * <ul>
- <li>{@link HttpClientRequest}: Converts it to a {@link io.netty.handler.codec.http.HttpRequest}</li>
+ <li>{@link HttpClientRequest}: Converts it to a {@link HttpRequest}</li>
  <li>{@link ByteBuf} to an {@link HttpContent}</li>
  <li>Pass through any other message type.</li>
  </ul>
@@ -58,13 +59,12 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
     @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
     @SuppressWarnings("rawtypes") private Observer requestProcessingObserver;
-    private ObservableConnection<?, ?> observableConnection;
 
     public ClientRequestResponseConverter() {
         contentSubject = PublishSubject.create();
     }
 
-    private Long getKeepAliveTimeout(String keepAlive) {
+    private static Long getKeepAliveTimeout(String keepAlive) {
         try {
             if (keepAlive != null) {
                 String[] pairs = keepAlive.split(",");
@@ -87,9 +87,9 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
-        if (io.netty.handler.codec.http.HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
+        if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
-            io.netty.handler.codec.http.HttpResponse response = (io.netty.handler.codec.http.HttpResponse) msg;
+            HttpResponse response = (HttpResponse) msg;
             HttpHeaders headers = response.headers();
             String connectionHeaderValue = headers.get(HttpHeaders.Names.CONNECTION);
             if ("close".equals(connectionHeaderValue)) {
@@ -101,6 +101,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                     ctx.channel().attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(timeout);
                 }
             }
+            @SuppressWarnings({"rawtypes", "unchecked"})
             HttpClientResponse rxResponse = new HttpClientResponse(response, contentSubject);
             super.channelRead(ctx, rxResponse); // For FullHttpResponse, this assumes that after this call returns,
                                                 // someone has subscribed to the content observable, if not the content will be lost.
@@ -116,9 +117,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                     requestProcessingObserver.onCompleted();
                 }
                 contentSubject.onCompleted();
-                observableConnection.close();
             }
-        } else if(!io.netty.handler.codec.http.HttpResponse.class.isAssignableFrom(recievedMsgClass)){
+        } else if(!HttpResponse.class.isAssignableFrom(recievedMsgClass)){
             invokeContentOnNext(msg);
         }
     }
@@ -169,11 +169,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     void setRequestProcessingObserver(@SuppressWarnings("rawtypes") Observer requestProcessingObserver) {
         this.requestProcessingObserver = requestProcessingObserver;
     }
-    
-    void setObservableConnection(ObservableConnection<?, ?> connection) {
-        this.observableConnection = connection;
-    }
-    
+
     @SuppressWarnings("unchecked")
     private void invokeContentOnNext(Object nextObject) {
         try {

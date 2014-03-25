@@ -130,7 +130,6 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                     connection.getChannelHandlerContext().pipeline().get(ClientRequestResponseConverter.class);
             if (null != converter) {
                 converter.setRequestProcessingObserver(requestProcessingObserver);
-                converter.setObservableConnection(connection);
             }
             connection.getInput().subscribe(requestProcessingObserver);
             connection.writeAndFlush(request).doOnError(new Action1<Throwable>() {

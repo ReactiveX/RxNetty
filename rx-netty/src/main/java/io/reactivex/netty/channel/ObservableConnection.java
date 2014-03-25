@@ -48,6 +48,10 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         return inputSubject;
     }
 
+    public boolean isCloseIssued() {
+        return closeIssued.get();
+    }
+
     /**
      * Closes this connection. This method is idempotent, so it can be called multiple times without any side-effect on
      * the channel. <br/>
