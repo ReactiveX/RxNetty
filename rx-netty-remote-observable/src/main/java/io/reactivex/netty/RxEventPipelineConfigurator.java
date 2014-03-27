@@ -16,9 +16,13 @@ import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class RxEventPipelineConfigurator implements PipelineConfigurator<RemoteRxEvent, RemoteRxEvent>{
 
+    private static final Logger logger = LoggerFactory.getLogger(RxEventPipelineConfigurator.class);
 	private static final byte PROTOCOL_VERSION = 1;
 	
 	@Override
@@ -47,16 +51,20 @@ public class RxEventPipelineConfigurator implements PipelineConfigurator<RemoteR
                         Map<String,String> subscribeParams = null;
                         byte[] valueData = null;
                         if (operation == 1){
+                        	logger.debug("READ request for RemoteRxEvent: next");
                         	type = RemoteRxEvent.Type.next;
                         	valueData = new byte[byteBuf.readableBytes()];
                             byteBuf.readBytes(valueData);
                         }else if (operation == 2){
+                        	logger.debug("READ request for RemoteRxEvent: error");
                         	type = RemoteRxEvent.Type.error;
                         	valueData = new byte[byteBuf.readableBytes()];
                             byteBuf.readBytes(valueData);
                         }else if (operation == 3){
+                        	logger.debug("READ request for RemoteRxEvent: completed");
                         	type = RemoteRxEvent.Type.completed;
                         }else if (operation == 4){
+                        	logger.debug("READ request for RemoteRxEvent: subscribed");
                         	type = RemoteRxEvent.Type.subscribed;
                         	// read subscribe parameters
                         	int subscribeParamsLength = byteBuf.readInt();
@@ -67,6 +75,7 @@ public class RxEventPipelineConfigurator implements PipelineConfigurator<RemoteR
                         		subscribeParams = fromBytesToMap(subscribeParamsBytes);
                         	}
                         }else if (operation == 5){
+                        	logger.debug("READ request for RemoteRxEvent: unsubscribed");
                         	type = RemoteRxEvent.Type.unsubscribed;
                         }else{
                         	throw new RuntimeException("operation: "+operation+" not support.");
@@ -88,7 +97,7 @@ public class RxEventPipelineConfigurator implements PipelineConfigurator<RemoteR
 					ByteBuf buf = ctx.alloc().buffer();
 					buf.writeByte(PROTOCOL_VERSION);
 					RemoteRxEvent event = (RemoteRxEvent) msg;
-					String observableName = event.getObservableName();
+					String observableName = event.getName();
 					if (observableName != null && !observableName.isEmpty()){
 						// write length
 						int nameLength = observableName.length();
@@ -104,18 +113,22 @@ public class RxEventPipelineConfigurator implements PipelineConfigurator<RemoteR
 						buf.writeByte(0);
 					}
 					if (event.getType() == RemoteRxEvent.Type.next){
+                    	logger.debug("WRITE request for RemoteRxEvent: next");
 						buf.writeByte(1);
 						buf.writeBytes(event.getData());
 						super.write(ctx, buf, promise);
 					}else if (event.getType() == RemoteRxEvent.Type.error){
+                    	logger.debug("WRITE request for RemoteRxEvent: error");
 						buf.writeByte(2);
 						buf.writeBytes(event.getData());
 						super.write(ctx, buf, promise);
 					}else if (event.getType() == RemoteRxEvent.Type.completed){
+                    	logger.debug("WRITE request for RemoteRxEvent: completed");
 						buf.writeByte(3);
 						super.write(ctx, buf, promise);
 						super.flush(ctx); // TODO why do I need to explicitly call flush for this to work??? empty data??
 					}else if (event.getType() == RemoteRxEvent.Type.subscribed){
+                    	logger.debug("WRITE request for RemoteRxEvent: subscribed");
 						buf.writeByte(4);
 						Map<String,String> subscribeParameters = event.getSubscribeParameters();
 						if (subscribeParameters != null && !subscribeParameters.isEmpty()){
@@ -128,6 +141,7 @@ public class RxEventPipelineConfigurator implements PipelineConfigurator<RemoteR
 						super.write(ctx, buf, promise);
 						super.flush(ctx);
 					}else if (event.getType() == RemoteRxEvent.Type.unsubscribed){
+                    	logger.debug("WRITE request for RemoteRxEvent: unsubscribed");
 						buf.writeByte(5);
 						super.write(ctx, buf, promise);
 						super.flush(ctx); // TODO why do I need to explicitly call flush for this to work??? empty data??

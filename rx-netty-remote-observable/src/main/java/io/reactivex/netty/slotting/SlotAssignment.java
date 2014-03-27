@@ -6,7 +6,7 @@ public class SlotAssignment {
 	private Integer slotAssignment;
 	private int numSlots;
 	
-	private SlotAssignment() {} // used to indicate no slot assigned, via assigned attribute 
+	private SlotAssignment() {}
 	
 	public static SlotAssignment notAssigned(){
 		return new SlotAssignment();
