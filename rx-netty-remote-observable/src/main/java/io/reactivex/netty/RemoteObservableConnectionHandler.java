@@ -9,6 +9,10 @@ import io.reactivex.netty.slotting.SlotValuePair;
 import io.reactivex.netty.slotting.SlottingStrategy;
 
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import rx.Observable;
 import rx.Observer;
@@ -19,21 +23,29 @@ import rx.functions.Func1;
 public class RemoteObservableConnectionHandler implements
 		ConnectionHandler<RemoteRxEvent, RemoteRxEvent> {
 	
+    private static final Logger logger = LoggerFactory.getLogger(RemoteObservableConnectionHandler.class);
+	
 	@SuppressWarnings("rawtypes")
 	private Map<String,RemoteObservableConfiguration> observables;
+	private CountDownLatch blockUntilCompleted;
+	private ServerMetrics serverMetrics; 
 	private IngressPolicy ingressPolicy;
 
 	@SuppressWarnings("rawtypes")
 	public RemoteObservableConnectionHandler(
 			Map<String,RemoteObservableConfiguration> observables,
-			IngressPolicy ingressPolicy) {
+			IngressPolicy ingressPolicy, CountDownLatch blockUntilCompleted,
+			ServerMetrics metrics) {
 		this.observables = observables;
 		this.ingressPolicy = ingressPolicy;
+		this.blockUntilCompleted = blockUntilCompleted;
+		this.serverMetrics = metrics;
 	}
 
 	@Override
 	public Observable<Void> handle(final
-			ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {		
+			ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {
+		logger.debug("Connection received: "+connection.toString());
 		if (ingressPolicy.allowed(connection)){
 				return setupConnection(connection);
 		}else{
@@ -45,7 +57,6 @@ public class RemoteObservableConnectionHandler implements
 	private <T> void subscribe(final MutableReference<Subscription> unsubscribeCallbackReference, 
 			final RemoteRxEvent event, final ObservableConnection<RemoteRxEvent,RemoteRxEvent> connection, 
 			RemoteObservableConfiguration<T> configuration, final SlotAssignment slotAssignment){
-	
 			final Observable<T> observable = configuration.getObservable();
 			final Func1<Map<String,String>, Func1<T,Boolean>> filterFunction = configuration.getFilterFunction();
 			SlottingStrategy<T> slottingStrategy = configuration.getSlottingStrategy();
@@ -77,34 +88,59 @@ public class RemoteObservableConnectionHandler implements
 					.subscribe(new Observer<T>(){
 						@Override
 						public void onCompleted() {
-							connection.writeAndFlush(RemoteRxEvent.completed(event.getObservableName()));
+							connection.writeAndFlush(RemoteRxEvent.completed(event.getName()));
+							blockUntilCompleted.countDown();
+							serverMetrics.incrementCompletedCount();
 						}
 						@Override
 						public void onError(
 								Throwable e) {
-							connection.writeAndFlush(RemoteRxEvent.error(event.getObservableName(), RemoteObservable.fromThrowableToBytes(e)));
+							connection.writeAndFlush(RemoteRxEvent.error(event.getName(), RemoteObservable.fromThrowableToBytes(e)));
+							serverMetrics.incrementErrorCount();
 						}
 						@Override
 						public void onNext(T t) {
-							connection.writeAndFlush(RemoteRxEvent.next(event.getObservableName(), encoder.encode(t)));
+							connection.writeAndFlush(RemoteRxEvent.next(event.getName(), encoder.encode(t)));
+							serverMetrics.incrementNextCount();
 						}
 			});
 			unsubscribeCallbackReference.setValue(subscription);
 	}
-	
-	private void unsubscribe(MutableReference<Subscription> unsubscribeCallbackReference){
-		Subscription subscription = unsubscribeCallbackReference.getValue();
-		if (subscription != null){
-			// unsubscribe to list of observables
-			unsubscribeCallbackReference.getValue().unsubscribe();
+
+	@SuppressWarnings({ "rawtypes", "unchecked" })
+	private Observable<Void> handleSubscribeRequest(RemoteRxEvent event, final ObservableConnection<RemoteRxEvent, 
+			RemoteRxEvent> connection, MutableReference<SlottingStrategy> slottingStrategyReference, 
+			MutableReference<Subscription> unsubscribeCallbackReference) {
+		
+		// check if observable exists in configs
+		String observableName = event.getName();
+		RemoteObservableConfiguration config = observables.get(observableName);
+		if (config == null){
+			return Observable.error(new RemoteObservableException("No remote observable configuration found for name: "+observableName));
 		}
+
+		if (event.getType() == RemoteRxEvent.Type.subscribed){
+			SlottingStrategy slottingStrategy = config.getSlottingStrategy();
+			slottingStrategyReference.setValue(slottingStrategy);
+			SlotAssignment slotAssignment = slottingStrategy.assignSlot(connection);
+			if (slotAssignment.isAssigned()){
+				subscribe(unsubscribeCallbackReference, event, connection, config, slotAssignment);
+				serverMetrics.incrementSubscribedCount();
+				logger.debug("Connection: "+connection.toString()+" subscribed to observable: "+observableName);
+			}else{
+				return Observable.error(new RemoteObservableException("Slot could not be assigned for connection."));
+			}
+		}
+		return Observable.empty();
 	}
 
 	@SuppressWarnings("rawtypes")
 	private Observable<Void> setupConnection(final ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {
 		
+		// state associated with connection
 		// used to initiate 'unsubscribe' callback to subscriber
 		final MutableReference<Subscription> unsubscribeCallbackReference = new MutableReference<Subscription>();
+		// used to release slot when connection completes
 		final MutableReference<SlottingStrategy> slottingStrategyReference = new MutableReference<SlottingStrategy>();
 		
 		return connection.getInput()
@@ -120,43 +156,38 @@ public class RemoteObservableConnectionHandler implements
 						return supportedOperation;
 					}
 				})
-				// handle request
-				.flatMap(new Func1<RemoteRxEvent,Observable<Void>>(){
-					@SuppressWarnings({ "unchecked" })
+				.flatMap(new Func1<RemoteRxEvent, Observable<Void>>(){
 					@Override
-					public Observable<Void> call(final RemoteRxEvent event) {
-						// check if observable exists
-						String observableName = event.getObservableName();
-						RemoteObservableConfiguration config = observables.get(observableName);
-						if (config == null){
-							return Observable.error(new RemoteObservableException("No remote observable configuration found for name: "+observableName));
-						}
+					public Observable<Void> call(RemoteRxEvent event) {
 						if (event.getType() == RemoteRxEvent.Type.subscribed){
-							SlottingStrategy slottingStrategy = config.getSlottingStrategy();
-							slottingStrategyReference.setValue(slottingStrategy);
-							SlotAssignment slotAssignment = slottingStrategy.assignSlot(connection);
-							if (slotAssignment.isAssigned()){
-								subscribe(unsubscribeCallbackReference, event, 
-										connection,	config, slotAssignment);
-							}else{
-								return Observable.error(new RemoteObservableException("Slot could not be assigned for connection."));
-							}
+							return handleSubscribeRequest(event, connection, slottingStrategyReference, unsubscribeCallbackReference);
 						}else if (event.getType() == RemoteRxEvent.Type.unsubscribed){
-							unsubscribe(unsubscribeCallbackReference);
-						}
+							Subscription subscription = unsubscribeCallbackReference.getValue();
+							if (subscription != null){
+								subscription.unsubscribe();
+							}
+							releaseSlot(slottingStrategyReference.getValue(), connection);
+							serverMetrics.incrementUnsubscribedCount();
+							logger.debug("Connection: "+connection.toString()+" unsubscribed");
+						} 
 						return Observable.empty();
 					}
 				})
 				.doOnCompleted(new Action0(){
-					@SuppressWarnings("unchecked")
 					@Override
 					public void call() {
 						// connection closed, remote slot
-						SlottingStrategy slottingStrategy = slottingStrategyReference.getValue();
-						if (slottingStrategy != null){
-							slottingStrategy.releaseSlot(connection);
-						}
+						releaseSlot(slottingStrategyReference.getValue(), connection);
+						logger.debug("Connection: "+connection.toString()+" closed");
 					}
 				});
 	}
+	
+	@SuppressWarnings({ "unchecked", "rawtypes" })
+	private void releaseSlot(SlottingStrategy slottingStrategy, ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection){
+		if (slottingStrategy != null){
+			slottingStrategy.releaseSlot(connection);
+		}
+	}
+	
 }

@@ -1,6 +1,7 @@
 package io.reactivex.netty;
 
 import io.reactivex.netty.codec.Codecs;
+import io.reactivex.netty.codec.Decoder;
 import io.reactivex.netty.filter.ServerSideFilters;
 import io.reactivex.netty.slotting.SlottingStrategies;
 
@@ -16,6 +17,7 @@ import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.functions.Action1;
+import rx.functions.Action2;
 import rx.functions.Func1;
 import rx.functions.Func2;
 import rx.schedulers.Schedulers;
@@ -31,7 +33,7 @@ public class RemoteObservableTest {
 		// serve
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
-		RemoteObservableServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
+		RemoteRxServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
 		server.start();
 		// connect
 		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
@@ -51,10 +53,16 @@ public class RemoteObservableTest {
 		// serve
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
-		RemoteObservableServer server = RemoteObservable.serve(serverPort, "integers-from-0-100", os, Codecs.integer());
+		RemoteRxServer server = RemoteObservable.serve(serverPort, "integers-from-0-100", os, Codecs.integer());
 		server.start();
 		// connect to observable by name
-		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, "integers-from-0-100", Codecs.integer());
+		Observable<Integer> oc = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+					.host("localhost")
+					.port(serverPort)
+					.name("integers-from-0-100")
+					.decoder(Codecs.integer())			
+					.build())
+				.getObservable();
 		// assert
 		Observable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
@@ -62,6 +70,212 @@ public class RemoteObservableTest {
 				Assert.assertEquals(5050, t1.intValue()); // sum of number 0-100
 			}
 		});		
+	}
+	
+	@Test(expected=RuntimeException.class)
+	public void testFailedToConnect() throws InterruptedException{
+		// setup
+		Observable<Integer> os = Observable.range(0, 101);
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		int serverPort = portSelector.acquirePort();
+		int wrongPort = portSelector.acquirePort();
+
+		RemoteRxServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
+		server.start();
+		// connect
+		Observable<Integer> oc = RemoteObservable.connect("localhost", wrongPort, Codecs.integer());
+		// assert
+		Observable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
+			@Override
+			public void call(Integer t1) {
+				Assert.assertEquals(5050, t1.intValue()); // sum of number 0-100
+			}
+		});	
+	}
+	
+	@Test
+	public void testTrapSubscriptionErrorsInCallbackWithoutSuppress() throws InterruptedException{
+		// setup
+		Observable<Integer> os = Observable.range(0, 101);
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		int serverPort = portSelector.acquirePort();
+		int wrongPort = portSelector.acquirePort();
+
+		RemoteRxServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
+		server.start();
+		
+		final MutableReference<Boolean> errorTrapped = new MutableReference<Boolean>(false);
+		final MutableReference<Boolean> notSuppressed = new MutableReference<Boolean>(false);
+
+		// setup error handler
+		Action2<SubscribeInfo, Throwable> errorHandler = new Action2<SubscribeInfo, Throwable>(){
+			@Override
+			public void call(SubscribeInfo t1, Throwable t2) {
+				if (t2 != null){
+					errorTrapped.setValue(true);
+				}
+			}
+		};
+		
+		Observable<Integer> oc = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+					.host("localhost")
+					.port(wrongPort)
+					.subscribeErrorHandler(errorHandler, false)
+					.decoder(Codecs.integer())			
+					.build())
+				.getObservable();
+		try{
+			oc.toBlockingObservable().first();
+		}catch(Throwable t){
+			notSuppressed.setValue(true);
+		}
+		Assert.assertEquals(true, errorTrapped.getValue());
+		Assert.assertEquals(true, notSuppressed.getValue());
+
+	}
+	
+	@Test
+	public void testTrapDecodingErrorsInCallbackWithoutSuppress() throws InterruptedException{
+		// setup
+		Observable<Integer> os = Observable.range(0, 101);
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		int serverPort = portSelector.acquirePort();
+
+		RemoteRxServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
+		server.start();
+		
+		final MutableReference<Boolean> errorTrapped = new MutableReference<Boolean>(false);
+		final MutableReference<Boolean> notSuppressed = new MutableReference<Boolean>(false);
+
+		// setup error handler
+		Action2<Integer, Throwable> errorHandler = new Action2<Integer, Throwable>(){
+			@Override
+			public void call(Integer t1, Throwable t2) {
+				if (t2 != null){
+					errorTrapped.setValue(true);
+				}
+			}
+		};
+		
+		Decoder<Integer> badDecoder = new Decoder<Integer>(){
+			@Override
+			public Integer decode(byte[] bytes) {
+				throw new RuntimeException("bad decode!");
+			}
+		};
+		
+		Observable<Integer> oc = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+					.host("localhost")
+					.port(serverPort)
+					.deocdingErrorHandler(errorHandler, false)
+					.decoder(badDecoder)			
+					.build())
+			.getObservable();
+		try{
+			oc.toBlockingObservable().first();
+		}catch(Throwable t){
+			notSuppressed.setValue(true);
+		}
+		Assert.assertEquals(true, errorTrapped.getValue());
+		Assert.assertEquals(true, notSuppressed.getValue());
+
+	}
+	
+	@Test
+	public void testTrapDecodingErrorsInCallbackWithSuppress() throws InterruptedException{
+		// setup
+		Observable<Integer> os = Observable.range(0, 101);
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		int serverPort = portSelector.acquirePort();
+
+		RemoteRxServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
+		server.start();
+		
+		final MutableReference<Boolean> errorTrapped = new MutableReference<Boolean>(false);
+		final MutableReference<Boolean> notSuppressed = new MutableReference<Boolean>(false);
+
+		// setup error handler
+		Action2<Integer, Throwable> errorHandler = new Action2<Integer, Throwable>(){
+			@Override
+			public void call(Integer t1, Throwable t2) {
+				if (t2 != null){
+					errorTrapped.setValue(true);
+				}
+			}
+		};
+		
+		Decoder<Integer> badDecoder = new Decoder<Integer>(){
+			@Override
+			public Integer decode(byte[] bytes) {
+				throw new RuntimeException("bad decode!");
+			}
+		};
+		
+		Observable<Integer> oc = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+				.host("localhost")
+				.port(serverPort)
+				.deocdingErrorHandler(errorHandler, true)
+				.decoder(badDecoder)			
+				.build())
+			.getObservable();
+		try{
+			oc.subscribe();
+		}catch(Throwable t){
+			notSuppressed.setValue(true);
+		}
+		Thread.sleep(1000); // allow time for error callback
+		
+		Assert.assertEquals(true, errorTrapped.getValue());
+		Assert.assertEquals(false, notSuppressed.getValue());
+
+	}
+	
+	@Test
+	public void testTrapSubscriptionErrorsInCallbackWithSuppress() throws InterruptedException{
+		// setup
+		Observable<Integer> os = Observable.range(0, 101);
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		PortSelectorWithinRange portSelector2 = new PortSelectorWithinRange(8000, 9000);
+		int serverPort = portSelector.acquirePort();
+		int wrongPort = portSelector2.acquirePort();
+
+		RemoteRxServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
+		server.start();
+		
+		final MutableReference<Boolean> errorTrapped = new MutableReference<Boolean>(false);
+		final MutableReference<Boolean> notSuppressed = new MutableReference<Boolean>(false);
+
+		// setup error handler
+		Action2<SubscribeInfo, Throwable> errorHandler = new Action2<SubscribeInfo, Throwable>(){
+			@Override
+			public void call(SubscribeInfo t1, Throwable t2) {
+				if (t2 != null){
+					errorTrapped.setValue(true);
+				}
+			}
+		};
+		
+		Observable<Integer> oc = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+				.host("localhost")
+				.port(wrongPort)
+				.subscribeErrorHandler(errorHandler, true)
+				.decoder(Codecs.integer())			
+				.build())
+			.getObservable();
+		try{
+			oc.subscribe();
+		}catch(Throwable t){
+			notSuppressed.setValue(true);
+		}
+		Thread.sleep(1000); // allow time for error to trap		
+		Assert.assertEquals(true, errorTrapped.getValue());
+		Assert.assertEquals(false, notSuppressed.getValue());
+
 	}
 	
 	@Test
@@ -73,7 +287,7 @@ public class RemoteObservableTest {
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
 
-		RemoteObservableServer server = new RemoteObservableServer.Builder()
+		RemoteRxServer server = new RemoteRxServer.Builder()
 			.port(serverPort)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.name("ints")
@@ -89,8 +303,21 @@ public class RemoteObservableTest {
 		
 		server.start();
 		// connect to observable by name
-		Observable<Integer> ro1 = RemoteObservable.connect("localhost", serverPort, "ints", Codecs.integer());
-		Observable<String> ro2 = RemoteObservable.connect("localhost", serverPort, "strings", Codecs.string());
+		Observable<Integer> ro1 = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+				.host("localhost")
+				.port(serverPort)
+				.name("ints")
+				.decoder(Codecs.integer())			
+				.build())
+			.getObservable();
+
+		Observable<String> ro2 = RemoteObservable.connect(new ConnectConfiguration.Builder<String>()
+				.host("localhost")
+				.port(serverPort)
+				.name("strings")
+				.decoder(Codecs.string())			
+				.build())
+			.getObservable();
 
 		// assert
 		Observable.sumInteger(ro1).toBlockingObservable().forEach(new Action1<Integer>(){
@@ -125,7 +352,7 @@ public class RemoteObservableTest {
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int port = portSelector.acquirePort();
 		
-		RemoteObservableServer server = new RemoteObservableServer.Builder()
+		RemoteRxServer server = new RemoteRxServer.Builder()
 			.port(port)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.encoder(Codecs.integer())
@@ -148,6 +375,37 @@ public class RemoteObservableTest {
 	}
 	
 	@Test
+	public void testServerShutdownAfterComplete() throws InterruptedException{
+		// setup
+		final Observable<Integer> os = Observable.range(0, 101);
+		// serve
+		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
+		final int serverPort = portSelector.acquirePort();
+		final MutableReference<Boolean> stopped = new MutableReference<Boolean>(false);
+		// run in background
+		new Thread(){
+			public void run(){
+				RemoteRxServer server = RemoteObservable.serve(serverPort, os, Codecs.integer());
+				server.start();
+				server.blockUntilCompleted();
+				stopped.setValue(true);
+			}
+		}.start();
+		Thread.sleep(500); //allow time for server startup on background thread
+		// connect
+		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
+		// assert
+		Observable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
+			@Override
+			public void call(Integer t1) {
+				Assert.assertEquals(5050, t1.intValue()); // sum of number 0-100
+			}
+		});	
+		Thread.sleep(500); //allow time for background thread to set boolean flag
+		Assert.assertEquals(true, stopped.getValue());
+	}
+	
+	@Test
 	public void testServedMergedObservablesAddAfterServe(){
 		// setup
 		Observable<Integer> os1 = Observable.range(0, 100);
@@ -159,7 +417,7 @@ public class RemoteObservableTest {
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
 		
-		RemoteObservableServer server = new RemoteObservableServer.Builder()
+		RemoteRxServer server = new RemoteRxServer.Builder()
 			.port(serverPort)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.encoder(Codecs.integer())
@@ -196,7 +454,7 @@ public class RemoteObservableTest {
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
 		
-		RemoteObservableServer server = new RemoteObservableServer.Builder()
+		RemoteRxServer server = new RemoteRxServer.Builder()
 			.port(serverPort)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.encoder(Codecs.integer())
@@ -234,7 +492,7 @@ public class RemoteObservableTest {
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
 		
-		RemoteObservableServer server = new RemoteObservableServer.Builder()
+		RemoteRxServer server = new RemoteRxServer.Builder()
 		.port(serverPort)
 		.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 				.encoder(Codecs.integer())
@@ -267,11 +525,20 @@ public class RemoteObservableTest {
 		Observable<Integer> os = Observable.range(0, 100);
 		
 		int serverPort = portSelector.acquirePort();
+		
 		RemoteObservable.serve(serverPort, "source", os, Codecs.integer())
 			.start();
 		
 		// middle node, receiving input from first node
-		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, "source", Codecs.integer());
+		
+		Observable<Integer> oc = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+				.host("localhost")
+				.port(serverPort)
+				.name("source")
+				.decoder(Codecs.integer())			
+				.build())
+			.getObservable();
+
 		// transform stream from first node
 		Observable<Integer> transformed = oc.map(new Func1<Integer,Integer>(){
 			@Override
@@ -280,11 +547,19 @@ public class RemoteObservableTest {
 			}
 		});
 		int serverPort2 = portSelector.acquirePort();
+		
 		RemoteObservable.serve(serverPort2, "transformed", transformed, Codecs.integer())
 			.start();
 		
 		// connect to second node
-		Observable<Integer> oc2 = RemoteObservable.connect("localhost", serverPort2, "transformed", Codecs.integer());		
+		Observable<Integer> oc2 = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+				.host("localhost")
+				.port(serverPort2)
+				.name("transformed")
+				.decoder(Codecs.integer())			
+				.build())
+			.getObservable();
+
 		
 		Observable.sumInteger(oc2).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
@@ -329,11 +604,6 @@ public class RemoteObservableTest {
 				sourceSubscriptionUnsubscribed.setValue(subscriber.isUnsubscribed());
 				while(!sourceSubscriptionUnsubscribed.getValue()){
 					subscriber.onNext(i++);
-					try {
-						Thread.sleep(100);
-					} catch (InterruptedException e) {
-						e.printStackTrace();
-					}
 					sourceSubscriptionUnsubscribed.setValue(subscriber.isUnsubscribed());
 				}
 			}
@@ -352,8 +622,9 @@ public class RemoteObservableTest {
 		sub.unsubscribe();
 		Thread.sleep(1000); // allow time for unsubscribe to propagate
 		Assert.assertEquals(true, sub.isUnsubscribed());
-		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue()); // TODO fails due to blocking nature of OnSubscribe call
+		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue());
 	}
+	
 	
 	@Test
 	public void testUnsubscribeForChainedRemoteObservable() throws InterruptedException{
@@ -368,12 +639,8 @@ public class RemoteObservableTest {
 				sourceSubscriptionUnsubscribed.setValue(subscriber.isUnsubscribed());
 				while(!sourceSubscriptionUnsubscribed.getValue()){
 					subscriber.onNext(i++);
-					System.out.println(i);
-					System.out.println(subscriber.isUnsubscribed());
 					sourceSubscriptionUnsubscribed.setValue(subscriber.isUnsubscribed());
 				}
-				System.out.println("outcome"+sourceSubscriptionUnsubscribed.getValue());
-				System.out.println("stoppped");
 			}
 		}).subscribeOn(Schedulers.io());
 		int serverPort = portSelector.acquirePort();
@@ -398,11 +665,11 @@ public class RemoteObservableTest {
 		
 		// unsubscribe to client subscription
 		subscription.unsubscribe();
-		Thread.sleep(1000); // allow time for unsubscribe to propagate
+		Thread.sleep(3000); // allow time for unsubscribe to propagate
 		// check client
 		Assert.assertEquals(true, subscription.isUnsubscribed());
 		// check source
-		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue()); // TODO fails due to blocking nature of OnSubscribe call
+		Assert.assertEquals(true, sourceSubscriptionUnsubscribed.getValue());
 	}
 	
 	@Test
@@ -413,7 +680,7 @@ public class RemoteObservableTest {
 		// serve
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
-		RemoteObservableServer server = new RemoteObservableServer.Builder()
+		RemoteRxServer server = new RemoteRxServer.Builder()
 			.port(serverPort)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.encoder(Codecs.integer())
@@ -426,7 +693,15 @@ public class RemoteObservableTest {
 		// connect
 		Map<String,String> subscribeParameters = new HashMap<String,String>();
 		subscribeParameters.put("type", "even");
-		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, subscribeParameters, Codecs.integer());
+		
+		Observable<Integer> oc = RemoteObservable.connect(new ConnectConfiguration.Builder<Integer>()
+				.host("localhost")
+				.port(serverPort)
+				.subscribeParameters(subscribeParameters)
+				.decoder(Codecs.integer())			
+				.build())
+			.getObservable();
+
 		// assert
 		Observable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
@@ -446,7 +721,7 @@ public class RemoteObservableTest {
 		// serve
 		PortSelectorWithinRange portSelector = new PortSelectorWithinRange(8000, 9000);
 		int serverPort = portSelector.acquirePort();
-		RemoteObservableServer server = new RemoteObservableServer.Builder()
+		RemoteRxServer server = new RemoteRxServer.Builder()
 			.port(serverPort)
 			.addObservable(new RemoteObservableConfiguration.Builder<Integer>()
 					.encoder(Codecs.integer())
