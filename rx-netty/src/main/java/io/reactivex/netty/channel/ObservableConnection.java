@@ -18,8 +18,6 @@ package io.reactivex.netty.channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.Attribute;
-import io.netty.util.AttributeKey;
 import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
@@ -50,9 +48,14 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         return inputSubject;
     }
 
+    public boolean isCloseIssued() {
+        return closeIssued.get();
+    }
+
     /**
      * Closes this connection. This method is idempotent, so it can be called multiple times without any side-effect on
-     * the channel.
+     * the channel. <br/>
+     * This will also cancel any pending writes on the underlying channel. <br/>
      *
      * @return Observable signifying the close on the connection. Returns {@link Observable#error(Throwable)} if the
      * close is already issued (may not be completed)
@@ -60,6 +63,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     public Observable<Void> close() {
         final ChannelFuture closeFuture;
         if (closeIssued.compareAndSet(false, true)) {
+            cancelPendingWrites(true);
             inputSubject.onCompleted();
             ChannelPool pool = getChannelHandlerContext().channel().attr(ChannelPool.POOL_ATTR).get();
             ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());

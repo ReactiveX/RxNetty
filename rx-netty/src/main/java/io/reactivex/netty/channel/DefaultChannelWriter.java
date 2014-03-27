@@ -84,6 +84,11 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     }
 
     @Override
+    public void cancelPendingWrites(boolean mayInterruptIfRunning) {
+        unflushedWritesListener.cancelPendingFutures(mayInterruptIfRunning);
+    }
+
+    @Override
     public ByteBufAllocator getAllocator() {
         return ctx.alloc();
     }
