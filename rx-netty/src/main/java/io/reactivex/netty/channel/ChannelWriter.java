@@ -23,6 +23,8 @@ public interface ChannelWriter<O> {
 
     Observable<Void> flush();
 
+    void cancelPendingWrites(boolean mayInterruptIfRunning);
+
     ByteBufAllocator getAllocator();
 
     <R> Observable<Void> writeAndFlush(R msg, ContentTransformer<R> transformer);

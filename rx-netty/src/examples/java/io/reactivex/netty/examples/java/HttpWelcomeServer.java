@@ -17,8 +17,8 @@ package io.reactivex.netty.examples.java;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.server.HttpRequest;
-import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.HttpServerRequest;
+import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import rx.Observable;
 
@@ -34,7 +34,7 @@ public final class HttpWelcomeServer {
 
         RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
-            public Observable<Void> handle(HttpRequest<ByteBuf> request, final HttpResponse<ByteBuf> response) {
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 System.out.println("New request recieved");
                 System.out.println(request.getHttpMethod() + " " + request.getUri() + ' ' + request.getHttpVersion());
                 for (Map.Entry<String, String> header : request.getHeaders().entries()) {

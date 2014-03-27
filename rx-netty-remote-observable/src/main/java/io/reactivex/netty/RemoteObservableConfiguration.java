@@ -25,7 +25,7 @@ public class RemoteObservableConfiguration<T> {
 		this.encoder = builder.encoder;
 		this.filterFunction = builder.filterFunction;
 	}
-	
+
 	String getName() {
 		return name;
 	}

@@ -5,15 +5,15 @@ import java.util.Map;
 
 public class RemoteRxEvent {
 
-	private String observableName;
+	private String name;
 	public enum Type {next,completed,error,subscribed,unsubscribed}
 	private Type type;
 	private byte[] data;
 	private Map<String,String> subscriptionParameters;
 	
-	public RemoteRxEvent(String observableName,
+	public RemoteRxEvent(String name,
 			Type type, byte[] data, Map<String,String> subscriptionParameters) {
-		this.observableName = observableName;
+		this.name = name;
 		this.type = type;
 		this.data = data;
 		this.subscriptionParameters = subscriptionParameters;
@@ -24,25 +24,25 @@ public class RemoteRxEvent {
 	public Type getType() {
 		return type;
 	}
-	public String getObservableName() {
-		return observableName;
+	public String getName() {
+		return name;
 	}
 	Map<String,String> getSubscribeParameters() {
 		return subscriptionParameters;
 	}
-	public static RemoteRxEvent next(String observableName, byte[] nextData){
-		return new RemoteRxEvent(observableName, Type.next, nextData, null);
+	public static RemoteRxEvent next(String name, byte[] nextData){
+		return new RemoteRxEvent(name, Type.next, nextData, null);
 	}
-	public static RemoteRxEvent completed(String observableName){
-		return new RemoteRxEvent(observableName, Type.completed, null, null);
+	public static RemoteRxEvent completed(String name){
+		return new RemoteRxEvent(name, Type.completed, null, null);
 	}
-	public static RemoteRxEvent error(String observableName, byte[] errorData){
-		return new RemoteRxEvent(observableName, Type.error, errorData, null);
+	public static RemoteRxEvent error(String name, byte[] errorData){
+		return new RemoteRxEvent(name, Type.error, errorData, null);
 	}
-	public static RemoteRxEvent subscribed(String observableName, Map<String,String> subscriptionParameters){
-		return new RemoteRxEvent(observableName, Type.subscribed, null, subscriptionParameters);
+	public static RemoteRxEvent subscribed(String name, Map<String,String> subscriptionParameters){
+		return new RemoteRxEvent(name, Type.subscribed, null, subscriptionParameters);
 	}
-	public static RemoteRxEvent unsubscribed(String observableName){
-		return new RemoteRxEvent(observableName, Type.unsubscribed, null, null);
+	public static RemoteRxEvent unsubscribed(String name){
+		return new RemoteRxEvent(name, Type.unsubscribed, null, null);
 	}
 }

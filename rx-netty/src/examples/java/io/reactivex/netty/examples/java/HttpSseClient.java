@@ -19,8 +19,8 @@ import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpRequest;
-import io.reactivex.netty.protocol.http.client.HttpResponse;
+import io.reactivex.netty.protocol.http.client.HttpClientRequest;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Observable;
 import rx.functions.Action1;
@@ -36,10 +36,10 @@ public final class HttpSseClient {
         HttpClient<ByteBuf, ServerSentEvent> client =
                 RxNetty.createHttpClient("localhost", 8080, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
 
-        Observable<HttpResponse<ServerSentEvent>> response = client.submit(HttpRequest.createGet("/hello"));
-        response.toBlockingObservable().forEach(new Action1<HttpResponse<ServerSentEvent>>() {
+        Observable<HttpClientResponse<ServerSentEvent>> response = client.submit(HttpClientRequest.createGet("/hello"));
+        response.toBlockingObservable().forEach(new Action1<HttpClientResponse<ServerSentEvent>>() {
             @Override
-            public void call(HttpResponse<ServerSentEvent> response) {
+            public void call(HttpClientResponse<ServerSentEvent> response) {
                 System.out.println("New response recieved.");
                 System.out.println("========================");
                 System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()

@@ -17,8 +17,8 @@ package io.reactivex.netty.examples.java;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.client.HttpRequest;
-import io.reactivex.netty.protocol.http.client.HttpResponse;
+import io.reactivex.netty.protocol.http.client.HttpClientRequest;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import rx.Observable;
 import rx.functions.Action1;
 
@@ -31,11 +31,11 @@ import java.util.Map;
 public final class HelloHttpClient {
 
     public static void main(String[] args) {
-        Observable<HttpResponse<ByteBuf>> response =
-                RxNetty.createHttpClient("localhost", 8080).submit(HttpRequest.createGet("/hello"));
-        response.toBlockingObservable().forEach(new Action1<HttpResponse<ByteBuf>>() {
+        Observable<HttpClientResponse<ByteBuf>> response =
+                RxNetty.createHttpClient("localhost", 8080).submit(HttpClientRequest.createGet("/hello"));
+        response.toBlockingObservable().forEach(new Action1<HttpClientResponse<ByteBuf>>() {
             @Override
-            public void call(HttpResponse<ByteBuf> response) {
+            public void call(HttpClientResponse<ByteBuf> response) {
                 System.out.println("New response recieved.");
                 System.out.println("========================");
                 System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()

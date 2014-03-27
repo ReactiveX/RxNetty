@@ -22,6 +22,8 @@ import io.netty.channel.ChannelPromise;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -32,6 +34,7 @@ public class MultipleFutureListener implements ChannelFutureListener {
     private final ChannelPromise finalPromise;
 
     private final AtomicInteger listeningToCount = new AtomicInteger();
+    private final ConcurrentLinkedQueue<ChannelFuture> pendingFutures = new ConcurrentLinkedQueue<ChannelFuture>();
     private final PublishSubject<ChannelFuture> lastCompletedFuture; // This never completes or throw an error.
     private final ChannelFuture futureWhenNoPendingFutures;
 
@@ -51,6 +54,7 @@ public class MultipleFutureListener implements ChannelFutureListener {
     }
 
     public void listen(ChannelFuture future) {
+        pendingFutures.add(future);
         listeningToCount.incrementAndGet();
         future.addListener(this);
     }
@@ -63,12 +67,22 @@ public class MultipleFutureListener implements ChannelFutureListener {
         }
     }
 
+    public void cancelPendingFutures(boolean mayInterruptIfRunning) {
+        for (Iterator<ChannelFuture> iterator = pendingFutures.iterator(); iterator.hasNext(); ) {
+            ChannelFuture pendingFuture = iterator.next();
+            iterator.remove();
+            pendingFuture.cancel(mayInterruptIfRunning);
+        }
+    }
+
     @Override
     public void operationComplete(ChannelFuture future) throws Exception {
+        pendingFutures.remove(future);
         int nowListeningTo = listeningToCount.decrementAndGet();
         if (!future.isSuccess()) {
             if (null != finalPromise) {
-                finalPromise.tryFailure(future.cause());// TODO: Cancel pending futures (good to have)
+                cancelPendingFutures(true);
+                finalPromise.tryFailure(future.cause());
             } else {
                 lastCompletedFuture.onError(future.cause());
             }

@@ -70,15 +70,13 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         return Observable.create(new Observable.OnSubscribe<HttpClientResponse<O>>() {
             @Override
             public void call(final Subscriber<? super HttpClientResponse<O>> subscriber) {
-                final Subscription connectSubscription =
-                        connectionObservable.subscribe(new ConnectObserver<I, O>(request, subscriber));
-
+                final ConnectObserver<I, O> connectObserver = new ConnectObserver<I, O>(request, subscriber);
+                final Subscription connectSubscription = connectionObservable.subscribe(connectObserver);
                 subscriber.add(Subscriptions.create(new Action0() {
                     @Override
                     public void call() {
-                        //TODO: Cancel write & if the response is not over, disconnect the channel.
                         connectSubscription.unsubscribe();
-                        
+                        connectObserver.cancel(); // Also closes the connection.
                     }
                 }));
             }
@@ -111,6 +109,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
 
         private final HttpClientRequest<I> request;
         private final Observer<? super HttpClientResponse<O>> requestProcessingObserver;
+        private ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection; // Nullable
 
         public ConnectObserver(HttpClientRequest<I> request, Observer<? super HttpClientResponse<O>> requestProcessingObserver) {
             super(requestProcessingObserver);
@@ -121,17 +120,17 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         @Override
         public void onCompleted() {
             // We do not want an onComplete() call to Request Processing Observer on onComplete of connection observable.
+            // If we do not override this, super.onCompleted() will invoke onCompleted on requestProcessingObserver.
         }
 
         @Override
-        public void onNext(ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
+        public void onNext(ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> newConnection) {
+            connection = newConnection;
             ClientRequestResponseConverter converter =
                     connection.getChannelHandlerContext().pipeline().get(ClientRequestResponseConverter.class);
             if (null != converter) {
                 converter.setRequestProcessingObserver(requestProcessingObserver);
-                converter.setObservableConnection(connection);
             }
-
             connection.getInput().subscribe(requestProcessingObserver);
             connection.writeAndFlush(request).doOnError(new Action1<Throwable>() {
                 @Override
@@ -141,6 +140,14 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                     requestProcessingObserver.onError(throwable);
                 }
             });
+        }
+
+        Observable<Void> cancel() {
+            if (null != connection) {
+                return connection.close(); // Also cancels any pending writes.
+            } else {
+                return Observable.empty();
+            }
         }
     }
 }

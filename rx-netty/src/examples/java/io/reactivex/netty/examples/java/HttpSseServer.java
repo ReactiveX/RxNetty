@@ -18,8 +18,8 @@ package io.reactivex.netty.examples.java;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.protocol.http.server.HttpRequest;
-import io.reactivex.netty.protocol.http.server.HttpResponse;
+import io.reactivex.netty.protocol.http.server.HttpServerRequest;
+import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Notification;
@@ -39,14 +39,14 @@ public final class HttpSseServer {
         RxNetty.createHttpServer(port,
                                  new RequestHandler<ByteBuf, ServerSentEvent>() {
                                      @Override
-                                     public Observable<Void> handle(HttpRequest<ByteBuf> request,
-                                                                    HttpResponse<ServerSentEvent> response) {
+                                     public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
+                                                                    HttpServerResponse<ServerSentEvent> response) {
                                          return getIntervalObservable(response);
                                      }
                                  }, PipelineConfigurators.<ByteBuf>sseServerConfigurator()).startAndWait();
     }
 
-    private static Observable<Void> getIntervalObservable(final HttpResponse<ServerSentEvent> response) {
+    private static Observable<Void> getIntervalObservable(final HttpServerResponse<ServerSentEvent> response) {
         return Observable.interval(1, TimeUnit.SECONDS)
                          .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
                              @Override
