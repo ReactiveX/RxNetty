@@ -134,6 +134,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                     }
                     HttpClientImpl<I, O> redirectClient = new HttpClientImpl<I, O>(new ServerInfo(host, port), clientBootstrap, incompleteConfigurator, config);
                     HttpClientRequest<I> newRequest = copyRequest(_request, uri.getRawPath(), statusCode);
+                    newRequest.getHeaders().set(HttpHeaders.Names.HOST, host);
                     return redirectClient.submit(newRequest, config);
                 default:
                     break;

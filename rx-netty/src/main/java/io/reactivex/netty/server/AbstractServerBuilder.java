@@ -52,6 +52,7 @@ public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilde
         this.port = port;
         this.connectionHandler = connectionHandler;
         serverChannelClass = NioServerSocketChannel.class;
+        defaultChannelOptions();
     }
 
     public B eventLoops(EventLoopGroup acceptorGroup, EventLoopGroup workerGroup) {
@@ -70,13 +71,20 @@ public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilde
     }
 
     public <T> B channelOption(ChannelOption<T> option, T value) {
-        serverBootstrap.childOption(option, value);
+        serverBootstrap.option(option, value);
         return returnBuilder();
     }
     
+    public <T> B childChannelOption(ChannelOption<T> option, T value) {
+        serverBootstrap.childOption(option, value);
+        return returnBuilder();
+    }
+
     public B defaultChannelOptions() {
         channelOption(ChannelOption.SO_KEEPALIVE, true);
         channelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+        childChannelOption(ChannelOption.SO_KEEPALIVE, true);
+        childChannelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);        
         return returnBuilder();
     }
 
