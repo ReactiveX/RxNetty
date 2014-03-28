@@ -15,8 +15,12 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
+import java.net.URI;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.RxClientImpl;
 import io.reactivex.netty.client.pool.ChannelPool;
@@ -28,6 +32,7 @@ import rx.Subscriber;
 import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.functions.Func1;
 import rx.subscriptions.Subscriptions;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
@@ -59,18 +64,34 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         return submit(request, connectionObservable, null == clientConfig
                                                      ? HttpClientConfig.DEFAULT_CONFIG : clientConfig);
     }
+    
+    private static boolean isFollowRedirect(ClientConfig config) {
+        if (config instanceof HttpClientConfig) {
+            return ((HttpClientConfig) config).isFollowRedirect();
+        }
+        return false;
+    }
 
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
                                                  final Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable,
                                                  final ClientConfig config) {
-        enrichRequest(request, config);
+        boolean isFollowRedirect = isFollowRedirect(config);
+        final HttpClientRequest<I> _request;
+        if (isFollowRedirect && request.hasContentSource()){
+            // need to make sure content source 
+            // is repeatable when we resubmit the request to the redirected host
+            _request = new RepeatableContentHttpRequest<I>(request);
+        } else {
+            _request = request;
+        }
+        enrichRequest(_request, config);
 
         // Here we do not map the connection Observable and return because the onComplete() of connectionObservable,
         // does not indicate onComplete of the request processing.
-        return Observable.create(new Observable.OnSubscribe<HttpClientResponse<O>>() {
+        final Observable<HttpClientResponse<O>> response = Observable.create(new Observable.OnSubscribe<HttpClientResponse<O>>() {
             @Override
             public void call(final Subscriber<? super HttpClientResponse<O>> subscriber) {
-                final ConnectObserver<I, O> connectObserver = new ConnectObserver<I, O>(request, subscriber);
+                final ConnectObserver<I, O> connectObserver = new ConnectObserver<I, O>(_request, subscriber);
                 final Subscription connectSubscription = connectionObservable.subscribe(connectObserver);
                 subscriber.add(Subscriptions.create(new Action0() {
                     @Override
@@ -81,8 +102,64 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                 }));
             }
         });
+        if (!isFollowRedirect) {
+            return response;
+        }
+        // follow redirect logic
+        return response.flatMap(new Func1<HttpClientResponse<O>, Observable<HttpClientResponse<O>>>() {
+            @Override
+            public Observable<HttpClientResponse<O>> call(
+                    HttpClientResponse<O> responseToCheckRedirect) {
+                int statusCode = responseToCheckRedirect.getStatus().code();
+                switch (statusCode) {
+                case 301:
+                case 302:
+                case 303:
+                case 307:
+                case 308:
+                    String location = responseToCheckRedirect.getHeaders().get(HttpHeaders.Names.LOCATION);
+                    if (location == null) {
+                        return Observable.error(new Exception("Location header is not set in the redirect response"));
+                    } 
+                    URI uri;
+                    try {
+                        uri = new URI(location);
+                    } catch (Exception e) {
+                        return Observable.error(e);
+                    }
+                    String host = uri.getHost();
+                    int port = uri.getPort();
+                    if (port < 0) {
+                        port = 80;
+                    }
+                    HttpClientImpl<I, O> redirectClient = new HttpClientImpl<I, O>(new ServerInfo(host, port), clientBootstrap, incompleteConfigurator, config);
+                    HttpClientRequest<I> newRequest = copyRequest(_request, uri.getRawPath(), statusCode);
+                    return redirectClient.submit(newRequest, config);
+                default:
+                    break;
+                }
+                return Observable.from(responseToCheckRedirect);
+            }
+        });
     }
 
+    private static <I> HttpClientRequest<I> copyRequest(HttpClientRequest<I> original, String newURI, int statusCode) {
+        HttpRequest nettyRequest = original.getNettyRequest();
+        nettyRequest.setUri(newURI);
+        if (statusCode == 303) {
+            // according to HTTP spec, 303 mandates the change of request type to GET
+            nettyRequest.setMethod(HttpMethod.GET);
+        }
+        HttpClientRequest<I> newRequest = new HttpClientRequest<I>(nettyRequest);
+        if (statusCode != 303) {
+            // if status code is 303, we can just leave the content factory to be null
+            newRequest.contentFactory = original.contentFactory;
+            newRequest.rawContentFactory = original.rawContentFactory;
+        }
+        return newRequest;
+    }
+    
+    
     @Override
     protected PipelineConfigurator<HttpClientRequest<I>, HttpClientResponse<O>> getPipelineConfiguratorForAChannel(ClientConnectionHandler clientConnectionHandler,
                                                                                                        PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator) {

@@ -30,6 +30,7 @@ import io.reactivex.netty.client.RxClient.ServerInfo;
 import io.reactivex.netty.client.pool.AbstractQueueBasedChannelPool.PoolExhaustedException;
 import io.reactivex.netty.client.pool.DefaultChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.protocol.http.client.HttpClient.HttpClientConfig;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
@@ -385,7 +386,11 @@ public class HttpClientTest {
     }
 
     private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, String uri) {
-        Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet(uri));
+        return invokeBlockingCall(client, HttpClientRequest.createGet(uri));
+    }
+    
+    private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, HttpClientRequest<ByteBuf> request) {
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
         return response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
             @Override
             public Observable<String> call(HttpClientResponse<ByteBuf> response) {
@@ -623,6 +628,33 @@ public class HttpClientTest {
         assertEquals(0, pool.getIdleChannels());
         assertEquals(0, pool.getTotalChannelsInPool());
     }
+    
+    @Test
+    public void testRedirect() {
+        DefaultChannelPool pool = new DefaultChannelPool(2);
+        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(HttpClientConfig.DEFAULT_CONFIG);
+        HttpClientConfig config = builder.followRedirect().build();
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
+                .channelPool(pool)
+                .config(config)
+                .build();
+        String content = invokeBlockingCall(client, "test/redirect?port=" + port);
+        assertEquals("Hello world", content);
+    }
+    
+    @Test
+    public void testRedirectPost() {
+        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(HttpClientConfig.DEFAULT_CONFIG);
+        HttpClientConfig config = builder.followRedirect().build();
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost?port=" + port)
+                .withContent("Hello world");
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
+                .config(config)
+                .build();
+        String content = invokeBlockingCall(client, request);
+        assertEquals("Hello world", content);
+    }
+
 
     private static void readResponseContent(Observable<HttpClientResponse<ServerSentEvent>> response,
                                             final List<String> result) {

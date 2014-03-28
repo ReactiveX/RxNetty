@@ -73,7 +73,7 @@ public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilde
         serverBootstrap.childOption(option, value);
         return returnBuilder();
     }
-
+    
     public B defaultChannelOptions() {
         channelOption(ChannelOption.SO_KEEPALIVE, true);
         channelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
