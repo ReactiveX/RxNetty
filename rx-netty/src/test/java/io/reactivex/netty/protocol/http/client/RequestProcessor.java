@@ -17,7 +17,6 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.buffer.UnpooledDirectByteBuf;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -25,16 +24,14 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import rx.Observable;
-import rx.Observer;
-import rx.functions.Func1;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import com.sun.xml.internal.ws.handler.HandlerException;
+import rx.Observable;
+import rx.functions.Func1;
 
 public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
 
