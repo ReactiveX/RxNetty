@@ -16,20 +16,22 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.QueryStringDecoder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import rx.Observable;
-import rx.Observer;
-import rx.functions.Func1;
 
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+
+import rx.Observable;
+import rx.functions.Func1;
 
 public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
 
@@ -120,6 +122,17 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         return response.writeBytesAndFlush(responseBytes);
     }
 
+    public Observable<Void> redirectGet(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().add("Location", "http://localhost:" + request.getQueryParameters().get("port").get(0) + "/test/singleEntity");
+        response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
+        return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
+    }
+    
+    public Observable<Void> redirectPost(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().add("Location", "http://localhost:" + request.getQueryParameters().get("port").get(0) + "/test/post");
+        response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
+        return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
+    }
     
     private static Observable<Void> sendStreamingResponse(HttpServerResponse<ByteBuf> response, List<String> data) {
         response.getHeaders().add(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
@@ -135,7 +148,8 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     @Override
     public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
         String uri = request.getUri();
-        if (uri.startsWith("test/singleEntity")) {
+        if (uri.contains("test/singleEntity")) {
+            // in case of redirect, uri starts with /test/singleEntity 
             return handleSingleEntity(response);
         } else if (uri.startsWith("test/stream")) {
             return handleStream(response);
@@ -145,12 +159,16 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
             return handleLargeStream(response);
         } else if (uri.startsWith("test/timeout")) {
             return simulateTimeout(request, response);
-        } else if (uri.startsWith("test/post")) {
+        } else if (uri.contains("test/post")) {
             return handlePost(request, response);
         } else if (uri.startsWith("test/closeConnection")) {
             return handleCloseConnection(response);
         } else if (uri.startsWith("test/keepAliveTimeout")) {
             return handleKeepAliveTimeout(response);
+        } else if (uri.startsWith("test/redirect") && request.getHttpMethod().equals(HttpMethod.GET)) {
+            return redirectGet(request, response);
+        } else if (uri.startsWith("test/redirectPost") && request.getHttpMethod().equals(HttpMethod.POST)) {
+            return redirectPost(request, response);
         } else {
             response.setStatus(HttpResponseStatus.NOT_FOUND);
             return response.flush();

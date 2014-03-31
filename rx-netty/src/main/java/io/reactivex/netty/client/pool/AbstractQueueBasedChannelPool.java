@@ -169,7 +169,7 @@ public abstract class AbstractQueueBasedChannelPool implements ChannelPool {
                     // No idle channel for the route, but can create new channel
                     createChannel(serverInfo, bootStrap, initializer, subscriber);
                 } else {
-                    // get one idle channel from other route
+                    // delete one idle channel to make one available permit
                     Queue<Channel> idleChannels = removeFromIdleChannels(1);
                     Channel idleChannel = idleChannels.poll();
                     if (idleChannel != null) {

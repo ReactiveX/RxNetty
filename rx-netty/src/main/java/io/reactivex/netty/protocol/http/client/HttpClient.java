@@ -37,6 +37,8 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
         public static final HttpClientConfig DEFAULT_CONFIG = new HttpClientConfig();
 
         private String userAgent = "RxNetty Client";
+        
+        private boolean followRedirect = false;
 
         private HttpClientConfig() {
             // Only the builder can create this instance, so that we can change the constructor signature at will.
@@ -46,6 +48,10 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
             return userAgent;
         }
 
+        public boolean isFollowRedirect() {
+            return followRedirect;
+        }
+        
         public static class Builder extends AbstractBuilder<Builder, HttpClientConfig> {
 
             public Builder(HttpClientConfig defaultConfig) {
@@ -54,6 +60,11 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
 
             public Builder userAgent(String userAgent) {
                 config.userAgent = userAgent;
+                return returnBuilder();
+            }
+            
+            public Builder followRedirect() {
+                config.followRedirect = true;
                 return returnBuilder();
             }
         }

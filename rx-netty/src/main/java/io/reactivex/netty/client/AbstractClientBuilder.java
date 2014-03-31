@@ -16,6 +16,7 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -42,6 +43,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         this.bootstrap = bootstrap;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
         clientConfig = RxClient.ClientConfig.DEFAULT_CONFIG;
+        defaultChannelOptions();
     }
 
     protected AbstractClientBuilder(String host, int port) {
@@ -50,6 +52,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
 
     public B defaultChannelOptions() {
         channelOption(ChannelOption.SO_KEEPALIVE, true);
+        channelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         return channelOption(ChannelOption.TCP_NODELAY, true);
     }
 
