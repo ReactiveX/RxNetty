@@ -633,7 +633,9 @@ public class HttpClientTest {
     public void testRedirect() {
         DefaultChannelPool pool = new DefaultChannelPool(2);
         HttpClientConfig.Builder builder = new HttpClientConfig.Builder(HttpClientConfig.DEFAULT_CONFIG);
-        HttpClientConfig config = builder.followRedirect().build();
+        HttpClientConfig config = builder.followRedirect()
+                .readTimeout(20000, TimeUnit.MILLISECONDS)
+                .build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .channelPool(pool)
                 .config(config)

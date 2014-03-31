@@ -53,7 +53,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     /**
      * This should NOT be used directly. {@link #getPipelineConfiguratorForAChannel(ClientConnectionHandler, PipelineConfigurator)} is the correct way of getting the pipeline configurator.
      */
-    protected final PipelineConfigurator<O, I> incompleteConfigurator;
+    private final PipelineConfigurator<O, I> incompleteConfigurator;
+    protected final PipelineConfigurator<O, I> originalPipelineConfigurator;
     protected final ClientConfig clientConfig;
     protected ChannelPool pool;
 
@@ -80,6 +81,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
+        this.originalPipelineConfigurator = pipelineConfigurator;
         if (clientConfig.isReadTimeoutSet()) {
             ReadTimeoutPipelineConfigurator readTimeoutConfigurator =
                     new ReadTimeoutPipelineConfigurator(clientConfig.getReadTimeoutInMillis(), TimeUnit.MILLISECONDS);

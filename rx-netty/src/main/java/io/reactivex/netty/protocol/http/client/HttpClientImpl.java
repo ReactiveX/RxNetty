@@ -77,7 +77,8 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                                                  final ClientConfig config) {
         boolean isFollowRedirect = isFollowRedirect(config);
         final HttpClientRequest<I> _request;
-        if (isFollowRedirect && request.hasContentSource()){
+        if (isFollowRedirect && request.hasContentSource() 
+                && ! (request instanceof RepeatableContentHttpRequest)) {
             // need to make sure content source 
             // is repeatable when we resubmit the request to the redirected host
             _request = new RepeatableContentHttpRequest<I>(request);
@@ -132,7 +133,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                     if (port < 0) {
                         port = 80;
                     }
-                    HttpClientImpl<I, O> redirectClient = new HttpClientImpl<I, O>(new ServerInfo(host, port), clientBootstrap, incompleteConfigurator, config);
+                    HttpClientImpl<I, O> redirectClient = new HttpClientImpl<I, O>(new ServerInfo(host, port), clientBootstrap, originalPipelineConfigurator, config);
                     HttpClientRequest<I> newRequest = copyRequest(_request, uri.getRawPath(), statusCode);
                     newRequest.getHeaders().set(HttpHeaders.Names.HOST, host);
                     return redirectClient.submit(newRequest, config);
