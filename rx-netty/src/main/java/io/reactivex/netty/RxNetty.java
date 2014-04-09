@@ -17,11 +17,15 @@ package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.SingleNioLoopProvider;
+import io.reactivex.netty.channel.RxEventLoopProvider;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
+import io.reactivex.netty.protocol.http.client.HttpClientRequest;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -31,6 +35,8 @@ import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
 
 public final class RxNetty {
+
+    private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider();
 
     private RxNetty() {
     }
@@ -68,8 +74,25 @@ public final class RxNetty {
     }
 
     public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
-                                                           PipelineConfigurator<io.reactivex.netty.protocol.http.client.HttpClientResponse<O>,
-                                                                                io.reactivex.netty.protocol.http.client.HttpClientRequest<I>> configurator) {
+                                                           PipelineConfigurator<HttpClientResponse<O>,
+                                                                                HttpClientRequest<I>> configurator) {
         return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
+    }
+
+    /**
+     * An implementation of {@link RxEventLoopProvider} to be used by all clients and servers created after this call.
+     *
+     * @param provider New provider to use.
+     *
+     * @return Existing provider.
+     */
+    public static RxEventLoopProvider useEventLoopProvider(RxEventLoopProvider provider) {
+        RxEventLoopProvider oldProvider = rxEventLoopProvider;
+        rxEventLoopProvider = provider;
+        return oldProvider;
+    }
+
+    public static RxEventLoopProvider getRxEventLoopProvider() {
+        return rxEventLoopProvider;
     }
 }
