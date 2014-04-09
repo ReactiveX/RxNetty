@@ -18,9 +18,9 @@ package io.reactivex.netty.client;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
@@ -87,13 +87,13 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
             if (null == eventLoopGroup) {
-                eventLoopGroup = new NioEventLoopGroup(0 /*means default in netty*/, new RxClientThreadFactory());
+                eventLoopGroup = RxNetty.getRxEventLoopProvider().globalClientEventLoop();
             }
         }
 
         if (null == eventLoopGroup) {
             if (NioSocketChannel.class == socketChannel) {
-                eventLoopGroup = new NioEventLoopGroup(0 /*means default in netty*/, new RxClientThreadFactory());
+                eventLoopGroup = RxNetty.getRxEventLoopProvider().globalClientEventLoop();
             } else {
                 // Fail fast for defaults we do not support.
                 throw new IllegalStateException("Specified a channel class but not the event loop group.");
