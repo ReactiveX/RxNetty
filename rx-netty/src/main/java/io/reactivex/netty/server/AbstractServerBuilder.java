@@ -20,8 +20,8 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
@@ -98,13 +98,13 @@ public abstract class AbstractServerBuilder<I, O, B extends AbstractServerBuilde
             serverChannelClass = NioServerSocketChannel.class;
             EventLoopGroup acceptorGroup = serverBootstrap.group();
             if (null == acceptorGroup) {
-                serverBootstrap.group(new NioEventLoopGroup(0 /*means default in netty*/, new RxServerThreadFactory()));
+                serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerEventLoop());
             }
         }
 
         if (null == serverBootstrap.group()) {
             if (NioServerSocketChannel.class == serverChannelClass) {
-                serverBootstrap.group(new NioEventLoopGroup(0 /*means default in netty*/, new RxServerThreadFactory()));
+                serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerEventLoop());
             } else {
                 // Fail fast for defaults we do not support.
                 throw new IllegalStateException("Specified a channel class but not the event loop group.");
