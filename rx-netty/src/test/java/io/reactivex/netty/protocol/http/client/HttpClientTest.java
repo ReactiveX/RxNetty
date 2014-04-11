@@ -78,6 +78,24 @@ public class HttpClientTest {
     public static void shutDown() throws InterruptedException {
         server.shutdown();
     }
+    private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, String uri) {
+        return invokeBlockingCall(client, HttpClientRequest.createGet(uri));
+    }
+    
+    private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, HttpClientRequest<ByteBuf> request) {
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
+        return response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
+            @Override
+            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
+                return response.getContent().map(new Func1<ByteBuf, String>() {
+                    @Override
+                    public String call(ByteBuf byteBuf) {
+                        return byteBuf.toString(Charset.defaultCharset());
+                    }
+                });
+            }
+        }).toBlockingObservable().single();
+    }
 
     @Test
     public void testConnectionClose() throws Exception {
@@ -317,7 +335,7 @@ public class HttpClientTest {
 
     @Test
     public void testTimeout() throws Exception {
-        RxClient.ClientConfig clientConfig = new Builder(RxClient.ClientConfig.DEFAULT_CONFIG)
+        RxClient.ClientConfig clientConfig = new Builder(null)
                 .readTimeout(10, TimeUnit.MILLISECONDS).build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(
                 clientConfig).build();
@@ -354,7 +372,7 @@ public class HttpClientTest {
 
     @Test
     public void testNoReadTimeout() throws Exception {
-        RxClient.ClientConfig clientConfig = new Builder(RxClient.ClientConfig.DEFAULT_CONFIG)
+        RxClient.ClientConfig clientConfig = new Builder(null)
                 .readTimeout(2, TimeUnit.SECONDS).build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(clientConfig).build();
         Observable<HttpClientResponse<ByteBuf>> response =
@@ -385,24 +403,6 @@ public class HttpClientTest {
         assertNull(exceptionHolder.get());
     }
 
-    private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, String uri) {
-        return invokeBlockingCall(client, HttpClientRequest.createGet(uri));
-    }
-    
-    private String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, HttpClientRequest<ByteBuf> request) {
-        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
-        return response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
-            @Override
-            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
-                return response.getContent().map(new Func1<ByteBuf, String>() {
-                    @Override
-                    public String call(ByteBuf byteBuf) {
-                        return byteBuf.toString(Charset.defaultCharset());
-                    }
-                });
-            }
-        }).toBlockingObservable().single();
-    }
     
     @Test
     public void testChannelPool() throws Exception {
@@ -542,7 +542,7 @@ public class HttpClientTest {
     
     @Test
     public void testReadtimeoutCloseConnection() throws Exception {
-        RxClient.ClientConfig clientConfig = new Builder(RxClient.ClientConfig.DEFAULT_CONFIG)
+        RxClient.ClientConfig clientConfig = new Builder(null)
                 .readTimeout(100, TimeUnit.MILLISECONDS).build();
         DefaultChannelPool pool = new DefaultChannelPool(10);
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(
@@ -632,9 +632,8 @@ public class HttpClientTest {
     @Test
     public void testRedirect() {
         DefaultChannelPool pool = new DefaultChannelPool(2);
-        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(HttpClientConfig.DEFAULT_CONFIG);
-        HttpClientConfig config = builder.followRedirect()
-                .readTimeout(20000, TimeUnit.MILLISECONDS)
+        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null);
+        HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
                 .build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .channelPool(pool)
@@ -645,9 +644,25 @@ public class HttpClientTest {
     }
     
     @Test
+    public void testNoRedirect() {
+        DefaultChannelPool pool = new DefaultChannelPool(2);
+        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null).setFollowRedirect(false);
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("test/redirect?port=" + port);
+        HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
+                .build();
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
+                .channelPool(pool)
+                .config(config)
+                .build();
+        HttpClientResponse<ByteBuf> response = client.submit(request).toBlockingObservable().single();
+        assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
+    }
+
+
+    @Test
     public void testRedirectPost() {
-        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(HttpClientConfig.DEFAULT_CONFIG);
-        HttpClientConfig config = builder.followRedirect().build();
+        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null);
+        HttpClientConfig config = builder.setFollowRedirect(true).build();
         HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost?port=" + port)
                 .withContent("Hello world");
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
@@ -655,6 +670,19 @@ public class HttpClientTest {
                 .build();
         String content = invokeBlockingCall(client, request);
         assertEquals("Hello world", content);
+    }
+    
+    @Test
+    public void testNoRedirectPost() {
+        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null);
+        HttpClientConfig config = builder.build();
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost?port=" + port)
+                .withContent("Hello world");
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
+                .config(config)
+                .build();
+        HttpClientResponse<ByteBuf> response = client.submit(request).toBlockingObservable().single();
+        assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
     }
 
 
