@@ -3,6 +3,7 @@ package io.reactivex.netty.protocol.http.client;
 import java.net.URI;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import io.reactivex.netty.client.ConnectionPool;
 import rx.Observable;
 import rx.functions.Func1;
 import io.netty.bootstrap.Bootstrap;
@@ -11,7 +12,6 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.RxClient;
-import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
@@ -37,30 +37,30 @@ class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
     private volatile String requestedLocation;
     
     protected FollowRedirectHttpClientImpl(
-            io.reactivex.netty.client.RxClient.ServerInfo serverInfo,
+            RxClient.ServerInfo serverInfo,
             Bootstrap clientBootstrap,
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            io.reactivex.netty.client.RxClient.ClientConfig clientConfig,
-            ChannelPool pool) {
+            RxClient.ClientConfig clientConfig,
+            ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool) {
         this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool, new ConcurrentLinkedQueue<String>(), null);
     }
     
     protected FollowRedirectHttpClientImpl(
-            io.reactivex.netty.client.RxClient.ServerInfo serverInfo,
+            RxClient.ServerInfo serverInfo,
             Bootstrap clientBootstrap,
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            io.reactivex.netty.client.RxClient.ClientConfig clientConfig,
-            ChannelPool pool, ConcurrentLinkedQueue<String> visited, String location) {
+            RxClient.ClientConfig clientConfig,
+            ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool, ConcurrentLinkedQueue<String> visited, String location) {
         super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool);
-        this.visited = visited;  
+        this.visited = visited;
         this.requestedLocation = location;
     }
     
     protected FollowRedirectHttpClientImpl(
-            io.reactivex.netty.client.RxClient.ServerInfo serverInfo,
+            RxClient.ServerInfo serverInfo,
             Bootstrap clientBootstrap,
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            io.reactivex.netty.client.RxClient.ClientConfig clientConfig, ConcurrentLinkedQueue<String> visited, String location) {
+            RxClient.ClientConfig clientConfig, ConcurrentLinkedQueue<String> visited, String location) {
         super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
         this.visited = visited;
         this.requestedLocation = location;

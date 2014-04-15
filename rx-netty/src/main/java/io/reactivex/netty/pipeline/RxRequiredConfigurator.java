@@ -16,6 +16,7 @@
 package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelPipeline;
+import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.server.ErrorHandler;
 import rx.Observable;
@@ -35,14 +36,17 @@ public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<I, O> 
     public static final String NETTY_OBSERVABLE_ADAPTER_NAME = "netty_observable_adapter";
 
     private final ConnectionHandler<I, O> connectionHandler;
+    private final ObservableConnectionFactory<I, O> connectionFactory;
     private final ErrorHandler errorHandler;
 
-    public RxRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler) {
-        this(connectionHandler, null);
+    public RxRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler, ObservableConnectionFactory<I, O> connectionFactory) {
+        this(connectionHandler, connectionFactory, null);
     }
 
-    public RxRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler, ErrorHandler errorHandler) {
+    public RxRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler,
+                                  ObservableConnectionFactory<I, O> connectionFactory, ErrorHandler errorHandler) {
         this.connectionHandler = connectionHandler;
+        this.connectionFactory = connectionFactory;
         this.errorHandler = errorHandler;
     }
 
@@ -55,7 +59,7 @@ public class RxRequiredConfigurator<I, O> implements PipelineConfigurator<I, O> 
          */
         ObservableAdapter observableAdapter = new ObservableAdapter();
         ConnectionLifecycleHandler<I, O> lifecycleHandler =
-                new ConnectionLifecycleHandler<I, O>(connectionHandler, observableAdapter, errorHandler);
+                new ConnectionLifecycleHandler<I, O>(connectionHandler, connectionFactory, errorHandler);
         pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
         pipeline.addLast(NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
     }

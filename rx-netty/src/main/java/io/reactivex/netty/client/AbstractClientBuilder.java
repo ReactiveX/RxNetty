@@ -22,7 +22,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 /**
@@ -37,12 +36,15 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected Class<? extends SocketChannel> socketChannel;
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
-    protected ChannelPool channelPool;
+    protected ConnectionPool<O, I> connectionPool;
+    protected PoolLimitDeterminationStrategy limitDeterminationStrategy;
+    protected PoolStateChangeListener stateChangeListener;
+    private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
-        clientConfig = RxClient.ClientConfig.DEFAULT_CONFIG;
+        clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
         defaultChannelOptions();
     }
 
@@ -81,11 +83,36 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
-    public B channelPool(ChannelPool pool) {
-        this.channelPool = pool;
+    public B connectionPool(ConnectionPool<O, I> pool) {
+        connectionPool = pool;
         return returnBuilder();
     }
-    
+
+    public B withMaxConnections(int maxConnections) {
+        limitDeterminationStrategy = new MaxConnectionsBasedStrategy(maxConnections);
+        return returnBuilder();
+    }
+
+    public B withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
+        this.idleConnectionsTimeoutMillis = idleConnectionsTimeoutMillis;
+        return returnBuilder();
+    }
+
+    public B withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
+        this.limitDeterminationStrategy = limitDeterminationStrategy;
+        return returnBuilder();
+    }
+
+    public B withPoolStateChangeListener(PoolStateChangeListener stateChangeListener) {
+        if (null != this.stateChangeListener) {
+            this.stateChangeListener = new CompositePoolStateChangeListener(this.stateChangeListener,
+                                                                            stateChangeListener);
+        } else {
+            this.stateChangeListener = stateChangeListener;
+        }
+        return returnBuilder();
+    }
+
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
@@ -104,7 +131,17 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         }
 
         bootstrap.channel(socketChannel).group(eventLoopGroup);
+        if (shouldCreateConnectionPool()) {
+            PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
+            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, pipelineConfigurator, stateChangeListener,
+                                                          limitDeterminationStrategy);
+        }
         return createClient();
+    }
+
+    private boolean shouldCreateConnectionPool() {
+        return null == connectionPool && null != limitDeterminationStrategy || null != stateChangeListener
+               || idleConnectionsTimeoutMillis != PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
     }
 
     protected abstract C createClient();

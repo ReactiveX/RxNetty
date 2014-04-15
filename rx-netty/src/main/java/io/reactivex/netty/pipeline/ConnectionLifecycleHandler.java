@@ -17,30 +17,29 @@ package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.server.ErrorHandler;
 import rx.Observable;
 import rx.Subscriber;
-import rx.subjects.PublishSubject;
 
 public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
 
     private final ConnectionHandler<I, O> connectionHandler;
-    private final ObservableAdapter observableAdapter;
     private final ErrorHandler errorHandler;
-    private PublishSubject<I> inputSubject;
+    private final ObservableConnectionFactory<I, O> connectionFactory;
     private ObservableConnection<I,O> connection;
 
-    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableAdapter observableAdapter,
+    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableConnectionFactory<I, O> connectionFactory,
                                       ErrorHandler errorHandler) {
         this.connectionHandler = connectionHandler;
-        this.observableAdapter = observableAdapter;
+        this.connectionFactory = connectionFactory;
         this.errorHandler = null == errorHandler ? new DefaultErrorHandler() : errorHandler;
     }
 
-    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableAdapter observableAdapter) {
-        this(connectionHandler, observableAdapter, null);
+    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableConnectionFactory<I, O> connectionFactory) {
+        this(connectionHandler, connectionFactory, null);
     }
 
     @Override
@@ -53,12 +52,12 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        inputSubject = PublishSubject.create();
-        connection = new ObservableConnection<I, O>(ctx, inputSubject);
-        if (null != observableAdapter) {
-            observableAdapter.activate(inputSubject);
-        }
-        super.channelActive(ctx);
+
+        connection = connectionFactory.newConnection(ctx);
+
+        super.channelActive(ctx); // Called before connection handler call to finish the pipeline before the connection
+                                  // is handled.
+
         try {
             Observable<Void> handledObservable = connectionHandler.handle(connection);
             if (null == handledObservable) {

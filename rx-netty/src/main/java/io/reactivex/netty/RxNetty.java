@@ -17,8 +17,8 @@ package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.channel.ConnectionHandler;
-import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.channel.RxEventLoopProvider;
+import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -26,13 +26,15 @@ import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.server.HttpServerRequest;
-import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
+import io.reactivex.netty.protocol.http.server.HttpServerRequest;
+import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
+
+import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS;
 
 public final class RxNetty {
 
@@ -64,7 +66,7 @@ public final class RxNetty {
     }
 
     public static HttpClient<ByteBuf, ByteBuf> createHttpClient(String host, int port) {
-        return new HttpClientBuilder<ByteBuf, ByteBuf>(host, port).build();
+        return new HttpClientBuilder<ByteBuf, ByteBuf>(host, port).withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
     }
 
     public static <I, O> HttpServer<I, O> createHttpServer(int port,
@@ -76,7 +78,8 @@ public final class RxNetty {
     public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
                                                            PipelineConfigurator<HttpClientResponse<O>,
                                                                                 HttpClientRequest<I>> configurator) {
-        return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
+        return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator)
+                                                      .withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
     }
 
     /**

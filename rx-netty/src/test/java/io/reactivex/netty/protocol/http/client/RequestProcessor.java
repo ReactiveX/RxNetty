@@ -39,6 +39,8 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
 
     public static final List<String> largeStreamContent;
 
+    public static final long KEEP_ALIVE_TIMEOUT_SECONDS = 1;
+
     static {
 
         List<String> smallStreamListLocal = new ArrayList<String>();
@@ -117,7 +119,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     }
     
     public Observable<Void> handleKeepAliveTimeout(final HttpServerResponse<ByteBuf> response) {
-        response.getHeaders().add("Keep-Alive", "timeout=1");
+        response.getHeaders().add("Keep-Alive", "timeout=" + KEEP_ALIVE_TIMEOUT_SECONDS);
         byte[] responseBytes = "Hello world".getBytes();
         return response.writeBytesAndFlush(responseBytes);
     }
@@ -148,7 +150,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     @Override
     public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
         String uri = request.getUri();
-        if (uri.contains("test/singleEntity")) {
+        if ("/".equals(uri) || uri.contains("test/singleEntity")) {
             // in case of redirect, uri starts with /test/singleEntity 
             return handleSingleEntity(response);
         } else if (uri.startsWith("test/stream")) {

@@ -18,7 +18,6 @@ package io.reactivex.netty.channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
-import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
 import rx.Subscriber;
@@ -34,14 +33,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
-    private static final Observable<Void> CONNECTION_ALREADY_CLOSED =
+    protected static final Observable<Void> CONNECTION_ALREADY_CLOSED =
             Observable.error(new IllegalStateException("Connection is already closed."));
-    private final PublishSubject<I> inputSubject;
-    private final AtomicBoolean closeIssued = new AtomicBoolean();
+    private PublishSubject<I> inputSubject;
+    protected final AtomicBoolean closeIssued = new AtomicBoolean();
 
-    public ObservableConnection(final ChannelHandlerContext ctx, final PublishSubject<I> inputSubject) {
+    public ObservableConnection(final ChannelHandlerContext ctx) {
         super(ctx);
-        this.inputSubject = inputSubject;
+        inputSubject = PublishSubject.create();
+        ctx.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
     }
 
     public Observable<I> getInput() {
@@ -61,34 +61,40 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
      * close is already issued (may not be completed)
      */
     public Observable<Void> close() {
-        final ChannelFuture closeFuture;
         if (closeIssued.compareAndSet(false, true)) {
-            cancelPendingWrites(true);
-            inputSubject.onCompleted();
-            ChannelPool pool = getChannelHandlerContext().channel().attr(ChannelPool.POOL_ATTR).get();
-            ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
-            if (pool == null) {
-                closeFuture = getChannelHandlerContext().close();
-                return Observable.create(new Observable.OnSubscribe<Void>() {
-                    @Override
-                    public void call(final Subscriber<? super Void> subscriber) {
-                        closeFuture.addListener(new ChannelFutureListener() {
-                            @Override
-                            public void operationComplete(ChannelFuture future) throws Exception {
-                                if (future.isSuccess()) {
-                                    subscriber.onCompleted();
-                                } else {
-                                    subscriber.onError(future.cause());
-                                }
-                            }
-                        });
-                    }
-                });
-            } else {
-                return pool.releaseChannel(getChannelHandlerContext().channel());
-            }
+            cleanupConnection();
+            return _closeChannel();
         } else {
             return CONNECTION_ALREADY_CLOSED;
         }
+    }
+
+    protected void cleanupConnection() {
+        cancelPendingWrites(true);
+        inputSubject.onCompleted();
+        ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
+    }
+
+    protected Observable<Void> _closeChannel() {
+        final ChannelFuture closeFuture = getChannelHandlerContext().close();
+        return Observable.create(new Observable.OnSubscribe<Void>() {
+            @Override
+            public void call(final Subscriber<? super Void> subscriber) {
+                closeFuture.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        if (future.isSuccess()) {
+                            subscriber.onCompleted();
+                        } else {
+                            subscriber.onError(future.cause());
+                        }
+                    }
+                });
+            }
+        });
+    }
+
+    protected void updateInputSubject(PublishSubject<I> newSubject) {
+        inputSubject = newSubject;
     }
 }

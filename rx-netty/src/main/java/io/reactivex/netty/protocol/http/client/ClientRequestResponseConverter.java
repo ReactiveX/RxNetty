@@ -27,7 +27,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.reactivex.netty.client.pool.ChannelPool;
+import io.netty.util.AttributeKey;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
 import rx.Observer;
@@ -57,30 +57,20 @@ import rx.subjects.PublishSubject;
  */
 public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
+    /**
+     * This attribute stores the value of any dynamic idle timeout value sent via an HTTP keep alive header.
+     * This follows the proposal specified here: http://tools.ietf.org/id/draft-thomson-hybi-http-timeout-01.html
+     * The attribute can be extracted from an HTTP response header using the helper method
+     * {@link HttpClientResponse#getKeepAliveTimeoutSeconds()}
+     */
+    public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR = AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
+    public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
+
     @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
     @SuppressWarnings("rawtypes") private Observer requestProcessingObserver;
 
     public ClientRequestResponseConverter() {
         contentSubject = PublishSubject.create();
-    }
-
-    private static Long getKeepAliveTimeout(String keepAlive) {
-        try {
-            if (keepAlive != null) {
-                String[] pairs = keepAlive.split(",");
-                if (pairs != null) {
-                    for (String pair: pairs) {
-                        String[] nameValue = pair.trim().split("=");
-                        if (nameValue != null && nameValue.length == 2 && nameValue[0].trim().equals("timeout")) {
-                            return Long.valueOf(nameValue[1].trim());
-                        }
-                    }
-                }
-            } 
-            return null;
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     @Override
@@ -90,19 +80,17 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpResponse response = (HttpResponse) msg;
-            HttpHeaders headers = response.headers();
-            String connectionHeaderValue = headers.get(HttpHeaders.Names.CONNECTION);
-            if ("close".equals(connectionHeaderValue)) {
-                ctx.channel().attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(Long.valueOf(0));
-            } else {
-                String keepAlive = headers.get("Keep-Alive");
-                Long timeout = getKeepAliveTimeout(keepAlive);
-                if (timeout != null) {
-                    ctx.channel().attr(ChannelPool.IDLE_TIMEOUT_ATTR).set(timeout);
-                }
-            }
+
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpClientResponse rxResponse = new HttpClientResponse(response, contentSubject);
+            Long keepAliveTimeoutSeconds = rxResponse.getKeepAliveTimeoutSeconds();
+            if (null != keepAliveTimeoutSeconds) {
+                ctx.channel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).set(keepAliveTimeoutSeconds * 1000);
+            }
+
+            if (!rxResponse.getHeaders().isKeepAlive()) {
+                ctx.channel().attr(DISCARD_CONNECTION).set(true);
+            }
             super.channelRead(ctx, rxResponse); // For FullHttpResponse, this assumes that after this call returns,
                                                 // someone has subscribed to the content observable, if not the content will be lost.
         }

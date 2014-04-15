@@ -16,25 +16,14 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
-import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
-import rx.Observer;
 import rx.Subscriber;
-import rx.Subscription;
-import rx.functions.Action0;
-import rx.subscriptions.Subscriptions;
 
 import java.util.concurrent.TimeUnit;
 
@@ -50,25 +39,29 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
     protected final ServerInfo serverInfo;
     protected final Bootstrap clientBootstrap;
+
     /**
-     * This should NOT be used directly. {@link #getPipelineConfiguratorForAChannel(ClientConnectionHandler, PipelineConfigurator)} is the correct way of getting the pipeline configurator.
+     * This should NOT be used directly. {@link ClientChannelFactoryImpl#getPipelineConfiguratorForAChannel(ClientConnectionHandler, PipelineConfigurator)}
+     * is the correct way of getting the pipeline configurator.
      */
     private final PipelineConfigurator<O, I> incompleteConfigurator;
     protected final PipelineConfigurator<O, I> originalPipelineConfigurator;
+    protected final ClientChannelFactory<O, I> channelFactory;
     protected final ClientConfig clientConfig;
-    protected ChannelPool pool;
+    protected ConnectionPool<O, I> pool;
+    private volatile boolean isShutdown;
 
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
         this(serverInfo, clientBootstrap, null, clientConfig);
     }
 
-    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-            PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig) {
+    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+                        ClientConfig clientConfig) {
         this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, null);
     }
     
-    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-            PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig, ChannelPool pool) {
+    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+                        ClientConfig clientConfig, ConnectionPool<O, I> pool) {
         if (null == clientBootstrap) {
             throw new NullPointerException("Client bootstrap can not be null.");
         }
@@ -81,7 +74,13 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
-        this.originalPipelineConfigurator = pipelineConfigurator;
+        this.pool = pool;
+        channelFactory = _newChannelFactory(this.serverInfo, this.clientBootstrap, this.pool);
+        if (pool instanceof ConnectionPoolImpl) {
+            ((ConnectionPoolImpl<O, I>) pool).setChannelFactory(channelFactory);
+        }
+        originalPipelineConfigurator = pipelineConfigurator;
+
         if (clientConfig.isReadTimeoutSet()) {
             ReadTimeoutPipelineConfigurator readTimeoutConfigurator =
                     new ReadTimeoutPipelineConfigurator(clientConfig.getReadTimeoutInMillis(), TimeUnit.MILLISECONDS);
@@ -92,117 +91,55 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                 pipelineConfigurator = new PipelineConfiguratorComposite<O, I>(readTimeoutConfigurator);
             }
         }
+
         incompleteConfigurator = pipelineConfigurator;
-        this.pool = pool;
     }
 
     /**
      * A lazy connect to the {@link ServerInfo} for this client. Every subscription to the returned {@link Observable} will create a fresh connection.
-     * 
+     *
      * @return Observable for the connect. Every new subscription will create a fresh connection.
      */
     @Override
     public Observable<ObservableConnection<O, I>> connect() {
-        return Observable.create(new OnSubscribe<ObservableConnection<O, I>>() {
+        if (isShutdown) {
+            return Observable.error(new IllegalStateException("Client is already shutdown."));
+        }
 
+        if (null != pool) {
+            return pool.acquire();
+        }
+
+        return Observable.create(new OnSubscribe<ObservableConnection<O, I>>() {
             @Override
             public void call(final Subscriber<? super ObservableConnection<O, I>> subscriber) {
                 try {
-                    final ClientConnectionHandler clientConnectionHandler = new ClientConnectionHandler(subscriber);
-                    ChannelInitializer<SocketChannel> initializer = new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        public void initChannel(SocketChannel ch) throws Exception {
-                            PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(clientConnectionHandler,
-                                    incompleteConfigurator);
-                            configurator.configureNewPipeline(ch.pipeline());
-                        }
-                    };
-                    if (pool != null) {
-                        Observable<Channel> channelObservable = pool.requestChannel(serverInfo, clientBootstrap, initializer);
-                        final Subscription channelSubscription = channelObservable.subscribe(new Observer<Channel>() {
-                            @Override
-                            public void onCompleted() {
-                            }
-
-                            @Override
-                            public void onError(Throwable e) {
-                                subscriber.onError(e);
-                            }
-
-                            @Override
-                            public void onNext(Channel t) {
-                                t.attr(ChannelPool.POOL_ATTR).set(pool);
-                            }
-                        });
-                        subscriber.add(Subscriptions.create(new Action0() {
-                            @Override
-                            public void call() {
-                                channelSubscription.unsubscribe();
-                            }
-                        }));
-                    } else {
-                        // make the connection
-                        clientBootstrap.handler(initializer);
-                        final ChannelFuture connectFuture =
-                                clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort())
-                                .addListener(clientConnectionHandler);
-
-                        subscriber.add(Subscriptions.create(new Action0() {
-                            @Override
-                            public void call() {
-                                if (!connectFuture.isDone()) {
-                                    connectFuture.cancel(true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
-                                }
-                            }
-                        }));
-                    }
-                } catch (Throwable e) {
-                    subscriber.onError(e);
+                    channelFactory.connect(subscriber, incompleteConfigurator);
+                } catch (Throwable throwable) {
+                    subscriber.onError(throwable);
                 }
             }
         });
     }
 
-    protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(ClientConnectionHandler clientConnectionHandler,
-            PipelineConfigurator<O, I> pipelineConfigurator) {
-        RxRequiredConfigurator<O, I> requiredConfigurator = new RxRequiredConfigurator<O, I>(clientConnectionHandler);
-        PipelineConfiguratorComposite<I, O> toReturn;
-        if (null != pipelineConfigurator) {
-            toReturn = new PipelineConfiguratorComposite<I, O>(pipelineConfigurator, requiredConfigurator);
-        } else {
-            toReturn = new PipelineConfiguratorComposite<I, O>(requiredConfigurator);
-        }
-        return toReturn;
-    }
-
-    protected class ClientConnectionHandler implements ConnectionHandler<O, I>, ChannelFutureListener {
-
-        private final Observer<? super ObservableConnection<O, I>> connectionObserver;
-
-        private ClientConnectionHandler(Observer<? super ObservableConnection<O, I>> connectionObserver) {
-            this.connectionObserver = connectionObserver;
+    @Override
+    public void shutdown() {
+        if (isShutdown) {
+            return;
         }
 
-        @Override
-        public Observable<Void> handle(final ObservableConnection<O, I> newConnection) {
-            return Observable.create(new OnSubscribe<Void>() {
-                @Override
-                public void call(Subscriber<? super Void> voidSub) {
-                    connectionObserver.onNext(newConnection);
-                    connectionObserver.onCompleted(); // The observer is no longer looking for any more connections.
-                }
-            });
-        }
-
-        @Override
-        public void operationComplete(ChannelFuture future) throws Exception {
-            if (!future.isSuccess()) {
-                connectionObserver.onError(future.cause());
-            } // onComplete() needs to be send after onNext(), calling it here will cause a race-condition between next & complete.
+        isShutdown = true;
+        try {
+            if (null != pool) {
+                pool.shutdown();
+            }
+        } finally {
+            clientBootstrap.group().shutdownGracefully();
         }
     }
-    
-    public ChannelPool getChannelPool() {
-        return this.pool;
+
+    protected ClientChannelFactory<O, I> _newChannelFactory(ServerInfo serverInfo, Bootstrap clientBootstrap,
+                                                            ObservableConnectionFactory<O, I> connectionFactory) {
+        return new ClientChannelFactoryImpl<O, I>(clientBootstrap, connectionFactory, serverInfo);
     }
 }

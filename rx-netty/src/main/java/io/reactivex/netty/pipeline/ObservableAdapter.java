@@ -18,6 +18,9 @@ package io.reactivex.netty.pipeline;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.NewRxConnectionEvent;
+import io.reactivex.netty.client.ConnectionReuseEvent;
+import rx.Observer;
 import rx.subjects.PublishSubject;
 
 /**
@@ -31,11 +34,7 @@ import rx.subjects.PublishSubject;
 public class ObservableAdapter extends ChannelInboundHandlerAdapter {
 
     @SuppressWarnings("rawtypes")
-    /*Nullable*/ private PublishSubject bridgedObserver;
-
-    void activate(@SuppressWarnings("rawtypes") PublishSubject bridgedObserver) {
-        this.bridgedObserver = bridgedObserver;
-    }
+    /*Nullable*/ private Observer bridgedObserver;
 
     @SuppressWarnings("unchecked")
     @Override
@@ -63,5 +62,18 @@ public class ObservableAdapter extends ChannelInboundHandlerAdapter {
         if (null != bridgedObserver) {
             bridgedObserver.onCompleted();
         }
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object event) throws Exception {
+        if (event instanceof NewRxConnectionEvent) {
+            NewRxConnectionEvent rxConnectionEvent = (NewRxConnectionEvent) event;
+            bridgedObserver = rxConnectionEvent.getConnectedObserver();
+        } else if (event instanceof ConnectionReuseEvent) {
+            ConnectionReuseEvent reuseEvent = (ConnectionReuseEvent) event;
+            bridgedObserver = reuseEvent.getConnectedObserver();
+        }
+
+        super.userEventTriggered(ctx, event);
     }
 }
