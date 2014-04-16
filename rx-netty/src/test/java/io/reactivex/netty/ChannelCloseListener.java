@@ -1,4 +1,4 @@
-package io.reactivex.netty.client;
+package io.reactivex.netty;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;

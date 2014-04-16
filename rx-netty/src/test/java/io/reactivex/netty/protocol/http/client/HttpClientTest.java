@@ -332,12 +332,13 @@ public class HttpClientTest {
 
     @Test
     public void testTimeout() throws Exception {
+        int timeoutMillis = 10;
         RxClient.ClientConfig clientConfig = new Builder(null)
-                .readTimeout(10, TimeUnit.MILLISECONDS).build();
+                .readTimeout(timeoutMillis, TimeUnit.MILLISECONDS).build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(
                 clientConfig).build();
         Observable<HttpClientResponse<ByteBuf>> response =
-                client.submit(HttpClientRequest.createGet("test/timeout?timeout=10000"));
+                client.submit(HttpClientRequest.createGet("test/timeout?timeout=" + timeoutMillis * 2 /*Create bigger wait than timeout*/));
 
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicReference<Throwable> exception = new AtomicReference<Throwable>();
@@ -358,7 +359,7 @@ public class HttpClientTest {
                 latch.countDown();
             }
         });
-        if (!latch.await(2, TimeUnit.SECONDS)) {
+        if (!latch.await(1, TimeUnit.MINUTES)) {
             fail("Observer is not called without timeout");
         } else {
             assertTrue(exception.get() instanceof ReadTimeoutException);

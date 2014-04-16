@@ -3,6 +3,7 @@ package io.reactivex.netty.client;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.reactivex.netty.ChannelCloseListener;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;

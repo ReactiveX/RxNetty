@@ -1,10 +1,12 @@
 package io.reactivex.netty.protocol.http.server;
 
-import static org.junit.Assert.*;
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
+import io.reactivex.netty.ChannelCloseListener;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.server.ErrorHandler;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
@@ -14,6 +16,9 @@ import rx.Observable;
 import rx.functions.Func1;
 
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Nitesh Kant
@@ -22,20 +27,30 @@ public class UnexpectedErrorsTest {
 
     public static final int PORT = 1999;
     private RxServer<ByteBuf,ByteBuf> server;
+    private final ChannelCloseListener channelCloseListener = new ChannelCloseListener();
 
     @Before
     public void setUp() throws Exception {
-        server = RxNetty.createTcpServer(PORT, new ConnectionHandler<ByteBuf, ByteBuf>() {
-            @Override
-            public Observable<Void> handle(ObservableConnection<ByteBuf, ByteBuf> newConnection) {
-                return Observable.error(new IllegalStateException("I always throw an error."));
-            }
-        });
+        server = RxNetty.createTcpServer(PORT, new PipelineConfigurator<ByteBuf, ByteBuf>() {
+                                             @Override
+                                             public void configureNewPipeline(ChannelPipeline pipeline) {
+                                                 pipeline.addLast(channelCloseListener);
+                                             }
+                                         },
+                                         new ConnectionHandler<ByteBuf, ByteBuf>() {
+                                             @Override
+                                             public Observable<Void> handle(
+                                                     ObservableConnection<ByteBuf, ByteBuf> newConnection) {
+                                                 return Observable.error(new IllegalStateException(
+                                                         "I always throw an error."));
+                                             }
+                                         });
     }
 
     @After
     public void tearDown() throws Exception {
         server.shutdown();
+        server.waitTillShutdown();
     }
 
     @Test
@@ -44,8 +59,7 @@ public class UnexpectedErrorsTest {
         server.withErrorHandler(errorHandler).start();
 
         blockTillConnected();
-
-        Thread.sleep(1000); // Sucks but we want to wait for the server connection handling to finish
+        channelCloseListener.waitForClose(1, TimeUnit.MINUTES);
 
         assertTrue("Error handler not invoked.", errorHandler.invoked);
     }
@@ -59,7 +73,7 @@ public class UnexpectedErrorsTest {
 
         blockTillConnected();
 
-        Thread.sleep(1000); // Sucks but we want to wait for the server connection handling to finish
+        channelCloseListener.waitForClose(1, TimeUnit.MINUTES);
 
         assertTrue("Error handler not invoked.", errorHandler.invoked);
     }
