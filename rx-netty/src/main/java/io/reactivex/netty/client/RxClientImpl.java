@@ -27,6 +27,7 @@ import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * The base class for all connection oriented clients inside RxNetty.
@@ -50,7 +51,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     protected final ClientChannelFactory<O, I> channelFactory;
     protected final ClientConfig clientConfig;
     protected ConnectionPool<O, I> pool;
-    private volatile boolean isShutdown;
+    private final AtomicBoolean isShutdown = new AtomicBoolean();
 
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
         this(serverInfo, clientBootstrap, null, clientConfig);
@@ -109,7 +110,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
      */
     @Override
     public Observable<ObservableConnection<O, I>> connect() {
-        if (isShutdown) {
+        if (isShutdown.get()) {
             return Observable.error(new IllegalStateException("Client is already shutdown."));
         }
 
@@ -131,11 +132,10 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
     @Override
     public void shutdown() {
-        if (isShutdown) {
+        if (!isShutdown.compareAndSet(false, true)) {
             return;
         }
 
-        isShutdown = true;
         try {
             if (null != pool) {
                 pool.shutdown();

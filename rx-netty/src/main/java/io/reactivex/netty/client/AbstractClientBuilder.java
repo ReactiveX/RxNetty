@@ -24,11 +24,16 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+
 /**
  * @author Nitesh Kant
  */
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
+
+    private static final ScheduledExecutorService SHARED_IDLE_CLEANUP_SCHEDULER = Executors.newScheduledThreadPool(1);
 
     protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
@@ -40,6 +45,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected PoolLimitDeterminationStrategy limitDeterminationStrategy;
     protected PoolStateChangeListener stateChangeListener;
     private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
+    private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
@@ -113,6 +119,16 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
+        this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
+        return returnBuilder();
+    }
+
+    public B withNoIdleConnectionCleanup() {
+        poolIdleCleanupScheduler = null;
+        return returnBuilder();
+    }
+
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
@@ -133,7 +149,8 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         bootstrap.channel(socketChannel).group(eventLoopGroup);
         if (shouldCreateConnectionPool()) {
             PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
-            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, stateChangeListener, limitDeterminationStrategy);
+            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, stateChangeListener, limitDeterminationStrategy,
+                                                          poolIdleCleanupScheduler);
         }
         return createClient();
     }

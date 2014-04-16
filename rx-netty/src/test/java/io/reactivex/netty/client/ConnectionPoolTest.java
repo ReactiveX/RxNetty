@@ -19,6 +19,7 @@ import org.junit.Test;
 import rx.Observable;
 import rx.Subscriber;
 
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,7 +55,8 @@ public class ConnectionPoolTest {
                 pipeline.addFirst(channelCloseListener);
             }
         });
-        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, stateChangeListener, strategy);
+        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, stateChangeListener, strategy,
+                                                      null);
         pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, serverInfo));
 
         stats = pool.getStats();
@@ -281,8 +283,25 @@ public class ConnectionPoolTest {
         assertAllConnectionsReturned();
     }
 
+    @Test
+    public void testIdleCleanupThread() throws Exception {
+        pool.shutdown();
+
+        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, stateChangeListener, strategy,
+                                                      Executors.newScheduledThreadPool(1));
+        pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, serverInfo));
+        stats = pool.getStats();
+
+        ObservableConnection<String, String> connection = acquireAndTestStats();
+        connection.close();
+
+        waitForClose();
+
+        assertAllConnectionsReturned();
+    }
+
     private void waitForClose() throws InterruptedException {
-        if (!channelCloseListener.waitForClose(1, TimeUnit.MINUTES)) {
+        if (!channelCloseListener.waitForClose(3, TimeUnit.MINUTES)) {
             throw new AssertionError("Client channel not closed after sufficient wait.");
         }
     }

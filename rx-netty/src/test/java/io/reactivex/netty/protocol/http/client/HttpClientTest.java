@@ -335,8 +335,8 @@ public class HttpClientTest {
         int timeoutMillis = 10;
         RxClient.ClientConfig clientConfig = new Builder(null)
                 .readTimeout(timeoutMillis, TimeUnit.MILLISECONDS).build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port).config(
-                clientConfig).build();
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
+                .config(clientConfig).build();
         Observable<HttpClientResponse<ByteBuf>> response =
                 client.submit(HttpClientRequest.createGet("test/timeout?timeout=" + timeoutMillis * 2 /*Create bigger wait than timeout*/));
 

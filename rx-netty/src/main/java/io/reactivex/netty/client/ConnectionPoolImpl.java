@@ -4,17 +4,26 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Action1;
 import rx.observers.Subscribers;
 
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * @author Nitesh Kant
  */
 class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
+
+    private static final Logger logger = LoggerFactory.getLogger(ConnectionPoolImpl.class);
 
     private static final PoolExhaustedException POOL_EXHAUSTED_EXCEPTION = new PoolExhaustedException("Rx Connection Pool exhausted.");
 
@@ -24,11 +33,33 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
     private final PoolStateChangeListener stateChangeListener;
     private final PoolConfig poolConfig;
-    private volatile boolean isShutdown;
+    private final ScheduledExecutorService poolIdleCleanupScheduler;
+    private final AtomicBoolean isShutdown = new AtomicBoolean();
+    /*Nullable*/ private final ScheduledFuture<?> idleConnCleanupScheduleFuture;
 
+    /**
+     * Creates a new connection pool instance.
+     *
+     * @param poolConfig The pool configuration.
+     * @param stateChangeListener Pool state change listener. This can be {@code null}
+     * @param strategy Pool limit determination strategy. This can be {@code null}
+     * @param poolIdleCleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
+     *                                 no background cleanup task for idle connections.
+     */
     ConnectionPoolImpl(PoolConfig poolConfig, PoolStateChangeListener stateChangeListener,
-                       PoolLimitDeterminationStrategy strategy) {
+                       PoolLimitDeterminationStrategy strategy, ScheduledExecutorService poolIdleCleanupScheduler) {
         this.poolConfig = poolConfig;
+        this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
+
+        long scheduleDurationMillis = Math.max(30, this.poolConfig.getMaxIdleTimeMillis()); // Ignore too agressive durations as they create a lot of thread spin.
+
+        if (null != poolIdleCleanupScheduler) {
+            idleConnCleanupScheduleFuture = this.poolIdleCleanupScheduler.scheduleWithFixedDelay(
+                    new IdleConnectionsCleanupTask(), scheduleDurationMillis, scheduleDurationMillis, TimeUnit.MILLISECONDS);
+        } else {
+            idleConnCleanupScheduleFuture = null;
+        }
+
         stats = new PoolStatsImpl();
         limitDeterminationStrategy = null == strategy ? new MaxConnectionsBasedStrategy() : strategy;
         this.stateChangeListener = null == stateChangeListener
@@ -45,7 +76,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     @Override
     public Observable<ObservableConnection<I, O>> acquire(final PipelineConfigurator<I, O> pipelineConfigurator) {
 
-        if (isShutdown) {
+        if (isShutdown.get()) {
             return Observable.error(new IllegalStateException("Connection pool is already shutdown."));
         }
 
@@ -99,7 +130,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         }
         try {
             stateChangeListener.onReleaseAttempted();
-            if (isShutdown) {
+            if (isShutdown.get()) {
                 discardConnection(connection);
                 stateChangeListener.onReleaseSucceeded();
                 return Observable.empty();
@@ -143,11 +174,13 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     @Override
     public void shutdown() {
-        if (isShutdown) {
+        if (!isShutdown.compareAndSet(false, true)) {
             return;
         }
 
-        isShutdown = true;
+        if (null != idleConnCleanupScheduleFuture) {
+            idleConnCleanupScheduleFuture.cancel(true);
+        }
         PooledConnection<I, O> idleConnection = getAnIdleConnection();
         while (null != idleConnection) {
             discardConnection(idleConnection);
@@ -204,6 +237,26 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         public ChannelFuture connect(Subscriber<? super ObservableConnection<I, O>> subscriber,
                                      PipelineConfigurator<I, O> pipelineConfigurator) {
             throw new IllegalStateException("Client channel factory not set.");
+        }
+    }
+
+    private class IdleConnectionsCleanupTask implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                Iterator<PooledConnection<I,O>> iterator = idleConnections.iterator(); // Weakly consistent iterator
+                while (iterator.hasNext()) {
+                    PooledConnection<I, O> idleConnection = iterator.next();
+                    if (!idleConnection.isUsable()) {
+                        iterator.remove();
+                        discardConnection(idleConnection); // Don't use pool.discard() as that won't do anything if the
+                                                           // connection isn't there in the idle queue, which is the case here.
+                    }
+                }
+            } catch (Exception e) {
+                logger.error("Exception in the idle connection cleanup task. This does NOT stop the next schedule of the task. ", e);
+            }
         }
     }
 }
