@@ -34,6 +34,7 @@ public class ConnectionPoolTest {
     private final ChannelCloseListener channelCloseListener = new ChannelCloseListener();
     private PoolStats stats;
     private ConnectionHandlerImpl serverConnHandler;
+    private PipelineConfigurator<String,String> pipelineConfigurator;
 
     @Before
     public void setUp() throws Exception {
@@ -45,16 +46,14 @@ public class ConnectionPoolTest {
         strategy = new MaxConnectionsBasedStrategy(1);
         clientBootstrap = new Bootstrap().group(new SingleNioLoopProvider().globalClientEventLoop())
                                          .channel(NioSocketChannel.class);
-        PipelineConfigurator<String, String> configurator =
-                new PipelineConfiguratorComposite<String, String>(PipelineConfigurators.textOnlyConfigurator(), new PipelineConfigurator() {
-                    @Override
-                    public void configureNewPipeline(ChannelPipeline pipeline) {
-                        channelCloseListener.reset();
-                        pipeline.addFirst(channelCloseListener);
-                    }
-                });
-        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, configurator, stateChangeListener,
-                                                      strategy);
+        pipelineConfigurator = new PipelineConfiguratorComposite<String, String>(PipelineConfigurators.textOnlyConfigurator(), new PipelineConfigurator() {
+            @Override
+            public void configureNewPipeline(ChannelPipeline pipeline) {
+                channelCloseListener.reset();
+                pipeline.addFirst(channelCloseListener);
+            }
+        });
+        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, stateChangeListener, strategy);
         pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, serverInfo));
 
         stats = pool.getStats();
@@ -69,6 +68,7 @@ public class ConnectionPoolTest {
             clientBootstrap.group().shutdownGracefully();
         }
         if (null != server) {
+            server.shutdown();
             server.waitTillShutdown();
         }
     }
@@ -161,9 +161,9 @@ public class ConnectionPoolTest {
         serverConnHandler.closeNewConnectionsOnReceive(false);
         strategy.incrementMaxConnections(2);
 
-        ObservableConnection<String, String> connection1 = pool.acquire().toBlockingObservable().last();
-        ObservableConnection<String, String> connection2 = pool.acquire().toBlockingObservable().last();
-        ObservableConnection<String, String> connection3 = pool.acquire().toBlockingObservable().last();
+        ObservableConnection<String, String> connection1 = pool.acquire(pipelineConfigurator).toBlockingObservable().last();
+        ObservableConnection<String, String> connection2 = pool.acquire(pipelineConfigurator).toBlockingObservable().last();
+        ObservableConnection<String, String> connection3 = pool.acquire(pipelineConfigurator).toBlockingObservable().last();
 
         Assert.assertEquals("Unexpected pool idle count.", 0, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count.", 3, stats.getInUseCount());
@@ -193,7 +193,7 @@ public class ConnectionPoolTest {
         pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, unavailableServer));
 
         try {
-            pool.acquire().toBlockingObservable().last();
+            pool.acquire(pipelineConfigurator).toBlockingObservable().last();
             throw new AssertionError("Connect to a nonexistent server did not fail.");
         } catch (Exception e) {
             // Expected.
@@ -210,7 +210,7 @@ public class ConnectionPoolTest {
         strategy.incrementMaxConnections(1);
 
         PooledConnection<String, String> conn =
-                (PooledConnection<String, String>) pool.acquire().toBlockingObservable().last();
+                (PooledConnection<String, String>) pool.acquire(pipelineConfigurator).toBlockingObservable().last();
         Assert.assertEquals("Unexpected acquire attempted count.", 1, stateChangeListener.getAcquireAttemptedCount());
         Assert.assertEquals("Unexpected acquire succeeded count.", 1, stateChangeListener.getAcquireSucceededCount());
         Assert.assertEquals("Unexpected acquire failed count.", 0, stateChangeListener.getAcquireFailedCount());
@@ -224,7 +224,7 @@ public class ConnectionPoolTest {
         Assert.assertEquals("Unexpected create connection count.", 1, stateChangeListener.getCreationCount());
 
         PooledConnection<String, String> reusedConn =
-                (PooledConnection<String, String>) pool.acquire().toBlockingObservable().last();
+                (PooledConnection<String, String>) pool.acquire(pipelineConfigurator).toBlockingObservable().last();
 
         Assert.assertEquals("Reused connection not same as original.", conn, reusedConn);
 
@@ -258,7 +258,7 @@ public class ConnectionPoolTest {
         PooledConnection<String, String> connection = (PooledConnection<String, String>) acquireAndTestStats();
 
         try {
-            pool.acquire().toBlockingObservable().last();
+            pool.acquire(pipelineConfigurator).toBlockingObservable().last();
             throw new AssertionError("Pool did not exhaust.");
         } catch (Exception e) {
             // expected
@@ -294,7 +294,7 @@ public class ConnectionPoolTest {
     }
 
     private ObservableConnection<String, String> acquireAndTestStats() {
-        ObservableConnection<String, String> conn = pool.acquire().toBlockingObservable().last();
+        ObservableConnection<String, String> conn = pool.acquire(pipelineConfigurator).toBlockingObservable().last();
         Assert.assertEquals("Unexpected pool idle count.", 0, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count.", 1, stats.getInUseCount());
         Assert.assertEquals("Unexpected pool total connections count.", 1, stats.getTotalConnectionCount());

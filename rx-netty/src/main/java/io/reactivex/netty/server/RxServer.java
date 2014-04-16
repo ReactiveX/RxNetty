@@ -130,7 +130,6 @@ public class RxServer<I, O> {
             case Starting:
                 throw new IllegalStateException("Server not started yet.");
             case Started:
-                shutdown();
                 bindFuture.channel().closeFuture().await();
                 break;
             case Shutdown:

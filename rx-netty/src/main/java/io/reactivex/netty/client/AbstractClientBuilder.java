@@ -133,8 +133,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         bootstrap.channel(socketChannel).group(eventLoopGroup);
         if (shouldCreateConnectionPool()) {
             PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
-            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, pipelineConfigurator, stateChangeListener,
-                                                          limitDeterminationStrategy);
+            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, stateChangeListener, limitDeterminationStrategy);
         }
         return createClient();
     }

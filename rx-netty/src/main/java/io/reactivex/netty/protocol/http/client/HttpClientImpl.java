@@ -167,12 +167,22 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                 converter.setRequestProcessingObserver(requestProcessingObserver);
             }
             connection.getInput().subscribe(requestProcessingObserver);
-            connection.writeAndFlush(request).doOnError(new Action1<Throwable>() {
+            connection.writeAndFlush(request).subscribe(new Observer<Void>() {
                 @Override
-                public void call(Throwable throwable) {
+                public void onCompleted() {
+                    // Completion and onNext are managed by the observer itself.
+                }
+
+                @Override
+                public void onError(Throwable throwable) {
                     // If the write fails, the response should get the error. Completion & onNext are managed by
                     // the response observable itself.
                     requestProcessingObserver.onError(throwable);
+                }
+
+                @Override
+                public void onNext(Void aVoid) {
+                    // Completion and onNext are managed by the observer itself.
                 }
             });
         }

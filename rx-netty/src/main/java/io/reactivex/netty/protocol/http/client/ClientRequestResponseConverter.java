@@ -20,6 +20,7 @@ import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -66,7 +67,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR = AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
     public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
 
-    @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
+    @SuppressWarnings("rawtypes") private PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
     @SuppressWarnings("rawtypes") private Observer requestProcessingObserver;
 
     public ClientRequestResponseConverter() {
@@ -117,11 +118,11 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
         if (HttpClientRequest.class.isAssignableFrom(recievedMsgClass)) {
             HttpClientRequest<?> rxRequest = (HttpClientRequest<?>) msg;
+            MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
             if (rxRequest.getHeaders().hasContent()) {
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
                 }
-                MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
                 allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
                 if (rxRequest.hasContentSource()) {
                     ContentSource<?> contentSource;
@@ -147,14 +148,19 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 if (!rxRequest.getHeaders().isContentLengthSet() && rxRequest.getMethod() != HttpMethod.GET) {
                     rxRequest.getHeaders().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
                 }
-                ctx.write(rxRequest.getNettyRequest(), promise);
+                allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
             }
+
+            // In order for netty's codec to understand that HTTP request writing is over, we always have to write the
+            // LastHttpContent irrespective of whether it is chunked or not.
+            allWritesListener.listen(ctx.write(new DefaultLastHttpContent()));
         } else {
             ctx.write(msg, promise); // pass through, since we do not understand this message.
         }
     }
 
     void setRequestProcessingObserver(@SuppressWarnings("rawtypes") Observer requestProcessingObserver) {
+        contentSubject = PublishSubject.create();
         this.requestProcessingObserver = requestProcessingObserver;
     }
 

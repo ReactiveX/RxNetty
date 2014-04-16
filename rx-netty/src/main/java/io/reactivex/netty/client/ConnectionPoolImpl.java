@@ -21,16 +21,14 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     private final PoolStatsImpl stats;
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
     private ClientChannelFactory<I, O> channelFactory;
-    private final PipelineConfigurator<I, O> pipelineConfigurator;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
     private final PoolStateChangeListener stateChangeListener;
     private final PoolConfig poolConfig;
     private volatile boolean isShutdown;
 
-    ConnectionPoolImpl(PoolConfig poolConfig, PipelineConfigurator<I, O> pipelineConfigurator,
-                       PoolStateChangeListener stateChangeListener, PoolLimitDeterminationStrategy strategy) {
+    ConnectionPoolImpl(PoolConfig poolConfig, PoolStateChangeListener stateChangeListener,
+                       PoolLimitDeterminationStrategy strategy) {
         this.poolConfig = poolConfig;
-        this.pipelineConfigurator = pipelineConfigurator;
         stats = new PoolStatsImpl();
         limitDeterminationStrategy = null == strategy ? new MaxConnectionsBasedStrategy() : strategy;
         this.stateChangeListener = null == stateChangeListener
@@ -45,7 +43,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     @Override
-    public Observable<ObservableConnection<I, O>> acquire() {
+    public Observable<ObservableConnection<I, O>> acquire(final PipelineConfigurator<I, O> pipelineConfigurator) {
 
         if (isShutdown) {
             return Observable.error(new IllegalStateException("Connection pool is already shutdown."));
@@ -74,8 +72,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                         Subscriber<ObservableConnection<I, O>> newConnectionSubscriber = newConnectionSubscriber(
                                 subscriber);
                         try {
-                            channelFactory.connect(newConnectionSubscriber,
-                                                   pipelineConfigurator); // Manages the callbacks to the subscriber
+                            channelFactory.connect(newConnectionSubscriber, pipelineConfigurator); // Manages the callbacks to the subscriber
                         } catch (Throwable throwable) {
                             newConnectionSubscriber.onError(throwable);
                         }

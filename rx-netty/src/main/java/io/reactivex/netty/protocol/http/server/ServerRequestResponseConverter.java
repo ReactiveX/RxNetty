@@ -24,6 +24,8 @@ import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import rx.subjects.PublishSubject;
 
@@ -33,7 +35,7 @@ import rx.subjects.PublishSubject;
  *
  * <h2>Reading Objects</h2>
  * <ul>
- <li>{@link io.netty.handler.codec.http.HttpRequest: Converts it to {@link HttpServerRequest } </li>
+ <li>{@link HttpRequest: Converts it to {@link HttpServerRequest } </li>
  <li>{@link HttpContent}: Converts it to the content of the previously generated
 {@link HttpServerRequest }</li>
  <li>{@link FullHttpRequest}: Converts it to a {@link HttpServerRequest } with pre-populated content observable.</li>
@@ -42,7 +44,7 @@ import rx.subjects.PublishSubject;
  *
  * <h2>Writing Objects</h2>
  * <ul>
- <li>{@link HttpServerResponse}: Converts it to a {@link io.netty.handler.codec.http.HttpResponse}</li>
+ <li>{@link HttpServerResponse}: Converts it to a {@link HttpResponse}</li>
  <li>{@link ByteBuf} to an {@link HttpContent}</li>
  <li>Pass through any other message type.</li>
  </ul>
@@ -62,9 +64,9 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
-        if (io.netty.handler.codec.http.HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
+        if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpServerRequest rxRequest = new HttpServerRequest((io.netty.handler.codec.http.HttpRequest) msg, contentSubject);
+            HttpServerRequest rxRequest = new HttpServerRequest((HttpRequest) msg, contentSubject);
             keepAlive = rxRequest.getHeaders().isKeepAlive();
             super.channelRead(ctx, rxRequest); // For FullHttpRequest, this assumes that after this call returns,
                                                // someone has subscribed to the content observable, if not the content will be lost.

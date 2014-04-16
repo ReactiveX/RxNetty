@@ -25,12 +25,12 @@ import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 import rx.Observable;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
@@ -55,9 +55,11 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         }
         largeStreamContent = Collections.unmodifiableList(largeStreamListLocal);
     }
-    
+
+    public static final String SINGLE_ENTITY_BODY = "Hello world";
+
     public Observable<Void> handleSingleEntity(HttpServerResponse<ByteBuf> response) {
-        byte[] responseBytes = "Hello world".getBytes();
+        byte[] responseBytes = SINGLE_ENTITY_BODY.getBytes();
         return response.writeBytesAndFlush(responseBytes);
     }
 
@@ -103,15 +105,27 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     }
 
     public Observable<Void> handlePost(final HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-        return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
+        return request.getContent().last().onErrorResumeNext(
+                new Func1<Throwable, Observable<ByteBuf>>() {
+                    @Override
+                    public Observable<ByteBuf> call(Throwable throwable) {
+                        if (throwable instanceof IllegalArgumentException) {
+                            return Observable.from(Unpooled.EMPTY_BUFFER);
+                        }
+                        return Observable.error(throwable);
+                    }
+                }).flatMap(new Func1<ByteBuf, Observable<Void>>() {
             @Override
-            public Observable<Void> call(ByteBuf t1) {
-                String content = t1.toString(Charset.defaultCharset());
-                return response.writeBytesAndFlush(content.getBytes(Charset.defaultCharset()));
-            }}
-        );
+            public Observable<Void> call(ByteBuf byteBuf) {
+                if (byteBuf.isReadable()) {
+                    return response.writeAndFlush(byteBuf);
+                } else {
+                    return response.writeStringAndFlush(SINGLE_ENTITY_BODY);
+                }
+            }
+        });
     }
-    
+
     public Observable<Void> handleCloseConnection(final HttpServerResponse<ByteBuf> response) {
         response.getHeaders().add("Connection", "close");
         byte[] responseBytes = "Hello world".getBytes();

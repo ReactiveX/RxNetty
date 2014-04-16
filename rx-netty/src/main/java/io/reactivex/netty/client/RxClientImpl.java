@@ -18,6 +18,7 @@ package io.reactivex.netty.client;
 import io.netty.bootstrap.Bootstrap;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
@@ -75,7 +76,13 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
         this.pool = pool;
-        channelFactory = _newChannelFactory(this.serverInfo, this.clientBootstrap, this.pool);
+        if (null != pool) {
+            channelFactory = _newChannelFactory(this.serverInfo, this.clientBootstrap, this.pool);
+        } else {
+            channelFactory = _newChannelFactory(this.serverInfo, this.clientBootstrap,
+                                                new UnpooledConnectionFactory<O, I>());
+        }
+
         if (pool instanceof ConnectionPoolImpl) {
             ((ConnectionPoolImpl<O, I>) pool).setChannelFactory(channelFactory);
         }
@@ -107,7 +114,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         }
 
         if (null != pool) {
-            return pool.acquire();
+            return pool.acquire(incompleteConfigurator);
         }
 
         return Observable.create(new OnSubscribe<ObservableConnection<O, I>>() {
