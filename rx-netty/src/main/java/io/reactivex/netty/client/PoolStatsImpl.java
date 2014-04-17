@@ -51,50 +51,6 @@ public class PoolStatsImpl implements PoolStats, Observer<PoolInsightProvider.St
         return pendingReleases.longValue();
     }
 
-    public void onConnectionCreation() {
-        totalConnections.increment();
-    }
-
-    public void onConnectFailed() {
-        // No op
-    }
-
-    public void onConnectionReuse() {
-        idleConnections.decrement();
-    }
-
-    public void onConnectionEviction() {
-        idleConnections.decrement();
-        totalConnections.decrement();
-    }
-
-    public void onAcquireAttempted() {
-        pendingAcquires.increment();
-    }
-
-    public void onAcquireSucceeded() {
-        inUseConnections.increment();
-        pendingAcquires.decrement();
-    }
-
-    public void onAcquireFailed() {
-        pendingAcquires.decrement();
-    }
-
-    public void onReleaseAttempted() {
-        pendingReleases.increment();
-    }
-
-    public void onReleaseSucceeded() {
-        idleConnections.increment();
-        inUseConnections.decrement();
-        pendingReleases.decrement();
-    }
-
-    public void onReleaseFailed() {
-        pendingReleases.decrement();
-    }
-
     @Override
     public void onCompleted() {
         // No op.
@@ -139,5 +95,49 @@ public class PoolStatsImpl implements PoolStats, Observer<PoolInsightProvider.St
                 onReleaseFailed();
                 break;
         }
+    }
+
+    private void onConnectionCreation() {
+        totalConnections.increment();
+    }
+
+    private void onConnectFailed() {
+        // No op
+    }
+
+    private void onConnectionReuse() {
+        idleConnections.decrement();
+    }
+
+    private void onConnectionEviction() {
+        idleConnections.decrement();
+        totalConnections.decrement();
+    }
+
+    private void onAcquireAttempted() {
+        pendingAcquires.increment();
+    }
+
+    private void onAcquireSucceeded() {
+        inUseConnections.increment();
+        pendingAcquires.decrement();
+    }
+
+    private void onAcquireFailed() {
+        pendingAcquires.decrement();
+    }
+
+    private void onReleaseAttempted() {
+        pendingReleases.increment();
+    }
+
+    private void onReleaseSucceeded() {
+        idleConnections.increment();
+        inUseConnections.decrement();
+        pendingReleases.decrement();
+    }
+
+    private void onReleaseFailed() {
+        pendingReleases.decrement();
     }
 }

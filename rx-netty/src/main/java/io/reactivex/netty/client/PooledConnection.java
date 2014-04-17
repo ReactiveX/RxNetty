@@ -76,7 +76,7 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
         Boolean discardConn = getChannelHandlerContext().channel()
                               .attr(ClientRequestResponseConverter.DISCARD_CONNECTION).get();
 
-        if (!getChannelHandlerContext().channel().isActive() || null != discardConn && discardConn) {
+        if (!getChannelHandlerContext().channel().isActive() || Boolean.TRUE == discardConn) {
             return false;
         }
 

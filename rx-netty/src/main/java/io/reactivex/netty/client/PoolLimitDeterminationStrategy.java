@@ -10,4 +10,6 @@ import rx.Observer;
 public interface PoolLimitDeterminationStrategy extends Observer<PoolInsightProvider.StateChangeEvent> {
 
     boolean acquireCreationPermit();
+
+    int getAvailablePermits();
 }

@@ -54,14 +54,6 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
         }
     }
 
-    public void onConnectFailed() {
-        limitEnforcer.decrementAndGet();
-    }
-
-    public void onConnectionEviction() {
-        limitEnforcer.decrementAndGet();
-    }
-
     public int incrementMaxConnections(int incrementBy) {
         return maxConnections.addAndGet(incrementBy);
     }
@@ -72,6 +64,11 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
 
     public int getMaxConnections() {
         return maxConnections.get();
+    }
+
+    @Override
+    public int getAvailablePermits() {
+        return maxConnections.get() - limitEnforcer.get();
     }
 
     @Override
@@ -110,5 +107,13 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
             case onReleaseFailed:
                 break;
         }
+    }
+
+    private void onConnectFailed() {
+        limitEnforcer.decrementAndGet();
+    }
+
+    private void onConnectionEviction() {
+        limitEnforcer.decrementAndGet();
     }
 }

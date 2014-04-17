@@ -3,11 +3,11 @@ package io.reactivex.netty.client;
 /**
  * @author Nitesh Kant
  */
-public class CompositeStrategy implements PoolLimitDeterminationStrategy {
+public class CompositePoolLimitDeterminationStrategy implements PoolLimitDeterminationStrategy {
 
     private final PoolLimitDeterminationStrategy[] strategies;
 
-    public CompositeStrategy(PoolLimitDeterminationStrategy... strategies) {
+    public CompositePoolLimitDeterminationStrategy(PoolLimitDeterminationStrategy... strategies) {
         if (null == strategies) {
             throw new IllegalArgumentException("Strategies can not be null.");
         }
@@ -25,12 +25,31 @@ public class CompositeStrategy implements PoolLimitDeterminationStrategy {
             PoolLimitDeterminationStrategy strategy = strategies[i];
             if (!strategy.acquireCreationPermit() && i > 0) {
                 for (int j = i - 1; j >= 0; j--) {
-                    strategy.onNext(PoolInsightProvider.StateChangeEvent.ConnectFailed); // release all permits acquired before this failure.
+                    strategies[j].onNext(PoolInsightProvider.StateChangeEvent.ConnectFailed); // release all permits acquired before this failure.
                 }
-                break; // Break on first failure
+                return false;
             }
         }
         return true; // nothing failed and hence it is OK to create a new connection.
+    }
+
+    /**
+     * Returns the minimum number of permits available across all strategies.
+     *
+     * @return The minimum number of permits available across all strategies.
+     */
+    @Override
+    public int getAvailablePermits() {
+        int minPermits = 0;
+        for (PoolLimitDeterminationStrategy strategy : strategies) {
+            int availablePermits = strategy.getAvailablePermits();
+            if (0 == minPermits) {
+                minPermits = availablePermits;
+            } else {
+                minPermits = Math.min(minPermits, availablePermits);
+            }
+        }
+        return minPermits;
     }
 
     @Override

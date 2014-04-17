@@ -127,16 +127,12 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         }
         try {
             stateChangeObservable.onNext(StateChangeEvent.onReleaseAttempted);
-            if (isShutdown.get()) {
+            if (isShutdown.get() || !connection.isUsable()) {
                 discardConnection(connection);
-                stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
-                return Observable.empty();
-            } else if (connection.isUsable()) {
-                idleConnections.add(connection);
                 stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
                 return Observable.empty();
             } else {
-                discardConnection(connection);
+                idleConnections.add(connection);
                 stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
                 return Observable.empty();
             }
