@@ -27,6 +27,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class ConnectionPoolTest {
 
+    public static final int MAX_IDLE_TIME_MILLIS = 1000;
     private ConnectionPoolImpl<String, String> pool;
     private RxClient.ServerInfo serverInfo;
     private Bootstrap clientBootstrap;
@@ -55,7 +56,7 @@ public class ConnectionPoolTest {
                 pipeline.addFirst(channelCloseListener);
             }
         });
-        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, strategy, null);
+        pool = new ConnectionPoolImpl<String, String>(new PoolConfig(MAX_IDLE_TIME_MILLIS), strategy, null);
         pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, serverInfo));
         pool.stateChangeObservable().subscribe(stateChangeListener);
         stats = pool.getStats();
@@ -297,6 +298,19 @@ public class ConnectionPoolTest {
         waitForClose();
 
         assertAllConnectionsReturned();
+    }
+
+    @Test
+    public void testIdleTimeout() throws Exception {
+        serverConnHandler.closeNewConnectionsOnReceive(false);
+        PooledConnection<String, String> connection = (PooledConnection<String, String>) acquireAndTestStats();
+
+        connection.close();
+        Assert.assertTrue("Pooled connection is unusable after close.", connection.isUsable());
+
+        Thread.sleep(MAX_IDLE_TIME_MILLIS + 10); // Wait for idle timeout.
+
+        Assert.assertFalse("Pooled connection should have been unusable after idle timeout", connection.isUsable());
     }
 
     private void waitForClose() throws InterruptedException {

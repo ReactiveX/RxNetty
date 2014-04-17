@@ -5,7 +5,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
 import rx.Observable;
-import rx.functions.Action0;
 import rx.subjects.PublishSubject;
 
 /**
@@ -51,14 +50,13 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
             maxIdleTimeMillis = keepAliveTimeout;
         }
 
-        return pool.release(this).finallyDo(new Action0() {
-            @Override
-            public void call() {
-                // This will be executed in case of successful and failed release. However, if the release failed,
-                // it will close the connection and hence this metric is anyways not useful.
-                lastReturnToPoolTimeMillis = System.currentTimeMillis();
-            }
-        });
+        final Observable<Void> release = pool.release(this);
+        /**
+         * Other way of doing this is release.finallyDo() but that would depend on whether someone subscribes to the
+         * returned observable or not, which is not guaranteed, specially since its a close() call.
+         */
+        lastReturnToPoolTimeMillis = System.currentTimeMillis();
+        return release;
     }
 
     public Observable<Void> closeUnderlyingChannel() {
