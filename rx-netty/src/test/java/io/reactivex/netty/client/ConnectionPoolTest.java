@@ -19,6 +19,8 @@ import org.junit.Test;
 import rx.Observable;
 import rx.Subscriber;
 
+import java.util.Iterator;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
@@ -337,11 +339,12 @@ public class ConnectionPoolTest {
     private static class ConnectionHandlerImpl implements ConnectionHandler<String, String> {
 
         private volatile boolean closeConnectionOnReceive = true;
-        private volatile ObservableConnection<String, String> lastReceivedConnection;
+        private final ConcurrentLinkedQueue<ObservableConnection<String, String>> lastReceivedConnection =
+                new ConcurrentLinkedQueue<ObservableConnection<String, String>>();
 
         @Override
         public Observable<Void> handle(final ObservableConnection<String, String> newConnection) {
-            lastReceivedConnection = newConnection;
+            lastReceivedConnection.add(newConnection);
             if (closeConnectionOnReceive) {
                 return newConnection.close();
             } else {
@@ -358,11 +361,12 @@ public class ConnectionPoolTest {
             this.closeConnectionOnReceive = closeConnectionOnReceive;
         }
 
-        public Observable<Void> closeLastReceivedConnection() {
-            if (null != lastReceivedConnection) {
-                return lastReceivedConnection.close();
-            } else {
-                return Observable.error(new IllegalStateException("No connection received."));
+        public void closeLastReceivedConnection() {
+            Iterator<ObservableConnection<String,String>> iterator = lastReceivedConnection.iterator();
+            while (iterator.hasNext()) {
+                ObservableConnection<String, String> next = iterator.next();
+                next.close();
+                iterator.remove();
             }
         }
     }
