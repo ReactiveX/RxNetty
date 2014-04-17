@@ -1,11 +1,16 @@
 package io.reactivex.netty.client;
 
 import com.netflix.numerus.LongAdder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import rx.Observer;
 
 /**
  * @author Nitesh Kant
  */
-public class PoolStatsImpl implements PoolStats, PoolStateChangeListener {
+public class PoolStatsImpl implements PoolStats, Observer<PoolInsightProvider.StateChangeEvent> {
+
+    private static final Logger logger = LoggerFactory.getLogger(PoolStatsImpl.class);
 
     private final LongAdder idleConnections;
     private final LongAdder inUseConnections;
@@ -46,57 +51,93 @@ public class PoolStatsImpl implements PoolStats, PoolStateChangeListener {
         return pendingReleases.longValue();
     }
 
-    @Override
     public void onConnectionCreation() {
         totalConnections.increment();
     }
 
-    @Override
     public void onConnectFailed() {
         // No op
     }
 
-    @Override
     public void onConnectionReuse() {
         idleConnections.decrement();
     }
 
-    @Override
     public void onConnectionEviction() {
         idleConnections.decrement();
         totalConnections.decrement();
     }
 
-    @Override
     public void onAcquireAttempted() {
         pendingAcquires.increment();
     }
 
-    @Override
     public void onAcquireSucceeded() {
         inUseConnections.increment();
         pendingAcquires.decrement();
     }
 
-    @Override
     public void onAcquireFailed() {
         pendingAcquires.decrement();
     }
 
-    @Override
     public void onReleaseAttempted() {
         pendingReleases.increment();
     }
 
-    @Override
     public void onReleaseSucceeded() {
         idleConnections.increment();
         inUseConnections.decrement();
         pendingReleases.decrement();
     }
 
-    @Override
     public void onReleaseFailed() {
         pendingReleases.decrement();
+    }
+
+    @Override
+    public void onCompleted() {
+        // No op.
+    }
+
+    @Override
+    public void onError(Throwable e) {
+        logger.error("Connection pool emitted an error for state change events.", e);
+    }
+
+    @Override
+    public void onNext(PoolInsightProvider.StateChangeEvent stateChangeEvent) {
+        switch (stateChangeEvent) {
+            case NewConnectionCreated:
+                onConnectionCreation();
+                break;
+            case ConnectFailed:
+                onConnectFailed();
+                break;
+            case OnConnectionReuse:
+                onConnectionReuse();
+                break;
+            case OnConnectionEviction:
+                onConnectionEviction();
+                break;
+            case onAcquireAttempted:
+                onAcquireAttempted();
+                break;
+            case onAcquireSucceeded:
+                onAcquireSucceeded();
+                break;
+            case onAcquireFailed:
+                onAcquireFailed();
+                break;
+            case onReleaseAttempted:
+                onReleaseAttempted();
+                break;
+            case onReleaseSucceeded:
+                onReleaseSucceeded();
+                break;
+            case onReleaseFailed:
+                onReleaseFailed();
+                break;
+        }
     }
 }

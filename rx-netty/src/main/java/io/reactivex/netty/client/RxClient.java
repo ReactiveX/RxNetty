@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Nitesh Kant
  */
-public interface RxClient<I, O> {
+public interface RxClient<I, O> extends PoolInsightProvider {
 
     /**
      * Creates exactly one new connection for every subscription to the returned observable.
@@ -36,6 +36,15 @@ public interface RxClient<I, O> {
      * Shutdown this client.
      */
     void shutdown();
+
+    /**
+     * Returns the {@link PoolStats} associated with this client, if any.
+     *
+     * @return The {@link PoolStats} associated with this client. If the client does not have a {@link ConnectionPool}
+     * then {@code null}
+     */
+    @Override
+    PoolStats getStats();
 
     /**
      * A configuration to be used for this client.

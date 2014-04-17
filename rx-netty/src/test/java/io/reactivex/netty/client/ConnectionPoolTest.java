@@ -55,10 +55,9 @@ public class ConnectionPoolTest {
                 pipeline.addFirst(channelCloseListener);
             }
         });
-        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, stateChangeListener, strategy,
-                                                      null);
+        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, strategy, null);
         pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, serverInfo));
-
+        pool.stateChangeObservable().subscribe(stateChangeListener);
         stats = pool.getStats();
     }
 
@@ -178,14 +177,14 @@ public class ConnectionPoolTest {
         Assert.assertEquals("Unexpected pool in-use count.", 2, stats.getInUseCount());
         Assert.assertEquals("Unexpected pool total connections count.", 3, stats.getTotalConnectionCount());
 
-        pool.shutdown();
-        Assert.assertEquals("Unexpected pool idle count post shutdown.", 0, stats.getIdleCount());
-        Assert.assertEquals("Unexpected pool in-use count post shutdown.", 2, stats.getInUseCount());
-        Assert.assertEquals("Unexpected pool total connections count post shutdown.", 2,
-                            stats.getTotalConnectionCount());
-
         connection2.close();
         connection3.close();
+
+        Assert.assertEquals("Unexpected pool idle count post shutdown.", 3, stats.getIdleCount());
+        Assert.assertEquals("Unexpected pool in-use count post shutdown.", 0, stats.getInUseCount());
+        Assert.assertEquals("Unexpected pool total connections count post shutdown.", 3, stats.getTotalConnectionCount());
+
+        pool.shutdown();
 
         assertAllConnectionsReturned();
     }
@@ -287,7 +286,7 @@ public class ConnectionPoolTest {
     public void testIdleCleanupThread() throws Exception {
         pool.shutdown();
 
-        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, stateChangeListener, strategy,
+        pool = new ConnectionPoolImpl<String, String>(PoolConfig.DEFAULT_CONFIG, strategy,
                                                       Executors.newScheduledThreadPool(1));
         pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, serverInfo));
         stats = pool.getStats();

@@ -149,4 +149,20 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
                                                             ObservableConnectionFactory<O, I> connectionFactory) {
         return new ClientChannelFactoryImpl<O, I>(clientBootstrap, connectionFactory, serverInfo);
     }
+
+    @Override
+    public Observable<StateChangeEvent> stateChangeObservable() {
+        if (null == pool) {
+            return Observable.empty();
+        }
+        return pool.stateChangeObservable();
+    }
+
+    @Override
+    public PoolStats getStats() {
+        if (null == pool) {
+            return null;
+        }
+        return pool.getStats();
+    }
 }

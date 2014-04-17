@@ -43,7 +43,6 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected RxClient.ClientConfig clientConfig;
     protected ConnectionPool<O, I> connectionPool;
     protected PoolLimitDeterminationStrategy limitDeterminationStrategy;
-    protected PoolStateChangeListener stateChangeListener;
     private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
     private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
 
@@ -109,16 +108,6 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
-    public B withPoolStateChangeListener(PoolStateChangeListener stateChangeListener) {
-        if (null != this.stateChangeListener) {
-            this.stateChangeListener = new CompositePoolStateChangeListener(this.stateChangeListener,
-                                                                            stateChangeListener);
-        } else {
-            this.stateChangeListener = stateChangeListener;
-        }
-        return returnBuilder();
-    }
-
     public B withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
         this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
         return returnBuilder();
@@ -149,14 +138,14 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         bootstrap.channel(socketChannel).group(eventLoopGroup);
         if (shouldCreateConnectionPool()) {
             PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
-            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, stateChangeListener, limitDeterminationStrategy,
+            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, limitDeterminationStrategy,
                                                           poolIdleCleanupScheduler);
         }
         return createClient();
     }
 
     private boolean shouldCreateConnectionPool() {
-        return null == connectionPool && null != limitDeterminationStrategy || null != stateChangeListener
+        return null == connectionPool && null != limitDeterminationStrategy
                || idleConnectionsTimeoutMillis != PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
     }
 

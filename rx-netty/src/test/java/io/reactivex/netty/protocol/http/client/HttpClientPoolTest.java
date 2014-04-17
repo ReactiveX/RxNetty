@@ -261,12 +261,15 @@ public class HttpClientPoolTest {
                                 pipeline.addFirst(new LoggingHandler(LogLevel.ERROR));
                             }
                         });
+
+        HttpClientImpl<ByteBuf, ByteBuf> client =
+                (HttpClientImpl<ByteBuf, ByteBuf>) new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
+                        .withMaxConnections(maxConnections)
+                        .withIdleConnectionsTimeoutMillis(idleTimeout)
+                        .config(clientConfig)
+                        .pipelineConfigurator(configurator).build();
         stateChangeListener = new TrackableStateChangeListener();
-        return (HttpClientImpl<ByteBuf, ByteBuf>) new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .withMaxConnections(maxConnections)
-                .withPoolStateChangeListener(stateChangeListener)
-                .withIdleConnectionsTimeoutMillis(idleTimeout)
-                .config(clientConfig)
-                .pipelineConfigurator(configurator).build();
+        client.stateChangeObservable().subscribe(stateChangeListener);
+        return client;
     }
 }

@@ -10,7 +10,7 @@ import rx.Observable;
  *
  * @author Nitesh Kant
  */
-public interface ConnectionPool<I, O> extends ObservableConnectionFactory<I, O> {
+public interface ConnectionPool<I, O> extends ObservableConnectionFactory<I, O>, PoolInsightProvider {
 
     Observable<ObservableConnection<I, O>> acquire(PipelineConfigurator<I, O> pipelineConfigurator);
 
@@ -28,8 +28,6 @@ public interface ConnectionPool<I, O> extends ObservableConnectionFactory<I, O> 
      * particular invocation.
      */
     Observable<Void> discard(PooledConnection<I, O> connection);
-
-    PoolStats getStats();
 
     void shutdown();
 }

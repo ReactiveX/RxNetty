@@ -1,5 +1,8 @@
 package io.reactivex.netty.client;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -8,7 +11,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Nitesh Kant
  */
-public class MaxConnectionsBasedStrategy extends AbstractLimitDeterminationStrategy {
+public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrategy {
+
+    private static final Logger logger = LoggerFactory.getLogger(MaxConnectionsBasedStrategy.class);
 
     public static final int DEFAULT_MAX_CONNECTIONS = 1000;
 
@@ -49,12 +54,10 @@ public class MaxConnectionsBasedStrategy extends AbstractLimitDeterminationStrat
         }
     }
 
-    @Override
     public void onConnectFailed() {
         limitEnforcer.decrementAndGet();
     }
 
-    @Override
     public void onConnectionEviction() {
         limitEnforcer.decrementAndGet();
     }
@@ -69,5 +72,43 @@ public class MaxConnectionsBasedStrategy extends AbstractLimitDeterminationStrat
 
     public int getMaxConnections() {
         return maxConnections.get();
+    }
+
+    @Override
+    public void onCompleted() {
+        // No op.
+    }
+
+    @Override
+    public void onError(Throwable e) {
+        logger.error("Connection pool emitted an error for state change events.", e);
+    }
+
+    @Override
+    public void onNext(PoolInsightProvider.StateChangeEvent stateChangeEvent) {
+        switch (stateChangeEvent) {
+            case NewConnectionCreated:
+                break;
+            case ConnectFailed:
+                onConnectFailed();
+                break;
+            case OnConnectionReuse:
+                break;
+            case OnConnectionEviction:
+                onConnectionEviction();
+                break;
+            case onAcquireAttempted:
+                break;
+            case onAcquireSucceeded:
+                break;
+            case onAcquireFailed:
+                break;
+            case onReleaseAttempted:
+                break;
+            case onReleaseSucceeded:
+                break;
+            case onReleaseFailed:
+                break;
+        }
     }
 }

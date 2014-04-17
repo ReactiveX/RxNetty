@@ -10,6 +10,7 @@ import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Action1;
 import rx.observers.Subscribers;
+import rx.subjects.PublishSubject;
 
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -31,9 +32,9 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
     private ClientChannelFactory<I, O> channelFactory;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
-    private final PoolStateChangeListener stateChangeListener;
+    private final PublishSubject<StateChangeEvent> stateChangeObservable;
     private final PoolConfig poolConfig;
-    private final ScheduledExecutorService poolIdleCleanupScheduler;
+    private final ScheduledExecutorService cleanupScheduler;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
     /*Nullable*/ private final ScheduledFuture<?> idleConnCleanupScheduleFuture;
 
@@ -41,30 +42,28 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
      * Creates a new connection pool instance.
      *
      * @param poolConfig The pool configuration.
-     * @param stateChangeListener Pool state change listener. This can be {@code null}
      * @param strategy Pool limit determination strategy. This can be {@code null}
-     * @param poolIdleCleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
-     *                                 no background cleanup task for idle connections.
+     * @param cleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
      */
-    ConnectionPoolImpl(PoolConfig poolConfig, PoolStateChangeListener stateChangeListener,
-                       PoolLimitDeterminationStrategy strategy, ScheduledExecutorService poolIdleCleanupScheduler) {
+    ConnectionPoolImpl(PoolConfig poolConfig, PoolLimitDeterminationStrategy strategy,
+                       ScheduledExecutorService cleanupScheduler) {
         this.poolConfig = poolConfig;
-        this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
+        this.cleanupScheduler = cleanupScheduler;
 
         long scheduleDurationMillis = Math.max(30, this.poolConfig.getMaxIdleTimeMillis()); // Ignore too agressive durations as they create a lot of thread spin.
 
-        if (null != poolIdleCleanupScheduler) {
-            idleConnCleanupScheduleFuture = this.poolIdleCleanupScheduler.scheduleWithFixedDelay(
+        if (null != cleanupScheduler) {
+            idleConnCleanupScheduleFuture = this.cleanupScheduler.scheduleWithFixedDelay(
                     new IdleConnectionsCleanupTask(), scheduleDurationMillis, scheduleDurationMillis, TimeUnit.MILLISECONDS);
         } else {
             idleConnCleanupScheduleFuture = null;
         }
 
-        stats = new PoolStatsImpl();
         limitDeterminationStrategy = null == strategy ? new MaxConnectionsBasedStrategy() : strategy;
-        this.stateChangeListener = null == stateChangeListener
-                                   ? new CompositePoolStateChangeListener(stats, limitDeterminationStrategy)
-                                   : new CompositePoolStateChangeListener(stats, limitDeterminationStrategy, stateChangeListener);
+        stateChangeObservable = PublishSubject.create();
+        stats = new PoolStatsImpl();
+        stateChangeObservable.subscribe(stats);
+        stateChangeObservable.subscribe(limitDeterminationStrategy);
         idleConnections = new ConcurrentLinkedQueue<PooledConnection<I, O>>();
         channelFactory = new NoOpClientChannelFactory<I, O>();
     }
@@ -84,35 +83,33 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             @Override
             public void call(final Subscriber<? super ObservableConnection<I, O>> subscriber) {
                 try {
-                    stateChangeListener.onAcquireAttempted();
+                    stateChangeObservable.onNext(StateChangeEvent.onAcquireAttempted);
                     PooledConnection<I, O> idleConnection = getAnIdleConnection();
 
                     if (null != idleConnection) { // Found a usable connection
                         idleConnection.beforeReuse();
-                        stateChangeListener.onConnectionReuse();
-                        stateChangeListener.onAcquireSucceeded();
+                        stateChangeObservable.onNext(StateChangeEvent.OnConnectionReuse);
+                        stateChangeObservable.onNext(StateChangeEvent.onAcquireSucceeded);
                         subscriber.onNext(idleConnection);
                         subscriber.onCompleted();
-                    } else if (limitDeterminationStrategy
-                            .acquireCreationPermit()) { // Check if it is allowed to create another connection.
+                    } else if (limitDeterminationStrategy.acquireCreationPermit()) { // Check if it is allowed to create another connection.
                         /**
                          * Here we want to make sure that if the connection attempt failed, we should inform the strategy.
                          * Failure to do so, will leak the permits from the strategy. So, any code in this block MUST
                          * ALWAYS use this new subscriber instead of the original subscriber to send any callbacks.
                          */
-                        Subscriber<ObservableConnection<I, O>> newConnectionSubscriber = newConnectionSubscriber(
-                                subscriber);
+                        Subscriber<ObservableConnection<I, O>> newConnectionSubscriber = newConnectionSubscriber(subscriber);
                         try {
                             channelFactory.connect(newConnectionSubscriber, pipelineConfigurator); // Manages the callbacks to the subscriber
                         } catch (Throwable throwable) {
                             newConnectionSubscriber.onError(throwable);
                         }
                     } else { // Pool Exhausted
-                        stateChangeListener.onAcquireFailed();
+                        stateChangeObservable.onNext(StateChangeEvent.onAcquireFailed);
                         subscriber.onError(POOL_EXHAUSTED_EXCEPTION);
                     }
                 } catch (Throwable throwable) {
-                    stateChangeListener.onAcquireFailed();
+                    stateChangeObservable.onNext(StateChangeEvent.onAcquireFailed);
                     subscriber.onError(throwable);
                 }
             }
@@ -129,22 +126,22 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             return Observable.error(new IllegalArgumentException("Returned a null connection to the pool."));
         }
         try {
-            stateChangeListener.onReleaseAttempted();
+            stateChangeObservable.onNext(StateChangeEvent.onReleaseAttempted);
             if (isShutdown.get()) {
                 discardConnection(connection);
-                stateChangeListener.onReleaseSucceeded();
+                stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
                 return Observable.empty();
             } else if (connection.isUsable()) {
                 idleConnections.add(connection);
-                stateChangeListener.onReleaseSucceeded();
+                stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
                 return Observable.empty();
             } else {
                 discardConnection(connection);
-                stateChangeListener.onReleaseSucceeded();
+                stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
                 return Observable.empty();
             }
         } catch (Throwable throwable) {
-            stateChangeListener.onReleaseFailed();
+            stateChangeObservable.onNext(StateChangeEvent.onReleaseFailed);
             return Observable.error(throwable);
         }
     }
@@ -168,6 +165,11 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     @Override
+    public Observable<StateChangeEvent> stateChangeObservable() {
+        return stateChangeObservable;
+    }
+
+    @Override
     public PoolStats getStats() {
         return stats;
     }
@@ -186,6 +188,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             discardConnection(idleConnection);
             idleConnection = getAnIdleConnection();
         }
+        stateChangeObservable.onCompleted();
     }
 
     @Override
@@ -207,7 +210,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     private Observable<Void> discardConnection(PooledConnection<I, O> idleConnection) {
-        stateChangeListener.onConnectionEviction();
+        stateChangeObservable.onNext(StateChangeEvent.OnConnectionEviction);
         return idleConnection.closeUnderlyingChannel();
     }
 
@@ -216,15 +219,15 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         return Subscribers.create(new Action1<ObservableConnection<I, O>>() {
                                       @Override
                                       public void call(ObservableConnection<I, O> o) {
-                                          stateChangeListener.onConnectionCreation();
-                                          stateChangeListener.onAcquireSucceeded();
+                                          stateChangeObservable.onNext(StateChangeEvent.NewConnectionCreated);
+                                          stateChangeObservable.onNext(StateChangeEvent.onAcquireSucceeded);
                                           subscriber.onNext(o);
                                           subscriber.onCompleted(); // This subscriber is for "A" connection, so it should be completed.
                                       }
                                   }, new Action1<Throwable>() {
                                       @Override
                                       public void call(Throwable throwable) {
-                                          stateChangeListener.onConnectFailed();
+                                          stateChangeObservable.onNext(StateChangeEvent.ConnectFailed);
                                           subscriber.onError(throwable);
                                       }
                                   }

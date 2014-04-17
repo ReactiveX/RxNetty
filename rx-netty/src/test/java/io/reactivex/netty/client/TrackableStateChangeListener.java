@@ -1,11 +1,12 @@
 package io.reactivex.netty.client;
 
 import com.netflix.numerus.LongAdder;
+import rx.Observer;
 
 /**
 * @author Nitesh Kant
 */
-public class TrackableStateChangeListener implements PoolStateChangeListener {
+public class TrackableStateChangeListener implements Observer<PoolInsightProvider.StateChangeEvent> {
 
     private final LongAdder creationCount = new LongAdder();
     private final LongAdder failedCount = new LongAdder();
@@ -18,52 +19,42 @@ public class TrackableStateChangeListener implements PoolStateChangeListener {
     private final LongAdder releaseSucceededCount = new LongAdder();
     private final LongAdder releaseFailedCount = new LongAdder();
 
-    @Override
     public void onConnectionCreation() {
         creationCount.increment();
     }
 
-    @Override
     public void onConnectFailed() {
         failedCount.increment();
     }
 
-    @Override
     public void onConnectionReuse() {
         reuseCount.increment();
     }
 
-    @Override
     public void onConnectionEviction() {
         evictionCount.increment();
     }
 
-    @Override
     public void onAcquireAttempted() {
         acquireAttemptedCount.increment();
     }
 
-    @Override
     public void onAcquireSucceeded() {
         acquireSucceededCount.increment();
     }
 
-    @Override
     public void onAcquireFailed() {
         acquireFailedCount.increment();
     }
 
-    @Override
     public void onReleaseAttempted() {
         releaseAttemptedCount.increment();
     }
 
-    @Override
     public void onReleaseSucceeded() {
         releaseSucceededCount.increment();
     }
 
-    @Override
     public void onReleaseFailed() {
         releaseFailedCount.increment();
     }
@@ -106,5 +97,51 @@ public class TrackableStateChangeListener implements PoolStateChangeListener {
 
     public long getReuseCount() {
         return reuseCount.longValue();
+    }
+
+    @Override
+    public void onCompleted() {
+        // No op
+    }
+
+    @Override
+    public void onError(Throwable e) {
+        // No op
+    }
+
+    @Override
+    public void onNext(PoolInsightProvider.StateChangeEvent stateChangeEvent) {
+        switch (stateChangeEvent) {
+            case NewConnectionCreated:
+                onConnectionCreation();
+                break;
+            case ConnectFailed:
+                onConnectFailed();
+                break;
+            case OnConnectionReuse:
+                onConnectionReuse();
+                break;
+            case OnConnectionEviction:
+                onConnectionEviction();
+                break;
+            case onAcquireAttempted:
+                onAcquireAttempted();
+                break;
+            case onAcquireSucceeded:
+                onAcquireSucceeded();
+                break;
+            case onAcquireFailed:
+                onAcquireFailed();
+                break;
+            case onReleaseAttempted:
+                onReleaseAttempted();
+                break;
+            case onReleaseSucceeded:
+                onReleaseSucceeded();
+                break;
+            case onReleaseFailed:
+                onReleaseFailed();
+                break;
+        }
     }
 }
