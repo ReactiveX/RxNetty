@@ -28,7 +28,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     private static final PoolExhaustedException POOL_EXHAUSTED_EXCEPTION = new PoolExhaustedException("Rx Connection Pool exhausted.");
 
-    private final PoolStatsImpl stats;
+    private final PoolStatsProvider statsProvider;
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
     private ClientChannelFactory<I, O> channelFactory;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
@@ -46,7 +46,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
      * @param cleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
      */
     ConnectionPoolImpl(PoolConfig poolConfig, PoolLimitDeterminationStrategy strategy,
-                       ScheduledExecutorService cleanupScheduler) {
+                       ScheduledExecutorService cleanupScheduler, PoolStatsProvider poolStatsProvider) {
         this.poolConfig = poolConfig;
         this.cleanupScheduler = cleanupScheduler;
 
@@ -61,11 +61,23 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
         limitDeterminationStrategy = null == strategy ? new MaxConnectionsBasedStrategy() : strategy;
         stateChangeObservable = PublishSubject.create();
-        stats = new PoolStatsImpl();
-        stateChangeObservable.subscribe(stats);
+        statsProvider = poolStatsProvider;
+        stateChangeObservable.subscribe(statsProvider);
         stateChangeObservable.subscribe(limitDeterminationStrategy);
         idleConnections = new ConcurrentLinkedQueue<PooledConnection<I, O>>();
         channelFactory = new NoOpClientChannelFactory<I, O>();
+    }
+
+    /**
+     * Creates a new connection pool instance.
+     *
+     * @param poolConfig The pool configuration.
+     * @param strategy Pool limit determination strategy. This can be {@code null}
+     * @param cleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
+     */
+    ConnectionPoolImpl(PoolConfig poolConfig, PoolLimitDeterminationStrategy strategy,
+                       ScheduledExecutorService cleanupScheduler) {
+        this(poolConfig, strategy, cleanupScheduler, new PoolStatsImpl());
     }
 
     void setChannelFactory(ClientChannelFactory<I,O> channelFactory) { // There is a transitive circular dep b/w pool & factory hence we have to set the factory later.
@@ -167,7 +179,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     @Override
     public PoolStats getStats() {
-        return stats;
+        return statsProvider.getStats();
     }
 
     @Override

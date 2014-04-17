@@ -8,7 +8,7 @@ import rx.Observer;
 /**
  * @author Nitesh Kant
  */
-public class PoolStatsImpl implements PoolStats, Observer<PoolInsightProvider.StateChangeEvent> {
+public class PoolStatsImpl implements PoolStats, PoolStatsProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(PoolStatsImpl.class);
 
@@ -95,6 +95,11 @@ public class PoolStatsImpl implements PoolStats, Observer<PoolInsightProvider.St
                 onReleaseFailed();
                 break;
         }
+    }
+
+    @Override
+    public PoolStats getStats() {
+        return this;
     }
 
     private void onConnectionCreation() {

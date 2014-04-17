@@ -45,6 +45,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected PoolLimitDeterminationStrategy limitDeterminationStrategy;
     private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
     private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
+    private PoolStatsProvider statsProvider = new PoolStatsImpl();
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
@@ -118,6 +119,11 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withPoolStatsProvider(PoolStatsProvider statsProvider) {
+        this.statsProvider = statsProvider;
+        return returnBuilder();
+    }
+
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
@@ -139,7 +145,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         if (shouldCreateConnectionPool()) {
             PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
             connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, limitDeterminationStrategy,
-                                                          poolIdleCleanupScheduler);
+                                                          poolIdleCleanupScheduler, statsProvider);
         }
         return createClient();
     }
