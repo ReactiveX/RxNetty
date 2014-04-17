@@ -2,12 +2,12 @@ package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.reactivex.netty.ChannelCloseListener;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
@@ -47,7 +47,7 @@ public class ConnectionPoolTest {
                                          serverConnHandler).start();
         stateChangeListener = new TrackableStateChangeListener();
         strategy = new MaxConnectionsBasedStrategy(1);
-        clientBootstrap = new Bootstrap().group(new SingleNioLoopProvider().globalClientEventLoop())
+        clientBootstrap = new Bootstrap().group(new NioEventLoopGroup(4))
                                          .channel(NioSocketChannel.class);
         pipelineConfigurator = new PipelineConfiguratorComposite<String, String>(PipelineConfigurators.textOnlyConfigurator(), new PipelineConfigurator() {
             @Override
