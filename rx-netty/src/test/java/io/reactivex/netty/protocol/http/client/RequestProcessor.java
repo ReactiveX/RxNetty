@@ -25,10 +25,10 @@ import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 
-import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
 import rx.functions.Func1;
@@ -38,6 +38,8 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     public static final List<String> smallStreamContent;
 
     public static final List<String> largeStreamContent;
+
+    public static final long KEEP_ALIVE_TIMEOUT_SECONDS = 1;
 
     static {
 
@@ -53,9 +55,11 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         }
         largeStreamContent = Collections.unmodifiableList(largeStreamListLocal);
     }
-    
+
+    public static final String SINGLE_ENTITY_BODY = "Hello world";
+
     public Observable<Void> handleSingleEntity(HttpServerResponse<ByteBuf> response) {
-        byte[] responseBytes = "Hello world".getBytes();
+        byte[] responseBytes = SINGLE_ENTITY_BODY.getBytes();
         return response.writeBytesAndFlush(responseBytes);
     }
 
@@ -77,39 +81,49 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         return sendStreamingResponse(response, largeStreamContent);
     }
 
-    public Observable<Void> simulateTimeout(HttpServerRequest<ByteBuf> httpRequest, HttpServerResponse<ByteBuf> response) {
+    public Observable<Void> simulateTimeout(HttpServerRequest<ByteBuf> httpRequest, final HttpServerResponse<ByteBuf> response) {
         String uri = httpRequest.getUri();
         QueryStringDecoder decoder = new QueryStringDecoder(uri);
         List<String> timeout = decoder.parameters().get("timeout");
-        byte[] contentBytes;
-        HttpResponseStatus status = HttpResponseStatus.NO_CONTENT;
         if (null != timeout && !timeout.isEmpty()) {
-            try {
-                Thread.sleep(Integer.parseInt(timeout.get(0)));
-                contentBytes = "".getBytes();
-            } catch (Exception e) {
-                contentBytes = e.getMessage().getBytes();
-                status = HttpResponseStatus.INTERNAL_SERVER_ERROR;
-            }
+            // Do not use Thread.sleep() here as that blocks the eventloop and since by default the eventloop is shared,
+            // a few of these timeout requests can just cause failures in other tests (if running parallely)
+            return Observable.interval(Integer.parseInt(timeout.get(0)), TimeUnit.MILLISECONDS)
+                             .flatMap(new Func1<Long, Observable<Void>>() {
+                                 @Override
+                                 public Observable<Void> call(Long aLong) {
+                                     response.setStatus(HttpResponseStatus.OK);
+                                     return response.writeStringAndFlush("OK");
+                                 }
+                             });
         } else {
-            status = HttpResponseStatus.BAD_REQUEST;
-            contentBytes = "Please provide a timeout parameter.".getBytes();
+            response.setStatus(HttpResponseStatus.BAD_REQUEST);
+            return response.writeStringAndFlush("Please provide a timeout parameter.");
         }
-
-        response.setStatus(status);
-        return response.writeBytesAndFlush(contentBytes);
     }
 
     public Observable<Void> handlePost(final HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-        return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
+        return request.getContent().last().onErrorResumeNext(
+                new Func1<Throwable, Observable<ByteBuf>>() {
+                    @Override
+                    public Observable<ByteBuf> call(Throwable throwable) {
+                        if (throwable instanceof IllegalArgumentException) {
+                            return Observable.from(Unpooled.EMPTY_BUFFER);
+                        }
+                        return Observable.error(throwable);
+                    }
+                }).flatMap(new Func1<ByteBuf, Observable<Void>>() {
             @Override
-            public Observable<Void> call(ByteBuf t1) {
-                String content = t1.toString(Charset.defaultCharset());
-                return response.writeBytesAndFlush(content.getBytes(Charset.defaultCharset()));
-            }}
-        );
+            public Observable<Void> call(ByteBuf byteBuf) {
+                if (byteBuf.isReadable()) {
+                    return response.writeAndFlush(byteBuf);
+                } else {
+                    return response.writeStringAndFlush(SINGLE_ENTITY_BODY);
+                }
+            }
+        });
     }
-    
+
     public Observable<Void> handleCloseConnection(final HttpServerResponse<ByteBuf> response) {
         response.getHeaders().add("Connection", "close");
         byte[] responseBytes = "Hello world".getBytes();
@@ -117,7 +131,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     }
     
     public Observable<Void> handleKeepAliveTimeout(final HttpServerResponse<ByteBuf> response) {
-        response.getHeaders().add("Keep-Alive", "timeout=1");
+        response.getHeaders().add("Keep-Alive", "timeout=" + KEEP_ALIVE_TIMEOUT_SECONDS);
         byte[] responseBytes = "Hello world".getBytes();
         return response.writeBytesAndFlush(responseBytes);
     }
@@ -148,7 +162,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     @Override
     public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
         String uri = request.getUri();
-        if (uri.contains("test/singleEntity")) {
+        if ("/".equals(uri) || uri.contains("test/singleEntity")) {
             // in case of redirect, uri starts with /test/singleEntity 
             return handleSingleEntity(response);
         } else if (uri.startsWith("test/stream")) {

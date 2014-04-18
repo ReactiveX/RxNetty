@@ -3,6 +3,8 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.protocol.http.client.HttpClientRequest;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -50,10 +52,10 @@ public class HttpErrorHandlerTest {
             }
         }).start();
 
-        io.reactivex.netty.protocol.http.client.HttpClientRequest<ByteBuf> request =
-                io.reactivex.netty.protocol.http.client.HttpClientRequest.createGet("/");
+        HttpClientRequest<ByteBuf> request =
+                HttpClientRequest.createGet("/");
 
-        io.reactivex.netty.protocol.http.client.HttpClientResponse<ByteBuf> response =
+        HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpClient("localhost", port).submit(request).toBlockingObservable().last();
 
         Assert.assertEquals("Unexpected response status", HttpResponseStatus.INTERNAL_SERVER_ERROR.code(),
@@ -78,10 +80,10 @@ public class HttpErrorHandlerTest {
             }
         }).start();
 
-        io.reactivex.netty.protocol.http.client.HttpClientRequest<ByteBuf> request =
-                io.reactivex.netty.protocol.http.client.HttpClientRequest.createGet("/");
+        HttpClientRequest<ByteBuf> request =
+                HttpClientRequest.createGet("/");
 
-        io.reactivex.netty.protocol.http.client.HttpClientResponse<ByteBuf> response =
+        HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpClient("localhost", port).submit(request).toBlockingObservable().last();
 
         Assert.assertEquals("Unexpected response status", HttpResponseStatus.INTERNAL_SERVER_ERROR.code(),

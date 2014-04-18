@@ -18,6 +18,7 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.bootstrap.ServerBootstrap;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
+import io.reactivex.netty.server.ErrorHandler;
 import io.reactivex.netty.server.RxServer;
 
 /**
@@ -40,11 +41,23 @@ public class HttpServer<I, O> extends RxServer<HttpServerRequest<I>, HttpServerR
         this.connectionHandler = connectionHandler;
     }
 
-    HttpServer<I, O> withErrorResponseGenerator(ErrorResponseGenerator<O> responseGenerator) {
+    public HttpServer<I, O> withErrorResponseGenerator(ErrorResponseGenerator<O> responseGenerator) {
         if (null == responseGenerator) {
             throw new IllegalArgumentException("Response generator can not be null.");
         }
         connectionHandler.setResponseGenerator(responseGenerator);
+        return this;
+    }
+
+    @Override
+    public HttpServer<I, O> start() {
+        super.start();
+        return this;
+    }
+
+    @Override
+    public HttpServer<I, O> withErrorHandler(ErrorHandler errorHandler) {
+        super.withErrorHandler(errorHandler);
         return this;
     }
 

@@ -22,8 +22,10 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * @author Nitesh Kant
@@ -31,18 +33,24 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
 
+    private static final ScheduledExecutorService SHARED_IDLE_CLEANUP_SCHEDULER = Executors.newScheduledThreadPool(1);
+
     protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
     protected PipelineConfigurator<O, I> pipelineConfigurator;
     protected Class<? extends SocketChannel> socketChannel;
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
-    protected ChannelPool channelPool;
+    protected ConnectionPool<O, I> connectionPool;
+    protected PoolLimitDeterminationStrategy limitDeterminationStrategy;
+    private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
+    private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
+    private PoolStatsProvider statsProvider = new PoolStatsImpl();
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
         this.bootstrap = bootstrap;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
-        clientConfig = RxClient.ClientConfig.DEFAULT_CONFIG;
+        clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
         defaultChannelOptions();
     }
 
@@ -81,11 +89,41 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
-    public B channelPool(ChannelPool pool) {
-        this.channelPool = pool;
+    public B connectionPool(ConnectionPool<O, I> pool) {
+        connectionPool = pool;
         return returnBuilder();
     }
-    
+
+    public B withMaxConnections(int maxConnections) {
+        limitDeterminationStrategy = new MaxConnectionsBasedStrategy(maxConnections);
+        return returnBuilder();
+    }
+
+    public B withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
+        this.idleConnectionsTimeoutMillis = idleConnectionsTimeoutMillis;
+        return returnBuilder();
+    }
+
+    public B withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
+        this.limitDeterminationStrategy = limitDeterminationStrategy;
+        return returnBuilder();
+    }
+
+    public B withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
+        this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
+        return returnBuilder();
+    }
+
+    public B withNoIdleConnectionCleanup() {
+        poolIdleCleanupScheduler = null;
+        return returnBuilder();
+    }
+
+    public B withPoolStatsProvider(PoolStatsProvider statsProvider) {
+        this.statsProvider = statsProvider;
+        return returnBuilder();
+    }
+
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
@@ -104,7 +142,17 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         }
 
         bootstrap.channel(socketChannel).group(eventLoopGroup);
+        if (shouldCreateConnectionPool()) {
+            PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
+            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, limitDeterminationStrategy,
+                                                          poolIdleCleanupScheduler, statsProvider);
+        }
         return createClient();
+    }
+
+    private boolean shouldCreateConnectionPool() {
+        return null == connectionPool && null != limitDeterminationStrategy
+               || idleConnectionsTimeoutMillis != PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
     }
 
     protected abstract C createClient();

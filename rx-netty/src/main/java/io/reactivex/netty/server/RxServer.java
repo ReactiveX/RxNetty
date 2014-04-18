@@ -20,6 +20,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
@@ -30,6 +31,7 @@ public class RxServer<I, O> {
 
     private ChannelFuture bindFuture;
     private ErrorHandler errorHandler;
+    private final UnpooledConnectionFactory<I,O> connectionFactory;
 
     private enum ServerState {Created, Starting, Started, Shutdown}
 
@@ -48,10 +50,12 @@ public class RxServer<I, O> {
         }
         this.bootstrap = bootstrap;
         this.port = port;
+        connectionFactory = new UnpooledConnectionFactory<I, O>();
         this.bootstrap.childHandler(new ChannelInitializer<SocketChannel>() {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
                 RxRequiredConfigurator<I, O> requiredConfigurator = new RxRequiredConfigurator<I, O>(connectionHandler,
+                                                                                                     connectionFactory,
                                                                                                      errorHandler);
                 PipelineConfigurator<I, O> configurator;
                 if (null == pipelineConfigurator) {

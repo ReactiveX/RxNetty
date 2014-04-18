@@ -38,6 +38,8 @@ dependencies {
     compile 'io.netty:netty-handler:4.0.14.Final'
     compile 'io.netty:netty-codec-http:4.0.14.Final'
     compile 'com.netflix.rxjava:rxjava-core:[0.17,)'
+    compile 'org.slf4j:slf4j-api:1.7.6'
+    compile 'com.netflix.numerus:numerus:1.+'
     // we only support Groovy in the /src/examples/ code
     examples 'org.codehaus.groovy:groovy-all:[2.1,)'
     examplesRuntime 'com.netflix.rxjava:rxjava-groovy:[0.17,)'

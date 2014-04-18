@@ -23,7 +23,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Nitesh Kant
  */
-public interface RxClient<I, O> {
+public interface RxClient<I, O> extends PoolInsightProvider {
 
     /**
      * Creates exactly one new connection for every subscription to the returned observable.
@@ -33,11 +33,23 @@ public interface RxClient<I, O> {
     Observable<ObservableConnection<O, I>> connect();
 
     /**
+     * Shutdown this client.
+     */
+    void shutdown();
+
+    /**
+     * Returns the {@link PoolStats} associated with this client, if any.
+     *
+     * @return The {@link PoolStats} associated with this client. If the client does not have a {@link ConnectionPool}
+     * then {@code null}
+     */
+    @Override
+    PoolStats getStats();
+
+    /**
      * A configuration to be used for this client.
      */
     class ClientConfig {
-
-        public static final ClientConfig DEFAULT_CONFIG = new ClientConfig();
 
         public static final long NO_TIMEOUT = -1;
 
@@ -93,6 +105,14 @@ public interface RxClient<I, O> {
             public Builder(ClientConfig defaultConfig) {
                 super(null == defaultConfig ? new ClientConfig() : defaultConfig);
             }
+
+            public Builder() {
+                this(null);
+            }
+
+            public static ClientConfig newDefaultConfig() {
+                return new Builder().build();
+            }
         }
     }
 
@@ -118,27 +138,33 @@ public interface RxClient<I, O> {
         public int hashCode() {
             final int prime = 31;
             int result = 1;
-            result = prime * result + ((host == null) ? 0 : host.hashCode());
+            result = prime * result + (host == null ? 0 : host.hashCode());
             result = prime * result + port;
             return result;
         }
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj)
+            if (this == obj) {
                 return true;
-            if (obj == null)
+            }
+            if (obj == null) {
                 return false;
-            if (getClass() != obj.getClass())
+            }
+            if (getClass() != obj.getClass()) {
                 return false;
+            }
             ServerInfo other = (ServerInfo) obj;
             if (host == null) {
-                if (other.host != null)
+                if (other.host != null) {
                     return false;
-            } else if (!host.equals(other.host))
+                }
+            } else if (!host.equals(other.host)) {
                 return false;
-            if (port != other.port)
+            }
+            if (port != other.port) {
                 return false;
+            }
             return true;
         }
         

@@ -30,7 +30,7 @@ public class HttpClientBuilder<I, O>
 
     public HttpClientBuilder(String host, int port) {
         super(host, port);
-        clientConfig = HttpClient.HttpClientConfig.DEFAULT_CONFIG;
+        clientConfig = HttpClient.HttpClientConfig.Builder.newDefaultConfig();
         pipelineConfigurator(PipelineConfigurators.<I, O>httpClientConfigurator());
     }
 
@@ -41,6 +41,6 @@ public class HttpClientBuilder<I, O>
 
     @Override
     protected HttpClient<I, O> createClient() {
-        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelPool);
+        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, connectionPool);
     }
 }

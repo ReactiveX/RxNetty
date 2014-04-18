@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.ServerCookieEncoder;
@@ -35,7 +36,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
     private final HttpResponseHeaders headers;
-    private final io.netty.handler.codec.http.HttpResponse nettyResponse;
+    private final HttpResponse nettyResponse;
     private final AtomicBoolean headerWritten = new AtomicBoolean();
     private ChannelFuture headerWriteFuture;
 
@@ -47,8 +48,7 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         this(ctx, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK));
     }
 
-    /*Visible for testing */ HttpServerResponse(ChannelHandlerContext ctx,
-                                          io.netty.handler.codec.http.HttpResponse nettyResponse) {
+    /*Visible for testing */ HttpServerResponse(ChannelHandlerContext ctx, HttpResponse nettyResponse) {
         super(ctx);
         this.nettyResponse = nettyResponse;
         headers = new HttpResponseHeaders(nettyResponse);
@@ -71,7 +71,7 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         return flush();
     }
 
-    io.netty.handler.codec.http.HttpResponse getNettyResponse() {
+    HttpResponse getNettyResponse() {
         return nettyResponse;
     }
 

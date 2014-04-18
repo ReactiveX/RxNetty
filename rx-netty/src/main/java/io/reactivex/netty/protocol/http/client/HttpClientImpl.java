@@ -15,15 +15,15 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
-
 import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.channel.ObservableConnectionFactory;
+import io.reactivex.netty.client.ClientChannelFactory;
+import io.reactivex.netty.client.ConnectionPool;
 import io.reactivex.netty.client.RxClientImpl;
-import io.reactivex.netty.client.pool.ChannelPool;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
@@ -35,31 +35,31 @@ import rx.subscriptions.Subscriptions;
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
     public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator, ClientConfig clientConfig, ChannelPool pool) {
+            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
+            ClientConfig clientConfig, ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool) {
         super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool);
     }
     
     public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                          PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator, ClientConfig clientConfig) {
+                          PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
+                          ClientConfig clientConfig) {
         super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
     }
 
     @Override
     public Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request) {
-        Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable = connect();
-        return submit(request, connectionObservable);
+        return submit(request, connect());
     }
 
     @Override
     public Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request, ClientConfig config) {
-        Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable = connect();
-        return submit(request, connectionObservable, config);
+        return submit(request, connect(), config);
     }
 
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
-                                              Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable) {
+                                                       Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable) {
         return submit(request, connectionObservable, null == clientConfig
-                                                     ? HttpClientConfig.DEFAULT_CONFIG : clientConfig);
+                                                     ? HttpClientConfig.Builder.newDefaultConfig() : clientConfig);
     }
     
     protected boolean shouldFollowRedirectForRequest(ClientConfig config, HttpClientRequest<I> request) {
@@ -117,12 +117,14 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
     }
 
     @Override
-    protected PipelineConfigurator<HttpClientRequest<I>, HttpClientResponse<O>> getPipelineConfiguratorForAChannel(ClientConnectionHandler clientConnectionHandler,
-                                                                                                       PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator) {
-        PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator =
-                new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator,
-                                                                                   new ClientRequiredConfigurator<I, O>());
-        return super.getPipelineConfiguratorForAChannel(clientConnectionHandler, configurator);
+    protected ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> _newChannelFactory(
+            ServerInfo serverInfo, Bootstrap clientBootstrap,
+            ObservableConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>> connectionFactory) {
+        return new HttpClientChannelFactory<I, O>(clientBootstrap, connectionFactory, serverInfo);
+    }
+
+    /*visible for testing*/ ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> getConnectionPool() {
+        return pool;
     }
 
     private void enrichRequest(HttpClientRequest<I> request, ClientConfig config) {
@@ -165,12 +167,22 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                 converter.setRequestProcessingObserver(requestProcessingObserver);
             }
             connection.getInput().subscribe(requestProcessingObserver);
-            connection.writeAndFlush(request).doOnError(new Action1<Throwable>() {
+            connection.writeAndFlush(request).subscribe(new Observer<Void>() {
                 @Override
-                public void call(Throwable throwable) {
+                public void onCompleted() {
+                    // Completion and onNext are managed by the observer itself.
+                }
+
+                @Override
+                public void onError(Throwable throwable) {
                     // If the write fails, the response should get the error. Completion & onNext are managed by
                     // the response observable itself.
                     requestProcessingObserver.onError(throwable);
+                }
+
+                @Override
+                public void onNext(Void aVoid) {
+                    // Completion and onNext are managed by the observer itself.
                 }
             });
         }
