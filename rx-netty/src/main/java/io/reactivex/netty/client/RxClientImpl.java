@@ -151,11 +151,11 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     }
 
     @Override
-    public Observable<StateChangeEvent> stateChangeObservable() {
+    public Observable<PoolStateChangeEvent> poolStateChangeObservable() {
         if (null == pool) {
             return Observable.empty();
         }
-        return pool.stateChangeObservable();
+        return pool.poolStateChangeObservable();
     }
 
     @Override

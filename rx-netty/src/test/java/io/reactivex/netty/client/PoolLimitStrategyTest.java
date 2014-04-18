@@ -21,7 +21,7 @@ public class PoolLimitStrategyTest {
 
         Assert.assertFalse("Invalid permit acquire success.", strategy.acquireCreationPermit());
 
-        strategy.onNext(PoolInsightProvider.StateChangeEvent.OnConnectionEviction);
+        strategy.onNext(PoolInsightProvider.PoolStateChangeEvent.OnConnectionEviction);
 
         Assert.assertEquals("Unexpected available permits.", 1, strategy.getAvailablePermits());
         Assert.assertTrue("Permit not available after release.", strategy.acquireCreationPermit());
@@ -45,7 +45,7 @@ public class PoolLimitStrategyTest {
         Assert.assertEquals("Unexpected available local permits.", 1, local.getAvailablePermits());
         Assert.assertEquals("Unexpected available composite permits.", 0, strategy.getAvailablePermits()); // Should be min. of all strategies
 
-        strategy.onNext(PoolInsightProvider.StateChangeEvent.OnConnectionEviction);
+        strategy.onNext(PoolInsightProvider.PoolStateChangeEvent.OnConnectionEviction);
 
         Assert.assertEquals("Unexpected available global permits.", 1, global.getAvailablePermits());
         Assert.assertEquals("Unexpected available local permits.", 2, local.getAvailablePermits());
@@ -70,7 +70,7 @@ public class PoolLimitStrategyTest {
 
         Assert.assertFalse("Invalid permit acquire success.", strategy.acquireCreationPermit());
 
-        strategy.onNext(PoolInsightProvider.StateChangeEvent.OnConnectionEviction);
+        strategy.onNext(PoolInsightProvider.PoolStateChangeEvent.OnConnectionEviction);
 
         Assert.assertTrue("Invalid permit acquire failure.", strategy.acquireCreationPermit());
         Assert.assertEquals("Unexpected available global permits.", 1, global.getAvailablePermits());
@@ -91,7 +91,7 @@ public class PoolLimitStrategyTest {
         Assert.assertEquals("Unexpected available permits.", 1, strategy.getAvailablePermits());
         Assert.assertTrue("Permit not available after release.", strategy.acquireCreationPermit());
 
-        strategy.onNext(PoolInsightProvider.StateChangeEvent.OnConnectionEviction);
+        strategy.onNext(PoolInsightProvider.PoolStateChangeEvent.OnConnectionEviction);
         strategy.decrementMaxConnections(1);
 
         Assert.assertEquals("Unexpected available permits.", 0, strategy.getAvailablePermits());

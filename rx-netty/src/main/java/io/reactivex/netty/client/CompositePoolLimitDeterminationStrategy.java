@@ -26,7 +26,7 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
             if (!strategy.acquireCreationPermit()) {
                 if (i > 0) {
                     for (int j = i - 1; j >= 0; j--) {
-                        strategies[j].onNext(PoolInsightProvider.StateChangeEvent.ConnectFailed); // release all permits acquired before this failure.
+                        strategies[j].onNext(PoolInsightProvider.PoolStateChangeEvent.ConnectFailed); // release all permits acquired before this failure.
                     }
                 }
                 return false;
@@ -65,7 +65,7 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     }
 
     @Override
-    public void onNext(PoolInsightProvider.StateChangeEvent stateChangeEvent) {
+    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             strategy.onNext(stateChangeEvent);
         }

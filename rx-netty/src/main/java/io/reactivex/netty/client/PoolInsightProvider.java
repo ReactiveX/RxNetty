@@ -11,15 +11,16 @@ import rx.Observable;
 public interface PoolInsightProvider {
 
     /**
-     * Returns the {@link Observable} that emits any changes to the state of the pool as {@link StateChangeEvent}
+     * Returns the {@link Observable} that emits any changes to the state of the pool as
+     * {@link PoolInsightProvider.PoolStateChangeEvent}
      *
      * @return An {@link Observable} emitting all state change events to the pool.
      */
-    Observable<StateChangeEvent> stateChangeObservable();
+    Observable<PoolStateChangeEvent> poolStateChangeObservable();
 
     PoolStats getStats();
 
-    enum StateChangeEvent {
+    enum PoolStateChangeEvent {
         NewConnectionCreated,
         ConnectFailed,
         OnConnectionReuse,

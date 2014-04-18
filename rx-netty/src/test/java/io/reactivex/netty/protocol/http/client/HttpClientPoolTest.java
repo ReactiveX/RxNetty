@@ -269,7 +269,7 @@ public class HttpClientPoolTest {
                         .config(clientConfig)
                         .pipelineConfigurator(configurator).build();
         stateChangeListener = new TrackableStateChangeListener();
-        client.stateChangeObservable().subscribe(stateChangeListener);
+        client.poolStateChangeObservable().subscribe(stateChangeListener);
         return client;
     }
 }

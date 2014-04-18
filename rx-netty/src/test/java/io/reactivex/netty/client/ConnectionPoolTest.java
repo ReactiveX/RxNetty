@@ -60,7 +60,7 @@ public class ConnectionPoolTest {
         });
         pool = new ConnectionPoolImpl<String, String>(new PoolConfig(MAX_IDLE_TIME_MILLIS), strategy, null);
         pool.setChannelFactory(new ClientChannelFactoryImpl<String, String>(clientBootstrap, pool, serverInfo));
-        pool.stateChangeObservable().subscribe(stateChangeListener);
+        pool.poolStateChangeObservable().subscribe(stateChangeListener);
         stats = pool.getStats();
     }
 
@@ -107,10 +107,9 @@ public class ConnectionPoolTest {
         Assert.assertEquals("Connection not reused.", connection, reusedConn);
 
         serverConnHandler.closeLastReceivedConnection();
-        waitForClose();
 
         connection.close();
-
+        waitForClose();
         assertAllConnectionsReturned();
     }
 

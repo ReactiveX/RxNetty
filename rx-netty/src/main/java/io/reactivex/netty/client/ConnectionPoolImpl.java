@@ -32,7 +32,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
     private ClientChannelFactory<I, O> channelFactory;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
-    private final PublishSubject<StateChangeEvent> stateChangeObservable;
+    private final PublishSubject<PoolStateChangeEvent> stateChangeObservable;
     private final PoolConfig poolConfig;
     private final ScheduledExecutorService cleanupScheduler;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
@@ -95,13 +95,13 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             @Override
             public void call(final Subscriber<? super ObservableConnection<I, O>> subscriber) {
                 try {
-                    stateChangeObservable.onNext(StateChangeEvent.onAcquireAttempted);
+                    stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireAttempted);
                     PooledConnection<I, O> idleConnection = getAnIdleConnection();
 
                     if (null != idleConnection) { // Found a usable connection
                         idleConnection.beforeReuse();
-                        stateChangeObservable.onNext(StateChangeEvent.OnConnectionReuse);
-                        stateChangeObservable.onNext(StateChangeEvent.onAcquireSucceeded);
+                        stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionReuse);
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
                         subscriber.onNext(idleConnection);
                         subscriber.onCompleted();
                     } else if (limitDeterminationStrategy.acquireCreationPermit()) { // Check if it is allowed to create another connection.
@@ -117,11 +117,11 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                             newConnectionSubscriber.onError(throwable);
                         }
                     } else { // Pool Exhausted
-                        stateChangeObservable.onNext(StateChangeEvent.onAcquireFailed);
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireFailed);
                         subscriber.onError(POOL_EXHAUSTED_EXCEPTION);
                     }
                 } catch (Throwable throwable) {
-                    stateChangeObservable.onNext(StateChangeEvent.onAcquireFailed);
+                    stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireFailed);
                     subscriber.onError(throwable);
                 }
             }
@@ -138,18 +138,18 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             return Observable.error(new IllegalArgumentException("Returned a null connection to the pool."));
         }
         try {
-            stateChangeObservable.onNext(StateChangeEvent.onReleaseAttempted);
+            stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseAttempted);
             if (isShutdown.get() || !connection.isUsable()) {
                 discardConnection(connection);
-                stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
+                stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseSucceeded);
                 return Observable.empty();
             } else {
                 idleConnections.add(connection);
-                stateChangeObservable.onNext(StateChangeEvent.onReleaseSucceeded);
+                stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseSucceeded);
                 return Observable.empty();
             }
         } catch (Throwable throwable) {
-            stateChangeObservable.onNext(StateChangeEvent.onReleaseFailed);
+            stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseFailed);
             return Observable.error(throwable);
         }
     }
@@ -173,7 +173,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     @Override
-    public Observable<StateChangeEvent> stateChangeObservable() {
+    public Observable<PoolStateChangeEvent> poolStateChangeObservable() {
         return stateChangeObservable;
     }
 
@@ -218,7 +218,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     private Observable<Void> discardConnection(PooledConnection<I, O> idleConnection) {
-        stateChangeObservable.onNext(StateChangeEvent.OnConnectionEviction);
+        stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionEviction);
         return idleConnection.closeUnderlyingChannel();
     }
 
@@ -227,15 +227,15 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         return Subscribers.create(new Action1<ObservableConnection<I, O>>() {
                                       @Override
                                       public void call(ObservableConnection<I, O> o) {
-                                          stateChangeObservable.onNext(StateChangeEvent.NewConnectionCreated);
-                                          stateChangeObservable.onNext(StateChangeEvent.onAcquireSucceeded);
+                                          stateChangeObservable.onNext(PoolStateChangeEvent.NewConnectionCreated);
+                                          stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
                                           subscriber.onNext(o);
                                           subscriber.onCompleted(); // This subscriber is for "A" connection, so it should be completed.
                                       }
                                   }, new Action1<Throwable>() {
                                       @Override
                                       public void call(Throwable throwable) {
-                                          stateChangeObservable.onNext(StateChangeEvent.ConnectFailed);
+                                          stateChangeObservable.onNext(PoolStateChangeEvent.ConnectFailed);
                                           subscriber.onError(throwable);
                                       }
                                   }

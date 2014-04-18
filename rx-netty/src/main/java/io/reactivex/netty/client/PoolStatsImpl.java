@@ -3,7 +3,6 @@ package io.reactivex.netty.client;
 import com.netflix.numerus.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Observer;
 
 /**
  * @author Nitesh Kant
@@ -62,7 +61,7 @@ public class PoolStatsImpl implements PoolStats, PoolStatsProvider {
     }
 
     @Override
-    public void onNext(PoolInsightProvider.StateChangeEvent stateChangeEvent) {
+    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
         switch (stateChangeEvent) {
             case NewConnectionCreated:
                 onConnectionCreation();

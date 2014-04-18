@@ -7,7 +7,7 @@ import rx.Observer;
  *
  * @author Nitesh Kant
  */
-public interface PoolLimitDeterminationStrategy extends Observer<PoolInsightProvider.StateChangeEvent> {
+public interface PoolLimitDeterminationStrategy extends Observer<PoolInsightProvider.PoolStateChangeEvent> {
 
     boolean acquireCreationPermit();
 

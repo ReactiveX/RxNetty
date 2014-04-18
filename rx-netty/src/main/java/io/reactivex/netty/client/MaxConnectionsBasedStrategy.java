@@ -82,7 +82,7 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
     }
 
     @Override
-    public void onNext(PoolInsightProvider.StateChangeEvent stateChangeEvent) {
+    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
         switch (stateChangeEvent) {
             case NewConnectionCreated:
                 break;

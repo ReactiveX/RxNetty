@@ -6,7 +6,7 @@ import rx.Observer;
 /**
 * @author Nitesh Kant
 */
-public class TrackableStateChangeListener implements Observer<PoolInsightProvider.StateChangeEvent> {
+public class TrackableStateChangeListener implements Observer<PoolInsightProvider.PoolStateChangeEvent> {
 
     private final LongAdder creationCount = new LongAdder();
     private final LongAdder failedCount = new LongAdder();
@@ -110,7 +110,7 @@ public class TrackableStateChangeListener implements Observer<PoolInsightProvide
     }
 
     @Override
-    public void onNext(PoolInsightProvider.StateChangeEvent stateChangeEvent) {
+    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
         switch (stateChangeEvent) {
             case NewConnectionCreated:
                 onConnectionCreation();
