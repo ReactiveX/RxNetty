@@ -8,8 +8,8 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     private final PoolLimitDeterminationStrategy[] strategies;
 
     public CompositePoolLimitDeterminationStrategy(PoolLimitDeterminationStrategy... strategies) {
-        if (null == strategies) {
-            throw new IllegalArgumentException("Strategies can not be null.");
+        if (null == strategies || strategies.length == 0) {
+            throw new IllegalArgumentException("Strategies can not be null or empty.");
         }
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             if (null == strategy) {
@@ -23,9 +23,11 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     public boolean acquireCreationPermit() {
         for (int i = 0; i < strategies.length; i++) {
             PoolLimitDeterminationStrategy strategy = strategies[i];
-            if (!strategy.acquireCreationPermit() && i > 0) {
-                for (int j = i - 1; j >= 0; j--) {
-                    strategies[j].onNext(PoolInsightProvider.StateChangeEvent.ConnectFailed); // release all permits acquired before this failure.
+            if (!strategy.acquireCreationPermit()) {
+                if (i > 0) {
+                    for (int j = i - 1; j >= 0; j--) {
+                        strategies[j].onNext(PoolInsightProvider.StateChangeEvent.ConnectFailed); // release all permits acquired before this failure.
+                    }
                 }
                 return false;
             }
@@ -40,16 +42,12 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
      */
     @Override
     public int getAvailablePermits() {
-        int minPermits = 0;
+        int minPermits = Integer.MAX_VALUE;
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             int availablePermits = strategy.getAvailablePermits();
-            if (0 == minPermits) {
-                minPermits = availablePermits;
-            } else {
-                minPermits = Math.min(minPermits, availablePermits);
-            }
+            minPermits = Math.min(minPermits, availablePermits);
         }
-        return minPermits;
+        return minPermits; // If will atleast be one strategy (invariant in constructor) and hence this should be the value provided by that strategy.
     }
 
     @Override
