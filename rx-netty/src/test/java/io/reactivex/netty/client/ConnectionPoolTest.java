@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Nitesh Kant
@@ -30,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 public class ConnectionPoolTest {
 
     public static final int MAX_IDLE_TIME_MILLIS = 1000;
+    private static final AtomicLong testIdGenerator = new AtomicLong();
+
     private ConnectionPoolImpl<String, String> pool;
     private RxClient.ServerInfo serverInfo;
     private Bootstrap clientBootstrap;
@@ -40,18 +43,23 @@ public class ConnectionPoolTest {
     private PoolStats stats;
     private ConnectionHandlerImpl serverConnHandler;
     private PipelineConfigurator<String,String> pipelineConfigurator;
+    private String testId;
 
     @Before
     public void setUp() throws Exception {
+        long currentTime = System.currentTimeMillis();
+        testId = String.valueOf(testIdGenerator.incrementAndGet());
+        System.out.println("Time: " + currentTime + ". Setting up test id: " + testId);
         serverInfo = new RxClient.ServerInfo("localhost", 9999);
-        serverConnHandler = new ConnectionHandlerImpl();
+        serverConnHandler = new ConnectionHandlerImpl(testId);
         server = RxNetty.createTcpServer(9999, PipelineConfigurators.textOnlyConfigurator(),
                                          serverConnHandler).start();
         stateChangeListener = new TrackableStateChangeListener();
         strategy = new MaxConnectionsBasedStrategy(1);
         clientBootstrap = new Bootstrap().group(new NioEventLoopGroup(4))
                                          .channel(NioSocketChannel.class);
-        pipelineConfigurator = new PipelineConfiguratorComposite<String, String>(PipelineConfigurators.textOnlyConfigurator(), new PipelineConfigurator() {
+        pipelineConfigurator = new PipelineConfiguratorComposite<String, String>(
+                PipelineConfigurators.textOnlyConfigurator(), new PipelineConfigurator() {
             @Override
             public void configureNewPipeline(ChannelPipeline pipeline) {
                 channelCloseListener.reset();
@@ -66,6 +74,8 @@ public class ConnectionPoolTest {
 
     @After
     public void tearDown() throws Exception {
+        long currentTime = System.currentTimeMillis();
+        System.out.println("Time: " + currentTime + ". Tearing down test id: " + testId);
         if (null != pool) {
             pool.shutdown();
         }
@@ -336,14 +346,21 @@ public class ConnectionPoolTest {
 
     private static class ConnectionHandlerImpl implements ConnectionHandler<String, String> {
 
+        private final String testId;
         private volatile boolean closeConnectionOnReceive = true;
         private final ConcurrentLinkedQueue<ObservableConnection<String, String>> lastReceivedConnection =
                 new ConcurrentLinkedQueue<ObservableConnection<String, String>>();
 
+        private ConnectionHandlerImpl(String testId) {
+            this.testId = testId;
+        }
+
         @Override
         public Observable<Void> handle(final ObservableConnection<String, String> newConnection) {
             lastReceivedConnection.add(newConnection);
+            System.out.println("Test Id: " + testId + ". Added a new connection on the server.");
             if (closeConnectionOnReceive) {
+                System.out.println("Test Id: " + testId + ". Closed the newly created connection on the server.");
                 return newConnection.close();
             } else {
                 return Observable.create(new Observable.OnSubscribe<Void>() {
@@ -367,7 +384,7 @@ public class ConnectionPoolTest {
             while (iterator.hasNext()) {
                 ObservableConnection<String, String> next = iterator.next();
                 next.close();
-                System.out.println("Removed a connection from the server.");
+                System.out.println("Test Id: " + testId + ". Removed a connection from the server.");
                 iterator.remove();
             }
         }
