@@ -108,7 +108,6 @@ public class ConnectionPoolTest {
 
         serverConnHandler.closeAllClientConnections();
 
-        connection.close();
         waitForClose();
         assertAllConnectionsReturned();
     }
