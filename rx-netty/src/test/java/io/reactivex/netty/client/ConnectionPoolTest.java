@@ -106,9 +106,8 @@ public class ConnectionPoolTest {
         Assert.assertEquals("Connection reuse callback not received.", 1, stateChangeListener.getReuseCount());
         Assert.assertEquals("Connection not reused.", connection, reusedConn);
 
-        serverConnHandler.closeLastReceivedConnection();
+        serverConnHandler.closeAllClientConnections();
 
-        connection.close();
         waitForClose();
         assertAllConnectionsReturned();
     }
@@ -360,11 +359,15 @@ public class ConnectionPoolTest {
             this.closeConnectionOnReceive = closeConnectionOnReceive;
         }
 
-        public void closeLastReceivedConnection() {
-            Iterator<ObservableConnection<String,String>> iterator = lastReceivedConnection.iterator();
+        public void closeAllClientConnections() {
+            if (lastReceivedConnection.size() <= 0) {
+                throw new IllegalStateException("No connections on the server to close.");
+            }
+            Iterator<ObservableConnection<String, String>> iterator = lastReceivedConnection.iterator();
             while (iterator.hasNext()) {
                 ObservableConnection<String, String> next = iterator.next();
                 next.close();
+                System.out.println("Removed a connection from the server.");
                 iterator.remove();
             }
         }
