@@ -96,7 +96,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             public void call(final Subscriber<? super ObservableConnection<I, O>> subscriber) {
                 try {
                     stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireAttempted);
-                    PooledConnection<I, O> idleConnection = getAnIdleConnection();
+                    PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
 
                     if (null != idleConnection) { // Found a usable connection
                         idleConnection.beforeReuse();
@@ -191,10 +191,10 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         if (null != idleConnCleanupScheduleFuture) {
             idleConnCleanupScheduleFuture.cancel(true);
         }
-        PooledConnection<I, O> idleConnection = getAnIdleConnection();
+        PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
         while (null != idleConnection) {
             discardConnection(idleConnection);
-            idleConnection = getAnIdleConnection();
+            idleConnection = getAnIdleConnection(true);
         }
         stateChangeObservable.onCompleted();
     }
@@ -204,12 +204,15 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         return new PooledConnection<I, O>(ctx, this, poolConfig.getMaxIdleTimeMillis());
     }
 
-    private PooledConnection<I, O> getAnIdleConnection() {
-        PooledConnection<I, O> idleConnection = idleConnections.poll();
-        while (null != idleConnection) {
+    private PooledConnection<I, O> getAnIdleConnection(boolean claimConnectionIfFound) {
+        PooledConnection<I, O> idleConnection;
+        while ((idleConnection = idleConnections.poll()) != null) {
             if (!idleConnection.isUsable()) {
                 discardConnection(idleConnection);
-                idleConnection = idleConnections.poll();
+            } else if (claimConnectionIfFound) {
+                if (idleConnection.claim()) {
+                    break;
+                }
             } else {
                 break;
             }
@@ -259,7 +262,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                 Iterator<PooledConnection<I,O>> iterator = idleConnections.iterator(); // Weakly consistent iterator
                 while (iterator.hasNext()) {
                     PooledConnection<I, O> idleConnection = iterator.next();
-                    if (!idleConnection.isUsable()) {
+                    if (!idleConnection.isUsable() && idleConnection.claim()) {
                         iterator.remove();
                         discardConnection(idleConnection); // Don't use pool.discard() as that won't do anything if the
                                                            // connection isn't there in the idle queue, which is the case here.
