@@ -21,6 +21,9 @@ import rx.Observable;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * @param <I> The request object type for this client.
+ * @param <O> The response object type for this client.
+ *
  * @author Nitesh Kant
  */
 public interface RxClient<I, O> extends PoolInsightProvider {

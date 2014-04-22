@@ -32,10 +32,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * The base class for all connection oriented clients inside RxNetty.
  * 
- * @param <I>
- *            The request object type for this client.
- * @param <O>
- *            The response object type for this client.
+ * @param <I> The request object type for this client.
+ * @param <O> The response object type for this client.
  */
 public class RxClientImpl<I, O> implements RxClient<I, O> {
 
