@@ -15,23 +15,27 @@ import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TestName;
 import rx.Observable;
 import rx.Subscriber;
+import rx.functions.Action0;
 
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * @author Nitesh Kant
  */
 public class ConnectionPoolTest {
 
-    public static final int MAX_IDLE_TIME_MILLIS = 1000;
-    private static final AtomicLong testIdGenerator = new AtomicLong();
+    @Rule public TestName name = new TestName();
+
+    public static final int MAX_IDLE_TIME_MILLIS = 10000;
 
     private ConnectionPoolImpl<String, String> pool;
     private RxClient.ServerInfo serverInfo;
@@ -47,8 +51,8 @@ public class ConnectionPoolTest {
 
     @Before
     public void setUp() throws Exception {
+        testId = name.getMethodName();
         long currentTime = System.currentTimeMillis();
-        testId = String.valueOf(testIdGenerator.incrementAndGet());
         System.out.println("Time: " + currentTime + ". Setting up test id: " + testId);
         serverInfo = new RxClient.ServerInfo("localhost", 9999);
         serverConnHandler = new ConnectionHandlerImpl(testId);
@@ -83,6 +87,11 @@ public class ConnectionPoolTest {
             clientBootstrap.group().shutdownGracefully();
         }
         if (null != server) {
+            try {
+                serverConnHandler.closeAllClientConnections();
+            } catch (IllegalStateException e) {
+                // Do nothing if there are no connections
+            }
             server.shutdown();
             server.waitTillShutdown();
         }
@@ -193,7 +202,8 @@ public class ConnectionPoolTest {
 
         Assert.assertEquals("Unexpected pool idle count post shutdown.", 3, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count post shutdown.", 0, stats.getInUseCount());
-        Assert.assertEquals("Unexpected pool total connections count post shutdown.", 3, stats.getTotalConnectionCount());
+        Assert.assertEquals("Unexpected pool total connections count post shutdown.", 3,
+                            stats.getTotalConnectionCount());
 
         pool.shutdown();
 
@@ -336,11 +346,19 @@ public class ConnectionPoolTest {
                             stats.getTotalConnectionCount());
     }
 
-    private ObservableConnection<String, String> acquireAndTestStats() {
+    private ObservableConnection<String, String> acquireAndTestStats() throws InterruptedException {
         ObservableConnection<String, String> conn = pool.acquire(pipelineConfigurator).toBlockingObservable().last();
         Assert.assertEquals("Unexpected pool idle count.", 0, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count.", 1, stats.getInUseCount());
         Assert.assertEquals("Unexpected pool total connections count.", 1, stats.getTotalConnectionCount());
+        final CountDownLatch writeFinishLatch = new CountDownLatch(1);
+        conn.writeAndFlush("Hi").finallyDo(new Action0() {
+            @Override
+            public void call() {
+                writeFinishLatch.countDown();
+            }
+        });
+        writeFinishLatch.await(1, TimeUnit.SECONDS);
         return conn;
     }
 
@@ -357,10 +375,11 @@ public class ConnectionPoolTest {
 
         @Override
         public Observable<Void> handle(final ObservableConnection<String, String> newConnection) {
+            long currentTime = System.currentTimeMillis();
             lastReceivedConnection.add(newConnection);
-            System.out.println("Test Id: " + testId + ". Added a new connection on the server.");
+            System.out.println("Time: " + currentTime + ". Test Id: " + testId + ". Added a new connection on the server.");
             if (closeConnectionOnReceive) {
-                System.out.println("Test Id: " + testId + ". Closed the newly created connection on the server.");
+                System.out.println("Time: " + currentTime + ". Test Id: " + testId + ". Closed the newly created connection on the server.");
                 return newConnection.close();
             } else {
                 return Observable.create(new Observable.OnSubscribe<Void>() {
@@ -377,14 +396,15 @@ public class ConnectionPoolTest {
         }
 
         public void closeAllClientConnections() {
+            long currentTime = System.currentTimeMillis();
             if (lastReceivedConnection.size() <= 0) {
-                throw new IllegalStateException("No connections on the server to close.");
+                throw new IllegalStateException("Time: " + currentTime + ". No connections on the server to close.");
             }
             Iterator<ObservableConnection<String, String>> iterator = lastReceivedConnection.iterator();
             while (iterator.hasNext()) {
                 ObservableConnection<String, String> next = iterator.next();
                 next.close();
-                System.out.println("Test Id: " + testId + ". Removed a connection from the server.");
+                System.out.println("Time: " + currentTime + ". Test Id: " + testId + ". Removed a connection from the server.");
                 iterator.remove();
             }
         }
