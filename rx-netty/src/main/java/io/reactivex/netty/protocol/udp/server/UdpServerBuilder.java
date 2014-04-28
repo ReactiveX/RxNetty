@@ -1,10 +1,11 @@
-package io.reactivex.netty.server;
+package io.reactivex.netty.protocol.udp.server;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.server.AbstractServerBuilder;
 
 /**
  * @author Nitesh Kant

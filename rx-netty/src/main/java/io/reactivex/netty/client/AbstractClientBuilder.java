@@ -160,7 +160,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return createClient();
     }
 
-    private boolean shouldCreateConnectionPool() {
+    protected boolean shouldCreateConnectionPool() {
         return null == connectionPool && null != limitDeterminationStrategy
                || idleConnectionsTimeoutMillis != PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
     }

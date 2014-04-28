@@ -20,7 +20,7 @@ public final class HelloUdpClient {
                        Observable<DatagramPacket>>() {
                    @Override
                    public Observable<DatagramPacket> call(ObservableConnection<DatagramPacket, DatagramPacket> connection) {
-                       System.out.println("HelloUdpClient.call");
+                       connection.writeStringAndFlush("Is there anybody out there?");
                        return connection.getInput();
                    }
                }).toBlockingObservable().forEach(new Action1<DatagramPacket>() {

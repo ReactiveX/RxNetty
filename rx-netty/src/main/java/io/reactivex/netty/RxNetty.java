@@ -16,8 +16,11 @@
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.RxEventLoopProvider;
 import io.reactivex.netty.channel.SingleNioLoopProvider;
@@ -33,10 +36,11 @@ import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
+import io.reactivex.netty.protocol.udp.client.UdpClientBuilder;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
-import io.reactivex.netty.server.UdpServer;
-import io.reactivex.netty.server.UdpServerBuilder;
+import io.reactivex.netty.protocol.udp.server.UdpServer;
+import io.reactivex.netty.protocol.udp.server.UdpServerBuilder;
 
 import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS;
 
@@ -47,6 +51,30 @@ public final class RxNetty {
     private RxNetty() {
     }
 
+    public static <I, O> UdpServer<I, O> createUdpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
+                                                         ConnectionHandler<I, O> connectionHandler) {
+        return new UdpServerBuilder<I, O>(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
+    }
+
+    public static <I, O> RxClient<I, O> createUdpClient(String host, int port,
+                                                        PipelineConfigurator<O, I> pipelineConfigurator) {
+        return new UdpClientBuilder<I, O>(host, port).channel(NioDatagramChannel.class)
+                .eventloop(getRxEventLoopProvider().globalClientEventLoop())
+                .pipelineConfigurator(pipelineConfigurator)
+                .build();
+    }
+
+    public static UdpServer<DatagramPacket, DatagramPacket> createUdpServer(final int port,
+                                                                            ConnectionHandler<DatagramPacket, DatagramPacket> connectionHandler) {
+        return new UdpServerBuilder<DatagramPacket, DatagramPacket>(port, connectionHandler).build();
+    }
+
+    public static RxClient<DatagramPacket, DatagramPacket> createUdpClient(String host, int port) {
+        return new UdpClientBuilder<DatagramPacket, DatagramPacket>(host, port)
+                .channel(NioDatagramChannel.class)
+                .eventloop(getRxEventLoopProvider().globalClientEventLoop()).build();
+    }
+
     public static <I, O> RxServer<I, O> createTcpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
                                                         ConnectionHandler<I, O> connectionHandler) {
         return new ServerBuilder<I, O>(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
@@ -54,16 +82,6 @@ public final class RxNetty {
 
     public static <I, O> RxClient<I, O> createTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
         return new ClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
-    }
-
-    public static UdpServer<DatagramPacket, DatagramPacket> createUdpServer(final int port,
-                                                             ConnectionHandler<DatagramPacket, DatagramPacket> connectionHandler) {
-        return new UdpServerBuilder<DatagramPacket, DatagramPacket>(port, connectionHandler).build();
-    }
-
-    public static RxClient<DatagramPacket, DatagramPacket> createUdpClient(String host, int port) {
-        return new ClientBuilder<DatagramPacket, DatagramPacket>(host, port)
-                .channel(NioDatagramChannel.class).eventloop(getRxEventLoopProvider().globalClientEventLoop()).build();
     }
 
     public static RxServer<ByteBuf, ByteBuf> createTcpServer(final int port,

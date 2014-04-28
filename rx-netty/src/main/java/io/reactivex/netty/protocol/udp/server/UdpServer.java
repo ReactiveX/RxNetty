@@ -1,10 +1,10 @@
-package io.reactivex.netty.server;
+package io.reactivex.netty.protocol.udp.server;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.server.AbstractServer;
 
 /**
  * A UDP/IP server.

@@ -25,8 +25,8 @@ import rx.subscriptions.Subscriptions;
 public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O> {
 
     protected final Bootstrap clientBootstrap;
-    private final ObservableConnectionFactory<I, O> connectionFactory;
-    private final RxClient.ServerInfo serverInfo;
+    protected final ObservableConnectionFactory<I, O> connectionFactory;
+    protected final RxClient.ServerInfo serverInfo;
 
     public ClientChannelFactoryImpl(Bootstrap clientBootstrap, ObservableConnectionFactory<I, O> connectionFactory,
                                     RxClient.ServerInfo serverInfo) {
@@ -50,8 +50,8 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
             }
         });
 
-        final ChannelFuture connectFuture = clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort())
-                                                           .addListener(connHandler);
+        final ChannelFuture connectFuture = _connect().addListener(connHandler);
+
         subscriber.add(Subscriptions.create(new Action0() {
             @Override
             public void call() {
@@ -62,6 +62,10 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
         }));
 
         return connectFuture;
+    }
+
+    protected ChannelFuture _connect() {
+        return clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort());
     }
 
 

@@ -1,13 +1,18 @@
 package io.reactivex.netty.examples.java;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
 import rx.functions.Func1;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 
 /**
@@ -22,13 +27,15 @@ public final class HelloUdpServer {
         RxNetty.createUdpServer(PORT, new ConnectionHandler<DatagramPacket, DatagramPacket>() {
             @Override
             public Observable<Void> handle(final ObservableConnection<DatagramPacket, DatagramPacket> newConnection) {
-                System.out.println("HelloUdpServer.handle");
                 return newConnection.getInput().flatMap(new Func1<DatagramPacket, Observable<Void>>() {
                     @Override
                     public Observable<Void> call(DatagramPacket received) {
-                        System.out.println("HelloUdpServer.call");
+                        InetSocketAddress sender = received.sender();
+                        System.out.println("Received datagram. Sender: " + sender + ", data: "
+                                           + received.content().toString(Charset.defaultCharset()));
                         ByteBuf data = newConnection.getChannelHandlerContext().alloc().buffer(WELCOME_MSG_BYTES.length);
-                        return newConnection.writeAndFlush(new DatagramPacket(data, received.sender()));
+                        data.writeBytes(WELCOME_MSG_BYTES);
+                        return newConnection.writeAndFlush(new DatagramPacket(data, sender));
                     }
                 });
             }
