@@ -21,7 +21,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurators
 import io.reactivex.netty.server.RxServer
 import rx.Notification
 import rx.Observable
-import rx.util.functions.Action1
+import rx.functions.Action1
 
 import java.util.concurrent.TimeUnit
 

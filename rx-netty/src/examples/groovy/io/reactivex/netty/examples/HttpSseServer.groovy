@@ -24,7 +24,7 @@ import io.reactivex.netty.channel.ObservableConnection
 import io.reactivex.netty.protocol.http.server.HttpServer
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent
 import rx.Notification
-import rx.util.functions.Action1
+import rx.functions.Action1
 
 import java.util.concurrent.TimeUnit
 
