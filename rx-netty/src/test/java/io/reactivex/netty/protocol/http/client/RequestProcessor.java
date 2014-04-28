@@ -28,6 +28,7 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 
 import rx.Observable;
@@ -107,7 +108,7 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
                 new Func1<Throwable, Observable<ByteBuf>>() {
                     @Override
                     public Observable<ByteBuf> call(Throwable throwable) {
-                        if (throwable instanceof IllegalArgumentException) {
+                        if (throwable instanceof NoSuchElementException) {
                             return Observable.from(Unpooled.EMPTY_BUFFER);
                         }
                         return Observable.error(throwable);
