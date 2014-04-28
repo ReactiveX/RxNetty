@@ -7,6 +7,8 @@ import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * An extension of {@link ObservableConnection} that is used by {@link ConnectionPool}
  *
@@ -14,6 +16,9 @@ import rx.subjects.PublishSubject;
  * @param <O> The type of objects that are written to this connection.
  */
 public class PooledConnection<I, O> extends ObservableConnection<I, O> {
+
+    private final AtomicBoolean acquiredOrSoonToBeDiscarded = new AtomicBoolean(); // Being paranoid on the name as this
+                                                                                   // is exactly what it is doing and I don't want this flag use to be overloaded.
 
     private final ConnectionPool<I, O> pool;
 
@@ -33,10 +38,12 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
 
     @Override
     public Observable<Void> close() {
+        acquiredOrSoonToBeDiscarded.compareAndSet(true, false); // There isn't anything else to be done here.
+
         if (!isUsable()) {
             pool.discard(this); // This is the case where multiple close are invoked on the same connection.
-                                // One results in release and then the other result in discard if the call was
-                                // because of an underlying channel close.
+            // One results in release and then the other result in discard if the call was
+            // because of an underlying channel close.
         }
 
         return super.close();
@@ -93,5 +100,14 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
 
     /*Visible for testing*/ void setLastReturnToPoolTimeMillis(long lastReturnToPoolTimeMillis) {
         this.lastReturnToPoolTimeMillis = lastReturnToPoolTimeMillis;
+    }
+
+    /**
+     * Claims the connection, till {@link #close()} is called.
+     *
+     * @return {@code true} if the connection could be claimed, else {@code false}
+     */
+    /*Package private to be used only by ConnectionPoolImp. The contract is too weak to be public*/ boolean claim() {
+        return acquiredOrSoonToBeDiscarded.compareAndSet(false, true);
     }
 }

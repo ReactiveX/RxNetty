@@ -19,7 +19,7 @@ import io.reactivex.netty.RxNetty
 import io.reactivex.netty.channel.ObservableConnection
 import io.reactivex.netty.pipeline.PipelineConfigurators
 import io.reactivex.netty.server.RxServer
-import rx.util.functions.Action1
+import rx.functions.Action1
 
 class TcpEchoServer {
 

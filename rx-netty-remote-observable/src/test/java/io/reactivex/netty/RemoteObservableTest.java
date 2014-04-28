@@ -324,7 +324,7 @@ public class RemoteObservableTest {
 			.getObservable();
 
 		// assert
-		MathObservable.sumInteger(ro1).toBlockingObservable().forEach(new Action1<Integer>(){
+        MathObservable.sumInteger(ro1).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(5050, t1.intValue()); // sum of number 0-100
@@ -370,7 +370,7 @@ public class RemoteObservableTest {
 		// connect
 		Observable<Integer> oc = RemoteObservable.connect("localhost", port, Codecs.integer());
 		// assert
-		MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
+        MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(20200, t1.intValue()); // sum of number 0-200
@@ -400,7 +400,7 @@ public class RemoteObservableTest {
 		// connect
 		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
 		// assert
-		MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
+        MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(5050, t1.intValue()); // sum of number 0-100
@@ -439,7 +439,7 @@ public class RemoteObservableTest {
 		// connect
 		Observable<Integer> oc = RemoteObservable.connect("localhost", serverPort, Codecs.integer());
 		// assert
-		MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
+        MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(45150, t1.intValue()); // sum of number 0-200
@@ -481,7 +481,7 @@ public class RemoteObservableTest {
 		subject.onCompleted();
 		
 		// assert
-		MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
+        MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(80200, t1.intValue()); // sum of number 0-200
