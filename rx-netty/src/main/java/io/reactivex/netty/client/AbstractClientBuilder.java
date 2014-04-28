@@ -17,6 +17,7 @@ package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -38,7 +39,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
     protected PipelineConfigurator<O, I> pipelineConfigurator;
-    protected Class<? extends SocketChannel> socketChannel;
+    protected Class<? extends Channel> socketChannel;
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
     protected ConnectionPool<O, I> connectionPool;
@@ -59,9 +60,18 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     }
 
     public B defaultChannelOptions() {
+        return channelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
+    }
+
+    public B defaultTcpOptions() {
+        defaultChannelOptions();
         channelOption(ChannelOption.SO_KEEPALIVE, true);
-        channelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         return channelOption(ChannelOption.TCP_NODELAY, true);
+    }
+
+    public B defaultUdpOptions() {
+        defaultChannelOptions();
+        return channelOption(ChannelOption.SO_BROADCAST, true);
     }
 
     public B pipelineConfigurator(PipelineConfigurator<O, I> pipelineConfigurator) {
@@ -74,7 +84,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
-    public B channel(Class<? extends SocketChannel> socketChannel) {
+    public B channel(Class<? extends Channel> socketChannel) {
         this.socketChannel = socketChannel;
         return returnBuilder();
     }

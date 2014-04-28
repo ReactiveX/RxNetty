@@ -16,6 +16,8 @@
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.socket.DatagramPacket;
+import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.RxEventLoopProvider;
 import io.reactivex.netty.channel.SingleNioLoopProvider;
@@ -33,6 +35,8 @@ import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
+import io.reactivex.netty.server.UdpServer;
+import io.reactivex.netty.server.UdpServerBuilder;
 
 import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS;
 
@@ -50,6 +54,16 @@ public final class RxNetty {
 
     public static <I, O> RxClient<I, O> createTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
         return new ClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
+    }
+
+    public static UdpServer<DatagramPacket, DatagramPacket> createUdpServer(final int port,
+                                                             ConnectionHandler<DatagramPacket, DatagramPacket> connectionHandler) {
+        return new UdpServerBuilder<DatagramPacket, DatagramPacket>(port, connectionHandler).build();
+    }
+
+    public static RxClient<DatagramPacket, DatagramPacket> createUdpClient(String host, int port) {
+        return new ClientBuilder<DatagramPacket, DatagramPacket>(host, port)
+                .channel(NioDatagramChannel.class).eventloop(getRxEventLoopProvider().globalClientEventLoop()).build();
     }
 
     public static RxServer<ByteBuf, ByteBuf> createTcpServer(final int port,

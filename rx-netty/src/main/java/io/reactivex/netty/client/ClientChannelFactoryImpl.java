@@ -1,6 +1,7 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -42,9 +43,9 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
         final PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(connHandler,
                                                                                            pipelineConfigurator);
         // make the connection
-        clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
+        clientBootstrap.handler(new ChannelInitializer<Channel>() {
             @Override
-            public void initChannel(SocketChannel ch) throws Exception {
+            public void initChannel(Channel ch) throws Exception {
                 configurator.configureNewPipeline(ch.pipeline());
             }
         });
