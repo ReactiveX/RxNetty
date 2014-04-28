@@ -6,6 +6,7 @@ targetCompatibility = JavaVersion.VERSION_1_6
 dependencies {
 	compile project(':rx-netty')
 	compile 'com.netflix.numerus:numerus:1.+'
+    compile 'com.netflix.rxjava:rxjava-math:[0.17,)'
 	compile 'org.slf4j:slf4j-api:1.7.0'
 	compile 'org.slf4j:slf4j-log4j12:1.7.0'
     testCompile 'junit:junit:4.10'
