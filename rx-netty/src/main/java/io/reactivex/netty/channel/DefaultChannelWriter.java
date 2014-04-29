@@ -2,6 +2,7 @@ package io.reactivex.netty.channel;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
@@ -93,13 +94,17 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
         return ctx.alloc();
     }
 
+    public ChannelHandlerContext getChannelHandlerContext() {
+        return ctx;
+    }
+
     protected ChannelFuture writeOnChannel(Object msg) {
-        ChannelFuture writeFuture = ctx.channel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the head of the pipeline.
+        ChannelFuture writeFuture = getChannel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the head of the pipeline.
         unflushedWritesListener.listen(writeFuture);
         return writeFuture;
     }
 
-    public ChannelHandlerContext getChannelHandlerContext() {
-        return ctx;
+    protected Channel getChannel() {
+        return ctx.channel();
     }
 }
