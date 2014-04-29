@@ -23,7 +23,7 @@ import io.reactivex.netty.channel.ConnectionHandler;
  *
  * @author Nitesh Kant
  */
-public class ServerBuilder<I, O> extends AbstractServerBuilder<I,O, ServerBuilder<I, O>, RxServer<I, O>> {
+public class ServerBuilder<I, O> extends ConnectionBasedServerBuilder<I,O, ServerBuilder<I, O>> {
 
     public ServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
         super(port, connectionHandler);

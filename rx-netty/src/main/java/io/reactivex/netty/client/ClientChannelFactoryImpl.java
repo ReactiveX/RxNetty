@@ -1,6 +1,7 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -24,8 +25,8 @@ import rx.subscriptions.Subscriptions;
 public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O> {
 
     protected final Bootstrap clientBootstrap;
-    private final ObservableConnectionFactory<I, O> connectionFactory;
-    private final RxClient.ServerInfo serverInfo;
+    protected final ObservableConnectionFactory<I, O> connectionFactory;
+    protected final RxClient.ServerInfo serverInfo;
 
     public ClientChannelFactoryImpl(Bootstrap clientBootstrap, ObservableConnectionFactory<I, O> connectionFactory,
                                     RxClient.ServerInfo serverInfo) {
@@ -42,15 +43,15 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
         final PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(connHandler,
                                                                                            pipelineConfigurator);
         // make the connection
-        clientBootstrap.handler(new ChannelInitializer<SocketChannel>() {
+        clientBootstrap.handler(new ChannelInitializer<Channel>() {
             @Override
-            public void initChannel(SocketChannel ch) throws Exception {
+            public void initChannel(Channel ch) throws Exception {
                 configurator.configureNewPipeline(ch.pipeline());
             }
         });
 
-        final ChannelFuture connectFuture = clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort())
-                                                           .addListener(connHandler);
+        final ChannelFuture connectFuture = _connect().addListener(connHandler);
+
         subscriber.add(Subscriptions.create(new Action0() {
             @Override
             public void call() {
@@ -61,6 +62,10 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
         }));
 
         return connectFuture;
+    }
+
+    protected ChannelFuture _connect() {
+        return clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort());
     }
 
 
