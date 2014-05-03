@@ -113,12 +113,13 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                     stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireAttempted);
                     PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
 
+                    final ClientConnectionHandler<I, O> connHandler = channelFactory.newConnectionHandler(subscriber);
+
                     if (null != idleConnection) { // Found a usable connection
                         idleConnection.beforeReuse();
                         stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionReuse);
                         stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
-                        subscriber.onNext(idleConnection);
-                        subscriber.onCompleted();
+                        connHandler.onNewConnection(idleConnection);
                     } else if (limitDeterminationStrategy.acquireCreationPermit()) { // Check if it is allowed to create another connection.
                         /**
                          * Here we want to make sure that if the connection attempt failed, we should inform the strategy.
@@ -127,7 +128,7 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                          */
                         Subscriber<ObservableConnection<I, O>> newConnectionSubscriber = newConnectionSubscriber(subscriber);
                         try {
-                            channelFactory.connect(newConnectionSubscriber, pipelineConfigurator); // Manages the callbacks to the subscriber
+                            channelFactory.connect(connHandler, pipelineConfigurator); // Manages the callbacks to the subscriber
                         } catch (Throwable throwable) {
                             newConnectionSubscriber.onError(throwable);
                         }
@@ -263,8 +264,13 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     private static class NoOpClientChannelFactory<I, O> implements ClientChannelFactory<I, O> {
 
         @Override
-        public ChannelFuture connect(Subscriber<? super ObservableConnection<I, O>> subscriber,
+        public ChannelFuture connect(ClientConnectionHandler<I, O> connectionHandler,
                                      PipelineConfigurator<I, O> pipelineConfigurator) {
+            throw new IllegalStateException("Client channel factory not set.");
+        }
+
+        @Override
+        public ClientConnectionHandler<I, O> newConnectionHandler(Subscriber<? super ObservableConnection<I, O>> subscriber) {
             throw new IllegalStateException("Client channel factory not set.");
         }
     }

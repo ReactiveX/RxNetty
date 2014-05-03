@@ -20,10 +20,13 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.channel.RxDefaultThreadFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -34,7 +37,8 @@ import java.util.concurrent.ScheduledExecutorService;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
 
-    private static final ScheduledExecutorService SHARED_IDLE_CLEANUP_SCHEDULER = Executors.newScheduledThreadPool(1);
+    private static final ScheduledExecutorService SHARED_IDLE_CLEANUP_SCHEDULER =
+            Executors.newScheduledThreadPool(1, new RxDefaultThreadFactory("global-client-idle-conn-cleanup-scheduler"));
 
     protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
@@ -44,19 +48,23 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected RxClient.ClientConfig clientConfig;
     protected ConnectionPool<O, I> connectionPool;
     protected PoolLimitDeterminationStrategy limitDeterminationStrategy;
-    private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
-    private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
-    private PoolStatsProvider statsProvider = new PoolStatsImpl();
+    protected ClientChannelAbstractFactory<O, I> clientChannelFactory;
+    protected long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
+    protected ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
+    protected PoolStatsProvider statsProvider = new PoolStatsImpl();
+    protected LogLevel wireLogginLevel;
 
-    protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port) {
+    protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port,
+                                    ClientChannelAbstractFactory<O, I> clientChannelFactory) {
         this.bootstrap = bootstrap;
+        this.clientChannelFactory = clientChannelFactory;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
         clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
         defaultChannelOptions();
     }
 
-    protected AbstractClientBuilder(String host, int port) {
-        this(new Bootstrap(), host, port);
+    protected AbstractClientBuilder(String host, int port, ClientChannelAbstractFactory<O, I> clientChannelFactory) {
+        this(new Bootstrap(), host, port, clientChannelFactory);
     }
 
     public B defaultChannelOptions() {
@@ -134,6 +142,41 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withClientChannelFactory(ClientChannelAbstractFactory<O, I> clientChannelFactory) {
+        this.clientChannelFactory = clientChannelFactory;
+        return returnBuilder();
+    }
+
+    public PipelineConfigurator<O, I> getPipelineConfigurator() {
+        return pipelineConfigurator;
+    }
+
+    public B appendPipelineConfigurator(PipelineConfigurator<O, I> additionalConfigurator) {
+        return pipelineConfigurator(PipelineConfigurators.composeConfigurators(pipelineConfigurator,
+                                                                               additionalConfigurator));
+    }
+
+    /**
+     * Enables wire level logs (all events received by netty) to be logged at the passed {@code wireLogginLevel}. <br/>
+     *
+     * Since, in most of the production systems, the logging level is set to {@link LogLevel#WARN} or
+     * {@link LogLevel#ERROR}, if this wire level logging is required for all requests (not at all recommended as this
+     * logging is very verbose), the passed level must be {@link LogLevel#WARN} or {@link LogLevel#ERROR} respectively. <br/>
+     *
+     * It is recommended to set this level to {@link LogLevel#DEBUG} and then dynamically enabled disable this log level
+     * whenever required. <br/>
+     *
+     * @param wireLogginLevel Log level at which the wire level logs will be logged.
+     *
+     * @return This builder.
+     *
+     * @see {@link LoggingHandler}
+     */
+    public B enableWireLogging(LogLevel wireLogginLevel) {
+        this.wireLogginLevel = wireLogginLevel;
+        return returnBuilder();
+    }
+
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
@@ -156,6 +199,11 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
             PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
             connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, limitDeterminationStrategy,
                                                           poolIdleCleanupScheduler, statsProvider);
+        }
+
+        if (null != wireLogginLevel) {
+            pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
+                                                                                   wireLogginLevel);
         }
         return createClient();
     }

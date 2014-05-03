@@ -29,18 +29,19 @@ public class HttpClientBuilder<I, O>
         extends AbstractClientBuilder<HttpClientRequest<I>, HttpClientResponse<O>, HttpClientBuilder<I, O>, HttpClient<I, O>> {
 
     public HttpClientBuilder(String host, int port) {
-        super(host, port);
+        super(host, port, new HttpClientChannelAbstractFactory<I, O>());
         clientConfig = HttpClient.HttpClientConfig.Builder.newDefaultConfig();
         pipelineConfigurator(PipelineConfigurators.<I, O>httpClientConfigurator());
     }
 
     public HttpClientBuilder(Bootstrap bootstrap, String host, int port) {
-        super(bootstrap, host, port);
+        super(bootstrap, host, port, new HttpClientChannelAbstractFactory<I, O>());
         pipelineConfigurator(PipelineConfigurators.<I, O>httpClientConfigurator());
     }
 
     @Override
     protected HttpClient<I, O> createClient() {
-        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, connectionPool);
+        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, connectionPool,
+                                        clientChannelFactory);
     }
 }

@@ -19,8 +19,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
-import io.reactivex.netty.client.ClientChannelFactory;
+import io.reactivex.netty.client.ClientChannelAbstractFactory;
 import io.reactivex.netty.client.ConnectionPool;
 import io.reactivex.netty.client.RxClientImpl;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -29,21 +28,22 @@ import rx.Observer;
 import rx.Subscriber;
 import rx.Subscription;
 import rx.functions.Action0;
-import rx.functions.Action1;
 import rx.subscriptions.Subscriptions;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
     public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            ClientConfig clientConfig, ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool);
+            ClientConfig clientConfig, ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool,
+            ClientChannelAbstractFactory<HttpClientResponse<O>, HttpClientRequest<I>> clientChannelAbstractFactory) {
+        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, clientChannelAbstractFactory, pool);
     }
-    
+
     public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
                           PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
                           ClientConfig clientConfig) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
+        this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, null,
+             new HttpClientChannelAbstractFactory<I, O>());
     }
 
     @Override
@@ -101,26 +101,19 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                 }));
             }
         });
-
     }
     
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
                                                  final Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable,
                                                  final ClientConfig config) {
         if (shouldFollowRedirectForRequest(config, request)) {
-            FollowRedirectHttpClientImpl<I, O> redirectClient = new FollowRedirectHttpClientImpl<I, O>(serverInfo, clientBootstrap,
-                    originalPipelineConfigurator, clientConfig, pool);
+            FollowRedirectHttpClientImpl<I, O> redirectClient =
+                    new FollowRedirectHttpClientImpl<I, O>(serverInfo, clientBootstrap, originalPipelineConfigurator,
+                                                           clientConfig, pool, clientChannelAbstractFactory);
             return redirectClient.submit(request, connectionObservable, config);
         } else {
             return submitWithoutRedirect(request, connectionObservable, config);
         }
-    }
-
-    @Override
-    protected ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> _newChannelFactory(
-            ServerInfo serverInfo, Bootstrap clientBootstrap,
-            ObservableConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>> connectionFactory) {
-        return new HttpClientChannelFactory<I, O>(clientBootstrap, connectionFactory, serverInfo);
     }
 
     /*visible for testing*/ ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> getConnectionPool() {

@@ -17,6 +17,7 @@
 package io.reactivex.netty.contexts;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.AttributeMap;
 
 /**
  * All contexts held by {@link ContextsContainer} are specific to a request and in order to uniquiely identify a request
@@ -32,42 +33,53 @@ public interface RequestIdProvider extends RequestIdGenerator {
      * * <b>This method is NOT idempotent</b>
      *
      * @param keySupplier The key supplier where usually an externally defined request Id is present.
-     * @param context Context for the channel this request arrived on.
+     * @param channelAttributeMap Channel attribute map, normally obtained as {@link ChannelHandlerContext#channel()}
      *
      * @return The request Identified or {@code null} if none exists.
      */
-    String onServerRequest(ContextKeySupplier keySupplier, ChannelHandlerContext context);
+    String onServerRequest(ContextKeySupplier keySupplier, AttributeMap channelAttributeMap);
 
     /**
      * This is primarily for response-request correlation for protocols that support multiple requests on the same
      * connection, eg: using HTTP pipelining. <br/>
      * <b>This method is NOT idempotent</b>
      *
+     *
      * @param responseKeySupplier {@link ContextKeySupplier} for the response.
-     * @param context Context for the associated channel.
+     * @param channelAttributeMap Channel attribute map, normally obtained as {@link ChannelHandlerContext#channel()}
      *
      * @return The request id, if exists. {@code null} otherwise.
      */
-    String beforeServerResponse(ContextKeySupplier responseKeySupplier, ChannelHandlerContext context);
+    String beforeServerResponse(ContextKeySupplier responseKeySupplier, AttributeMap channelAttributeMap);
 
     /**
      * This does the correlation between an inbound request and all outbound requests that are made during the
      * processing of the same request. <br/>
      * <b>This method is NOT idempotent</b>
      *
-     * @param context Context for the associated <em>client</em> channel.
+     * @param clientAttributeMap Client's channel attribute map, normally obtained as
+     * {@link ChannelHandlerContext#channel()}
      *
      * @return The request id, if exists. {@code null} otherwise.
      */
-    String beforeClientRequest(ChannelHandlerContext context);
+    String beforeClientRequest(AttributeMap clientAttributeMap);
 
     /**
      * Specifies the request id to be used while receiving a response for a client. <br/>
      * <b>This method is NOT idempotent</b>
      *
-     * @param context Context for the associated <em>client</em> channel.
+     * @param clientAttributeMap Client's channel attribute map, normally obtained as
+     * {@link ChannelHandlerContext#channel()}
      *
      * @return The request id, if exists. {@code null} otherwise.
      */
-    String onClientResponse(ChannelHandlerContext context);
+    String onClientResponse(AttributeMap clientAttributeMap);
+
+    /**
+     * Name of the context key (to be obtained via {@link ContextKeySupplier}) that is to be used to transfer the
+     * request identifier from one machine to another.
+     *
+     * @return The name of the context key for request id.
+     */
+    String getRequestIdContextKeyName();
 }

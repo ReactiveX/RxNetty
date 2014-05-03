@@ -20,10 +20,12 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 
 /**
  * @author Nitesh Kant
@@ -37,6 +39,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
     protected Class<? extends C> serverChannelClass;
     protected final ConnectionHandler<I, O> connectionHandler;
     protected final int port;
+    protected LogLevel wireLogginLevel;
 
     protected AbstractServerBuilder(int port, T bootstrap, ConnectionHandler<I, O> connectionHandler) {
         if (null == connectionHandler) {
@@ -71,9 +74,39 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         return returnBuilder();
     }
 
+    public B appendPipelineConfigurator(PipelineConfigurator<I, O> additionalConfigurator) {
+        return pipelineConfigurator(PipelineConfigurators.composeConfigurators(pipelineConfigurator,
+                                                                               additionalConfigurator));
+    }
+
+    /**
+     * Enables wire level logs (all events received by netty) to be logged at the passed {@code wireLogginLevel}. <br/>
+     *
+     * Since, in most of the production systems, the logging level is set to {@link LogLevel#WARN} or
+     * {@link LogLevel#ERROR}, if this wire level logging is required for all requests (not at all recommended as this
+     * logging is very verbose), the passed level must be {@link LogLevel#WARN} or {@link LogLevel#ERROR} respectively. <br/>
+     *
+     * It is recommended to set this level to {@link LogLevel#DEBUG} and then dynamically enabled disable this log level
+     * whenever required. <br/>
+     *
+     * @param wireLogginLevel Log level at which the wire level logs will be logged.
+     *
+     * @return This builder.
+     *
+     * @see {@link LoggingHandler}
+     */
+    public B enableWireLogging(LogLevel wireLogginLevel) {
+        this.wireLogginLevel = wireLogginLevel;
+        return returnBuilder();
+    }
+
     public B defaultChannelOptions() {
         channelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         return returnBuilder();
+    }
+
+    public PipelineConfigurator<I, O> getPipelineConfigurator() {
+        return pipelineConfigurator;
     }
 
     public S build() {
@@ -95,6 +128,10 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         }
 
         serverBootstrap.channel(serverChannelClass);
+        if (null != wireLogginLevel) {
+            pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
+                                                                                   wireLogginLevel);
+        }
         return createServer();
     }
 

@@ -52,7 +52,7 @@ tasks.build { dependsOn(examplesClasses) }
 dependencies {
     compile "io.netty:netty-codec-http:${netty_version}"
     compile "com.netflix.rxjava:rxjava-core:${rxjava_version}"
-    compile 'com.netflix.numerus:numerus:1.+'
+    compile 'com.netflix.numerus:numerus:[1.,)'
     // we only support Groovy in the /src/examples/ code
     examples 'org.codehaus.groovy:groovy-all:[2.1,)'
     examplesRuntime 'com.netflix.rxjava:rxjava-groovy:[0.17,)'

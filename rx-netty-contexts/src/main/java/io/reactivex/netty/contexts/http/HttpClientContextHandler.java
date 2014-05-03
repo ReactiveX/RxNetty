@@ -16,90 +16,65 @@
 
 package io.reactivex.netty.contexts.http;
 
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.reactivex.netty.contexts.RequestCorrelator;
-import io.reactivex.netty.contexts.ContextAttributeStorageHelper;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.contexts.AbstractClientContextHandler;
 import io.reactivex.netty.contexts.ContextKeySupplier;
-import io.reactivex.netty.contexts.ContextsContainer;
+import io.reactivex.netty.contexts.RequestCorrelator;
 import io.reactivex.netty.contexts.RequestIdProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Map;
+public class HttpClientContextHandler extends AbstractClientContextHandler<HttpResponse, HttpRequest> {
 
-/**
- * This handler does the following:
- *
- * <ul>
- <li>Writes any contexts available in {@link ContextsContainer} for the request id obtained by
- {@link RequestIdProvider}</li>
- <li>Reads any contexts written back from the server by calling
- {@link ContextsContainer#consumeBidirectionalContextsFromResponse(ContextKeySupplier)}</li>
- </ul>
- *
- * @author Nitesh Kant
- */
-public class HttpClientContextHandler extends ChannelDuplexHandler {
+    private String currentlyProcessingRequestId; // Updated only on read to account for pipelining.
 
-    private static final Logger logger = LoggerFactory.getLogger(HttpClientContextHandler.class);
-
-    private final RequestIdProvider requestIdProvider;
-    private final RequestCorrelator contextProvider;
-
-    public HttpClientContextHandler(RequestIdProvider requestIdProvider, RequestCorrelator contextProvider) {
+    public HttpClientContextHandler(RequestIdProvider requestIdProvider, RequestCorrelator correlator) {
+        super(correlator, requestIdProvider);
         if (null == requestIdProvider) {
             throw new IllegalArgumentException("Request Id Provider can not be null.");
         }
-        if (null == contextProvider) {
+        if (null == correlator) {
             throw new IllegalArgumentException("Client context provider can not be null.");
         }
-        this.contextProvider = contextProvider;
-        this.requestIdProvider = requestIdProvider;
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof HttpResponse) {
-            HttpResponse response = (HttpResponse) msg;
-            String requestId = requestIdProvider.onClientResponse(ctx);
-            if (null != requestId) {
-                ContextsContainer container = ContextAttributeStorageHelper.getContainer(ctx, requestId);
-                if (null != container) {
-                    ContextKeySupplier keySupplier = new HttpContextKeySupplier(response.headers());
-                    container.consumeBidirectionalContextsFromResponse(keySupplier);
-                }
-            }
-        }
-        super.channelRead(ctx, msg);
+    protected boolean isAcceptableToRead(Object msg) {
+        return msg instanceof HttpResponse;
     }
 
     @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+    protected boolean isAcceptableToWrite(Object msg) {
+        return msg instanceof HttpRequest;
+    }
 
-        if (msg instanceof HttpRequest) {
-            String requestId = requestIdProvider.beforeClientRequest(ctx);
-            if (null != requestId) {
-                ContextsContainer container = contextProvider.getContextForClientRequest(requestId, ctx);
-                ContextAttributeStorageHelper.setContainer(ctx, requestId, container);
+    @Override
+    protected void addKey(HttpRequest msg, String key, String value) {
+        msg.headers().add(key, value);
+    }
 
-                if (null != container) {
-                    HttpRequest request = (HttpRequest) msg;
-                    Map<String,String> serializedContexts = container.getSerializedContexts();
-                    for (Map.Entry<String, String> entry : serializedContexts.entrySet()) {
-                        request.headers().set(entry.getKey(), entry.getValue());
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("Added an outbound context header. Name: " + entry.getKey() +
-                                         ", value: " + entry.getValue());
-                        }
-                    }
-                }
-            }
-        }
+    @Override
+    protected ContextKeySupplier newKeySupplierForWrite(HttpRequest msg) {
+        return new HttpContextKeySupplier(msg.headers());
+    }
 
-        super.write(ctx, msg, promise);
+    @Override
+    protected ContextKeySupplier newKeySupplierForRead(HttpResponse msg) {
+        return new HttpContextKeySupplier(msg.headers());
+    }
+
+    @Override
+    protected void newRequestIdRead(String requestId) {
+        currentlyProcessingRequestId = requestId;
+    }
+
+    @Override
+    protected String getCurrentlyProcessingRequestId() {
+        return currentlyProcessingRequestId;
+    }
+
+    @Override
+    protected boolean isLastResponseFragmentToRead(Object response) {
+        return response instanceof LastHttpContent;
     }
 }

@@ -1,7 +1,7 @@
 package io.reactivex.netty.contexts.http;
 
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.util.AttributeKey;
+import io.netty.util.AttributeMap;
 import io.reactivex.netty.contexts.ContextKeySupplier;
 import io.reactivex.netty.contexts.RequestCorrelator;
 import io.reactivex.netty.contexts.RequestIdGenerator;
@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 public class HttpRequestIdProvider implements RequestIdProvider {
 
-    private static final AttributeKey<ConcurrentLinkedQueue<String>> REQUEST_IDS_KEY =
+    public static final AttributeKey<ConcurrentLinkedQueue<String>> REQUEST_IDS_KEY =
             AttributeKey.valueOf("rxnetty_http_request_ids_queue");
 
     private final RequestIdGenerator requestIdGenerator;
@@ -38,52 +38,57 @@ public class HttpRequestIdProvider implements RequestIdProvider {
     public HttpRequestIdProvider(String requestIdHeaderName, RequestCorrelator requestCorrelator) {
         this(new RequestIdGenerator() {
             @Override
-            public String newRequestId(ContextKeySupplier keySupplier, ChannelHandlerContext context) {
+            public String newRequestId(ContextKeySupplier keySupplier, AttributeMap channelAttributeMap) {
                 return UUID.randomUUID().toString();
             }
         }, requestCorrelator, requestIdHeaderName);
     }
 
     @Override
-    public String newRequestId(ContextKeySupplier keySupplier, ChannelHandlerContext context) {
-        String requestId = requestIdGenerator.newRequestId(keySupplier, context);
-        addRequestId(context, requestId);
+    public String newRequestId(ContextKeySupplier keySupplier, AttributeMap channelAttributeMap) {
+        String requestId = requestIdGenerator.newRequestId(keySupplier, channelAttributeMap);
+        addRequestId(channelAttributeMap, requestId);
         return requestId;
     }
 
     @Override
-    public String onServerRequest(ContextKeySupplier keySupplier, ChannelHandlerContext context) {
+    public String onServerRequest(ContextKeySupplier keySupplier, AttributeMap channelAttributeMap) {
         String requestId = keySupplier.getContextValue(requestIdHeaderName);
         if (null != requestId) {
-            addRequestId(context, requestId);
+            addRequestId(channelAttributeMap, requestId);
         }
         return requestId;
     }
 
     @Override
-    public String beforeServerResponse(ContextKeySupplier responseKeySupplier, ChannelHandlerContext context) {
-        return getRequestIdFromQueue(context);
+    public String beforeServerResponse(ContextKeySupplier responseKeySupplier, AttributeMap channelAttributeMap) {
+        return getRequestIdFromQueue(channelAttributeMap);
     }
 
     @Override
-    public String beforeClientRequest(ChannelHandlerContext context) {
-        String requestId = requestCorrelator.getRequestIdForClientRequest(context);
+    public String beforeClientRequest(AttributeMap clientAttributeMap) {
+        String requestId = requestCorrelator.getRequestIdForClientRequest();
         if (null != requestId) {
-            addRequestId(context, requestId);
+            addRequestId(clientAttributeMap, requestId);
         }
         return requestId;
     }
 
     @Override
-    public String onClientResponse(ChannelHandlerContext context) {
-        return getRequestIdFromQueue(context);
+    public String onClientResponse(AttributeMap clientAttributeMap) {
+        return getRequestIdFromQueue(clientAttributeMap);
     }
 
-    private static void addRequestId(ChannelHandlerContext context, String requestId) {
-        ConcurrentLinkedQueue<String> requestIdsQueue = context.channel().attr(REQUEST_IDS_KEY).get();
+    @Override
+    public String getRequestIdContextKeyName() {
+        return requestIdHeaderName;
+    }
+
+    private static void addRequestId(AttributeMap channelAttributeMap, String requestId) {
+        ConcurrentLinkedQueue<String> requestIdsQueue = channelAttributeMap.attr(REQUEST_IDS_KEY).get();
         if (null == requestIdsQueue) {
             requestIdsQueue = new ConcurrentLinkedQueue<String>();
-            ConcurrentLinkedQueue<String> existingQueue = context.channel().attr(REQUEST_IDS_KEY).setIfAbsent(requestIdsQueue);
+            ConcurrentLinkedQueue<String> existingQueue = channelAttributeMap.attr(REQUEST_IDS_KEY).setIfAbsent(requestIdsQueue);
             if (null != existingQueue) {
                 requestIdsQueue = existingQueue;
             }
@@ -93,8 +98,8 @@ public class HttpRequestIdProvider implements RequestIdProvider {
         }
     }
 
-    private static String getRequestIdFromQueue(ChannelHandlerContext context) {
-        ConcurrentLinkedQueue<String> requestIdsQueue = context.channel().attr(REQUEST_IDS_KEY).get();
+    private static String getRequestIdFromQueue(AttributeMap channelAttributeMap) {
+        ConcurrentLinkedQueue<String> requestIdsQueue = channelAttributeMap.attr(REQUEST_IDS_KEY).get();
         if (null != requestIdsQueue) {
             return requestIdsQueue.poll(); // Responses should be sent in the same order as the requests were received (HTTP pipelining)
         }

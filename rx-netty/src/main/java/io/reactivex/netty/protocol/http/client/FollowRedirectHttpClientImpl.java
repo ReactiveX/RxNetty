@@ -15,32 +15,31 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
-import java.net.URI;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import io.reactivex.netty.client.ConnectionPool;
-import rx.Observable;
-import rx.functions.Func1;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.ClientChannelAbstractFactory;
+import io.reactivex.netty.client.ConnectionPool;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import rx.Observable;
+import rx.functions.Func1;
+
+import java.net.URI;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
 
     static final int MAX_HOPS = 5;
-    
-    public static class RedirectException extends Exception {
-        /**
-         * 
-         */
-        private static final long serialVersionUID = 1L;
 
-        public RedirectException(String arg0) {
-            super(arg0);
+    public static class RedirectException extends Exception {
+
+        private static final long serialVersionUID = 612647744832660373L;
+
+        public RedirectException(String msg) {
+            super(msg);
         }
 
         public RedirectException(String string, Exception e) {
@@ -51,34 +50,22 @@ class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
     private final ConcurrentLinkedQueue<String> visited;
     private volatile String requestedLocation;
     
-    protected FollowRedirectHttpClientImpl(
-            RxClient.ServerInfo serverInfo,
-            Bootstrap clientBootstrap,
+    protected FollowRedirectHttpClientImpl(RxClient.ServerInfo serverInfo, Bootstrap clientBootstrap,
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            RxClient.ClientConfig clientConfig,
-            ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool) {
-        this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool, new ConcurrentLinkedQueue<String>(), null);
+            RxClient.ClientConfig clientConfig, ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool,
+            ClientChannelAbstractFactory<HttpClientResponse<O>, HttpClientRequest<I>> clientChannelAbstractFactory) {
+        this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool, clientChannelAbstractFactory,
+             new ConcurrentLinkedQueue<String>());
     }
-    
-    protected FollowRedirectHttpClientImpl(
-            RxClient.ServerInfo serverInfo,
-            Bootstrap clientBootstrap,
-            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            RxClient.ClientConfig clientConfig,
-            ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool, ConcurrentLinkedQueue<String> visited, String location) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool);
+
+    private FollowRedirectHttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
+                                         PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
+                                         ClientConfig clientConfig,
+                                         ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> pool,
+                                         ClientChannelAbstractFactory<HttpClientResponse<O>, HttpClientRequest<I>> clientChannelAbstractFactory,
+                                         ConcurrentLinkedQueue<String> visited) {
+        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, pool, clientChannelAbstractFactory);
         this.visited = visited;
-        this.requestedLocation = location;
-    }
-    
-    protected FollowRedirectHttpClientImpl(
-            RxClient.ServerInfo serverInfo,
-            Bootstrap clientBootstrap,
-            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            RxClient.ClientConfig clientConfig, ConcurrentLinkedQueue<String> visited, String location) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
-        this.visited = visited;
-        this.requestedLocation = location;
     }
 
     @Override
@@ -94,7 +81,8 @@ class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
         } else {
             _request = request;
         }
-        Observable<HttpClientResponse<O>> originalResponse = super.submitWithoutRedirect(_request, connectionObservable, config);
+        Observable<HttpClientResponse<O>> originalResponse = submitWithoutRedirect(_request, connectionObservable,
+                                                                                   config);
         return checkForRedirect(_request, originalResponse, config);
     }
     
@@ -106,10 +94,10 @@ class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
         }
         StringBuilder sb = new StringBuilder("http://");
         sb.append(serverInfo.getHost())
-          .append(":")
+          .append(':')
           .append(serverInfo.getPort());
         if (!uri.startsWith("/")) {
-            sb.append("/");
+            sb.append('/');
         }
         sb.append(uri);
         return sb.toString();
@@ -121,10 +109,10 @@ class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
             sb.append(uri.getRawPath());
         }
         if (uri.getRawQuery() != null) {
-            sb.append("?").append(uri.getRawQuery());
+            sb.append('?').append(uri.getRawQuery());
         }
         if (uri.getRawFragment() != null) {
-            sb.append("#").append(uri.getRawFragment());
+            sb.append('#').append(uri.getRawFragment());
         }
         return sb.toString();
     }
@@ -153,7 +141,9 @@ class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
                     if (visited.contains(location)) {
                         // this forms a loop
                         return Observable.error(new RedirectException(String.format("A loop is formed while following redirects: %s", visited)));
-                    } else if (visited.size() == MAX_HOPS) {
+                    }
+
+                    if (visited.size() == MAX_HOPS) {
                         // we have reached the limit of locations to follow redirect
                         return Observable.error(new RedirectException(String.format("Maximum redirections reached: %s", visited)));
                     }
@@ -183,7 +173,9 @@ class FollowRedirectHttpClientImpl<I,O> extends HttpClientImpl<I, O> {
                         return submit(newRequest, config);
                     } else {
                         FollowRedirectHttpClientImpl<I, O> redirectClient = 
-                                new FollowRedirectHttpClientImpl<I, O>(new ServerInfo(host, port), clientBootstrap, originalPipelineConfigurator, config, visited, location);
+                                new FollowRedirectHttpClientImpl<I, O>(new ServerInfo(host, port), clientBootstrap,
+                                                                       originalPipelineConfigurator, config, pool,
+                                                                       clientChannelAbstractFactory, visited);
                         return redirectClient.submit(newRequest, config);
                     }
                 default:

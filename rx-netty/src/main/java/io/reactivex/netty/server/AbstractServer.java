@@ -1,17 +1,17 @@
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.AbstractBootstrap;
-import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -105,6 +105,17 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
                 // Nothing to do as it is already shutdown.
                 break;
         }
+    }
+
+    public int getServerPort() {
+        if (null != bindFuture || !bindFuture.isDone()) {
+            SocketAddress localAddress = bindFuture.channel().localAddress();
+            if (localAddress instanceof InetSocketAddress) {
+                return ((InetSocketAddress) localAddress).getPort();
+            }
+        }
+
+        return port;
     }
 
     @SuppressWarnings("unchecked")

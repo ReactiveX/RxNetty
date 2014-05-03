@@ -25,15 +25,16 @@ import io.netty.bootstrap.Bootstrap;
 public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilder<I, O>, RxClient<I, O>> {
 
     public ClientBuilder(String host, int port) {
-        super(host, port);
+        super(host, port, new TcpClientChannelAbstractFactory<I, O>());
     }
 
     public ClientBuilder(String host, int port, Bootstrap bootstrap) {
-        super(bootstrap, host, port);
+        super(bootstrap, host, port, new TcpClientChannelAbstractFactory<I, O>());
     }
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, connectionPool);
+        return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory,
+                                      connectionPool);
     }
 }

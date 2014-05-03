@@ -1,7 +1,5 @@
 package io.reactivex.netty.contexts;
 
-import io.netty.channel.ChannelHandlerContext;
-
 /**
  * Passing contexts from inbound request processing to outbound request sending can be very application specific. Some
  * applications may just use a single thread between the inbound and outbound processing and some may spawn off multiple
@@ -18,21 +16,18 @@ public interface RequestCorrelator extends ContextCapturer {
      * This does the correlation between an inbound request and all outbound requests that are made during the
      * processing of the same request. <br/>
      *
-     * @param context Context for the associated <em>client</em> channel.
-     *
      * @return The request id, if exists. {@code null} otherwise.
      */
-    String getRequestIdForClientRequest(ChannelHandlerContext context);
+    String getRequestIdForClientRequest();
 
     /**
      * This method does the correlation between the inbound {@link ContextsContainer} to a fresh client request.
      *
-     * @param requestId Request Id obtained via {@link RequestIdProvider#beforeClientRequest(ChannelHandlerContext)}
-     * @param context Context for the associated <em>client</em> channel.
+     * @param requestId Request Id for this request. Can be {@code null}
      *
      * @return {@link ContextsContainer} for this request, if any. {@code null} if none exists.
      */
-    ContextsContainer getContextForClientRequest(String requestId, ChannelHandlerContext context);
+    ContextsContainer getContextForClientRequest(String requestId);
 
     /**
      * A callback for a fresh request on the underlying channel.
@@ -41,4 +36,34 @@ public interface RequestCorrelator extends ContextCapturer {
      * @param contextsContainer Container for this request.
      */
     void onNewServerRequest(String requestId, ContextsContainer contextsContainer);
+
+    /**
+     * A callback before a client request is made. This will almost always be identical to
+     * {@link #onNewServerRequest(String, ContextsContainer)}. This method is provided to be explicit on when these
+     * callbacks are made. <br/>
+     * This will generally be made at a different point (usually when the connection is established by the client
+     * for making a request) than {@link #getRequestIdForClientRequest()} and
+     * {@link #getContextForClientRequest(String)} which is the reason why this context setting is
+     * required.
+     *
+     * @param requestId Request Id for this request.
+     * @param contextsContainer Container for this request.
+     */
+    void beforeNewClientRequest(String requestId, ContextsContainer contextsContainer);
+
+    /**
+     * A callback when a client is done with the processing of the passed {@code requestId}. <br/>
+     * All implementations must be aware of the fact that there may be many clients invoked in a processing of a
+     * single request,
+     *
+     * @param requestId Request id for which the processing is over.
+     */
+    void onClientProcessingEnd(String requestId);
+
+    /**
+     * A callback when the entire request processing is over for the passed {@code requestId}
+     *
+     * @param requestId Request id for which the processing is over.
+     */
+    void onServerProcessingEnd(String requestId);
 }

@@ -15,6 +15,7 @@
  */
 package io.reactivex.netty.contexts;
 
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -26,6 +27,10 @@ public class MapBackedKeySupplier implements ContextKeySupplier {
 
     private final Map<String, String> keys;
 
+    public MapBackedKeySupplier() {
+        this(new HashMap<String, String>());
+    }
+
     public MapBackedKeySupplier(final Map<String, String> keys) {
         this.keys = keys;
     }
@@ -33,5 +38,9 @@ public class MapBackedKeySupplier implements ContextKeySupplier {
     @Override
     public String getContextValue(String key) {
         return keys.get(key);
+    }
+
+    public void put(String key, String value) {
+        keys.put(key, value);
     }
 }

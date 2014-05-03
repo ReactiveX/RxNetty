@@ -22,6 +22,8 @@ import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
+import rx.functions.Action0;
+import rx.subscriptions.Subscriptions;
 
 /**
  * An implementation of {@link ConnectionHandler} that provides notifications to an {@link Observer} of
@@ -34,10 +36,10 @@ import rx.Subscriber;
  */
 public class ClientConnectionHandler<I, O> implements ConnectionHandler<I, O>, ChannelFutureListener {
 
-    private final Observer<? super ObservableConnection<I, O>> connectionObserver;
+    private final Subscriber<? super ObservableConnection<I, O>> connectionSub;
 
-    public ClientConnectionHandler(Observer<? super ObservableConnection<I, O>> connectionObserver) {
-        this.connectionObserver = connectionObserver;
+    public ClientConnectionHandler(Subscriber<? super ObservableConnection<I, O>> connectionSub) {
+        this.connectionSub = connectionSub;
     }
 
     @Override
@@ -45,8 +47,7 @@ public class ClientConnectionHandler<I, O> implements ConnectionHandler<I, O>, C
         return Observable.create(new Observable.OnSubscribe<Void>() {
             @Override
             public void call(Subscriber<? super Void> voidSub) {
-                connectionObserver.onNext(newConnection);
-                connectionObserver.onCompleted(); // The observer is no longer looking for any more connections.
+                onNewConnection(newConnection);
             }
         });
     }
@@ -54,7 +55,23 @@ public class ClientConnectionHandler<I, O> implements ConnectionHandler<I, O>, C
     @Override
     public void operationComplete(ChannelFuture future) throws Exception {
         if (!future.isSuccess()) {
-            connectionObserver.onError(future.cause());
+            connectionSub.onError(future.cause());
         } // onComplete() needs to be send after onNext(), calling it here will cause a race-condition between next & complete.
+    }
+
+    protected void onNewConnection(ObservableConnection<I, O> newConnection) {
+        connectionSub.onNext(newConnection);
+        connectionSub.onCompleted(); // The observer is no longer looking for any more connections.
+    }
+
+    void connectionAttempted(final ChannelFuture connectFuture) {
+        connectionSub.add(Subscriptions.create(new Action0() {
+            @Override
+            public void call() {
+                if (!connectFuture.isDone()) {
+                    connectFuture.cancel(true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
+                }
+            }
+        }));
     }
 }

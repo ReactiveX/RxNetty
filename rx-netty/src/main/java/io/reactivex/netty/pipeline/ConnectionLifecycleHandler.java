@@ -17,9 +17,9 @@ package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.server.ErrorHandler;
 import rx.Observable;
 import rx.Subscriber;
@@ -58,32 +58,34 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
         super.channelActive(ctx); // Called before connection handler call to finish the pipeline before the connection
                                   // is handled.
 
+        Observable<Void> handledObservable;
         try {
-            Observable<Void> handledObservable = connectionHandler.handle(connection);
-            if (null == handledObservable) {
-                handledObservable = Observable.empty();
+            handledObservable = connectionHandler.handle(connection);
+        } catch (Throwable throwable) {
+            handledObservable = Observable.error(throwable);
+        }
+
+        if (null == handledObservable) {
+            handledObservable = Observable.empty();
+        }
+
+        handledObservable.subscribe(new Subscriber<Void>() {
+            @Override
+            public void onCompleted() {
+                connection.close();
             }
 
-            handledObservable.subscribe(new Subscriber<Void>() {
-                @Override
-                public void onCompleted() {
-                    connection.close();
-                }
+            @Override
+            public void onError(Throwable e) {
+                invokeErrorHandler(e);
+                connection.close();
+            }
 
-                @Override
-                public void onError(Throwable e) {
-                    invokeErrorHandler(e);
-                    connection.close();
-                }
-
-                @Override
-                public void onNext(Void aVoid) {
-                    // No Op.
-                }
-            });
-        } catch (Throwable throwable) {
-            invokeErrorHandler(throwable);
-        }
+            @Override
+            public void onNext(Void aVoid) {
+                // No Op.
+            }
+        });
     }
 
     private void invokeErrorHandler(Throwable throwable) {

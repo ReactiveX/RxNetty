@@ -15,6 +15,7 @@
  */
 package io.reactivex.netty.contexts;
 
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,22 +28,26 @@ import java.util.concurrent.Executors;
  */
 public class ThreadLocalCorrelatorTest {
 
+    public static final ThreadLocalRequestCorrelator CORRELATOR = new ThreadLocalRequestCorrelator();
+    public static final String REQUEST_ID = "Blah";
+
+    @After
+    public void tearDown() throws Exception {
+        CORRELATOR.onServerProcessingEnd(REQUEST_ID);
+    }
+
     @Test
     public void testSetAndGet() throws Exception {
-        NoOpChannelHandlerContext ctx = new NoOpChannelHandlerContext();
-        final ThreadLocalRequestCorrelator correlator = new ThreadLocalRequestCorrelator();
         final ContextKeySupplier supplier = new MapBackedKeySupplier(Collections.<String, String>emptyMap());
         final ContextsContainer container = new ContextsContainerImpl(supplier);
-        final String requestId = "Blah";
 
-        correlator.onNewServerRequest(requestId, container);
+        CORRELATOR.onNewServerRequest(REQUEST_ID, container);
 
-        assertRequestIdAndContainer(ctx, correlator, container, requestId);
+        assertRequestIdAndContainer(CORRELATOR, container, REQUEST_ID);
     }
 
     @Test
     public void testCallableClosure() throws Exception {
-        final NoOpChannelHandlerContext ctx = new NoOpChannelHandlerContext();
         final ThreadLocalRequestCorrelator correlator = new ThreadLocalRequestCorrelator();
         final ContextKeySupplier supplier = new MapBackedKeySupplier(Collections.<String, String>emptyMap());
         final ContextsContainer container = new ContextsContainerImpl(supplier);
@@ -54,21 +59,20 @@ public class ThreadLocalCorrelatorTest {
             @Override
             public Void call() throws Exception {
                 Assert.assertSame("Invalid request Id inside callable.", requestId,
-                                  correlator.getRequestIdForClientRequest(ctx));
+                                  correlator.getRequestIdForClientRequest());
                 Assert.assertSame("Invalid context container callable.", container,
-                                  correlator.getContextForClientRequest(requestId, ctx));
+                                  correlator.getContextForClientRequest(requestId));
                 return null;
             }
         });
 
         Executors.newFixedThreadPool(1).submit(closure).get(); // Waits for assertion.
 
-        assertRequestIdAndContainer(ctx, correlator, container, requestId);
+        assertRequestIdAndContainer(correlator, container, requestId);
     }
 
     @Test
     public void testRunnableClosure() throws Exception {
-        final NoOpChannelHandlerContext ctx = new NoOpChannelHandlerContext();
         final ThreadLocalRequestCorrelator correlator = new ThreadLocalRequestCorrelator();
         final ContextKeySupplier supplier = new MapBackedKeySupplier(Collections.<String, String>emptyMap());
         final ContextsContainer container = new ContextsContainerImpl(supplier);
@@ -81,22 +85,20 @@ public class ThreadLocalCorrelatorTest {
             @Override
             public void run() {
                 Assert.assertSame("Invalid request Id inside callable.", requestId,
-                                  correlator.getRequestIdForClientRequest(ctx));
+                                  correlator.getRequestIdForClientRequest());
                 Assert.assertSame("Invalid context container callable.", container,
-                                  correlator.getContextForClientRequest(requestId, ctx));
+                                  correlator.getContextForClientRequest(requestId));
             }
         });
 
         Executors.newFixedThreadPool(1).submit(closure).get(); // Waits for assertion.
 
-        assertRequestIdAndContainer(ctx, correlator, container, requestId);
+        assertRequestIdAndContainer(correlator, container, requestId);
     }
 
-    private static void assertRequestIdAndContainer(NoOpChannelHandlerContext ctx,
-                                                    ThreadLocalRequestCorrelator correlator,
+    private static void assertRequestIdAndContainer(ThreadLocalRequestCorrelator correlator,
                                                     ContextsContainer container, String requestId) {
-        Assert.assertSame("Unexpected request id.", requestId, correlator.getRequestIdForClientRequest(ctx));
-        Assert.assertSame("Unexpected context container.", container,
-                          correlator.getContextForClientRequest(requestId, ctx));
+        Assert.assertSame("Unexpected request id.", requestId, correlator.getRequestIdForClientRequest());
+        Assert.assertSame("Unexpected context container.", container, correlator.getContextForClientRequest(requestId));
     }
 }

@@ -1,9 +1,12 @@
 package io.reactivex.netty.contexts;
 
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
+import io.netty.util.AttributeKey;
+import io.netty.util.AttributeMap;
+import io.netty.util.DefaultAttributeMap;
 import io.reactivex.netty.client.RxClient;
 
+import java.util.Stack;
 import java.util.concurrent.Callable;
 
 /**
@@ -18,17 +21,21 @@ import java.util.concurrent.Callable;
  */
 public class ThreadLocalRequestCorrelator implements RequestCorrelator {
 
-    private static final ThreadLocal<String> requestId = new ThreadLocal<String>();
-    private static final ThreadLocal<ContextsContainer> contextContainer = new ThreadLocal<ContextsContainer>();
+    protected static final ThreadLocal<ThreadStateHolder> state = new ThreadLocal<ThreadStateHolder>() {
+        @Override
+        protected ThreadStateHolder initialValue() {
+            return new ThreadStateHolder();
+        }
+    };
 
     @Override
-    public String getRequestIdForClientRequest(ChannelHandlerContext context) {
-        return requestId.get();
+    public String getRequestIdForClientRequest() {
+        return state.get().getRequestId();
     }
 
     @Override
-    public ContextsContainer getContextForClientRequest(String requestId, ChannelHandlerContext context) {
-        return contextContainer.get();
+    public ContextsContainer getContextForClientRequest(String requestId) {
+        return state.get().getContainer();
     }
 
     @Override
@@ -39,28 +46,49 @@ public class ThreadLocalRequestCorrelator implements RequestCorrelator {
         if (null == contextsContainer) {
             throw new IllegalArgumentException("Context container can not be null.");
         }
-        ThreadLocalRequestCorrelator.requestId.set(requestId);
-        contextContainer.set(contextsContainer);
+
+        state.get().push(new DefaultAttributeMap());
+
+        state.get().setRequestId(requestId);
+        state.get().setContainer(contextsContainer);
+    }
+
+    @Override
+    public void beforeNewClientRequest(String requestId, ContextsContainer contextsContainer) {
+        onNewServerRequest(requestId, contextsContainer); // same effect
+    }
+
+    @Override
+    public void onClientProcessingEnd(String requestId) {
+        state.get().pop();
+    }
+
+    @Override
+    public void onServerProcessingEnd(String requestId) {
+        state.get().pop();
+    }
+
+    public static ContextsContainer getCurrentContextContainer() {
+        return state.get().getContainer();
+    }
+
+    public static String getCurrentRequestId() {
+        return state.get().getRequestId();
     }
 
     @Override
     public <V> Callable<V> makeClosure(final Callable<V> original) {
-        final String calleeRequestId = requestId.get();
-        final ContextsContainer calleeContainer = contextContainer.get();
+
+        final AttributeMap currentState = state.get().peek();
 
         return new Callable<V>() {
             @Override
             public V call() throws Exception {
-                final String originalRequestId = requestId.get();
-                final ContextsContainer originalContainer = contextContainer.get();
-
+                state.get().push(currentState);
                 try {
-                    requestId.set(calleeRequestId);
-                    contextContainer.set(calleeContainer);
                     return original.call();
                 } finally {
-                    requestId.set(originalRequestId);
-                    contextContainer.set(originalContainer);
+                    state.get().pop();
                 }
             }
         };
@@ -68,25 +96,82 @@ public class ThreadLocalRequestCorrelator implements RequestCorrelator {
 
     @Override
     public Runnable makeClosure(final Runnable original) {
-        final String calleeRequestId = requestId.get();
-        final ContextsContainer calleeContainer = contextContainer.get();
+        final AttributeMap currentState = state.get().peek();
 
         return new Runnable() {
 
             @Override
             public void run() {
-                final String originalRequestId = requestId.get();
-                final ContextsContainer originalContainer = contextContainer.get();
-
+                state.get().push(currentState);
                 try {
-                    requestId.set(calleeRequestId);
-                    contextContainer.set(calleeContainer);
                     original.run();
                 } finally {
-                    requestId.set(originalRequestId);
-                    contextContainer.set(originalContainer);
+                    state.get().pop();
                 }
             }
         };
+    }
+
+    public static final class ThreadStateHolder {
+
+        private static final AttributeKey<String> requestIdKey =
+                AttributeKey.valueOf("rxnetty-contexts-threadlocal-request-id-key");
+        private static final AttributeKey<ContextsContainer> containerKey =
+                AttributeKey.valueOf("rxnetty-contexts-threadlocal-context-container-key");
+
+        /**
+         * This is a stack because the client and server processing can be on the same thread, either by chance or
+         * just because there is only a single thread in the system.
+         * This means we can not simply set & unset on start & stop of processing as it can step on other's feet.
+         * The best way to handle is to use a stack where in states are pushed and popped. If we pop everything, it is
+         * as good as clear state.
+         * Here {@link AttributeMap} is used just to have a map that stores multiple objects and still is type safe.
+         */
+        private final Stack<AttributeMap> threadAttributes = new Stack<AttributeMap>();
+
+        public void push(AttributeMap map) {
+            threadAttributes.push(map);
+        }
+
+        public AttributeMap pop() {
+            return threadAttributes.pop();
+        }
+
+        public AttributeMap peek() {
+            if (isEmpty()) {
+                return null;
+            }
+            return threadAttributes.peek();
+        }
+
+        public boolean isEmpty() {
+            return threadAttributes.isEmpty();
+        }
+
+        public void setRequestId(String requestId) {
+            if (!isEmpty()) {
+                peek().attr(requestIdKey).set(requestId);
+            }
+        }
+
+        public void setContainer(ContextsContainer container) {
+            if (!isEmpty()) {
+                peek().attr(containerKey).set(container);
+            }
+        }
+
+        public String getRequestId() {
+            if (isEmpty()) {
+                return null;
+            }
+            return peek().attr(requestIdKey).get();
+        }
+
+        public ContextsContainer getContainer() {
+            if (isEmpty()) {
+                return null;
+            }
+            return peek().attr(containerKey).get();
+        }
     }
 }

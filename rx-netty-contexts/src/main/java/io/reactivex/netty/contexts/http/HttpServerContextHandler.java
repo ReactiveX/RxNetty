@@ -16,100 +16,67 @@
 
 package io.reactivex.netty.contexts.http;
 
-import com.netflix.server.context.BiDirectional;
-import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
-import io.reactivex.netty.contexts.ContextAttributeStorageHelper;
+import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.contexts.AbstractServerContextHandler;
 import io.reactivex.netty.contexts.ContextKeySupplier;
-import io.reactivex.netty.contexts.ContextsContainer;
-import io.reactivex.netty.contexts.ContextsContainerImpl;
 import io.reactivex.netty.contexts.RequestCorrelator;
 import io.reactivex.netty.contexts.RequestIdProvider;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-
-/**
- * This handler does the following:
- * <ul>
- <li>Read any serialized contexts in the incoming HTTP requests. If any contexts are found, it will add it to the
- {@link ContextsContainer} for that request. This will create the {@link ContextsContainer} instance using the factory
- method {@link #newContextContainer(ContextKeySupplier)}. In case, any changes to the implementation of
- {@link ContextsContainer} is required, it should be done via overriding this factory method.</li>
- <li>Write any {@link BiDirectional} contexts which are modified back to the response. The modified contexts are found
- by the method {@link ContextsContainer#getModifiedBidirectionalContexts()}</li>
- </ul>
- *
- * @author Nitesh Kant
- */
 @ChannelHandler.Sharable
-public class HttpServerContextHandler extends ChannelDuplexHandler {
+public class HttpServerContextHandler extends AbstractServerContextHandler<HttpRequest, HttpResponse> {
 
-    private static final Logger logger = LoggerFactory.getLogger(HttpServerContextHandler.class);
-
-    private final RequestIdProvider requestIdProvider;
-    private final RequestCorrelator correlator;
+    private String currentlyProcessingRequestId; // Updated only on write to account for pipelining.
 
     public HttpServerContextHandler(RequestIdProvider requestIdProvider, RequestCorrelator correlator) {
+        super(correlator, requestIdProvider);
         if (null == requestIdProvider) {
             throw new IllegalArgumentException("Request Id Provider can not be null.");
         }
         if (null == correlator) {
             throw new IllegalArgumentException("Request correlator can not be null.");
         }
-        this.correlator = correlator;
-        this.requestIdProvider = requestIdProvider;
     }
 
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof HttpRequest) {
-            HttpRequest request = (HttpRequest) msg;
-            ContextKeySupplier keySupplier = new HttpContextKeySupplier(request.headers());
-            String requestId = requestIdProvider.onServerRequest(keySupplier, ctx);
-            if (null == requestId) {
-                requestId = requestIdProvider.newRequestId(keySupplier, ctx);
-            }
-
-            ContextsContainer contextsContainer = newContextContainer(keySupplier);
-            ContextAttributeStorageHelper.setContainer(ctx, requestId, contextsContainer);
-
-            correlator.onNewServerRequest(requestId, contextsContainer);
-        }
-
-        super.channelRead(ctx, msg);
+    protected boolean isAcceptableToRead(Object msg) {
+        return msg instanceof HttpRequest;
     }
 
     @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof HttpResponse) {
-            HttpResponse response = (HttpResponse) msg;
-            ContextKeySupplier keySupplier = new HttpContextKeySupplier(response.headers());
-            String requestId = requestIdProvider.beforeServerResponse(keySupplier, ctx);
-            if (null != requestId) {
-                ContextsContainer container = ContextAttributeStorageHelper.getContainer(ctx, requestId);
-                if (null != container) {
-                    Map<String,String> modifiedCtxs = container.getModifiedBidirectionalContexts();
-                    for (Map.Entry<String, String> modifiedCtxEntry : modifiedCtxs.entrySet()) {
-                        if (logger.isDebugEnabled()) {
-                            logger.debug("Added a modified bi-directional header. Name: " + modifiedCtxEntry.getKey()
-                                         + ", value: " + modifiedCtxEntry.getValue());
-                        }
-                        response.headers().set(modifiedCtxEntry.getKey(), modifiedCtxEntry.getValue());
-                    }
-                }
-            }
-        }
-
-        super.write(ctx, msg, promise);
+    protected boolean isAcceptableToWrite(Object msg) {
+        return msg instanceof HttpResponse;
     }
 
-    protected ContextsContainer newContextContainer(ContextKeySupplier keySupplier) {
-        return new ContextsContainerImpl(keySupplier);
+    @Override
+    protected void addKey(HttpResponse response, String key, String value) {
+        response.headers().add(key, value);
+    }
+
+    @Override
+    protected ContextKeySupplier newKeySupplierForWrite(HttpResponse msg) {
+        return new HttpContextKeySupplier(msg.headers());
+    }
+
+    @Override
+    protected ContextKeySupplier newKeySupplierForRead(HttpRequest msg) {
+        return new HttpContextKeySupplier(msg.headers());
+    }
+
+    @Override
+    protected void newRequestIdWritten(String requestId) {
+        currentlyProcessingRequestId = requestId;
+    }
+
+    @Override
+    protected String getCurrentlyProcessingRequestId() {
+        return currentlyProcessingRequestId;
+    }
+
+    @Override
+    protected boolean isLastResponseFragmenTotWrite(Object response) {
+        return response instanceof LastHttpContent;
     }
 }

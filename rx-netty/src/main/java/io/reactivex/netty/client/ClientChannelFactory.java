@@ -29,6 +29,7 @@ import rx.Subscriber;
  */
 public interface ClientChannelFactory<I, O> {
 
-    ChannelFuture connect(Subscriber<? super ObservableConnection<I, O>> subscriber,
-                          PipelineConfigurator<I, O> pipelineConfigurator);
+    ChannelFuture connect(ClientConnectionHandler<I, O> connectionHandler, PipelineConfigurator<I, O> pipelineConfigurator);
+
+    ClientConnectionHandler<I, O> newConnectionHandler(Subscriber<? super ObservableConnection<I, O>> subscriber);
 }

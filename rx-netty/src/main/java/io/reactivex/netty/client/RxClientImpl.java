@@ -16,7 +16,6 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -48,20 +47,23 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     protected final PipelineConfigurator<O, I> originalPipelineConfigurator;
     protected final ClientChannelFactory<O, I> channelFactory;
     protected final ClientConfig clientConfig;
+    protected final ClientChannelAbstractFactory<O, I> clientChannelAbstractFactory;
     protected ConnectionPool<O, I> pool;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
 
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
-        this(serverInfo, clientBootstrap, null, clientConfig);
+        this(serverInfo, clientBootstrap, null, clientConfig, null);
     }
 
-    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
-                        ClientConfig clientConfig) {
-        this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, null);
+    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
+                        PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig,
+                        ClientChannelAbstractFactory<O, I> clientChannelAbstractFactory) {
+        this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, clientChannelAbstractFactory, null);
     }
     
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
-                        ClientConfig clientConfig, ConnectionPool<O, I> pool) {
+                        ClientConfig clientConfig, ClientChannelAbstractFactory<O, I> clientChannelAbstractFactory,
+                        ConnectionPool<O, I> pool) {
         if (null == clientBootstrap) {
             throw new NullPointerException("Client bootstrap can not be null.");
         }
@@ -71,15 +73,21 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         if (null == clientConfig) {
             throw new NullPointerException("Client config can not be null.");
         }
+        if (null == clientChannelAbstractFactory) {
+            throw new NullPointerException("Client channel abstract factory can not be null.");
+        }
+
+        this.clientChannelAbstractFactory = clientChannelAbstractFactory;
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
         this.pool = pool;
         if (null != pool) {
-            channelFactory = _newChannelFactory(this.serverInfo, this.clientBootstrap, this.pool);
+            channelFactory = clientChannelAbstractFactory.newClientChannelFactory(this.serverInfo, this.clientBootstrap,
+                                                                                  this.pool);
         } else {
-            channelFactory = _newChannelFactory(this.serverInfo, this.clientBootstrap,
-                                                new UnpooledConnectionFactory<O, I>());
+            channelFactory = clientChannelAbstractFactory.newClientChannelFactory(this.serverInfo, this.clientBootstrap,
+                                                                                  new UnpooledConnectionFactory<O, I>());
         }
 
         if (pool instanceof ConnectionPoolImpl) {
@@ -120,7 +128,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             @Override
             public void call(final Subscriber<? super ObservableConnection<O, I>> subscriber) {
                 try {
-                    channelFactory.connect(subscriber, incompleteConfigurator);
+                    ClientConnectionHandler<O, I> connHandler = channelFactory.newConnectionHandler(subscriber);
+                    channelFactory.connect(connHandler, incompleteConfigurator);
                 } catch (Throwable throwable) {
                     subscriber.onError(throwable);
                 }
@@ -141,11 +150,6 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         } finally {
             clientBootstrap.group().shutdownGracefully();
         }
-    }
-
-    protected ClientChannelFactory<O, I> _newChannelFactory(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                                                            ObservableConnectionFactory<O, I> connectionFactory) {
-        return new ClientChannelFactoryImpl<O, I>(clientBootstrap, connectionFactory, serverInfo);
     }
 
     @Override

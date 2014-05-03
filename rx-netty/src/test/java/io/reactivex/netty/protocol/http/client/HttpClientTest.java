@@ -21,6 +21,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.logging.LogLevel;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
@@ -46,7 +47,6 @@ import java.net.ConnectException;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
@@ -64,11 +64,12 @@ public class HttpClientTest {
 
     @BeforeClass
     public static void init() {
-        port = new Random().nextInt(1000) + 4000;
-        HttpServerBuilder<ByteBuf, ByteBuf> builder 
+        HttpServerBuilder<ByteBuf, ByteBuf> builder
             = new HttpServerBuilder<ByteBuf, ByteBuf>(new ServerBootstrap().group(new NioEventLoopGroup(10, new RxServerThreadFactory())), port, new RequestProcessor());
-        server = builder.build();
+        server = builder.enableWireLogging(LogLevel.ERROR).build();
         server.start();
+        port = server.getServerPort(); // Using ephemeral ports
+        System.out.println("Mock server using ephemeral port; " + port);
     }
 
     @AfterClass
@@ -177,7 +178,8 @@ public class HttpClientTest {
 
     @Test
     public void testSingleEntity() throws Exception {
-        HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port);
+        HttpClient<ByteBuf, ByteBuf> client = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", port)
+                                                     .enableWireLogging(LogLevel.ERROR).build();
         Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"));
         final List<String> result = new ArrayList<String>();
         response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
@@ -197,7 +199,7 @@ public class HttpClientTest {
                 result.add(t1);
             }
         });
-        assertEquals(1, result.size());
+        assertEquals("Response not found.", 1, result.size());
         assertEquals("Hello world", result.get(0));
     }
 

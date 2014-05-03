@@ -115,7 +115,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     }
 
     protected ChannelFuture writeOnChannel(Object msg) {
-        ChannelFuture writeFuture = getChannel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the head of the pipeline.
+        ChannelFuture writeFuture = getChannel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the tail of the pipeline.
         unflushedWritesListener.listen(writeFuture);
         return writeFuture;
     }
