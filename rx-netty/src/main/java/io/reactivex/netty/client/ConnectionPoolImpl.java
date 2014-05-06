@@ -113,9 +113,9 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                     stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireAttempted);
                     PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
 
-                    final ClientConnectionHandler<I, O> connHandler = channelFactory.newConnectionHandler(subscriber);
 
                     if (null != idleConnection) { // Found a usable connection
+                        final ClientConnectionHandler<I, O> connHandler = channelFactory.newConnectionHandler(subscriber);
                         idleConnection.beforeReuse();
                         stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionReuse);
                         stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
@@ -127,6 +127,8 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                          * ALWAYS use this new subscriber instead of the original subscriber to send any callbacks.
                          */
                         Subscriber<ObservableConnection<I, O>> newConnectionSubscriber = newConnectionSubscriber(subscriber);
+                        final ClientConnectionHandler<I, O> connHandler =
+                                channelFactory.newConnectionHandler(newConnectionSubscriber);
                         try {
                             channelFactory.connect(connHandler, pipelineConfigurator); // Manages the callbacks to the subscriber
                         } catch (Throwable throwable) {
