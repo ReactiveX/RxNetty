@@ -194,7 +194,7 @@ public class ContextPropagationTest {
         try {
             invokeMockServer(testClient, REQUEST_ID, true);
         } catch (MockBackendRequestFailedException e) {
-            throw new AssertionError("First request to mock backend failed.", e);
+            throw new AssertionError("First request to mock backend failed. Erro: " + e.getMessage());
         }
 
         invokeMockServer(testClient, REQUEST_ID_2, false);
