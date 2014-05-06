@@ -52,7 +52,7 @@ import io.reactivex.netty.protocol.http.AbstractHttpConfigurator;
  * </tr>
  * </table>
  *
- * @see {@link HttpClientCodec}
+ * @see HttpClientCodec
  *
  * @author Nitesh Kant
  */

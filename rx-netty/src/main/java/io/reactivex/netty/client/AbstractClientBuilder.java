@@ -170,7 +170,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
      *
      * @return This builder.
      *
-     * @see {@link LoggingHandler}
+     * @see LoggingHandler
      */
     public B enableWireLogging(LogLevel wireLogginLevel) {
         this.wireLogginLevel = wireLogginLevel;

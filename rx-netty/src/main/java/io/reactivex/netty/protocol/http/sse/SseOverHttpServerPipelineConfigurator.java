@@ -20,9 +20,9 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
-import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import io.reactivex.netty.protocol.text.sse.ServerSentEventEncoder;
@@ -34,7 +34,7 @@ import static io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator
 /**
  * An extension to {@link SSEServerPipelineConfigurator} that enables SSE over HTTP. <br/>
  *
- * @see {@link ServerSentEventEncoder}
+ * @see ServerSentEventEncoder
  *
  * @author Nitesh Kant
  */

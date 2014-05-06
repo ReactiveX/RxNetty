@@ -100,7 +100,7 @@ public final class PipelineConfigurators {
      *
      * @return This builder.
      *
-     * @see {@link LoggingHandler}
+     * @see LoggingHandler
      */
     public static <I, O> PipelineConfigurator<I, O> appendLoggingConfigurator(PipelineConfigurator<I, O> existing,
                                                                               LogLevel logLevel) {
@@ -147,7 +147,7 @@ public final class PipelineConfigurators {
      *
      * @return This builder.
      *
-     * @see {@link LoggingHandler}
+     * @see LoggingHandler
      */
     public static <I, O> PipelineConfigurator<I, O> wireLoggingConfigurator(final LogLevel wireLogginLevel) {
         return new PipelineConfigurator<I, O>() {

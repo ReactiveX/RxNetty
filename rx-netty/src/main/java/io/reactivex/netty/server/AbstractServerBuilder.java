@@ -93,7 +93,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
      *
      * @return This builder.
      *
-     * @see {@link LoggingHandler}
+     * @see LoggingHandler
      */
     public B enableWireLogging(LogLevel wireLogginLevel) {
         this.wireLogginLevel = wireLogginLevel;

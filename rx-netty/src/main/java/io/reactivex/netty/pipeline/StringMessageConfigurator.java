@@ -26,8 +26,8 @@ import java.nio.charset.Charset;
  * An implementation of {@link PipelineConfigurator} to configure {@link StringEncoder} and {@link StringDecoder} to
  * convert incoming {@link ByteBuf} into {@link String} and outgoing {@link String} as {@link ByteBuf}
  *
- * @see {@link StringEncoder}
- * @see {@link StringDecoder}
+ * @see StringEncoder
+ * @see StringDecoder
  *
  * @author Nitesh Kant
  */

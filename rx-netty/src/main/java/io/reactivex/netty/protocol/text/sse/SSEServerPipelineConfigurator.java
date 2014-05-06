@@ -26,7 +26,7 @@ import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurato
  * This will convert {@link ServerSentEvent} objects to {@link ByteBuf}. So, if the server is an HTTP server, then you would
  * have to use {@link SseOverHttpServerPipelineConfigurator} instead.
  *
- * @see {@link ServerSentEventEncoder}
+ * @see ServerSentEventEncoder
  *
  * @author Nitesh Kant
  */

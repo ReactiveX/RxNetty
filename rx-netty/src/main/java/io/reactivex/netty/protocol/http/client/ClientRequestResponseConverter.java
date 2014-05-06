@@ -40,7 +40,7 @@ import rx.subjects.PublishSubject;
  *
  * <h2>Reading Objects</h2>
  * <ul>
- <li>{@link HttpResponse: Converts it to {@link HttpClientResponse} </li>
+ <li>{@link HttpResponse}: Converts it to {@link HttpClientResponse} </li>
  <li>{@link HttpContent}: Converts it to the content of the previously generated
 {@link HttpClientResponse}</li>
  <li>{@link FullHttpResponse}: Converts it to a {@link HttpClientResponse} with pre-populated content observable.</li>

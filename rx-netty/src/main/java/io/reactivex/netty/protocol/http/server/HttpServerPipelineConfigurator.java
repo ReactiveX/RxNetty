@@ -68,8 +68,8 @@ import io.reactivex.netty.protocol.http.AbstractHttpConfigurator;
  * </tr>
  * </table>
  *
- * @see {@link HttpRequestDecoder}
- * @see {@link HttpResponseEncoder}
+ * @see HttpRequestDecoder
+ * @see HttpResponseEncoder
  *
  * @author Nitesh Kant
  */

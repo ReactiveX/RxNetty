@@ -110,7 +110,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     }
 
     /**
-     * A lazy connect to the {@link ServerInfo} for this client. Every subscription to the returned {@link Observable} will create a fresh connection.
+     * A lazy connect to the {@link RxClient.ServerInfo} for this client. Every subscription to the returned {@link Observable}
+     * will create a fresh connection.
      *
      * @return Observable for the connect. Every new subscription will create a fresh connection.
      */

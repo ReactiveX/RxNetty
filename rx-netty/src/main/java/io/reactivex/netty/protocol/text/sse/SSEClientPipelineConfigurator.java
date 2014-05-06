@@ -29,7 +29,7 @@ import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurato
  *
  * @param <W> The request type for the client pipeline.
  *
- * @see {@link ServerSentEventDecoder}
+ * @see ServerSentEventDecoder
  *
  * @author Nitesh Kant
  */
