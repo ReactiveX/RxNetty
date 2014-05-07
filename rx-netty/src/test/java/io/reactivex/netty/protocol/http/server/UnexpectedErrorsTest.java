@@ -40,13 +40,13 @@ import static org.junit.Assert.assertTrue;
  */
 public class UnexpectedErrorsTest {
 
-    public static final int PORT = 1999;
+    public int port;
     private RxServer<ByteBuf,ByteBuf> server;
     private final ChannelCloseListener channelCloseListener = new ChannelCloseListener();
 
     @Before
     public void setUp() throws Exception {
-        server = RxNetty.createTcpServer(PORT, new PipelineConfigurator<ByteBuf, ByteBuf>() {
+        server = RxNetty.createTcpServer(0, new PipelineConfigurator<ByteBuf, ByteBuf>() {
                                              @Override
                                              public void configureNewPipeline(ChannelPipeline pipeline) {
                                                  pipeline.addLast(channelCloseListener);
@@ -73,7 +73,7 @@ public class UnexpectedErrorsTest {
         TestableErrorHandler errorHandler = new TestableErrorHandler(null);
         server.withErrorHandler(errorHandler).start();
 
-        blockTillConnected();
+        blockTillConnected(server.getServerPort());
         channelCloseListener.waitForClose(1, TimeUnit.MINUTES);
 
         assertTrue("Error handler not invoked.", errorHandler.invoked);
@@ -86,15 +86,15 @@ public class UnexpectedErrorsTest {
 
         server.withErrorHandler(errorHandler).start();
 
-        blockTillConnected();
+        blockTillConnected(server.getServerPort());
 
         channelCloseListener.waitForClose(1, TimeUnit.MINUTES);
 
         assertTrue("Error handler not invoked.", errorHandler.invoked);
     }
 
-    private static void blockTillConnected() throws InterruptedException, ExecutionException {
-        RxNetty.createTcpClient("localhost", PORT).connect().flatMap(
+    private static void blockTillConnected(int serverPort) throws InterruptedException, ExecutionException {
+        RxNetty.createTcpClient("localhost", serverPort).connect().flatMap(
                 new Func1<ObservableConnection<ByteBuf, ByteBuf>, Observable<?>>() {
                     @Override
                     public Observable<Void> call(ObservableConnection<ByteBuf, ByteBuf> connection) {

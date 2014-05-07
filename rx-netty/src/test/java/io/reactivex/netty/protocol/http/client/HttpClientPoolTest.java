@@ -20,8 +20,8 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
-import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.ChannelCloseListener;
+import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolStats;
 import io.reactivex.netty.client.TrackableStateChangeListener;
@@ -59,8 +59,8 @@ public class HttpClientPoolTest {
 
     @BeforeClass
     public static void init() throws Exception {
-        port = 9998;
         mockServer = RxNetty.createHttpServer(port, new RequestProcessor()).start();
+        port = mockServer.getServerPort();
     }
 
     @AfterClass

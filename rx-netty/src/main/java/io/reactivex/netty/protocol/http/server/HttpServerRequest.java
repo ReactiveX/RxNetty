@@ -17,6 +17,7 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import rx.Observable;
@@ -31,7 +32,7 @@ import java.util.Set;
  */
 public class HttpServerRequest<T> {
 
-    private final io.netty.handler.codec.http.HttpRequest nettyRequest;
+    private final HttpRequest nettyRequest;
     private final HttpRequestHeaders headers;
     private final PublishSubject<T> contentSubject;
     private final HttpMethod method;
@@ -39,7 +40,7 @@ public class HttpServerRequest<T> {
     private final UriInfoHolder uriInfoHolder;
     private final CookiesHolder cookiesHolder;
 
-    public HttpServerRequest(io.netty.handler.codec.http.HttpRequest nettyRequest, PublishSubject<T> contentSubject) {
+    public HttpServerRequest(HttpRequest nettyRequest, PublishSubject<T> contentSubject) {
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(this.nettyRequest);
         method = this.nettyRequest.getMethod();

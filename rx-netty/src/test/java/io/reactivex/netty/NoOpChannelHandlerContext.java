@@ -16,6 +16,7 @@
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.buffer.UnpooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
@@ -23,10 +24,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.DefaultChannelProgressivePromise;
+import io.netty.channel.DefaultChannelPromise;
+import io.netty.channel.local.LocalChannel;
 import io.netty.util.Attribute;
 import io.netty.util.AttributeKey;
+import io.netty.util.DefaultAttributeMap;
 import io.netty.util.concurrent.EventExecutor;
+import io.netty.util.concurrent.GlobalEventExecutor;
 
+import javax.naming.OperationNotSupportedException;
 import java.net.SocketAddress;
 
 /**
@@ -34,19 +41,33 @@ import java.net.SocketAddress;
  */
 public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
+    private final DefaultAttributeMap attributeMap = new DefaultAttributeMap();
+    private final Channel channel;
+    private final DefaultChannelPromise failedPromise;
+
+    public NoOpChannelHandlerContext() {
+        this(new LocalChannel());
+    }
+
+    public NoOpChannelHandlerContext(Channel channel) {
+        this.channel = channel;
+        failedPromise = new DefaultChannelPromise(this.channel, executor());
+        failedPromise.setFailure(new OperationNotSupportedException());
+    }
+
     @Override
     public Channel channel() {
-        return null;
+        return channel;
     }
 
     @Override
     public EventExecutor executor() {
-        return null;
+        return GlobalEventExecutor.INSTANCE;
     }
 
     @Override
     public String name() {
-        return null;
+        return "";
     }
 
     @Override
@@ -61,146 +82,146 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     @Override
     public ChannelHandlerContext fireChannelRegistered() {
-        return null;
+        return this;
     }
 
     @Override
     @Deprecated
     public ChannelHandlerContext fireChannelUnregistered() {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext fireChannelActive() {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext fireChannelInactive() {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext fireExceptionCaught(Throwable cause) {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext fireUserEventTriggered(Object event) {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext fireChannelRead(Object msg) {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext fireChannelReadComplete() {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext fireChannelWritabilityChanged() {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelHandlerContext flush() {
-        return null;
+        return this;
     }
 
     @Override
     public <T> Attribute<T> attr(AttributeKey<T> key) {
-        return null;
+        return attributeMap.attr(key);
     }
 
     @Override
     public ChannelFuture bind(SocketAddress localAddress) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture disconnect() {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture close() {
-        return null;
+        return failedPromise;
     }
 
     @Override
     @Deprecated
     public ChannelFuture deregister() {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture bind(SocketAddress localAddress, ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress, ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress,
                                  ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture disconnect(ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture close(ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     @Deprecated
     public ChannelFuture deregister(ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelHandlerContext read() {
-        return null;
+        return this;
     }
 
     @Override
     public ChannelFuture write(Object msg) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture write(Object msg, ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture writeAndFlush(Object msg) {
-        return null;
+        return failedPromise;
     }
 
     @Override
@@ -210,31 +231,31 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     @Override
     public ByteBufAllocator alloc() {
-        return null;
+        return UnpooledByteBufAllocator.DEFAULT;
     }
 
     @Override
     public ChannelPromise newPromise() {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelProgressivePromise newProgressivePromise() {
-        return null;
+        return new DefaultChannelProgressivePromise(channel, executor());
     }
 
     @Override
     public ChannelFuture newSucceededFuture() {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelFuture newFailedFuture(Throwable cause) {
-        return null;
+        return failedPromise;
     }
 
     @Override
     public ChannelPromise voidPromise() {
-        return null;
+        return failedPromise;
     }
 }

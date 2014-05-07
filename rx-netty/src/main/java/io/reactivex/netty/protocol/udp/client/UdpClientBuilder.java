@@ -32,12 +32,12 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
     }
 
     public UdpClientBuilder(String host, int port, Bootstrap bootstrap) {
-        super(bootstrap, host, port);
+        super(bootstrap, host, port, new UdpClientChannelAbstractFactory<O, I>());
     }
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new UdpClient<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig);
+        return new UdpClient<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory);
     }
 
     @Override

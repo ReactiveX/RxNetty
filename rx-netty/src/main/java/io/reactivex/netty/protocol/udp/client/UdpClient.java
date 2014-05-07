@@ -1,14 +1,25 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.reactivex.netty.protocol.udp.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
-import io.reactivex.netty.client.ClientChannelFactory;
-import io.reactivex.netty.client.ClientChannelFactoryImpl;
+import io.reactivex.netty.client.ClientChannelAbstractFactory;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClientImpl;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-
-import java.net.InetSocketAddress;
 
 /**
  * An implementation of {@link RxClient} for UDP/IP
@@ -18,19 +29,11 @@ import java.net.InetSocketAddress;
 public class UdpClient<I, O> extends RxClientImpl<I, O> {
 
     public UdpClient(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
-        this(serverInfo, clientBootstrap, null, clientConfig);
+        this(serverInfo, clientBootstrap, null, clientConfig, new UdpClientChannelAbstractFactory<O, I>());
     }
 
-    public UdpClient(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
-                     ClientConfig clientConfig) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig);
-    }
-
-    @Override
-    protected ClientChannelFactory<O, I> _newChannelFactory(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                                                            ObservableConnectionFactory<O, I> connectionFactory) {
-        final InetSocketAddress receiverAddress = new InetSocketAddress(serverInfo.getHost(), serverInfo.getPort());
-        return new ClientChannelFactoryImpl<O, I>(clientBootstrap,
-                                                  new UdpClientConnectionFactory<O, I>(receiverAddress), serverInfo);
+    public UdpClient(ServerInfo serverInfo, Bootstrap bootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+                     ClientConfig clientConfig, ClientChannelAbstractFactory<O, I> clientChannelFactory) {
+        super(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory);
     }
 }

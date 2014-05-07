@@ -37,7 +37,7 @@ import java.util.concurrent.TimeUnit;
  * to remove this timeout handler, for not being timed out (resulting in connection close) due to inactivity when the
  * connection is not in use.
  *
- * @see {@link ReadTimeoutHandler}
+ * @see ReadTimeoutHandler
  *
  * @author Nitesh Kant
  */

@@ -24,8 +24,8 @@ import java.nio.charset.Charset;
 /**
  * An implementation of {@link PipelineConfigurator} to have simple text based protocol.
  *
- * @see {@link StringEncoder}
- * @see {@link StringLineDecoder}
+ * @see StringEncoder
+ * @see StringLineDecoder
  */
 public class SimpleTextProtocolConfigurator implements PipelineConfigurator<String, String> {
 

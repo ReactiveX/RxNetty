@@ -35,10 +35,6 @@ public class ServerBuilder<I, O> extends ConnectionBasedServerBuilder<I,O, Serve
 
     @Override
     protected RxServer<I, O> createServer() {
-        if (null != pipelineConfigurator) {
-            return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
-        } else {
-            return new RxServer<I, O>(serverBootstrap, port, connectionHandler);
-        }
+        return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
     }
 }

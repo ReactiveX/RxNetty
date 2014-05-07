@@ -19,14 +19,13 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.FullHttpMessage;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 
 /**
  * An implementation of {@link PipelineConfigurator} that can be applied with an implementation of
  * {@link AbstractHttpConfigurator} so that instead of multiple events per Http request/response, they are aggregated
  * as a single request/response. <p/>
  *
- * @see {@link HttpObjectAggregator}
+ * @see HttpObjectAggregator
  *
  * @author Nitesh Kant
  */

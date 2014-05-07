@@ -69,10 +69,10 @@ public class ConnectionPoolTest {
         testId = name.getMethodName();
         long currentTime = System.currentTimeMillis();
         System.out.println("Time: " + currentTime + ". Setting up test id: " + testId);
-        serverInfo = new RxClient.ServerInfo("localhost", 9999);
         serverConnHandler = new ConnectionHandlerImpl(testId);
-        server = RxNetty.createTcpServer(9999, PipelineConfigurators.textOnlyConfigurator(),
+        server = RxNetty.createTcpServer(0, PipelineConfigurators.textOnlyConfigurator(),
                                          serverConnHandler).start();
+        serverInfo = new RxClient.ServerInfo("localhost", server.getServerPort());
         stateChangeListener = new TrackableStateChangeListener();
         strategy = new MaxConnectionsBasedStrategy(1);
         clientBootstrap = new Bootstrap().group(new NioEventLoopGroup(4))

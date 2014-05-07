@@ -16,11 +16,9 @@
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelPipeline;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.RxEventLoopProvider;
 import io.reactivex.netty.channel.SingleNioLoopProvider;
@@ -37,10 +35,10 @@ import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.udp.client.UdpClientBuilder;
-import io.reactivex.netty.server.RxServer;
-import io.reactivex.netty.server.ServerBuilder;
 import io.reactivex.netty.protocol.udp.server.UdpServer;
 import io.reactivex.netty.protocol.udp.server.UdpServerBuilder;
+import io.reactivex.netty.server.RxServer;
+import io.reactivex.netty.server.ServerBuilder;
 
 import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS;
 
@@ -51,17 +49,24 @@ public final class RxNetty {
     private RxNetty() {
     }
 
+    public static <I, O> UdpServerBuilder<I, O> newUdpServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
+        return new UdpServerBuilder<I, O>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
+    }
+
+    public static <I, O> UdpClientBuilder<I, O> newUdpClientBuilder(String host, int port) {
+        return new UdpClientBuilder<I, O>(host, port).channel(NioDatagramChannel.class)
+                                                     .enableWireLogging(LogLevel.DEBUG)
+                                                     .eventloop(getRxEventLoopProvider().globalClientEventLoop());
+    }
+
     public static <I, O> UdpServer<I, O> createUdpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
                                                          ConnectionHandler<I, O> connectionHandler) {
-        return new UdpServerBuilder<I, O>(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
+        return newUdpServerBuilder(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
     }
 
     public static <I, O> RxClient<I, O> createUdpClient(String host, int port,
                                                         PipelineConfigurator<O, I> pipelineConfigurator) {
-        return new UdpClientBuilder<I, O>(host, port).channel(NioDatagramChannel.class)
-                .eventloop(getRxEventLoopProvider().globalClientEventLoop())
-                .pipelineConfigurator(pipelineConfigurator)
-                .build();
+        return RxNetty.<I, O>newUdpClientBuilder(host, port).pipelineConfigurator(pipelineConfigurator).build();
     }
 
     public static UdpServer<DatagramPacket, DatagramPacket> createUdpServer(final int port,
@@ -70,18 +75,24 @@ public final class RxNetty {
     }
 
     public static RxClient<DatagramPacket, DatagramPacket> createUdpClient(String host, int port) {
-        return new UdpClientBuilder<DatagramPacket, DatagramPacket>(host, port)
-                .channel(NioDatagramChannel.class)
-                .eventloop(getRxEventLoopProvider().globalClientEventLoop()).build();
+        return RxNetty.<DatagramPacket, DatagramPacket>newUdpClientBuilder(host, port).build();
+    }
+
+    public static <I, O> ServerBuilder<I, O> newTcpServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
+        return new ServerBuilder<I, O>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
     }
 
     public static <I, O> RxServer<I, O> createTcpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
                                                         ConnectionHandler<I, O> connectionHandler) {
-        return new ServerBuilder<I, O>(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
+        return newTcpServerBuilder(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
+    }
+
+    public static <I, O> ClientBuilder<I, O> newTcpClientBuilder(String host, int port) {
+        return new ClientBuilder<I, O>(host, port).enableWireLogging(LogLevel.DEBUG);
     }
 
     public static <I, O> RxClient<I, O> createTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
-        return new ClientBuilder<I, O>(host, port).pipelineConfigurator(configurator).build();
+        return RxNetty.<I, O>newTcpClientBuilder(host, port).pipelineConfigurator(configurator).build();
     }
 
     public static RxServer<ByteBuf, ByteBuf> createTcpServer(final int port,
@@ -90,28 +101,36 @@ public final class RxNetty {
     }
 
     public static RxClient<ByteBuf, ByteBuf> createTcpClient(String host, int port) {
-        return new ClientBuilder<ByteBuf, ByteBuf>(host, port).build();
+        return RxNetty.<ByteBuf, ByteBuf>newTcpClientBuilder(host, port).build();
+    }
+
+    public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler) {
+        return new HttpServerBuilder<I, O>(port, requestHandler).enableWireLogging(LogLevel.DEBUG);
+    }
+
+    public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port) {
+        return new HttpClientBuilder<I, O>(host, port).withMaxConnections(DEFAULT_MAX_CONNECTIONS)
+                                                      .enableWireLogging(LogLevel.DEBUG);
     }
 
     public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
-        return new HttpServerBuilder<ByteBuf, ByteBuf>(port, requestHandler).build();
+        return newHttpServerBuilder(port, requestHandler).build();
     }
 
     public static HttpClient<ByteBuf, ByteBuf> createHttpClient(String host, int port) {
-        return new HttpClientBuilder<ByteBuf, ByteBuf>(host, port).withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
+        return RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder(host, port).build();
     }
 
     public static <I, O> HttpServer<I, O> createHttpServer(int port,
                                                            RequestHandler<I, O> requestHandler,
                                                            PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> configurator) {
-        return new HttpServerBuilder<I, O>(port, requestHandler).pipelineConfigurator(configurator).build();
+        return newHttpServerBuilder(port, requestHandler).pipelineConfigurator(configurator).build();
     }
 
     public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
                                                            PipelineConfigurator<HttpClientResponse<O>,
                                                                                 HttpClientRequest<I>> configurator) {
-        return new HttpClientBuilder<I, O>(host, port).pipelineConfigurator(configurator)
-                                                      .withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
+        return RxNetty.<I, O>newHttpClientBuilder(host, port).pipelineConfigurator(configurator).build();
     }
 
     /**

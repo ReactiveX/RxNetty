@@ -27,8 +27,8 @@ import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 /**
  * An extension to {@link SSEClientPipelineConfigurator} that enables SSE over HTTP. <br/>
  *
- * @see {@link SSEInboundHandler}
- * @see {@link ServerSentEventDecoder}
+ * @see SSEInboundHandler
+ * @see ServerSentEventDecoder
  *
  * @author Nitesh Kant
  */

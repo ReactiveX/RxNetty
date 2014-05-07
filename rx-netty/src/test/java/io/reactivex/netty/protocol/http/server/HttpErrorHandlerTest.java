@@ -44,8 +44,7 @@ public class HttpErrorHandlerTest {
 
     @Test
     public void testErrorGenerator() throws Exception {
-        int port = 9999;
-        server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
+        server = RxNetty.createHttpServer(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(
                     HttpServerRequest<ByteBuf> request,
@@ -67,6 +66,8 @@ public class HttpErrorHandlerTest {
             }
         }).start();
 
+        int port = server.getServerPort();
+
         HttpClientRequest<ByteBuf> request =
                 HttpClientRequest.createGet("/");
 
@@ -81,8 +82,7 @@ public class HttpErrorHandlerTest {
 
     @Test
     public void testErrorGeneratorThrowException() throws Exception {
-        int port = 9998;
-        server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
+        server = RxNetty.createHttpServer(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
                 throw new IllegalStateException("I always throw an error.");
@@ -94,6 +94,8 @@ public class HttpErrorHandlerTest {
                 response.getHeaders().add(X_TEST_RESP_GEN_CALLED_HEADER_NAME, "true");
             }
         }).start();
+
+        int port = server.getServerPort();
 
         HttpClientRequest<ByteBuf> request =
                 HttpClientRequest.createGet("/");

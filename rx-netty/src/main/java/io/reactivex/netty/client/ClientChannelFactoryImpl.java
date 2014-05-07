@@ -19,15 +19,12 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
-import io.netty.channel.socket.SocketChannel;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 import rx.Subscriber;
-import rx.functions.Action0;
-import rx.subscriptions.Subscriptions;
 
 /**
  * A factory to create netty channels for clients.
@@ -51,11 +48,10 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
     }
 
     @Override
-    public ChannelFuture connect(final Subscriber<? super ObservableConnection<I, O>> subscriber,
+    public ChannelFuture connect(final ClientConnectionHandler<I, O> connectionHandler,
                                  PipelineConfigurator<I, O> pipelineConfigurator) {
-        final ClientConnectionHandler<I, O> connHandler = new ClientConnectionHandler<I, O>(subscriber);
 
-        final PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(connHandler,
+        final PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(connectionHandler,
                                                                                            pipelineConfigurator);
         // make the connection
         clientBootstrap.handler(new ChannelInitializer<Channel>() {
@@ -65,18 +61,16 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
             }
         });
 
-        final ChannelFuture connectFuture = _connect().addListener(connHandler);
+        final ChannelFuture connectFuture = _connect().addListener(connectionHandler);
 
-        subscriber.add(Subscriptions.create(new Action0() {
-            @Override
-            public void call() {
-                if (!connectFuture.isDone()) {
-                    connectFuture.cancel(true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
-                }
-            }
-        }));
+        connectionHandler.connectionAttempted(connectFuture);
 
         return connectFuture;
+    }
+
+    @Override
+    public ClientConnectionHandler<I, O> newConnectionHandler(Subscriber<? super ObservableConnection<I, O>> subscriber) {
+        return new ClientConnectionHandler<I, O>(subscriber);
     }
 
     protected ChannelFuture _connect() {

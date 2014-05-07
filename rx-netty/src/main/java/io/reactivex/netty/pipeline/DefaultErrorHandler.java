@@ -27,6 +27,6 @@ class DefaultErrorHandler implements ErrorHandler {
     public Observable<Void> handleError(Throwable throwable) {
         System.err.println("Unexpected error in RxNetty. Error: " + throwable.getMessage());
         throwable.printStackTrace(System.err);
-        return Observable.empty();
+        return Observable.error(throwable); // If we do not return an error observable then the error is swallowed.
     }
 }
