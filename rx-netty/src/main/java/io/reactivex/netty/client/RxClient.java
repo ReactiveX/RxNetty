@@ -170,7 +170,13 @@ public interface RxClient<I, O> extends PoolInsightProvider {
             }
             return true;
         }
-        
-        
+
+        @Override
+        public java.lang.String toString() {
+            return "ServerInfo{" +
+                "host='" + host + '\'' +
+                ", port=" + port +
+                '}';
+        }
     }
 }
