@@ -20,8 +20,11 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
+import rx.Notification;
 import rx.Observable;
+import rx.functions.Func1;
 
+import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
@@ -40,8 +43,22 @@ public final class HttpWelcomeServer {
                 for (Map.Entry<String, String> header : request.getHeaders().entries()) {
                     System.out.println(header.getKey() + ": " + header.getValue());
                 }
-                // This does not consume request content, need to figure out an elegant/correct way of doing that.
-                return response.writeStringAndFlush("Welcome!!! \n\n");
+
+                return request.getContent().materialize()
+                              .flatMap(new Func1<Notification<ByteBuf>, Observable<Void>>() {
+                                  @Override
+                                  public Observable<Void> call(Notification<ByteBuf> notification) {
+                                      if (notification.isOnCompleted()) {
+                                          return response.writeStringAndFlush("Welcome!!!");
+                                      } else if (notification.isOnError()) {
+                                          return Observable.error(notification.getThrowable());
+                                      } else {
+                                          ByteBuf next = notification.getValue();
+                                          System.out.println(next.toString(Charset.defaultCharset()));
+                                          return Observable.empty();
+                                      }
+                                  }
+                              });
             }
         }).startAndWait();
     }
