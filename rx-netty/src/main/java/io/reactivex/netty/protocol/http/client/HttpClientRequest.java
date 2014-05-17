@@ -52,6 +52,7 @@ public class HttpClientRequest<T> {
     protected ContentSourceFactory<T, ContentSource<T>> contentFactory;
     protected ContentSourceFactory<?, RawContentSource<?>> rawContentFactory;
     protected boolean userPassedInFactory;
+    private String absoluteUri;
 
     /*Visible for testing*/ HttpClientRequest(HttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
@@ -120,7 +121,8 @@ public class HttpClientRequest<T> {
     }
 
     public HttpClientRequest<T> withContent(T content) {
-        setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(new ContentSource.SingletonSource<T>(content)));
+        setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(new ContentSource.SingletonSource<T>(
+                content)));
         return this;
     }
 
@@ -151,16 +153,20 @@ public class HttpClientRequest<T> {
         return nettyRequest.getUri();
     }
 
+    public String getAbsoluteUri() {
+        return null != absoluteUri ? absoluteUri : getUri();
+    }
+
     private void setRawContentFactory(ContentSourceFactory<?, RawContentSource<?>> rawContentFactory) {
         // raw content factory and content factory is mutually exclusive
         this.rawContentFactory = rawContentFactory;
-        this.contentFactory = null;
+        contentFactory = null;
     }
     
     private void setContentFactory(ContentSourceFactory<T, ContentSource<T>> contentFactory) {
         // raw content factory and content factory is mutually exclusive
         this.contentFactory = contentFactory;
-        this.rawContentFactory = null;
+        rawContentFactory = null;
     }
 
     HttpRequest getNettyRequest() {
@@ -181,5 +187,9 @@ public class HttpClientRequest<T> {
     
     RawContentSource<?> getRawContentSource() {
         return rawContentFactory.newContentSource();
+    }
+
+    /*Set by HttpClient*/void setDynamicUriParts(String host, int port, boolean secure) {
+        absoluteUri = secure ? "https" : "http" + "://" + host + ':' + port; // Uri in netty always starts with a slash
     }
 }

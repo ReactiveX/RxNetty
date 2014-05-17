@@ -19,36 +19,45 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * An extension of {@link ObservableConnection} that is used by {@link ConnectionPool}
+ * An extension of {@link ObservableConnection} that is used by {@link ConnectionPool}.
+ * <b>The pool using this connection must call {@link #setConnectionPool(ConnectionPool)} before using the instance.</b>
+ * Failure to do so will never return this connection to the pool and the {@link #close()} will dispose this connection.
  *
  * @param <I> The type of the object that is read from this connection.
  * @param <O> The type of objects that are written to this connection.
  */
 public class PooledConnection<I, O> extends ObservableConnection<I, O> {
 
+    private static final Logger logger = LoggerFactory.getLogger(PooledConnection.class);
+
     private final AtomicBoolean acquiredOrSoonToBeDiscarded = new AtomicBoolean(); // Being paranoid on the name as this
                                                                                    // is exactly what it is doing and I don't want this flag use to be overloaded.
 
-    private final ConnectionPool<I, O> pool;
+    private ConnectionPool<I, O> pool;
 
     private volatile long lastReturnToPoolTimeMillis;
     private volatile long maxIdleTimeMillis;
 
-    public PooledConnection(ChannelHandlerContext ctx, ConnectionPool<I, O> pool) {
-        this(ctx, pool, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis());
+    public PooledConnection(ChannelHandlerContext ctx) {
+        this(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis());
     }
 
-    public PooledConnection(ChannelHandlerContext ctx, ConnectionPool<I, O> pool, long maxIdleTimeMillis) {
+    public PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis) {
         super(ctx);
-        this.pool = pool;
         lastReturnToPoolTimeMillis = System.currentTimeMillis();
         this.maxIdleTimeMillis = maxIdleTimeMillis;
+    }
+
+    public void setConnectionPool(ConnectionPool<I, O> pool) {
+        this.pool = pool;
     }
 
     @Override
@@ -56,7 +65,7 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
         acquiredOrSoonToBeDiscarded.compareAndSet(true, false); // There isn't anything else to be done here.
 
         if (!isUsable()) {
-            pool.discard(this); // This is the case where multiple close are invoked on the same connection.
+            discard(); // This is the case where multiple close are invoked on the same connection.
             // One results in release and then the other result in discard if the call was
             // because of an underlying channel close.
         }
@@ -72,12 +81,19 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
             maxIdleTimeMillis = keepAliveTimeout;
         }
 
-        final Observable<Void> release = pool.release(this);
-        /**
-         * Other way of doing this is release.finallyDo() but that would depend on whether someone subscribes to the
-         * returned observable or not, which is not guaranteed, specially since its a close() call.
-         */
-        lastReturnToPoolTimeMillis = System.currentTimeMillis();
+        final Observable<Void> release;
+        if (null != pool) {
+            release = pool.release(this);
+            /**
+             * Other way of doing this is release.finallyDo() but that would depend on whether someone subscribes to the
+             * returned observable or not, which is not guaranteed, specially since its a close() call.
+             */
+            lastReturnToPoolTimeMillis = System.currentTimeMillis();
+        } else {
+            logger.warn("Connection pool instance not set in the PooledConnection. Discarding this connection.");
+            release = super._closeChannel();
+        }
+
         return release;
     }
 
@@ -124,5 +140,13 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
      */
     /*Package private to be used only by ConnectionPoolImp. The contract is too weak to be public*/ boolean claim() {
         return acquiredOrSoonToBeDiscarded.compareAndSet(false, true);
+    }
+
+    private void discard() {
+        if (null == pool) {
+            logger.warn("Connection pool instance not set in the PooledConnection.");
+        } else {
+            pool.discard(this);
+        }
     }
 }

@@ -55,6 +55,8 @@ dependencies {
     compile 'com.netflix.numerus:numerus:[1.,)'
     // we only support Groovy in the /src/examples/ code
     examples 'org.codehaus.groovy:groovy-all:[2.1,)'
+    examples 'org.codehaus.jackson:jackson-core-asl:1.9.2'
+
     examplesRuntime 'com.netflix.rxjava:rxjava-groovy:[0.17,)'
     testCompile 'junit:junit:4.10'
 }

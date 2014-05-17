@@ -13,18 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.client;
+package io.reactivex.netty.server;
 
-import io.netty.bootstrap.Bootstrap;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
+import rx.Observable;
 
 /**
- * An abstract factory for creating {@link ClientChannelFactory}
- *
- * @author Nitesh Kant
- */
-public interface ClientChannelAbstractFactory<I, O> {
+* @author Nitesh Kant
+*/
+class DefaultErrorHandler implements ErrorHandler {
 
-    ClientChannelFactory<I, O> newClientChannelFactory(RxClient.ServerInfo serverInfo, Bootstrap clientBootstrap,
-                                                       ObservableConnectionFactory<I, O> connectionFactory);
+    @Override
+    public Observable<Void> handleError(Throwable throwable) {
+        System.err.println("Unexpected error in RxNetty. Error: " + throwable.getMessage());
+        throwable.printStackTrace(System.err);
+        return Observable.error(throwable); // If we do not return an error observable then the error is swallowed.
+    }
 }

@@ -15,17 +15,16 @@
  */
 package io.reactivex.netty.client;
 
-import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
 
 /**
  * @author Nitesh Kant
  */
-public class TcpClientChannelAbstractFactory<I, O> implements ClientChannelAbstractFactory<O, I> {
+public interface ClientConnectionFactory<I, O, C extends ObservableConnection<I, O>>
+        extends ObservableConnectionFactory<I, O> {
 
     @Override
-    public ClientChannelFactory<O, I> newClientChannelFactory(RxClient.ServerInfo serverInfo, Bootstrap clientBootstrap,
-                                                              ObservableConnectionFactory<O, I> connectionFactory) {
-        return new ClientChannelFactoryImpl<O, I>(clientBootstrap, connectionFactory, serverInfo);
-    }
+    C newConnection(ChannelHandlerContext ctx);
 }

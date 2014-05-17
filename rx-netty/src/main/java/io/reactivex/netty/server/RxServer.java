@@ -16,13 +16,9 @@
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ServerChannel;
-import io.netty.channel.socket.SocketChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
-import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 
 public class RxServer<I, O> extends AbstractServer<I, O, ServerBootstrap, ServerChannel, RxServer<I, O>> {
 

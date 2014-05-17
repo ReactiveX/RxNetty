@@ -15,9 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
 
 /**
@@ -25,9 +23,9 @@ import rx.Observable;
  *
  * @author Nitesh Kant
  */
-public interface ConnectionPool<I, O> extends ObservableConnectionFactory<I, O>, PoolInsightProvider {
+public interface ConnectionPool<I, O> extends PoolInsightProvider {
 
-    Observable<ObservableConnection<I, O>> acquire(PipelineConfigurator<I, O> pipelineConfigurator);
+    Observable<ObservableConnection<I, O>> acquire();
 
     Observable<Void> release(PooledConnection<I, O> connection);
 

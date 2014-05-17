@@ -16,16 +16,15 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelInitializer;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
-import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -38,32 +37,16 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
     protected final ServerInfo serverInfo;
     protected final Bootstrap clientBootstrap;
-
-    /**
-     * This should NOT be used directly. {@link ClientChannelFactoryImpl#getPipelineConfiguratorForAChannel(ClientConnectionHandler, PipelineConfigurator)}
-     * is the correct way of getting the pipeline configurator.
-     */
-    private final PipelineConfigurator<O, I> incompleteConfigurator;
-    protected final PipelineConfigurator<O, I> originalPipelineConfigurator;
+    protected final PipelineConfigurator<O, I> pipelineConfigurator;
     protected final ClientChannelFactory<O, I> channelFactory;
+    protected final ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory;
     protected final ClientConfig clientConfig;
-    protected final ClientChannelAbstractFactory<O, I> clientChannelAbstractFactory;
     protected ConnectionPool<O, I> pool;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
 
-    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
-        this(serverInfo, clientBootstrap, null, clientConfig, null);
-    }
-
-    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-                        PipelineConfigurator<O, I> pipelineConfigurator, ClientConfig clientConfig,
-                        ClientChannelAbstractFactory<O, I> clientChannelAbstractFactory) {
-        this(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, clientChannelAbstractFactory, null);
-    }
-    
     public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
-                        ClientConfig clientConfig, ClientChannelAbstractFactory<O, I> clientChannelAbstractFactory,
-                        ConnectionPool<O, I> pool) {
+                        ClientConfig clientConfig, ClientChannelFactory<O, I> channelFactory,
+                        ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory) {
         if (null == clientBootstrap) {
             throw new NullPointerException("Client bootstrap can not be null.");
         }
@@ -73,40 +56,57 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         if (null == clientConfig) {
             throw new NullPointerException("Client config can not be null.");
         }
-        if (null == clientChannelAbstractFactory) {
-            throw new NullPointerException("Client channel abstract factory can not be null.");
+        if (null == connectionFactory) {
+            throw new NullPointerException("Connection factory can not be null.");
+        }
+        if (null == channelFactory) {
+            throw new NullPointerException("Channel factory can not be null.");
         }
 
-        this.clientChannelAbstractFactory = clientChannelAbstractFactory;
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
-        this.pool = pool;
-        if (null != pool) {
-            channelFactory = clientChannelAbstractFactory.newClientChannelFactory(this.serverInfo, this.clientBootstrap,
-                                                                                  this.pool);
-        } else {
-            channelFactory = clientChannelAbstractFactory.newClientChannelFactory(this.serverInfo, this.clientBootstrap,
-                                                                                  new UnpooledConnectionFactory<O, I>());
-        }
-
-        if (pool instanceof ConnectionPoolImpl) {
-            ((ConnectionPoolImpl<O, I>) pool).setChannelFactory(channelFactory);
-        }
-        originalPipelineConfigurator = pipelineConfigurator;
-
-        if (clientConfig.isReadTimeoutSet()) {
-            ReadTimeoutPipelineConfigurator readTimeoutConfigurator =
-                    new ReadTimeoutPipelineConfigurator(clientConfig.getReadTimeoutInMillis(), TimeUnit.MILLISECONDS);
-            if (null != pipelineConfigurator) {
-                pipelineConfigurator = new PipelineConfiguratorComposite<O, I>(pipelineConfigurator,
-                                                                               readTimeoutConfigurator);
-            } else {
-                pipelineConfigurator = new PipelineConfiguratorComposite<O, I>(readTimeoutConfigurator);
+        this.connectionFactory = connectionFactory;
+        this.channelFactory = channelFactory;
+        this.pipelineConfigurator = pipelineConfigurator;
+        final PipelineConfigurator<O, I> configurator = adaptPipelineConfigurator(pipelineConfigurator, clientConfig);
+        this.clientBootstrap.handler(new ChannelInitializer<Channel>() {
+            @Override
+            public void initChannel(Channel ch) throws Exception {
+                configurator.configureNewPipeline(ch.pipeline());
             }
+        });
+    }
+
+    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+                        ClientConfig clientConfig, ConnectionPoolBuilder<O, I> poolBuilder) {
+        if (null == clientBootstrap) {
+            throw new NullPointerException("Client bootstrap can not be null.");
+        }
+        if (null == serverInfo) {
+            throw new NullPointerException("Server info can not be null.");
+        }
+        if (null == clientConfig) {
+            throw new NullPointerException("Client config can not be null.");
+        }
+        if (null == poolBuilder) {
+            throw new NullPointerException("Pool builder can not be null.");
         }
 
-        incompleteConfigurator = pipelineConfigurator;
+        this.clientConfig = clientConfig;
+        this.serverInfo = serverInfo;
+        this.clientBootstrap = clientBootstrap;
+        this.pipelineConfigurator = pipelineConfigurator;
+        final PipelineConfigurator<O, I> configurator = adaptPipelineConfigurator(pipelineConfigurator, clientConfig);
+        this.clientBootstrap.handler(new ChannelInitializer<Channel>() {
+            @Override
+            public void initChannel(Channel ch) throws Exception {
+                configurator.configureNewPipeline(ch.pipeline());
+            }
+        });
+        pool = poolBuilder.build();
+        channelFactory = poolBuilder.getChannelFactory();
+        connectionFactory = poolBuilder.getConnectionFactory();
     }
 
     /**
@@ -122,15 +122,14 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         }
 
         if (null != pool) {
-            return pool.acquire(incompleteConfigurator);
+            return pool.acquire();
         }
 
         return Observable.create(new OnSubscribe<ObservableConnection<O, I>>() {
             @Override
             public void call(final Subscriber<? super ObservableConnection<O, I>> subscriber) {
                 try {
-                    ClientConnectionHandler<O, I> connHandler = channelFactory.newConnectionHandler(subscriber);
-                    channelFactory.connect(connHandler, incompleteConfigurator);
+                    channelFactory.connect(subscriber, serverInfo, connectionFactory);
                 } catch (Throwable throwable) {
                     subscriber.onError(throwable);
                 }
@@ -167,5 +166,10 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             return null;
         }
         return pool.getStats();
+    }
+
+    protected PipelineConfigurator<O, I> adaptPipelineConfigurator(PipelineConfigurator<O, I> pipelineConfigurator,
+                                                                   ClientConfig clientConfig) {
+        return PipelineConfigurators.createClientConfigurator(pipelineConfigurator, clientConfig);
     }
 }

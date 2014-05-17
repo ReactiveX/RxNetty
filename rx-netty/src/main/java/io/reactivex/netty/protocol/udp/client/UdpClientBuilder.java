@@ -17,8 +17,12 @@ package io.reactivex.netty.protocol.udp.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.reactivex.netty.client.AbstractClientBuilder;
+import io.reactivex.netty.client.ClientChannelFactoryImpl;
+import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClientImpl;
+
+import java.net.InetSocketAddress;
 
 /**
  * A builder to build an instance of {@link RxClientImpl}
@@ -32,16 +36,27 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
     }
 
     public UdpClientBuilder(String host, int port, Bootstrap bootstrap) {
-        super(bootstrap, host, port, new UdpClientChannelAbstractFactory<O, I>());
+        super(bootstrap, host, port, new UdpClientConnectionFactory<O, I>(new InetSocketAddress(host, port)),
+              new ClientChannelFactoryImpl<O, I>(bootstrap));
+        defaultUdpOptions();
     }
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new UdpClient<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory);
+        return new UdpClient<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory);
     }
 
     @Override
-    protected boolean shouldCreateConnectionPool() {
-        return false; // No connection pools are needed for UDP.
+    protected ConnectionPoolBuilder<O, I> getPoolBuilder(boolean createNew) {
+        ConnectionPoolBuilder<O, I> builder = super.getPoolBuilder(false);
+        if (null == builder && createNew) {
+            throw new IllegalStateException("Connection pools are not allowed for UDP clients.");
+        }
+
+        if (null != builder) {
+            throw new IllegalStateException("Connection pools are not allowed for UDP clients.");
+        }
+
+        return builder;
     }
 }

@@ -19,6 +19,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.reactivex.netty.client.ClientRequiredConfigurator;
+import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
@@ -32,6 +34,7 @@ import io.reactivex.netty.protocol.text.SimpleTextProtocolConfigurator;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 
 import java.nio.charset.Charset;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Utility class that provides a variety of {@link PipelineConfigurator} implementations
@@ -156,6 +159,30 @@ public final class PipelineConfigurators {
                 pipeline.addFirst(new LoggingHandler(wireLogginLevel));
             }
         };
+    }
+
+    public static <I, O> PipelineConfigurator<I, O> createClientConfigurator(
+            PipelineConfigurator<I, O> pipelineConfigurator, RxClient.ClientConfig clientConfig) {
+
+        PipelineConfigurator<I, O> clientRequiredConfigurator;
+
+        if (clientConfig.isReadTimeoutSet()) {
+            ReadTimeoutPipelineConfigurator readTimeoutConfigurator =
+                    new ReadTimeoutPipelineConfigurator(clientConfig.getReadTimeoutInMillis(), TimeUnit.MILLISECONDS);
+            clientRequiredConfigurator = new PipelineConfiguratorComposite<I, O>(new ClientRequiredConfigurator<I, O>(),
+                                                                                 readTimeoutConfigurator);
+        } else {
+            clientRequiredConfigurator = new ClientRequiredConfigurator<I, O>();
+        }
+
+        if (null != pipelineConfigurator) {
+            pipelineConfigurator = new PipelineConfiguratorComposite<I, O>(pipelineConfigurator,
+                                                                           clientRequiredConfigurator);
+        } else {
+            pipelineConfigurator = clientRequiredConfigurator;
+        }
+        return pipelineConfigurator;
+
     }
 
     public static PipelineConfigurator<ByteBuf, ByteBuf> empty() {

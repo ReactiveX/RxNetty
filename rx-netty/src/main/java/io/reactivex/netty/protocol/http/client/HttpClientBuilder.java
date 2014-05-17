@@ -16,7 +16,13 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.AbstractClientBuilder;
+import io.reactivex.netty.client.ClientChannelFactory;
+import io.reactivex.netty.client.ClientChannelFactoryImpl;
+import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.client.ConnectionPoolBuilder;
+import io.reactivex.netty.client.UnpooledClientConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 
 /**
@@ -28,20 +34,39 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
 public class HttpClientBuilder<I, O>
         extends AbstractClientBuilder<HttpClientRequest<I>, HttpClientResponse<O>, HttpClientBuilder<I, O>, HttpClient<I, O>> {
 
+
     public HttpClientBuilder(String host, int port) {
-        super(host, port, new HttpClientChannelAbstractFactory<I, O>());
+        this(host, port, new Bootstrap());
+    }
+
+    public HttpClientBuilder(String host, int port, Bootstrap bootstrap) {
+        this(bootstrap, host, port,
+             new UnpooledClientConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>>(),
+             new ClientChannelFactoryImpl<HttpClientResponse<O>, HttpClientRequest<I>>(bootstrap));
+    }
+
+    public HttpClientBuilder(Bootstrap bootstrap, String host, int port,
+                             ClientConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>,
+                                     ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory,
+                             ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> factory) {
+        super(bootstrap, host, port, connectionFactory, factory);
         clientConfig = HttpClient.HttpClientConfig.Builder.newDefaultConfig();
         pipelineConfigurator(PipelineConfigurators.<I, O>httpClientConfigurator());
     }
 
-    public HttpClientBuilder(Bootstrap bootstrap, String host, int port) {
-        super(bootstrap, host, port, new HttpClientChannelAbstractFactory<I, O>());
+    public HttpClientBuilder(Bootstrap bootstrap, String host, int port,
+                             ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder) {
+        super(bootstrap, host, port, poolBuilder);
+        clientConfig = HttpClient.HttpClientConfig.Builder.newDefaultConfig();
         pipelineConfigurator(PipelineConfigurators.<I, O>httpClientConfigurator());
     }
 
     @Override
     protected HttpClient<I, O> createClient() {
-        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, connectionPool,
-                                        clientChannelFactory);
+        if (null == poolBuilder) {
+            return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory,
+                                            connectionFactory);
+        }
+        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, poolBuilder);
     }
 }

@@ -17,7 +17,6 @@ package io.reactivex.netty.client;
 
 import io.netty.channel.ChannelFuture;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Subscriber;
 
 /**
@@ -29,7 +28,9 @@ import rx.Subscriber;
  */
 public interface ClientChannelFactory<I, O> {
 
-    ChannelFuture connect(ClientConnectionHandler<I, O> connectionHandler, PipelineConfigurator<I, O> pipelineConfigurator);
+    ChannelFuture connect(Subscriber<? super ObservableConnection<I, O>> subscriber, RxClient.ServerInfo serverInfo,
+                          ClientConnectionFactory<I, O, ? extends ObservableConnection<I, O>> connectionFactory);
 
-    ClientConnectionHandler<I, O> newConnectionHandler(Subscriber<? super ObservableConnection<I, O>> subscriber);
+    void onNewConnection(ObservableConnection<I, O> newConnection,
+                         Subscriber<? super ObservableConnection<I, O>> subscriber);
 }

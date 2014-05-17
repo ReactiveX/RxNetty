@@ -18,7 +18,7 @@ package io.reactivex.netty.contexts;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.RxClient;
-import io.reactivex.netty.contexts.http.HttpContextClientChannelAbstractFactory;
+import io.reactivex.netty.contexts.http.HttpContextClientChannelFactory;
 import io.reactivex.netty.contexts.http.HttpRequestIdProvider;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClient;
@@ -70,9 +70,10 @@ public final class RxContexts {
     public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port,
                                                                       RequestIdProvider provider,
                                                                       RequestCorrelator correlator) {
-        return RxNetty.<I, O>newHttpClientBuilder(host, port)
-                .pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider, correlator))
-                .withClientChannelFactory(new HttpContextClientChannelAbstractFactory<I, O>(correlator));
+        HttpClientBuilder<I, O> builder = RxNetty.newHttpClientBuilder(host, port);
+        return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider, correlator))
+                      .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(),
+                                                                                    correlator));
     }
 
     public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler,

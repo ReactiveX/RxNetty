@@ -29,9 +29,9 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
+import io.reactivex.netty.client.ConnectionReuseEvent;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
-import rx.Observer;
 import rx.subjects.PublishSubject;
 
 /**
@@ -68,7 +68,6 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
 
     @SuppressWarnings("rawtypes") private PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
-    @SuppressWarnings("rawtypes") private Observer requestProcessingObserver;
 
     public ClientRequestResponseConverter() {
         contentSubject = PublishSubject.create();
@@ -102,9 +101,6 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 invokeContentOnNext(content);
             }
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
-                if (null != requestProcessingObserver) {
-                    requestProcessingObserver.onCompleted();
-                }
                 contentSubject.onCompleted();
             }
         } else if(!HttpResponse.class.isAssignableFrom(recievedMsgClass)){
@@ -159,9 +155,12 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         }
     }
 
-    void setRequestProcessingObserver(@SuppressWarnings("rawtypes") Observer requestProcessingObserver) {
-        contentSubject = PublishSubject.create();
-        this.requestProcessingObserver = requestProcessingObserver;
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof ConnectionReuseEvent) {
+            contentSubject = PublishSubject.create(); // Reset the subject on reuse.
+        }
+        super.userEventTriggered(ctx, evt);
     }
 
     @SuppressWarnings("unchecked")
