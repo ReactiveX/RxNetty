@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import com.netflix.numerus.LongAdder;
+import io.netty.util.internal.chmv8.LongAdder;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
