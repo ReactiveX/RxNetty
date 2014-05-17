@@ -21,7 +21,6 @@ import io.reactivex.netty.client.ClientChannelFactory;
 import io.reactivex.netty.client.ClientConnectionFactory;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.PoolStats;
-import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
 
@@ -29,7 +28,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * An implementation of {@link HttpClient} that can execute requests over multiple hosts.
- * Internally this implementation uses one {@link HttpClientImpl} per unique {@link RxClient.ServerInfo}.
+ * Internally this implementation uses one {@link HttpClientImpl} per unique
+ * {@link io.reactivex.netty.client.RxClient.ServerInfo}.
  * The only way to create this client is via the {@link CompositeHttpClientBuilder}
  *
  * @author Nitesh Kant

@@ -27,7 +27,7 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * An Rx {@link Observable.Operator} which handles HTTP redirects. <br/>
+ * An Rx {@link rx.Observable.Operator} which handles HTTP redirects. <br/>
  * The redirect behavior can be altered by supplying a custom implementation of {@link RedirectHandler}. By default this
  * uses {@link DefaultRedirectHandler}
  *
