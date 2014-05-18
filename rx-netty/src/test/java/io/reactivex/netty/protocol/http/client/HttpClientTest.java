@@ -17,9 +17,11 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.timeout.ReadTimeoutException;
@@ -27,11 +29,14 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClient.ClientConfig.Builder;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient.HttpClientConfig;
+import io.reactivex.netty.protocol.http.client.RawContentSource.SingletonRawSource;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.serialization.ContentTransformer;
 import io.reactivex.netty.server.RxServerThreadFactory;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -253,6 +258,38 @@ public class HttpClientTest {
         });
         assertEquals(1, result.size());
         assertEquals("Hello world", result.get(0));
+    }
+    
+    @Test
+    public void testPostWithRawContentSource() {
+        ContentTransformer<String> transformer = new ContentTransformer<String>() {
+            @Override
+            public ByteBuf transform(String toTransform,
+                    ByteBufAllocator byteBufAllocator) {
+                byte[] rawBytes = toTransform.getBytes();
+                return byteBufAllocator.buffer(rawBytes.length).writeBytes(rawBytes);
+            }            
+        };
+        PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<String>> pipelineConfigurator
+                = PipelineConfigurators.httpClientConfigurator();
+
+        HttpClient<String, ByteBuf> client = RxNetty.createHttpClient("localhost", port, pipelineConfigurator);
+        HttpClientRequest<String> request = HttpClientRequest.<String>create(HttpMethod.POST, "test/post");
+        SingletonRawSource<String> rawContentSource = new SingletonRawSource<String>("Hello world", transformer);
+        request.withRawContentSource(rawContentSource);
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
+        String result = response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
+            @Override
+            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
+                return response.getContent().map(new Func1<ByteBuf, String>() {
+                    @Override
+                    public String call(ByteBuf byteBuf) {
+                        return byteBuf.toString(Charset.defaultCharset());
+                    }
+                });
+            }
+        }).toBlockingObservable().single();
+        assertEquals("Hello world", result);
     }
     
     @Test
