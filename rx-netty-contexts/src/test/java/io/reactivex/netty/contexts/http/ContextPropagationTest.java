@@ -258,6 +258,7 @@ public class ContextPropagationTest {
 
     private static void sendTestRequest(HttpClient<ByteBuf, ByteBuf> testClient, final String requestId)
             throws MockBackendRequestFailedException, InterruptedException {
+        System.err.println("Sending test request to mock server, with request id: " + requestId);
         final CountDownLatch finishLatch = new CountDownLatch(1);
         final List<HttpClientResponse<ByteBuf>> responseHolder = new ArrayList<HttpClientResponse<ByteBuf>>();
         testClient.submit(HttpClientRequest.createGet("").withHeader(REQUEST_ID_HEADER_NAME, requestId))
@@ -278,6 +279,9 @@ public class ContextPropagationTest {
         if (responseHolder.isEmpty()) {
             throw new AssertionError("Response not received.");
         }
+
+        System.err.println("Received response from mock server, with request id: " + requestId
+                           + ", status: " + responseHolder.get(0).getStatus());
 
         HttpClientResponse<ByteBuf> response = responseHolder.get(0);
 
