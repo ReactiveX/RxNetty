@@ -122,7 +122,7 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     }
 
     public int getServerPort() {
-        if (null != bindFuture || !bindFuture.isDone()) {
+        if (null != bindFuture && bindFuture.isDone()) {
             SocketAddress localAddress = bindFuture.channel().localAddress();
             if (localAddress instanceof InetSocketAddress) {
                 return ((InetSocketAddress) localAddress).getPort();

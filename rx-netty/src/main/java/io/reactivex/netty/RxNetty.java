@@ -32,6 +32,7 @@ import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.RawContentSource;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -173,6 +174,14 @@ public final class RxNetty {
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, ContentSource<ByteBuf> content) {
         return createHttpRequest(HttpClientRequest.createPut(uri).withContentSource(content));
+    }
+
+    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, RawContentSource<T> content) {
+        return createHttpRequest(HttpClientRequest.createPost(uri).withRawContentSource(content));
+    }
+
+    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, RawContentSource<T> content) {
+        return createHttpRequest(HttpClientRequest.createPut(uri).withRawContentSource(content));
     }
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpDelete(String uri) {

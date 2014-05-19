@@ -1,3 +1,18 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.reactivex.netty.contexts.http;
 
 import com.netflix.server.context.ContextSerializationException;
@@ -20,9 +35,9 @@ import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import org.junit.AfterClass;
+import org.junit.After;
 import org.junit.Assert;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 import rx.Observable;
 import rx.functions.Action0;
@@ -48,7 +63,7 @@ public class ContextPropagationTest {
 
     public static final String CTX_3_FOUND_HEADER = "CTX_3_FOUND";
 
-    private static HttpServer<ByteBuf, ByteBuf> mockServer;
+    private HttpServer<ByteBuf, ByteBuf> mockServer;
     private static final String REQUEST_ID_HEADER_NAME = "request_id";
     private static final String REQUEST_ID = "id1";
     private static final String REQUEST_ID_2 = "id2";
@@ -57,8 +72,8 @@ public class ContextPropagationTest {
     private static final String CTX_2_NAME = "ctx2";
     private static final TestContext CTX_2_VAL = new TestContext(CTX_2_NAME);
 
-    @BeforeClass
-    public static void setUp() throws Exception {
+    @Before
+    public void setUp() throws Exception {
         mockServer = RxNetty.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(final HttpServerRequest<ByteBuf> request,
@@ -93,8 +108,8 @@ public class ContextPropagationTest {
         mockServer.start();
     }
 
-    @AfterClass
-    public static void tearDown() throws Exception {
+    @After
+    public void tearDown() throws Exception {
         mockServer.shutdown();
         mockServer.waitTillShutdown();
     }
@@ -201,7 +216,7 @@ public class ContextPropagationTest {
         invokeMockServer(testClient, REQUEST_ID_2, false);
     }
 
-    private static HttpServerBuilder<ByteBuf, ByteBuf> newTestServerBuilder(final Func1<HttpClient<ByteBuf, ByteBuf>,
+    private HttpServerBuilder<ByteBuf, ByteBuf> newTestServerBuilder(final Func1<HttpClient<ByteBuf, ByteBuf>,
             Observable<HttpClientResponse<ByteBuf>>> clientInvoker) {
         return RxContexts.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
