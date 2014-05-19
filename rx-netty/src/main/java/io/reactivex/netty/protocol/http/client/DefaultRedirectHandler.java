@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import rx.Observable;
 
 import java.net.URI;
+import java.util.Arrays;
 
 import static io.reactivex.netty.protocol.http.client.HttpRedirectException.Reason.InvalidRedirect;
 import static io.reactivex.netty.protocol.http.client.HttpRedirectException.Reason.RedirectLoop;
@@ -35,6 +36,13 @@ import static io.reactivex.netty.protocol.http.client.HttpRedirectException.Reas
 public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHandler<I, O> {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultRedirectHandler.class);
+
+    private static final int[] REDIRECTABLE_STATUS_CODES = {301, 302, 303, 307, 308};
+
+    static {
+        Arrays.sort(REDIRECTABLE_STATUS_CODES); // Required as we do binary search. This is a safety net in case the
+                                                // array is modified (code change) & is not sorted.
+    }
 
     private final int maxHops;
     private final HttpClient<I, O> client;
@@ -76,7 +84,7 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
     @Override
     public boolean requiresRedirect(RedirectionContext context, HttpClientResponse<O> response) {
         int statusCode = response.getStatus().code();
-        return statusCode >= 301 && statusCode <= 308;
+        return Arrays.binarySearch(REDIRECTABLE_STATUS_CODES, statusCode) >= 0;
     }
 
     @Override
