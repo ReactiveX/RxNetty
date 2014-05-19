@@ -13,14 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.pipeline;
+package io.reactivex.netty.server;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
-import io.reactivex.netty.server.ErrorHandler;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -36,10 +35,6 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
         this.connectionHandler = connectionHandler;
         this.connectionFactory = connectionFactory;
         this.errorHandler = null == errorHandler ? new DefaultErrorHandler() : errorHandler;
-    }
-
-    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableConnectionFactory<I, O> connectionFactory) {
-        this(connectionHandler, connectionFactory, null);
     }
 
     @Override

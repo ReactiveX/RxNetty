@@ -1,3 +1,18 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.reactivex.netty.contexts.http;
 
 import com.netflix.server.context.ContextSerializationException;
@@ -65,7 +80,7 @@ public class ContextPropagationTest {
                                            HttpServerResponse<ByteBuf> response) {
                 final String requestId = request.getHeaders().get(REQUEST_ID_HEADER_NAME);
                 if (null == requestId) {
-                    System.out.println("Request Id not found.");
+                    System.err.println("Request Id not found.");
                     return Observable.error(new AssertionError("Request Id not found in mock server."));
                 }
                 response.getHeaders().add(REQUEST_ID_HEADER_NAME, requestId);
@@ -89,7 +104,8 @@ public class ContextPropagationTest {
                     return Observable.error(e);
                 }
             }
-        }).enableWireLogging(LogLevel.DEBUG).build().start();
+        }).enableWireLogging(LogLevel.ERROR).build();
+        mockServer.start();
     }
 
     @After
@@ -194,7 +210,7 @@ public class ContextPropagationTest {
         try {
             invokeMockServer(testClient, REQUEST_ID, true);
         } catch (MockBackendRequestFailedException e) {
-            throw new AssertionError("First request to mock backend failed. Erro: " + e.getMessage());
+            throw new AssertionError("First request to mock backend failed. Error: " + e.getMessage());
         }
 
         invokeMockServer(testClient, REQUEST_ID_2, false);
@@ -257,6 +273,7 @@ public class ContextPropagationTest {
 
     private static void sendTestRequest(HttpClient<ByteBuf, ByteBuf> testClient, final String requestId)
             throws MockBackendRequestFailedException, InterruptedException {
+        System.err.println("Sending test request to mock server, with request id: " + requestId);
         final CountDownLatch finishLatch = new CountDownLatch(1);
         final List<HttpClientResponse<ByteBuf>> responseHolder = new ArrayList<HttpClientResponse<ByteBuf>>();
         testClient.submit(HttpClientRequest.createGet("").withHeader(REQUEST_ID_HEADER_NAME, requestId))
@@ -277,6 +294,9 @@ public class ContextPropagationTest {
         if (responseHolder.isEmpty()) {
             throw new AssertionError("Response not received.");
         }
+
+        System.err.println("Received response from mock server, with request id: " + requestId
+                           + ", status: " + responseHolder.get(0).getStatus());
 
         HttpClientResponse<ByteBuf> response = responseHolder.get(0);
 

@@ -16,6 +16,7 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.reactivex.netty.channel.ObservableConnection;
 
 /**
  * A builder to build an instance of {@link RxClientImpl}
@@ -25,16 +26,33 @@ import io.netty.bootstrap.Bootstrap;
 public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilder<I, O>, RxClient<I, O>> {
 
     public ClientBuilder(String host, int port) {
-        super(host, port, new TcpClientChannelAbstractFactory<I, O>());
+        this(host, port, new Bootstrap());
     }
 
     public ClientBuilder(String host, int port, Bootstrap bootstrap) {
-        super(bootstrap, host, port, new TcpClientChannelAbstractFactory<I, O>());
+        super(bootstrap, host, port, new UnpooledClientConnectionFactory<O, I>(),
+              new ClientChannelFactoryImpl<O, I>(bootstrap));
+        defaultTcpOptions();
+    }
+
+    public ClientBuilder(Bootstrap bootstrap, String host, int port,
+                         ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
+                         ClientChannelFactory<O, I> factory) {
+        super(bootstrap, host, port, connectionFactory, factory);
+    }
+
+    public ClientBuilder(Bootstrap bootstrap, String host, int port,
+                         ConnectionPoolBuilder<O, I> poolBuilder) {
+        super(bootstrap, host, port, poolBuilder);
     }
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory,
-                                      connectionPool);
+        if (null == poolBuilder) {
+            return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory,
+                                          connectionFactory);
+        } else {
+            return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+        }
     }
 }

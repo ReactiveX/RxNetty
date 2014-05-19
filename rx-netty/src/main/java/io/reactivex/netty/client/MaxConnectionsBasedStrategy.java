@@ -15,6 +15,7 @@
  */
 package io.reactivex.netty.client;
 
+import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Nitesh Kant
  */
-public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrategy {
+public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy {
 
     private static final Logger logger = LoggerFactory.getLogger(MaxConnectionsBasedStrategy.class);
 
@@ -34,6 +35,7 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
 
     private final AtomicInteger limitEnforcer;
     private final AtomicInteger maxConnections;
+    private final int originalMaxConnLimit; // Used for copy.
 
     public MaxConnectionsBasedStrategy() {
         this(DEFAULT_MAX_CONNECTIONS);
@@ -42,6 +44,7 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
     public MaxConnectionsBasedStrategy(int maxConnections) {
         this.maxConnections = new AtomicInteger(maxConnections);
         limitEnforcer = new AtomicInteger();
+        originalMaxConnLimit = maxConnections;
     }
 
     @Override
@@ -130,5 +133,10 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
 
     private void onConnectionEviction() {
         limitEnforcer.decrementAndGet();
+    }
+
+    @Override
+    public CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy copy() {
+        return new MaxConnectionsBasedStrategy(originalMaxConnLimit);
     }
 }

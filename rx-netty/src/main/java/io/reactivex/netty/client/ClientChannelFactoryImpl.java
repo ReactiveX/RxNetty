@@ -16,15 +16,16 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 import rx.Subscriber;
+import rx.functions.Action0;
+import rx.subscriptions.Subscriptions;
 
 /**
  * A factory to create netty channels for clients.
@@ -37,56 +38,53 @@ import rx.Subscriber;
 public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O> {
 
     protected final Bootstrap clientBootstrap;
-    protected final ObservableConnectionFactory<I, O> connectionFactory;
-    protected final RxClient.ServerInfo serverInfo;
 
-    public ClientChannelFactoryImpl(Bootstrap clientBootstrap, ObservableConnectionFactory<I, O> connectionFactory,
-                                    RxClient.ServerInfo serverInfo) {
+    public ClientChannelFactoryImpl(Bootstrap clientBootstrap) {
         this.clientBootstrap = clientBootstrap;
-        this.connectionFactory = connectionFactory;
-        this.serverInfo = serverInfo;
     }
 
     @Override
-    public ChannelFuture connect(final ClientConnectionHandler<I, O> connectionHandler,
-                                 PipelineConfigurator<I, O> pipelineConfigurator) {
+    public ChannelFuture connect(final Subscriber<? super ObservableConnection<I, O>> subscriber,
+                                 RxClient.ServerInfo serverInfo,
+                                 final ClientConnectionFactory<I, O,? extends ObservableConnection<I, O>> connectionFactory) {
+        final ChannelFuture connectFuture = clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort());
 
-        final PipelineConfigurator<I, O> configurator = getPipelineConfiguratorForAChannel(connectionHandler,
-                                                                                           pipelineConfigurator);
-        // make the connection
-        clientBootstrap.handler(new ChannelInitializer<Channel>() {
+        subscriber.add(Subscriptions.create(new Action0() {
             @Override
-            public void initChannel(Channel ch) throws Exception {
-                configurator.configureNewPipeline(ch.pipeline());
+            public void call() {
+                if (!connectFuture.isDone()) {
+                    connectFuture.cancel(
+                            true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
+                }
+            }
+        }));
+
+        connectFuture.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (!future.isSuccess()) {
+                    subscriber.onError(future.cause());
+                } else {
+                    ChannelPipeline pipeline = future.channel().pipeline();
+                    ChannelHandlerContext ctx = pipeline.firstContext();
+                    ObservableConnection<I, O> newConnection = connectionFactory.newConnection(ctx);
+                    ChannelHandler lifecycleHandler = pipeline.get(RxRequiredConfigurator.CONN_LIFECYCLE_HANDLER_NAME);
+                    if (null != lifecycleHandler) {
+                        @SuppressWarnings("unchecked")
+                        ConnectionLifecycleHandler<I, O> handler = (ConnectionLifecycleHandler<I, O>) lifecycleHandler;
+                        handler.setConnection(newConnection);
+                    }
+                    onNewConnection(newConnection, subscriber);
+                }
             }
         });
-
-        final ChannelFuture connectFuture = _connect().addListener(connectionHandler);
-
-        connectionHandler.connectionAttempted(connectFuture);
-
         return connectFuture;
     }
 
     @Override
-    public ClientConnectionHandler<I, O> newConnectionHandler(Subscriber<? super ObservableConnection<I, O>> subscriber) {
-        return new ClientConnectionHandler<I, O>(subscriber);
-    }
-
-    protected ChannelFuture _connect() {
-        return clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort());
-    }
-
-
-    protected PipelineConfigurator<I, O> getPipelineConfiguratorForAChannel(ClientConnectionHandler<I, O> connHandler,
-                                                                            PipelineConfigurator<I, O> pipelineConfigurator) {
-        RxRequiredConfigurator<I, O> requiredConfigurator = new RxRequiredConfigurator<I, O>(connHandler, connectionFactory);
-        PipelineConfiguratorComposite<I, O> toReturn;
-        if (null != pipelineConfigurator) {
-            toReturn = new PipelineConfiguratorComposite<I, O>(pipelineConfigurator, requiredConfigurator);
-        } else {
-            toReturn = new PipelineConfiguratorComposite<I, O>(requiredConfigurator);
-        }
-        return toReturn;
+    public void onNewConnection(ObservableConnection<I, O> newConnection,
+                                Subscriber<? super ObservableConnection<I, O>> subscriber) {
+        subscriber.onNext(newConnection);
+        subscriber.onCompleted(); // The observer is no longer looking for any more connections.
     }
 }

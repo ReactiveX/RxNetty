@@ -17,8 +17,7 @@ package io.reactivex.netty.protocol.udp.client;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
-import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
+import io.reactivex.netty.client.ClientConnectionFactory;
 
 import java.net.InetSocketAddress;
 
@@ -27,7 +26,7 @@ import java.net.InetSocketAddress;
  *
  * @author Nitesh Kant
  */
-class UdpClientConnectionFactory<I, O> implements ObservableConnectionFactory<I, O> {
+class UdpClientConnectionFactory<I, O> implements ClientConnectionFactory<I, O, UdpClientConnection<I, O>> {
 
     private final InetSocketAddress receiverAddress;
 
@@ -41,7 +40,7 @@ class UdpClientConnectionFactory<I, O> implements ObservableConnectionFactory<I,
     }
 
     @Override
-    public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
+    public UdpClientConnection<I, O> newConnection(ChannelHandlerContext ctx) {
         return new UdpClientConnection<I, O>(ctx, receiverAddress);
     }
 }

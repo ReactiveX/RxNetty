@@ -15,14 +15,15 @@
  */
 package io.reactivex.netty.client;
 
-import com.netflix.numerus.LongAdder;
+import io.netty.util.internal.chmv8.LongAdder;
+import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * @author Nitesh Kant
  */
-public class PoolStatsImpl implements PoolStats, PoolStatsProvider {
+public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.CloneablePoolStatsProvider {
 
     private static final Logger logger = LoggerFactory.getLogger(PoolStatsImpl.class);
 
@@ -158,5 +159,10 @@ public class PoolStatsImpl implements PoolStats, PoolStatsProvider {
 
     private void onReleaseFailed() {
         pendingReleases.decrement();
+    }
+
+    @Override
+    public CompositeHttpClientBuilder.CloneablePoolStatsProvider copy() {
+        return new PoolStatsImpl();
     }
 }

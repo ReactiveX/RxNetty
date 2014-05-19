@@ -25,10 +25,14 @@ import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.protocol.http.client.CompositeHttpClient;
+import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
+import io.reactivex.netty.protocol.http.client.ContentSource;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.RawContentSource;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -39,12 +43,18 @@ import io.reactivex.netty.protocol.udp.server.UdpServer;
 import io.reactivex.netty.protocol.udp.server.UdpServerBuilder;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerBuilder;
+import rx.Observable;
+
+import java.net.URI;
+import java.net.URISyntaxException;
 
 import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS;
 
 public final class RxNetty {
 
     private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider();
+    private static final CompositeHttpClient<ByteBuf, ByteBuf> globalClient =
+            new CompositeHttpClientBuilder<ByteBuf, ByteBuf>().withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
 
     private RxNetty() {
     }
@@ -133,6 +143,51 @@ public final class RxNetty {
         return RxNetty.<I, O>newHttpClientBuilder(host, port).pipelineConfigurator(configurator).build();
     }
 
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpRequest(HttpClientRequest<ByteBuf> request) {
+        RxClient.ServerInfo serverInfo;
+        try {
+            serverInfo = getServerInfoFromRequest(request);
+        } catch (URISyntaxException e) {
+            return Observable.error(e);
+        }
+        return globalClient.submit(serverInfo, request);
+    }
+
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpRequest(HttpClientRequest<ByteBuf> request,
+                                                                             HttpClient.HttpClientConfig config) {
+        RxClient.ServerInfo serverInfo;
+        try {
+            serverInfo = getServerInfoFromRequest(request);
+        } catch (URISyntaxException e) {
+            return Observable.error(e);
+        }
+        return globalClient.submit(serverInfo, request, config);
+    }
+
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpGet(String uri) {
+        return createHttpRequest(HttpClientRequest.createGet(uri));
+    }
+
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, ContentSource<ByteBuf> content) {
+        return createHttpRequest(HttpClientRequest.createPost(uri).withContentSource(content));
+    }
+
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, ContentSource<ByteBuf> content) {
+        return createHttpRequest(HttpClientRequest.createPut(uri).withContentSource(content));
+    }
+
+    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, RawContentSource<T> content) {
+        return createHttpRequest(HttpClientRequest.createPost(uri).withRawContentSource(content));
+    }
+
+    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, RawContentSource<T> content) {
+        return createHttpRequest(HttpClientRequest.createPut(uri).withRawContentSource(content));
+    }
+
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpDelete(String uri) {
+        return createHttpRequest(HttpClientRequest.createDelete(uri));
+    }
+
     /**
      * An implementation of {@link RxEventLoopProvider} to be used by all clients and servers created after this call.
      *
@@ -148,5 +203,26 @@ public final class RxNetty {
 
     public static RxEventLoopProvider getRxEventLoopProvider() {
         return rxEventLoopProvider;
+    }
+
+    private static RxClient.ServerInfo getServerInfoFromRequest(HttpClientRequest<ByteBuf> request)
+            throws URISyntaxException {
+        URI uri = new URI(request.getUri());
+        final String host = uri.getHost();
+        if (null != host) {
+            int port = uri.getPort();
+            if (port < 0) {
+                String scheme = uri.getScheme();
+                if (null != scheme) {
+                    if ("http".equals(scheme)) {
+                        port = 80;
+                    } else if ("https".equals(scheme)) {
+                        port = 443;
+                    }
+                }
+            }
+            return new RxClient.ServerInfo(host, port);
+        }
+        return globalClient.getDefaultServer();
     }
 }

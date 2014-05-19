@@ -13,20 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.pipeline;
+package io.reactivex.netty.client;
 
-import io.reactivex.netty.server.ErrorHandler;
-import rx.Observable;
+import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.channel.UnpooledConnectionFactory;
 
 /**
-* @author Nitesh Kant
-*/
-class DefaultErrorHandler implements ErrorHandler {
+ * @author Nitesh Kant
+ */
+public class UnpooledClientConnectionFactory<I, O> implements ClientConnectionFactory<I, O, ObservableConnection<I, O>> {
+
+    private final UnpooledConnectionFactory<I, O> delegate = new UnpooledConnectionFactory<I, O>();
 
     @Override
-    public Observable<Void> handleError(Throwable throwable) {
-        System.err.println("Unexpected error in RxNetty. Error: " + throwable.getMessage());
-        throwable.printStackTrace(System.err);
-        return Observable.error(throwable); // If we do not return an error observable then the error is swallowed.
+    public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
+        return delegate.newConnection(ctx);
     }
 }

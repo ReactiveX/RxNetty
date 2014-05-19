@@ -34,9 +34,11 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
      */
     class HttpClientConfig extends ClientConfig {
 
+        public enum RedirectsHandling {Enable, Disable, Undefined}
+
         private String userAgent = "RxNetty Client";
         
-        private Boolean followRedirect;
+        private RedirectsHandling followRedirect = RedirectsHandling.Undefined;
 
         protected HttpClientConfig() {
             // Only the builder can create this instance, so that we can change the constructor signature at will.
@@ -46,7 +48,7 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
             return userAgent;
         }
 
-        public Boolean getFollowRedirect() {
+        public RedirectsHandling getFollowRedirect() {
             return followRedirect;
         }
 
@@ -64,9 +66,9 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
                 config.userAgent = userAgent;
                 return returnBuilder();
             }
-            
+
             public Builder setFollowRedirect(boolean value) {
-                config.followRedirect = Boolean.valueOf(value);
+                config.followRedirect = value ? RedirectsHandling.Enable : RedirectsHandling.Disable;
                 return returnBuilder();
             }
 

@@ -16,10 +16,13 @@
 package io.reactivex.netty.protocol.udp.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.reactivex.netty.client.ClientChannelAbstractFactory;
+import io.reactivex.netty.client.ClientChannelFactory;
+import io.reactivex.netty.client.ClientConnectionFactory;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClientImpl;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+
+import java.net.InetSocketAddress;
 
 /**
  * An implementation of {@link RxClient} for UDP/IP
@@ -28,12 +31,15 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  */
 public class UdpClient<I, O> extends RxClientImpl<I, O> {
 
-    public UdpClient(ServerInfo serverInfo, Bootstrap clientBootstrap, ClientConfig clientConfig) {
-        this(serverInfo, clientBootstrap, null, clientConfig, new UdpClientChannelAbstractFactory<O, I>());
+    public UdpClient(ServerInfo serverInfo, Bootstrap bootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+                     ClientConfig clientConfig, ClientChannelFactory<O, I> clientChannelFactory) {
+        this(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory,
+             new UdpClientConnectionFactory<O, I>(new InetSocketAddress(serverInfo.getHost(), serverInfo.getPort())));
     }
 
     public UdpClient(ServerInfo serverInfo, Bootstrap bootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
-                     ClientConfig clientConfig, ClientChannelAbstractFactory<O, I> clientChannelFactory) {
-        super(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory);
+                     ClientConfig clientConfig, ClientChannelFactory<O, I> channelFactory,
+                     ClientConnectionFactory<O, I, UdpClientConnection<O, I>> connectionFactory) {
+        super(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
     }
 }

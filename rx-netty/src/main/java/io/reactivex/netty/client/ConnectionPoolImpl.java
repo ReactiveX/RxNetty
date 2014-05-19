@@ -15,10 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -37,7 +34,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * @author Nitesh Kant
  */
-class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
+public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionPoolImpl.class);
 
@@ -45,9 +42,11 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     private final PoolStatsProvider statsProvider;
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
-    private ClientChannelFactory<I, O> channelFactory;
+    private final ClientChannelFactory<I, O> channelFactory;
+    private final ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
     private final PublishSubject<PoolStateChangeEvent> stateChangeObservable;
+    private final RxClient.ServerInfo serverInfo;
     private final PoolConfig poolConfig;
     private final ScheduledExecutorService cleanupScheduler;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
@@ -56,14 +55,37 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     /**
      * Creates a new connection pool instance.
      *
+     * @param serverInfo Server to which this pool connects.
      * @param poolConfig The pool configuration.
      * @param strategy Pool limit determination strategy. This can be {@code null}
      * @param cleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
      */
-    ConnectionPoolImpl(PoolConfig poolConfig, PoolLimitDeterminationStrategy strategy,
-                       ScheduledExecutorService cleanupScheduler, PoolStatsProvider poolStatsProvider) {
+    public ConnectionPoolImpl(RxClient.ServerInfo serverInfo, PoolConfig poolConfig,
+                              PoolLimitDeterminationStrategy strategy, ScheduledExecutorService cleanupScheduler,
+                              PoolStatsProvider poolStatsProvider,
+                              ClientChannelFactory<I, O> channelFactory) {
+        this(serverInfo, poolConfig, strategy, cleanupScheduler, poolStatsProvider,
+             new PooledConnectionFactory<I, O>(poolConfig), channelFactory);
+    }
+
+    /**
+     * Creates a new connection pool instance.
+     *
+     * @param serverInfo Server to which this pool connects.
+     * @param poolConfig The pool configuration.
+     * @param strategy Pool limit determination strategy. This can be {@code null}
+     * @param cleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
+     */
+    public ConnectionPoolImpl(RxClient.ServerInfo serverInfo, PoolConfig poolConfig,
+                              PoolLimitDeterminationStrategy strategy, ScheduledExecutorService cleanupScheduler,
+                              PoolStatsProvider poolStatsProvider,
+                              ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory,
+                              ClientChannelFactory<I, O> channelFactory) {
+        this.serverInfo = serverInfo;
         this.poolConfig = poolConfig;
         this.cleanupScheduler = cleanupScheduler;
+        this.connectionFactory = connectionFactory;
+        this.channelFactory = channelFactory;
 
         long scheduleDurationMillis = Math.max(30, this.poolConfig.getMaxIdleTimeMillis()); // Ignore too agressive durations as they create a lot of thread spin.
 
@@ -80,27 +102,10 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         stateChangeObservable.subscribe(statsProvider);
         stateChangeObservable.subscribe(limitDeterminationStrategy);
         idleConnections = new ConcurrentLinkedQueue<PooledConnection<I, O>>();
-        channelFactory = new NoOpClientChannelFactory<I, O>();
-    }
-
-    /**
-     * Creates a new connection pool instance.
-     *
-     * @param poolConfig The pool configuration.
-     * @param strategy Pool limit determination strategy. This can be {@code null}
-     * @param cleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
-     */
-    ConnectionPoolImpl(PoolConfig poolConfig, PoolLimitDeterminationStrategy strategy,
-                       ScheduledExecutorService cleanupScheduler) {
-        this(poolConfig, strategy, cleanupScheduler, new PoolStatsImpl());
-    }
-
-    void setChannelFactory(ClientChannelFactory<I,O> channelFactory) { // There is a transitive circular dep b/w pool & factory hence we have to set the factory later.
-        this.channelFactory = channelFactory;
     }
 
     @Override
-    public Observable<ObservableConnection<I, O>> acquire(final PipelineConfigurator<I, O> pipelineConfigurator) {
+    public Observable<ObservableConnection<I, O>> acquire() {
 
         if (isShutdown.get()) {
             return Observable.error(new IllegalStateException("Connection pool is already shutdown."));
@@ -115,22 +120,20 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
 
                     if (null != idleConnection) { // Found a usable connection
-                        final ClientConnectionHandler<I, O> connHandler = channelFactory.newConnectionHandler(subscriber);
                         idleConnection.beforeReuse();
+                        channelFactory.onNewConnection(idleConnection, subscriber);
                         stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionReuse);
                         stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
-                        connHandler.onNewConnection(idleConnection);
                     } else if (limitDeterminationStrategy.acquireCreationPermit()) { // Check if it is allowed to create another connection.
                         /**
                          * Here we want to make sure that if the connection attempt failed, we should inform the strategy.
                          * Failure to do so, will leak the permits from the strategy. So, any code in this block MUST
                          * ALWAYS use this new subscriber instead of the original subscriber to send any callbacks.
                          */
-                        Subscriber<ObservableConnection<I, O>> newConnectionSubscriber = newConnectionSubscriber(subscriber);
-                        final ClientConnectionHandler<I, O> connHandler =
-                                channelFactory.newConnectionHandler(newConnectionSubscriber);
+                        Subscriber<? super ObservableConnection<I, O>> newConnectionSubscriber =
+                                newConnectionSubscriber(subscriber);
                         try {
-                            channelFactory.connect(connHandler, pipelineConfigurator); // Manages the callbacks to the subscriber
+                            channelFactory.connect(newConnectionSubscriber, serverInfo, connectionFactory); // Manages the callbacks to the subscriber
                         } catch (Throwable throwable) {
                             newConnectionSubscriber.onError(throwable);
                         }
@@ -217,11 +220,6 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         stateChangeObservable.onCompleted();
     }
 
-    @Override
-    public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return new PooledConnection<I, O>(ctx, this, poolConfig.getMaxIdleTimeMillis());
-    }
-
     private PooledConnection<I, O> getAnIdleConnection(boolean claimConnectionIfFound) {
         PooledConnection<I, O> idleConnection;
         while ((idleConnection = idleConnections.poll()) != null) {
@@ -243,14 +241,15 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         return idleConnection.closeUnderlyingChannel();
     }
 
-    private Subscriber<ObservableConnection<I, O>> newConnectionSubscriber(
+    private Subscriber<? super ObservableConnection<I, O>> newConnectionSubscriber(
             final Subscriber<? super ObservableConnection<I, O>> subscriber) {
         return Subscribers.create(new Action1<ObservableConnection<I, O>>() {
                                       @Override
-                                      public void call(ObservableConnection<I, O> o) {
+                                      public void call(ObservableConnection<I, O> connection) {
                                           stateChangeObservable.onNext(PoolStateChangeEvent.NewConnectionCreated);
                                           stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
-                                          subscriber.onNext(o);
+                                          ((PooledConnection<I, O>)connection).setConnectionPool(ConnectionPoolImpl.this);
+                                          subscriber.onNext(connection);
                                           subscriber.onCompleted(); // This subscriber is for "A" connection, so it should be completed.
                                       }
                                   }, new Action1<Throwable>() {
@@ -261,20 +260,6 @@ class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                                       }
                                   }
         );
-    }
-
-    private static class NoOpClientChannelFactory<I, O> implements ClientChannelFactory<I, O> {
-
-        @Override
-        public ChannelFuture connect(ClientConnectionHandler<I, O> connectionHandler,
-                                     PipelineConfigurator<I, O> pipelineConfigurator) {
-            throw new IllegalStateException("Client channel factory not set.");
-        }
-
-        @Override
-        public ClientConnectionHandler<I, O> newConnectionHandler(Subscriber<? super ObservableConnection<I, O>> subscriber) {
-            throw new IllegalStateException("Client channel factory not set.");
-        }
     }
 
     private class IdleConnectionsCleanupTask implements Runnable {

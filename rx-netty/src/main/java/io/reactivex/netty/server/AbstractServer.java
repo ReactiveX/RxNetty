@@ -23,7 +23,6 @@ import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
-import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -123,7 +122,7 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     }
 
     public int getServerPort() {
-        if (null != bindFuture || !bindFuture.isDone()) {
+        if (null != bindFuture && bindFuture.isDone()) {
             SocketAddress localAddress = bindFuture.channel().localAddress();
             if (localAddress instanceof InetSocketAddress) {
                 return ((InetSocketAddress) localAddress).getPort();
@@ -143,9 +142,8 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         return new ChannelInitializer<Channel>() {
             @Override
             protected void initChannel(Channel ch) throws Exception {
-                RxRequiredConfigurator<I, O> requiredConfigurator = new RxRequiredConfigurator<I, O>(connectionHandler,
-                                                                                                     connectionFactory,
-                                                                                                     errorHandler);
+                ServerRequiredConfigurator<I, O> requiredConfigurator =
+                        new ServerRequiredConfigurator<I, O>(connectionHandler, connectionFactory, errorHandler);
                 PipelineConfigurator<I, O> configurator;
                 if (null == pipelineConfigurator) {
                     configurator = requiredConfigurator;

@@ -66,6 +66,10 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         nettyResponse.setStatus(status);
     }
 
+    public HttpResponseStatus getStatus() {
+        return nettyResponse.getStatus();
+    }
+
     public Observable<Void> close() {
         writeOnChannel(new DefaultLastHttpContent());
         return flush();

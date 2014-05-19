@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import com.netflix.numerus.LongAdder;
+import io.netty.util.internal.chmv8.LongAdder;
 import rx.Observer;
 
 /**

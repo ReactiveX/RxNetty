@@ -13,10 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.pipeline;
+package io.reactivex.netty.server;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
+import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnectionFactory;
+import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 import rx.Observable;
 
 /**
@@ -28,24 +32,21 @@ import rx.Observable;
  *
  * @author Nitesh Kant
  */
-public abstract class RxRequiredConfigurator<I, O> implements PipelineConfigurator<I, O> {
+public class ServerRequiredConfigurator<I, O> extends RxRequiredConfigurator<I,O> {
 
-    public static final String CONN_LIFECYCLE_HANDLER_NAME = "conn_lifecycle_handler";
-    public static final String NETTY_OBSERVABLE_ADAPTER_NAME = "netty_observable_adapter";
+    private final ConnectionHandler<I, O> connectionHandler;
+    private final ObservableConnectionFactory<I, O> connectionFactory;
+    private final ErrorHandler errorHandler;
 
-    @Override
-    public void configureNewPipeline(ChannelPipeline pipeline) {
-
-        /**
-         * This method is called for each new connection & the following two channel handlers are not shareable, so
-         * we need to create a new instance every time.
-         */
-        ChannelHandler lifecycleHandler = newConnectionLifecycleHandler(pipeline);
-        ObservableAdapter observableAdapter = new ObservableAdapter();
-
-        pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
-        pipeline.addLast(NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
+    public ServerRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler,
+                                      ObservableConnectionFactory<I, O> connectionFactory, ErrorHandler errorHandler) {
+        this.connectionHandler = connectionHandler;
+        this.connectionFactory = connectionFactory;
+        this.errorHandler = errorHandler;
     }
 
-    protected abstract ChannelHandler newConnectionLifecycleHandler(ChannelPipeline pipeline);
+    @Override
+    protected ChannelHandler newConnectionLifecycleHandler(ChannelPipeline pipeline) {
+        return new ConnectionLifecycleHandler<I, O>(connectionHandler, connectionFactory, errorHandler);
+    }
 }

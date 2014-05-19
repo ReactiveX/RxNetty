@@ -121,8 +121,18 @@ public interface RxClient<I, O> extends PoolInsightProvider {
 
     class ServerInfo {
 
+        public static final String DEFAULT_HOST = "localhost";
+        public static final int DEFAULT_PORT = 80;
         private final String host;
         private final int port;
+
+        public ServerInfo() {
+            this(DEFAULT_HOST, DEFAULT_PORT);
+        }
+
+        public ServerInfo(String host) {
+            this(host, DEFAULT_PORT);
+        }
 
         public ServerInfo(String host, int port) {
             this.host = host;

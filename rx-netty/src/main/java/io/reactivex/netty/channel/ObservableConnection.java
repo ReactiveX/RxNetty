@@ -62,8 +62,12 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
      */
     public Observable<Void> close() {
         if (closeIssued.compareAndSet(false, true)) {
+            PublishSubject<I> thisSubject = inputSubject;
             cleanupConnection();
-            return _closeChannel();
+            Observable<Void> toReturn = _closeChannel();
+            thisSubject.onCompleted(); // This is just to make sure we make the subject as completed after we finish
+                                       // closing the channel, results in more deterministic behavior for clients.
+            return toReturn;
         } else {
             return CONNECTION_ALREADY_CLOSED;
         }
@@ -71,7 +75,6 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
     protected void cleanupConnection() {
         cancelPendingWrites(true);
-        inputSubject.onCompleted();
         ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
     }
 

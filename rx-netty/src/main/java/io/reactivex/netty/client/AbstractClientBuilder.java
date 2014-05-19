@@ -24,11 +24,10 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.channel.RxDefaultThreadFactory;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
@@ -37,34 +36,37 @@ import java.util.concurrent.ScheduledExecutorService;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
 
-    private static final ScheduledExecutorService SHARED_IDLE_CLEANUP_SCHEDULER =
-            Executors.newScheduledThreadPool(1, new RxDefaultThreadFactory("global-client-idle-conn-cleanup-scheduler"));
-
     protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
+    protected final ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory;
+    protected ClientChannelFactory<O, I> channelFactory;
+    protected ConnectionPoolBuilder<O, I> poolBuilder;
     protected PipelineConfigurator<O, I> pipelineConfigurator;
     protected Class<? extends Channel> socketChannel;
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
-    protected ConnectionPool<O, I> connectionPool;
-    protected PoolLimitDeterminationStrategy limitDeterminationStrategy;
-    protected ClientChannelAbstractFactory<O, I> clientChannelFactory;
-    protected long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
-    protected ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
-    protected PoolStatsProvider statsProvider = new PoolStatsImpl();
     protected LogLevel wireLogginLevel;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port,
-                                    ClientChannelAbstractFactory<O, I> clientChannelFactory) {
+                                    ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
+                                    ClientChannelFactory<O, I> factory) {
         this.bootstrap = bootstrap;
-        this.clientChannelFactory = clientChannelFactory;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
         clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
+        this.connectionFactory = connectionFactory;
+        channelFactory = factory;
+        poolBuilder = null;
         defaultChannelOptions();
     }
 
-    protected AbstractClientBuilder(String host, int port, ClientChannelAbstractFactory<O, I> clientChannelFactory) {
-        this(new Bootstrap(), host, port, clientChannelFactory);
+    protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port, ConnectionPoolBuilder<O, I> poolBuilder) {
+        this.bootstrap = bootstrap;
+        this.poolBuilder = poolBuilder;
+        serverInfo = new RxClientImpl.ServerInfo(host, port);
+        clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
+        connectionFactory = null;
+        channelFactory = null;
+        defaultChannelOptions();
     }
 
     public B defaultChannelOptions() {
@@ -107,43 +109,33 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
-    public B connectionPool(ConnectionPool<O, I> pool) {
-        connectionPool = pool;
-        return returnBuilder();
-    }
-
     public B withMaxConnections(int maxConnections) {
-        limitDeterminationStrategy = new MaxConnectionsBasedStrategy(maxConnections);
+        getPoolBuilder(true).withMaxConnections(maxConnections);
         return returnBuilder();
     }
 
     public B withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
-        this.idleConnectionsTimeoutMillis = idleConnectionsTimeoutMillis;
+        getPoolBuilder(true).withIdleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis);
         return returnBuilder();
     }
 
     public B withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
-        this.limitDeterminationStrategy = limitDeterminationStrategy;
+        getPoolBuilder(true).withConnectionPoolLimitStrategy(limitDeterminationStrategy);
         return returnBuilder();
     }
 
     public B withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
-        this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
+        getPoolBuilder(true).withPoolIdleCleanupScheduler(poolIdleCleanupScheduler);
         return returnBuilder();
     }
 
     public B withNoIdleConnectionCleanup() {
-        poolIdleCleanupScheduler = null;
+        getPoolBuilder(true).withNoIdleConnectionCleanup();
         return returnBuilder();
     }
 
     public B withPoolStatsProvider(PoolStatsProvider statsProvider) {
-        this.statsProvider = statsProvider;
-        return returnBuilder();
-    }
-
-    public B withClientChannelFactory(ClientChannelAbstractFactory<O, I> clientChannelFactory) {
-        this.clientChannelFactory = clientChannelFactory;
+        getPoolBuilder(true).withPoolStatsProvider(statsProvider);
         return returnBuilder();
     }
 
@@ -154,6 +146,16 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     public B appendPipelineConfigurator(PipelineConfigurator<O, I> additionalConfigurator) {
         return pipelineConfigurator(PipelineConfigurators.composeConfigurators(pipelineConfigurator,
                                                                                additionalConfigurator));
+    }
+
+    public B withChannelFactory(ClientChannelFactory<O, I> factory) {
+        ConnectionPoolBuilder<O, I> builder = getPoolBuilder(false);
+        if (null != builder) {
+            builder.withChannelFactory(factory);
+        } else {
+            channelFactory = factory;
+        }
+        return returnBuilder();
     }
 
     /**
@@ -177,6 +179,14 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public Bootstrap getBootstrap() {
+        return bootstrap;
+    }
+
+    public RxClientImpl.ServerInfo getServerInfo() {
+        return serverInfo;
+    }
+
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
@@ -195,11 +205,6 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         }
 
         bootstrap.channel(socketChannel).group(eventLoopGroup);
-        if (shouldCreateConnectionPool()) {
-            PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
-            connectionPool = new ConnectionPoolImpl<O, I>(poolConfig, limitDeterminationStrategy,
-                                                          poolIdleCleanupScheduler, statsProvider);
-        }
 
         if (null != wireLogginLevel) {
             pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
@@ -208,15 +213,23 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return createClient();
     }
 
-    protected boolean shouldCreateConnectionPool() {
-        return null == connectionPool && null != limitDeterminationStrategy
-               || idleConnectionsTimeoutMillis != PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
-    }
-
     protected abstract C createClient();
 
     @SuppressWarnings("unchecked")
     protected B returnBuilder() {
         return (B) this;
+    }
+
+    protected ConnectionPoolBuilder<O, I> getPoolBuilder(boolean createNew) {
+        if (null == poolBuilder && createNew) {
+            /**
+             * Here we override the connection factory if provided because at runtime we can not determine whether it
+             * is a pooled connection factory or not, which is required by the builder.
+             * This works well as someone who wants to override the connection factory should either start with a
+             * pool builder or don't choose a pooled connection later.
+             */
+            poolBuilder = new ConnectionPoolBuilder<O, I>(serverInfo, channelFactory); // Overrides the connection factory
+        }
+        return poolBuilder;
     }
 }

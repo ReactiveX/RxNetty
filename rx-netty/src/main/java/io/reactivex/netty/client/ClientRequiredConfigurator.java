@@ -13,23 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.contexts;
+package io.reactivex.netty.client;
 
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.util.AttributeMap;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
+import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 
 /**
  * @author Nitesh Kant
  */
-public interface RequestIdGenerator {
+public class ClientRequiredConfigurator<I, O> extends RxRequiredConfigurator<I, O> {
 
-    /**
-     * Generates a <em>globally unique</em> request identifier.
-     *
-     * @param keySupplier {@link ContextKeySupplier} for the request.
-     * @param channelAttributeMap Channel attribute map, normally obtained as {@link ChannelHandlerContext#channel()}
-     *
-     * @return The newly generated request id.
-     */
-    String newRequestId(ContextKeySupplier keySupplier, AttributeMap channelAttributeMap);
+    @Override
+    protected ChannelHandler newConnectionLifecycleHandler(ChannelPipeline pipeline) {
+        return new ConnectionLifecycleHandler<I, O>();
+    }
 }
