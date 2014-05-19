@@ -119,29 +119,27 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpClientRequest.class.isAssignableFrom(recievedMsgClass)) {
             HttpClientRequest<?> rxRequest = (HttpClientRequest<?>) msg;
             MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
-            if (rxRequest.getHeaders().hasContent()) {
+            if (rxRequest.hasContentSource()) {
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
                 }
                 allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
-                if (rxRequest.hasContentSource()) {
-                    ContentSource<?> contentSource;
-                    if (rxRequest.hasRawContentSource()) {
-                        contentSource = rxRequest.getRawContentSource();
+                ContentSource<?> contentSource;
+                if (rxRequest.hasRawContentSource()) {
+                    contentSource = rxRequest.getRawContentSource();
+                    @SuppressWarnings("rawtypes")
+                    RawContentSource<?> rawContentSource = (RawContentSource) contentSource;
+                    while (rawContentSource.hasNext()) {
                         @SuppressWarnings("rawtypes")
-                        RawContentSource<?> rawContentSource = (RawContentSource) contentSource;
-                        while (rawContentSource.hasNext()) {
-                            @SuppressWarnings("rawtypes")
-                            ContentTransformer transformer = rawContentSource.getTransformer();
-                            @SuppressWarnings("unchecked")
-                            ByteBuf byteBuf = transformer.transform(rawContentSource.next(), ctx.alloc());
-                            allWritesListener.listen(ctx.write(byteBuf));
-                        }
-                    } else {
-                        contentSource = rxRequest.getContentSource();
-                        while (contentSource.hasNext()) {
-                            allWritesListener.listen(ctx.write(contentSource.next()));
-                        }
+                        ContentTransformer transformer = rawContentSource.getTransformer();
+                        @SuppressWarnings("unchecked")
+                        ByteBuf byteBuf = transformer.transform(rawContentSource.next(), ctx.alloc());
+                        allWritesListener.listen(ctx.write(byteBuf));
+                    }
+                } else {
+                    contentSource = rxRequest.getContentSource();
+                    while (contentSource.hasNext()) {
+                        allWritesListener.listen(ctx.write(contentSource.next()));
                     }
                 }
             } else {
