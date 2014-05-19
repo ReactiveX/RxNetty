@@ -20,9 +20,9 @@ import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import org.junit.After;
+import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import rx.Observable;
 import rx.functions.Action0;
@@ -48,7 +48,7 @@ public class ContextPropagationTest {
 
     public static final String CTX_3_FOUND_HEADER = "CTX_3_FOUND";
 
-    private HttpServer<ByteBuf, ByteBuf> mockServer;
+    private static HttpServer<ByteBuf, ByteBuf> mockServer;
     private static final String REQUEST_ID_HEADER_NAME = "request_id";
     private static final String REQUEST_ID = "id1";
     private static final String REQUEST_ID_2 = "id2";
@@ -57,15 +57,15 @@ public class ContextPropagationTest {
     private static final String CTX_2_NAME = "ctx2";
     private static final TestContext CTX_2_VAL = new TestContext(CTX_2_NAME);
 
-    @Before
-    public void setUp() throws Exception {
+    @BeforeClass
+    public static void setUp() throws Exception {
         mockServer = RxNetty.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(final HttpServerRequest<ByteBuf> request,
                                            HttpServerResponse<ByteBuf> response) {
                 final String requestId = request.getHeaders().get(REQUEST_ID_HEADER_NAME);
                 if (null == requestId) {
-                    System.out.println("Request Id not found.");
+                    System.err.println("Request Id not found.");
                     return Observable.error(new AssertionError("Request Id not found in mock server."));
                 }
                 response.getHeaders().add(REQUEST_ID_HEADER_NAME, requestId);
@@ -89,11 +89,12 @@ public class ContextPropagationTest {
                     return Observable.error(e);
                 }
             }
-        }).enableWireLogging(LogLevel.DEBUG).build().start();
+        }).enableWireLogging(LogLevel.ERROR).build();
+        mockServer.start();
     }
 
-    @After
-    public void tearDown() throws Exception {
+    @AfterClass
+    public static void tearDown() throws Exception {
         mockServer.shutdown();
         mockServer.waitTillShutdown();
     }
@@ -194,13 +195,13 @@ public class ContextPropagationTest {
         try {
             invokeMockServer(testClient, REQUEST_ID, true);
         } catch (MockBackendRequestFailedException e) {
-            throw new AssertionError("First request to mock backend failed. Erro: " + e.getMessage());
+            throw new AssertionError("First request to mock backend failed. Error: " + e.getMessage());
         }
 
         invokeMockServer(testClient, REQUEST_ID_2, false);
     }
 
-    private HttpServerBuilder<ByteBuf, ByteBuf> newTestServerBuilder(final Func1<HttpClient<ByteBuf, ByteBuf>,
+    private static HttpServerBuilder<ByteBuf, ByteBuf> newTestServerBuilder(final Func1<HttpClient<ByteBuf, ByteBuf>,
             Observable<HttpClientResponse<ByteBuf>>> clientInvoker) {
         return RxContexts.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
