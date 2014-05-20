@@ -34,6 +34,8 @@ public class ThreadLocalCorrelatorTest {
     @After
     public void tearDown() throws Exception {
         CORRELATOR.onServerProcessingEnd(REQUEST_ID);
+        System.err.println("Sent server processing end callback to correlator.");
+        RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
     }
 
     @Test

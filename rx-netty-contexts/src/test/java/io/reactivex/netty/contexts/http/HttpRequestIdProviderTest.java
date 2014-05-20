@@ -21,6 +21,7 @@ import io.reactivex.netty.contexts.ContextKeySupplier;
 import io.reactivex.netty.contexts.ContextsContainerImpl;
 import io.reactivex.netty.contexts.MapBackedKeySupplier;
 import io.reactivex.netty.contexts.RequestIdProvider;
+import io.reactivex.netty.contexts.RxContexts;
 import io.reactivex.netty.contexts.ThreadLocalRequestCorrelator;
 import org.junit.After;
 import org.junit.Assert;
@@ -42,6 +43,8 @@ public class HttpRequestIdProviderTest {
     public void tearDown() throws Exception {
         if (CORRELATOR.getRequestIdForClientRequest() != null) {
             CORRELATOR.onServerProcessingEnd(REQUEST_ID);
+            System.err.println("Sent server processing end callback to correlator.");
+            RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
         }
     }
 

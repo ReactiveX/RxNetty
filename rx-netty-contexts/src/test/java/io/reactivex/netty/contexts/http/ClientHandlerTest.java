@@ -28,6 +28,7 @@ import io.reactivex.netty.contexts.ContextAttributeStorageHelper;
 import io.reactivex.netty.contexts.ContextKeySupplier;
 import io.reactivex.netty.contexts.ContextsContainer;
 import io.reactivex.netty.contexts.ContextsContainerImpl;
+import io.reactivex.netty.contexts.RxContexts;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -85,6 +86,8 @@ public class ClientHandlerTest {
                                 request.headers().get(holder.getProvider().getRequestIdContextKeyName()));
         } finally {
             holder.correlator.onServerProcessingEnd(holder.requestId);
+            System.err.println("Sent server processing end callback to correlator.");
+            RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
         }
     }
 }

@@ -262,6 +262,8 @@ public class ContextPropagationTest {
         } finally {
             if (finishServerProcessing) {
                 RxContexts.DEFAULT_CORRELATOR.onServerProcessingEnd(requestId);
+                System.err.println("Sent server processing end callback to correlator.");
+                RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
             }
         }
 
@@ -274,6 +276,7 @@ public class ContextPropagationTest {
     private static void sendTestRequest(HttpClient<ByteBuf, ByteBuf> testClient, final String requestId)
             throws MockBackendRequestFailedException, InterruptedException {
         System.err.println("Sending test request to mock server, with request id: " + requestId);
+        RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
         final CountDownLatch finishLatch = new CountDownLatch(1);
         final List<HttpClientResponse<ByteBuf>> responseHolder = new ArrayList<HttpClientResponse<ByteBuf>>();
         testClient.submit(HttpClientRequest.createGet("").withHeader(REQUEST_ID_HEADER_NAME, requestId))
