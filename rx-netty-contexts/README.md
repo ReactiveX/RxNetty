@@ -40,7 +40,7 @@ way to capture these contexts in the application layer (from when a request is r
 services is made). So, this module provides an abstraction [ContextCapturer](https://github.com/Netflix/RxNetty/blob/master/rx-netty-contexts/src/main/java/io/reactivex/netty/contexts/ContextCapturer.java)
 to capture these contexts within the application boundaries.
 
-- _** Context Keys**_: Since there can be multiple contexts per request, every context has a locally unique key (unique
+- _**Context Keys**_: Since there can be multiple contexts per request, every context has a locally unique key (unique
 within the request). Each of these contexts are passed between services as these key-value pairs. Since, how these pairs
 are passed over the wire is governed by the protocol itself, we have defined an abstraction [ContextKeySupplier](https://github.com/Netflix/RxNetty/blob/master/rx-netty-contexts/src/main/java/io/reactivex/netty/contexts/ContextKeySupplier.java)
 to define this contract. In HTTP, these pairs are passed as headers by the default plugin.
