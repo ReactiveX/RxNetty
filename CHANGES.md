@@ -2,6 +2,8 @@
 
 ### Version 0.3.4 ###
 
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=1&page=1&state=closed)
+
 * [Issue 55] (https://github.com/Netflix/RxNetty/issues/55) Add wire debugging functionality
 * [Issue 88] (https://github.com/Netflix/RxNetty/issues/88) Move host and port to RxClient method signature
 * [Issue 90] (https://github.com/Netflix/RxNetty/issues/90) Server onError Handling
