@@ -1,6 +1,6 @@
 # RxNetty Releases #
 
-### Version 0.3.4 ###
+### Version 0.3.5 ###
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=1&page=1&state=closed)
 
@@ -15,3 +15,7 @@
 * [Pull 116] (https://github.com/Netflix/RxNetty/issues/116) Added toString() to ServerInfo for better inspection.
 * [Issue 117] (https://github.com/Netflix/RxNetty/issues/117) RxClientImpl mutates netty's bootstrap per connection
 * [Issue 119] (https://github.com/Netflix/RxNetty/issues/119) "Transfer-encoding: chunked" not set for HTTP POST request.
+
+### Version 0.3.4 ###
+
+Skipped release due to manual tag creation.
