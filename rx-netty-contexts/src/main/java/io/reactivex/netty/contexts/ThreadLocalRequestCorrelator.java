@@ -20,7 +20,10 @@ import io.netty.util.AttributeKey;
 import io.netty.util.AttributeMap;
 import io.netty.util.DefaultAttributeMap;
 import io.reactivex.netty.client.RxClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.PrintStream;
 import java.util.Stack;
 import java.util.concurrent.Callable;
 
@@ -35,6 +38,8 @@ import java.util.concurrent.Callable;
  * @author Nitesh Kant
  */
 public class ThreadLocalRequestCorrelator implements RequestCorrelator {
+
+    private static final Logger logger = LoggerFactory.getLogger(ThreadLocalRequestCorrelator.class);
 
     protected static final ThreadLocal<ThreadStateHolder> state = new ThreadLocal<ThreadStateHolder>() {
         @Override
@@ -125,6 +130,32 @@ public class ThreadLocalRequestCorrelator implements RequestCorrelator {
                 }
             }
         };
+    }
+
+    public void dumpThreadState() {
+        if (logger.isDebugEnabled()) {
+            ThreadStateHolder threadStateHolder = state.get();
+            logger.debug("******************** Thread Attributes ********************");
+            int count = 0;
+            for (AttributeMap threadAttribute : threadStateHolder.threadAttributes) {
+                logger.debug("Stack level==> " + ++count);
+                logger.debug("Request Id: " + threadAttribute.attr(ThreadStateHolder.requestIdKey));
+                logger.debug("Context container: " + threadAttribute.attr(ThreadStateHolder.containerKey));
+            }
+            logger.debug("***********************************************************");
+        }
+    }
+
+    public void dumpThreadState(PrintStream outputStream) {
+        ThreadStateHolder threadStateHolder = state.get();
+        outputStream.println("******************** Thread Attributes ********************");
+        int count = 0;
+        for (AttributeMap threadAttribute : threadStateHolder.threadAttributes) {
+            outputStream.println("Stack level==> " + ++count);
+            outputStream.println("Request Id: " + threadAttribute.attr(ThreadStateHolder.requestIdKey));
+            outputStream.println("Context container: " + threadAttribute.attr(ThreadStateHolder.containerKey));
+        }
+        outputStream.println("***********************************************************");
     }
 
     public static final class ThreadStateHolder {
