@@ -54,7 +54,6 @@ import rx.subjects.PublishSubject;
 public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
     @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
-    private boolean keepAlive;
 
     public ServerRequestResponseConverter() {
         contentSubject = PublishSubject.create();
@@ -67,7 +66,6 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpServerRequest rxRequest = new HttpServerRequest((HttpRequest) msg, contentSubject);
-            keepAlive = rxRequest.getHeaders().isKeepAlive();
             super.channelRead(ctx, rxRequest); // For FullHttpRequest, this assumes that after this call returns,
                                                // someone has subscribed to the content observable, if not the content will be lost.
         }
@@ -90,9 +88,9 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpServerResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings("rawtypes")
             HttpServerResponse rxResponse = (HttpServerResponse) msg;
-            if (keepAlive && !rxResponse.getHeaders().contains(HttpHeaders.Names.CONTENT_LENGTH)) {
-                // If there is no content length & it is a keep alive connection. We need to specify the transfer
-                // encoding as chunked as we always send data in multiple HttpContent.
+            if (!rxResponse.getHeaders().contains(HttpHeaders.Names.CONTENT_LENGTH)) {
+                // If there is no content length we need to specify the transfer encoding as chunked as we always send
+                // data in multiple HttpContent.
                 // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
                 // as expected.
                 rxResponse.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);

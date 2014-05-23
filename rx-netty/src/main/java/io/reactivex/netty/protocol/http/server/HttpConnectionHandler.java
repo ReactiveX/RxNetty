@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.protocol.http.server;
 
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
@@ -44,8 +46,20 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
         return newConnection.getInput().flatMap(new Func1<HttpServerRequest<I>, Observable<Void>>() {
             @Override
             public Observable<Void> call(HttpServerRequest<I> newRequest) {
-                final HttpServerResponse<O> response = new HttpServerResponse<O>(newConnection.getChannelHandlerContext(),
-                                                               newRequest.getHttpVersion());
+                final HttpServerResponse<O> response = new HttpServerResponse<O>(
+                        newConnection.getChannelHandlerContext(),
+                        /*
+                         * Server should send the highest version it is compatible with.
+                         * http://tools.ietf.org/html/rfc2145#section-2.3
+                         */
+                        HttpVersion.HTTP_1_1);
+                if (newRequest.getHeaders().isKeepAlive()) {
+                    // Add keep alive header as per:
+                    // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
+                    response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                } else {
+                    response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+                }
                 Observable<Void> toReturn;
 
                 try {

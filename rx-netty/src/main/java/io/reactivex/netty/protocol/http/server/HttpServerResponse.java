@@ -71,7 +71,9 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     }
 
     public Observable<Void> close() {
-        writeOnChannel(new DefaultLastHttpContent());
+        if (headers.isTransferEncodingChunked()) {
+            writeOnChannel(new DefaultLastHttpContent());
+        }
         return flush();
     }
 
