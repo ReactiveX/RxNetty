@@ -24,6 +24,8 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 
@@ -40,6 +42,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
     protected final ConnectionHandler<I, O> connectionHandler;
     protected final int port;
     protected LogLevel wireLogginLevel;
+    protected MetricEventsListenerFactory eventListenersFactory;
 
     protected AbstractServerBuilder(int port, T bootstrap, ConnectionHandler<I, O> connectionHandler) {
         if (null == connectionHandler) {
@@ -64,7 +67,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         return returnBuilder();
     }
 
-    public <T> B channelOption(ChannelOption<T> option, T value) {
+    public <P> B channelOption(ChannelOption<P> option, P value) {
         serverBootstrap.option(option, value);
         return returnBuilder();
     }
@@ -105,6 +108,10 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         return returnBuilder();
     }
 
+    public B withMetricEventsListenerFactory(MetricEventsListenerFactory eventListenersFactory) {
+        this.eventListenersFactory = eventListenersFactory;
+        return returnBuilder();
+    }
     public PipelineConfigurator<I, O> getPipelineConfigurator() {
         return pipelineConfigurator;
     }
@@ -132,12 +139,21 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
             pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
                                                                                    wireLogginLevel);
         }
-        return createServer();
+        S server = createServer();
+        if (null != eventListenersFactory) {
+            MetricEventsListener<? extends ServerMetricsEvent> listener = newMetricsListener(eventListenersFactory,
+                                                                                             server);
+            server.addListener(listener);
+        }
+        return server;
     }
 
     protected abstract Class<? extends C> defaultServerChannelClass();
 
     protected abstract S createServer();
+
+    protected abstract MetricEventsListener<? extends ServerMetricsEvent>
+    newMetricsListener(MetricEventsListenerFactory factory, S server);
 
     @SuppressWarnings("unchecked")
     protected B returnBuilder() {

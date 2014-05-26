@@ -19,6 +19,8 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelInitializer;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
@@ -35,6 +37,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class RxClientImpl<I, O> implements RxClient<I, O> {
 
+    protected final String name;
     protected final ServerInfo serverInfo;
     protected final Bootstrap clientBootstrap;
     protected final PipelineConfigurator<O, I> pipelineConfigurator;
@@ -43,10 +46,15 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     protected final ClientConfig clientConfig;
     protected ConnectionPool<O, I> pool;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
+    private final MetricEventsSubject<ClientMetricsEvent> eventsSubject;
 
-    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+    public RxClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
+                        PipelineConfigurator<O, I> pipelineConfigurator,
                         ClientConfig clientConfig, ClientChannelFactory<O, I> channelFactory,
                         ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory) {
+        if (null == name) {
+            throw new NullPointerException("Name can not be null.");
+        }
         if (null == clientBootstrap) {
             throw new NullPointerException("Client bootstrap can not be null.");
         }
@@ -62,7 +70,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         if (null == channelFactory) {
             throw new NullPointerException("Channel factory can not be null.");
         }
-
+        this.name = name;
+        eventsSubject = new MetricEventsSubject<ClientMetricsEvent>();
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
@@ -78,8 +87,12 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         });
     }
 
-    public RxClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+    public RxClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
+                        PipelineConfigurator<O, I> pipelineConfigurator,
                         ClientConfig clientConfig, ConnectionPoolBuilder<O, I> poolBuilder) {
+        if (null == name) {
+            throw new NullPointerException("Name can not be null.");
+        }
         if (null == clientBootstrap) {
             throw new NullPointerException("Client bootstrap can not be null.");
         }
@@ -92,7 +105,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         if (null == poolBuilder) {
             throw new NullPointerException("Pool builder can not be null.");
         }
-
+        this.name = name;
+        eventsSubject = new MetricEventsSubject<ClientMetricsEvent>();
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
@@ -168,8 +182,18 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         return pool.getStats();
     }
 
+    @Override
+    public String name() {
+        return name;
+    }
+
     protected PipelineConfigurator<O, I> adaptPipelineConfigurator(PipelineConfigurator<O, I> pipelineConfigurator,
                                                                    ClientConfig clientConfig) {
         return PipelineConfigurators.createClientConfigurator(pipelineConfigurator, clientConfig);
+    }
+
+    @Override
+    public void addListener(MetricEventsListener<? extends ClientMetricsEvent> listener) {
+        eventsSubject.addListener(listener);
     }
 }

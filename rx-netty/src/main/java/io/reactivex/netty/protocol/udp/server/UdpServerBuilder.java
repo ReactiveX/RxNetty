@@ -20,6 +20,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.server.AbstractServerBuilder;
 
 /**
@@ -54,5 +56,11 @@ public class UdpServerBuilder<I, O> extends AbstractServerBuilder<I, O, Bootstra
         } else {
             return new UdpServer<I, O>(serverBootstrap, port, connectionHandler);
         }
+    }
+
+    @Override
+    protected MetricEventsListener<UdpServerMetricsEvent> newMetricsListener(MetricEventsListenerFactory factory,
+                                                                             UdpServer<I, O> server) {
+        return factory.forUdpServer(server);
     }
 }

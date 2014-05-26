@@ -25,10 +25,13 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Nitesh Kant
@@ -36,6 +39,9 @@ import java.util.concurrent.ScheduledExecutorService;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
 
+    private static final AtomicInteger clientUniqueNameCounter = new AtomicInteger();
+
+    private String name;
     protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
     protected final ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory;
@@ -46,6 +52,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
     protected LogLevel wireLogginLevel;
+    protected MetricEventsListenerFactory eventListenersFactory;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port,
                                     ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
@@ -179,6 +186,16 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withName(String name) {
+        this.name = name;
+        return returnBuilder();
+    }
+
+    public B withMetricEventsListenerFactory(MetricEventsListenerFactory eventListenersFactory) {
+        this.eventListenersFactory = eventListenersFactory;
+        return returnBuilder();
+    }
+
     public Bootstrap getBootstrap() {
         return bootstrap;
     }
@@ -210,7 +227,13 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
             pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
                                                                                    wireLogginLevel);
         }
-        return createClient();
+        C client = createClient();
+        if (null != eventListenersFactory) {
+            MetricEventsListener<? extends ClientMetricsEvent> listener =
+                    newMetricsListener(eventListenersFactory, client);
+            client.addListener(listener);
+        }
+        return client;
     }
 
     protected abstract C createClient();
@@ -232,4 +255,20 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         }
         return poolBuilder;
     }
+
+    protected String getOrCreateName() {
+        if (null != name) {
+            return name;
+        }
+
+        name = generatedNamePrefix() + clientUniqueNameCounter.incrementAndGet();
+        return name;
+    }
+
+    protected String generatedNamePrefix() {
+        return "RxClient-";
+    }
+
+    protected abstract MetricEventsListener<? extends ClientMetricsEvent>
+    newMetricsListener(MetricEventsListenerFactory factory, C client);
 }

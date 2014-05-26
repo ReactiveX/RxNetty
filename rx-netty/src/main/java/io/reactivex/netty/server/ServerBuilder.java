@@ -17,6 +17,8 @@ package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 
 /**
  * A convenience builder for creating instances of {@link RxServer}
@@ -36,5 +38,11 @@ public class ServerBuilder<I, O> extends ConnectionBasedServerBuilder<I,O, Serve
     @Override
     protected RxServer<I, O> createServer() {
         return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
+    }
+
+    @Override
+    protected MetricEventsListener<ServerMetricsEvent> newMetricsListener(MetricEventsListenerFactory factory,
+                                                                          RxServer<I, O> server) {
+        return factory.forServer(server);
     }
 }

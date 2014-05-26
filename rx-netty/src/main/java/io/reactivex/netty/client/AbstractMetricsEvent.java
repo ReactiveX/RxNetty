@@ -1,0 +1,81 @@
+/*
+ * Copyright 2014 Netflix, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package io.reactivex.netty.client;
+
+import io.reactivex.netty.metrics.MetricsEvent;
+
+/**
+ * @author Nitesh Kant
+ */
+public abstract class AbstractMetricsEvent implements MetricsEvent {
+
+    protected final String name;
+    protected final boolean isTimed;
+    protected final boolean isError;
+
+    protected AbstractMetricsEvent(String name, boolean isTimed, boolean isError) {
+        this.isTimed = isTimed;
+        this.name = name;
+        this.isError = isError;
+    }
+
+    @Override
+    public String name() {
+        return name;
+    }
+
+    @Override
+    public boolean isTimed() {
+        return isTimed;
+    }
+
+    @Override
+    public boolean isError() {
+        return isError;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof AbstractMetricsEvent)) {
+            return false;
+        }
+
+        AbstractMetricsEvent that = (AbstractMetricsEvent) o;
+
+        if (isError != that.isError) {
+            return false;
+        }
+        if (isTimed != that.isTimed) {
+            return false;
+        }
+        if (!name.equals(that.name)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        int result = name.hashCode();
+        result = 31 * result + (isTimed ? 1 : 0);
+        result = 31 * result + (isError ? 1 : 0);
+        return result;
+    }
+}

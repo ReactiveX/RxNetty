@@ -31,15 +31,17 @@ import java.net.InetSocketAddress;
  */
 public class UdpClient<I, O> extends RxClientImpl<I, O> {
 
-    public UdpClient(ServerInfo serverInfo, Bootstrap bootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+    public UdpClient(String name, ServerInfo serverInfo, Bootstrap bootstrap,
+                     PipelineConfigurator<O, I> pipelineConfigurator,
                      ClientConfig clientConfig, ClientChannelFactory<O, I> clientChannelFactory) {
-        this(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory,
+        this(name, serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory,
              new UdpClientConnectionFactory<O, I>(new InetSocketAddress(serverInfo.getHost(), serverInfo.getPort())));
     }
 
-    public UdpClient(ServerInfo serverInfo, Bootstrap bootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+    public UdpClient(String name, ServerInfo serverInfo, Bootstrap bootstrap,
+                     PipelineConfigurator<O, I> pipelineConfigurator,
                      ClientConfig clientConfig, ClientChannelFactory<O, I> channelFactory,
                      ClientConnectionFactory<O, I, UdpClientConnection<O, I>> connectionFactory) {
-        super(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
+        super(name, serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
     }
 }

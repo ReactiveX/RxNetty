@@ -30,19 +30,20 @@ import rx.Observable;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
-    public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
+    public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
                           PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
                           ClientConfig clientConfig,
                           ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> channelFactory,
                           ClientConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>,
                                   ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
+        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
     }
 
-    public HttpClientImpl(ServerInfo serverInfo, Bootstrap clientBootstrap,
-            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            ClientConfig clientConfig, ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder) {
-        super(serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+    public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
+                          PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
+                          ClientConfig clientConfig,
+                          ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder) {
+        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder);
     }
 
     @Override

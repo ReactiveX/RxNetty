@@ -44,24 +44,24 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
     private final PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator;
     private final ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder;
 
-    public CompositeHttpClient(ServerInfo defaultServer, Bootstrap clientBootstrap,
+    public CompositeHttpClient(String name, ServerInfo defaultServer, Bootstrap clientBootstrap,
                                PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
                                ClientConfig clientConfig,
                                ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> channelFactory,
                                ClientConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>,
                                        ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory) {
-        super(defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
+        super(name, defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
         httpClients = new ConcurrentHashMap<ServerInfo, HttpClient<I, O>>();
         this.pipelineConfigurator = pipelineConfigurator;
         poolBuilder = null;
         httpClients.put(defaultServer, this); // So that submit() with default serverInfo also goes to the same client as no serverinfo.
     }
 
-    CompositeHttpClient(ServerInfo defaultServer, Bootstrap clientBootstrap,
+    CompositeHttpClient(String name, ServerInfo defaultServer, Bootstrap clientBootstrap,
                         PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
                         ClientConfig clientConfig,
                         ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder) {
-        super(defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+        super(name, defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder);
         httpClients = new ConcurrentHashMap<ServerInfo, HttpClient<I, O>>();
         this.pipelineConfigurator = pipelineConfigurator;
         this.poolBuilder = poolBuilder;
@@ -122,10 +122,10 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
 
     private HttpClientImpl<I, O> newClient(ServerInfo serverInfo) {
         if (null != poolBuilder) {
-            return new HttpClientImpl<I, O>(serverInfo, clientBootstrap.clone(), pipelineConfigurator, clientConfig,
+            return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap.clone(), pipelineConfigurator, clientConfig,
                                             clonePoolBuilder(serverInfo, poolBuilder));
         } else {
-            return new HttpClientImpl<I, O>(serverInfo, clientBootstrap.clone(), pipelineConfigurator, clientConfig,
+            return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap.clone(), pipelineConfigurator, clientConfig,
                                             channelFactory, connectionFactory);
         }
     }

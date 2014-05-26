@@ -21,6 +21,9 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsPublisher;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 
@@ -32,7 +35,8 @@ import java.util.concurrent.atomic.AtomicReference;
  * @author Nitesh Kant
  */
 @SuppressWarnings("rawtypes")
-public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends Channel, S extends AbstractServer> {
+public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends Channel, S extends AbstractServer>
+        implements MetricEventsPublisher<ServerMetricsEvent> {
 
     protected enum ServerState {Created, Starting, Started, Shutdown}
 
@@ -40,6 +44,7 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     protected final B bootstrap;
     protected final int port;
     protected final AtomicReference<ServerState> serverStateRef;
+    protected final MetricEventsSubject<ServerMetricsEvent> eventsSubject;
     protected ErrorHandler errorHandler;
     private ChannelFuture bindFuture;
 
@@ -51,6 +56,7 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         this.bootstrap = bootstrap;
         this.port = port;
         connectionFactory = new UnpooledConnectionFactory<I, O>();
+        eventsSubject = new MetricEventsSubject<ServerMetricsEvent>();
     }
 
     public void startAndWait() {
@@ -130,6 +136,11 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         }
 
         return port;
+    }
+
+    @Override
+    public void addListener(MetricEventsListener<? extends ServerMetricsEvent> listener) {
+        eventsSubject.addListener(listener);
     }
 
     @SuppressWarnings("unchecked")
