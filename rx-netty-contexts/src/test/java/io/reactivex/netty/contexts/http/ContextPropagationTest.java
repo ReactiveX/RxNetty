@@ -104,7 +104,7 @@ public class ContextPropagationTest {
                     return Observable.error(e);
                 }
             }
-        }).enableWireLogging(LogLevel.ERROR).build();
+        }).enableWireLogging(LogLevel.DEBUG).build();
         mockServer.start();
     }
 
@@ -122,9 +122,10 @@ public class ContextPropagationTest {
                             public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
                                 return client.submit(HttpClientRequest.createGet("/"));
                             }
-                        }).build().start();
+                        }).enableWireLogging(LogLevel.ERROR).build().start();
 
-        HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.createHttpClient("localhost", server.getServerPort());
+        HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", server.getServerPort())
+                                                         .enableWireLogging(LogLevel.DEBUG).build();
 
         sendTestRequest(testClient, REQUEST_ID);
     }
@@ -220,7 +221,8 @@ public class ContextPropagationTest {
             Observable<HttpClientResponse<ByteBuf>>> clientInvoker) {
         return RxContexts.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
-            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
+                                           final HttpServerResponse<ByteBuf> serverResponse) {
                 String reqId = getCurrentRequestId();
                 if (null == reqId) {
                     return Observable.error(new AssertionError("Request Id not found at server."));
@@ -236,20 +238,17 @@ public class ContextPropagationTest {
                         RxContexts.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", mockServer.getServerPort(),
                                                                           REQUEST_ID_HEADER_NAME,
                                                                           RxContexts.DEFAULT_CORRELATOR)
-                                  .withMaxConnections(1).enableWireLogging(LogLevel.ERROR)
+                                  .withMaxConnections(1).enableWireLogging(LogLevel.DEBUG)
                                   .build();
 
-                return clientInvoker.call(client)
-                                    .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
-                                        @Override
-                                        public Observable<Void> call(HttpClientResponse<ByteBuf> response1) {
-                                            if (response1.getStatus().code() != HttpResponseStatus.OK.code()) {
-                                                return Observable.error(new AssertionError(
-                                                        "Mock backend request failed."));
-                                            }
-                                            return Observable.empty();
-                                        }
-                                    });
+                return clientInvoker.call(client).flatMap(
+                        new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
+                            @Override
+                            public Observable<Void> call(HttpClientResponse<ByteBuf> response) {
+                                serverResponse.setStatus(response.getStatus());
+                                return Observable.empty();
+                            }
+                        });
             }
         }, REQUEST_ID_HEADER_NAME, RxContexts.DEFAULT_CORRELATOR);
     }

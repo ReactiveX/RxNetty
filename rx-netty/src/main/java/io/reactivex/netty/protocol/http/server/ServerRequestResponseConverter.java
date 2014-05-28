@@ -23,7 +23,6 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
@@ -88,13 +87,6 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpServerResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings("rawtypes")
             HttpServerResponse rxResponse = (HttpServerResponse) msg;
-            if (!rxResponse.getHeaders().contains(HttpHeaders.Names.CONTENT_LENGTH)) {
-                // If there is no content length we need to specify the transfer encoding as chunked as we always send
-                // data in multiple HttpContent.
-                // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
-                // as expected.
-                rxResponse.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
-            }
             super.write(ctx, rxResponse.getNettyResponse(), promise);
         } else if (ByteBuf.class.isAssignableFrom(recievedMsgClass)) {
             HttpContent content = new DefaultHttpContent((ByteBuf) msg);

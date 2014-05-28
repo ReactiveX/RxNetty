@@ -16,7 +16,6 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
@@ -52,7 +51,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                          * Server should send the highest version it is compatible with.
                          * http://tools.ietf.org/html/rfc2145#section-2.3
                          */
-                        HttpVersion.HTTP_1_1);
+                        newRequest.getHttpVersion());
                 if (newRequest.getHeaders().isKeepAlive()) {
                     // Add keep alive header as per:
                     // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection

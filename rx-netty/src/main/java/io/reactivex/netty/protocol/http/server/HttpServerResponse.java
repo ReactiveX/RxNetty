@@ -71,6 +71,9 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     }
 
     public Observable<Void> close() {
+
+        writeHeadersIfNotWritten();
+
         if (headers.isTransferEncodingChunked()) {
             writeOnChannel(new DefaultLastHttpContent());
         }
@@ -87,10 +90,33 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
     @Override
     protected ChannelFuture writeOnChannel(Object msg) {
-        if (!HttpServerResponse.class.isAssignableFrom(msg.getClass()) && headerWritten.compareAndSet(false, true)) {
-            headerWriteFuture = super.writeOnChannel(this);
+        if (!HttpServerResponse.class.isAssignableFrom(msg.getClass())) {
+            writeHeadersIfNotWritten();
         }
 
         return super.writeOnChannel(msg);
+    }
+
+    protected void writeHeadersIfNotWritten() {
+        if (headerWritten.compareAndSet(false, true)) {
+            /**
+             * This assertion whether the transfer encoding should be chunked or not, should be done here and not
+             * anywhere in the netty's pipeline. The reason is that in close() method we determine whether to write
+             * the LastHttpContent based on whether the transfer encoding is chunked or not.
+             * Now, if we do this determination & updation of transfer encoding in a handler in the pipeline, it may be
+             * that the handler is invoked asynchronously (i.e. when this method is not invoked from the server's
+             * eventloop). In such a scenario there will be a race-condition between close() asserting that the transfer
+             * encoding is chunked and the handler adding the same and thus in some cases, the LastHttpContent will not
+             * be written with transfer-encoding chunked and the response will never finish.
+             */
+            if (!headers.contains(HttpHeaders.Names.CONTENT_LENGTH)) {
+                // If there is no content length we need to specify the transfer encoding as chunked as we always send
+                // data in multiple HttpContent.
+                // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
+                // as expected.
+                headers.add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
+            }
+            headerWriteFuture = super.writeOnChannel(this);
+        }
     }
 }
