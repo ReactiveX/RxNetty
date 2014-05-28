@@ -127,6 +127,11 @@ public class MetricEventsSubject<E extends MetricsEvent> implements MetricEvents
         listeners.add(listener);
     }
 
+    @Override
+    public boolean removeListener(MetricEventsListener<? extends E> listener) {
+        return listeners.remove(listener);
+    }
+
     protected ListenerInvocationException handleListenerError(ListenerInvocationException exception,
                                                               MetricEventsListener<? extends E> listener, Throwable e) {
         Exceptions.throwIfFatal(e);

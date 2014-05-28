@@ -143,6 +143,11 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         eventsSubject.addListener(listener);
     }
 
+    @Override
+    public boolean removeListener(MetricEventsListener<? extends ServerMetricsEvent> listener) {
+        return eventsSubject.removeListener(listener);
+    }
+
     @SuppressWarnings("unchecked")
     protected S returnServer() {
         return (S) this;

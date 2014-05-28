@@ -21,4 +21,6 @@ package io.reactivex.netty.metrics;
 public interface MetricEventsPublisher<E extends MetricsEvent> {
 
     void addListener(MetricEventsListener<? extends E> listener);
+
+    boolean removeListener(MetricEventsListener<? extends E> listener);
 }
