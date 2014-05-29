@@ -18,7 +18,6 @@ package io.reactivex.netty.protocol.http.client;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.ChannelCloseListener;
 import io.reactivex.netty.RxNetty;
@@ -59,7 +58,8 @@ public class HttpClientPoolTest {
 
     @BeforeClass
     public static void init() throws Exception {
-        mockServer = RxNetty.createHttpServer(port, new RequestProcessor()).start();
+        mockServer = RxNetty.newHttpServerBuilder(port, new RequestProcessor()).enableWireLogging(LogLevel.ERROR)
+                            .build().start();
         port = mockServer.getServerPort();
     }
 
@@ -273,7 +273,6 @@ public class HttpClientPoolTest {
                             public void configureNewPipeline(ChannelPipeline pipeline) {
                                 channelCloseListener.reset();
                                 pipeline.addFirst(channelCloseListener);
-                                pipeline.addFirst(new LoggingHandler(LogLevel.ERROR));
                             }
                         });
 
@@ -282,6 +281,7 @@ public class HttpClientPoolTest {
                         .withMaxConnections(maxConnections)
                         .withIdleConnectionsTimeoutMillis(idleTimeout)
                         .config(clientConfig)
+                        .enableWireLogging(LogLevel.DEBUG)
                         .pipelineConfigurator(configurator).build();
         stateChangeListener = new TrackableStateChangeListener();
         client.poolStateChangeObservable().subscribe(stateChangeListener);
