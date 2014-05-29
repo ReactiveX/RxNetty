@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
@@ -30,9 +31,15 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
     private ErrorResponseGenerator<O> responseGenerator = new DefaultErrorResponseGenerator<O>();
 
     private final RequestHandler<I, O> requestHandler;
+    private final boolean send10ResponseFor10Request;
 
     public HttpConnectionHandler(RequestHandler<I, O> requestHandler) {
+        this(requestHandler, false);
+    }
+
+    public HttpConnectionHandler(RequestHandler<I, O> requestHandler, boolean send10ResponseFor10Request) {
         this.requestHandler = requestHandler;
+        this.send10ResponseFor10Request = send10ResponseFor10Request;
     }
 
     void setResponseGenerator(ErrorResponseGenerator<O> responseGenerator) {
@@ -50,8 +57,10 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                         /*
                          * Server should send the highest version it is compatible with.
                          * http://tools.ietf.org/html/rfc2145#section-2.3
+                         *
+                         * unless overriden explicitly.
                          */
-                        newRequest.getHttpVersion());
+                        send10ResponseFor10Request ? newRequest.getHttpVersion() : HttpVersion.HTTP_1_1);
                 if (newRequest.getHeaders().isKeepAlive()) {
                     // Add keep alive header as per:
                     // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection

@@ -18,7 +18,6 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.bootstrap.ServerBootstrap;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.server.ConnectionBasedServerBuilder;
-import io.reactivex.netty.server.RxServer;
 
 /**
  * A convenience builder to create instances of {@link HttpServer}
@@ -28,13 +27,24 @@ import io.reactivex.netty.server.RxServer;
 public class HttpServerBuilder<I, O>
         extends ConnectionBasedServerBuilder<HttpServerRequest<I>, HttpServerResponse<O>, HttpServerBuilder<I, O>> {
 
-    public HttpServerBuilder(int port, RequestHandler<I, O> requestHandler) {
-        super(port, new HttpConnectionHandler<I, O>(requestHandler));
+    public HttpServerBuilder(int port, RequestHandler<I, O> requestHandler, boolean send10ResponseFor10Request) {
+        super(port, new HttpConnectionHandler<I, O>(requestHandler, send10ResponseFor10Request));
         pipelineConfigurator(PipelineConfigurators.<I, O>httpServerConfigurator());
     }
 
     public HttpServerBuilder(ServerBootstrap bootstrap, int port, RequestHandler<I, O> requestHandler) {
         super(port, new HttpConnectionHandler<I, O>(requestHandler), bootstrap);
+        pipelineConfigurator(PipelineConfigurators.<I, O>httpServerConfigurator());
+    }
+
+    public HttpServerBuilder(int port, RequestHandler<I, O> requestHandler) {
+        super(port, new HttpConnectionHandler<I, O>(requestHandler));
+        pipelineConfigurator(PipelineConfigurators.<I, O>httpServerConfigurator());
+    }
+
+    public HttpServerBuilder(ServerBootstrap bootstrap, int port, RequestHandler<I, O> requestHandler,
+                             boolean send10ResponseFor10Request) {
+        super(port, new HttpConnectionHandler<I, O>(requestHandler, send10ResponseFor10Request), bootstrap);
         pipelineConfigurator(PipelineConfigurators.<I, O>httpServerConfigurator());
     }
 
