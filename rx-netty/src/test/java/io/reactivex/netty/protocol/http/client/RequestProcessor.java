@@ -32,8 +32,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
+
+    private static final AtomicInteger redirectLoopUniqueIndex = new AtomicInteger();
 
     public static final List<String> smallStreamContent;
 
@@ -141,13 +144,43 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
         return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
-    
+
+    public Observable<Void> redirectCustom(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
+        String port = request.getQueryParameters().get("port").get(0);
+        boolean isRedirectLoop = request.getUri().contains("redirectLoop");
+        int currentCount = getIntParamWithDefault(request, "count", 0);
+        int redirectsRequested = getIntParamWithDefault(request, "redirectsRequested", 1);
+        String location;
+        if (currentCount >= redirectsRequested) {
+            location = "http://localhost:" + port + "/test/singleEntity";
+        } else {
+
+            location = "http://localhost:" + port
+            + "/test/" + (isRedirectLoop ? "redirectLoop" : "redirectLimited" + redirectLoopUniqueIndex.incrementAndGet())
+            + "?port=" + port + "&count=" + (currentCount + 1)
+            + "&redirectsRequested=" + redirectsRequested;
+        }
+
+        response.getHeaders().set("Location", location);
+        response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
+        return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
+    }
+
     public Observable<Void> redirectPost(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
         response.getHeaders().set("Location", "http://localhost:" + request.getQueryParameters().get("port").get(0) + "/test/post");
         response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
         return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
-    
+
+    private static int getIntParamWithDefault(HttpServerRequest<ByteBuf> request, String parameName, int defaultVal) {
+        List<String> paramVal = request.getQueryParameters().get(parameName);
+        if (null != paramVal && !paramVal.isEmpty()) {
+            return Integer.parseInt(paramVal.get(0));
+        } else {
+            return defaultVal;
+        }
+    }
+
     private static Observable<Void> sendStreamingResponse(HttpServerResponse<ByteBuf> response, List<String> data) {
         response.getHeaders().set(HttpHeaders.Names.CONTENT_TYPE, "text/event-stream");
         response.getHeaders().set(HttpHeaders.Names.TRANSFER_ENCODING, "chunked");
@@ -162,6 +195,9 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     @Override
     public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
         String uri = request.getUri();
+        if (uri.startsWith("/") && uri.length() > 1) {
+            uri = uri.substring(1);
+        }
         if ("/".equals(uri) || uri.contains("test/singleEntity")) {
             // in case of redirect, uri starts with /test/singleEntity 
             return handleSingleEntity(response);
@@ -179,6 +215,12 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
             return handleCloseConnection(response);
         } else if (uri.startsWith("test/keepAliveTimeout")) {
             return handleKeepAliveTimeout(response);
+        } else if (uri.startsWith("test/redirectInfinite")) {
+            return redirectCustom(request, response);
+        } else if (uri.startsWith("test/redirectLoop")) {
+            return redirectCustom(request, response);
+        } else if (uri.startsWith("test/redirectLimited")) {
+            return redirectCustom(request, response);
         } else if (uri.startsWith("test/redirect") && request.getHttpMethod().equals(HttpMethod.GET)) {
             return redirectGet(request, response);
         } else if (uri.startsWith("test/redirectPost") && request.getHttpMethod().equals(HttpMethod.POST)) {

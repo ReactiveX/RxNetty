@@ -77,7 +77,8 @@ public class RedirectOperatorTest {
         @Override
         public Observable<HttpClientResponse<O>> doRedirect(RedirectionContext context,
                                                             HttpClientRequest<I> originalRequest,
-                                                            HttpClientResponse<O> redirectedResponse) {
+                                                            HttpClientResponse<O> redirectedResponse,
+                                                            HttpClient.HttpClientConfig config) {
             redirectsRequested.incrementAndGet();
             return Observable.just(response);
         }
