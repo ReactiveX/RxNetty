@@ -74,8 +74,10 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
         writeHeadersIfNotWritten();
 
-        if (headers.isTransferEncodingChunked()) {
-            writeOnChannel(new DefaultLastHttpContent());
+        if (headers.isTransferEncodingChunked() || headers.isKeepAlive()) {
+            writeOnChannel(new DefaultLastHttpContent()); // This indicates end of response for netty. If this is not
+            // sent for keep-alive connections, netty's HTTP codec will not know that the response has ended and hence
+            // will ignore the subsequent HTTP header writes. See issue: https://github.com/Netflix/RxNetty/issues/130
         }
         return flush();
     }
