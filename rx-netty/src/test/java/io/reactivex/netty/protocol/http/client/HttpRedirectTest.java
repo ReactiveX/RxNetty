@@ -26,7 +26,6 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rx.Observable;
-import rx.functions.Action0;
 import rx.functions.Func1;
 
 import java.nio.charset.Charset;
@@ -158,11 +157,6 @@ public class HttpRedirectTest {
                             return byteBuf.toString(Charset.defaultCharset());
                         }
                     });
-                }
-            }).doOnTerminate(new Action0() {
-                @Override
-                public void call() {
-                    System.out.println("HttpRedirectTest.call");
                 }
             }).toBlockingObservable().toFuture().get(1, TimeUnit.MINUTES);
         } catch (ExecutionException e) {

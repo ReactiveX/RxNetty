@@ -54,7 +54,6 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
     @Override
     public Observable<HttpClientResponse<O>> doRedirect(RedirectionContext context,
                                                         HttpClientRequest<I> originalRequest,
-                                                        HttpClientResponse<O> redirectedResponse,
                                                         HttpClient.HttpClientConfig config) {
         URI nextRedirect = context.getNextRedirect(); // added by validate()
 
@@ -64,7 +63,7 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
         }
 
         HttpClientRequest<I> redirectRequest = createRedirectRequest(originalRequest, nextRedirect,
-                                                                     redirectedResponse.getStatus().code());
+                                                                     context.getLastRedirectStatus().code());
 
         return redirect(redirectRequest, config);
     }

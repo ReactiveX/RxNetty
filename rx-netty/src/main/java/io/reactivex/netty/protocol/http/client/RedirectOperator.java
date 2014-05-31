@@ -15,6 +15,7 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
+import io.netty.handler.codec.http.HttpResponseStatus;
 import rx.Observable;
 import rx.Subscriber;
 import rx.subscriptions.SerialSubscription;
@@ -90,8 +91,7 @@ public class RedirectOperator<I, O>
      requiring redirects vs a response requiring redirects but not being performed because of limits like max redirects
      allowed, redirect loops etc..</li>
      <li>If the redirect limit is not yet breached, then
-     {@link #doRedirect(RedirectionContext, HttpClientRequest, HttpClientResponse,
-             HttpClient.HttpClientConfig)} will be called.</li>
+     {@link #doRedirect(RedirectionContext, HttpClientRequest, HttpClient.HttpClientConfig)} will be called.</li>
      </ul>
 
      * @param <I> Content type of request sent over this handler.
@@ -105,20 +105,17 @@ public class RedirectOperator<I, O>
          *
          * @param context Redirection context.
          * @param originalRequest Original request that started this response processing.
-         * @param redirectedResponse The response obtained from the HTTP call made prior to this redirect.
          * @param config Client config to use while making the redirect request.
          *
          * @return The response after executing the redirect.
          */
         Observable<HttpClientResponse<O>> doRedirect(RedirectionContext context,
                                                      HttpClientRequest<I> originalRequest,
-                                                     HttpClientResponse<O> redirectedResponse,
                                                      HttpClient.HttpClientConfig config);
 
         /**
          * Asserts whether the passed {@code response} requires a redirect. If this returns {@code true} then
-         * {@link RedirectHandler#doRedirect(RedirectionContext, HttpClientRequest,
-         * HttpClientResponse, HttpClient.HttpClientConfig)}
+         * {@link RedirectHandler#doRedirect(RedirectionContext, HttpClientRequest, HttpClient.HttpClientConfig)}
          * will be called for this {@code response} if and only if the redirect is valid specified by
          * {@link RedirectHandler#validate(RedirectionContext, HttpClientResponse)}
          *
@@ -153,7 +150,8 @@ public class RedirectOperator<I, O>
              */
             private List<String> visitedLocationsImmutable; // Is never updated concurrently as redirects are sequential.
             private volatile int redirectCount; // Can be shared across multiple event loops, so needs to be volatile.
-            private URI nextRedirect;
+            private volatile URI nextRedirect;
+            private volatile HttpResponseStatus lastRedirectStatus;
 
             public RedirectionContext(@SuppressWarnings("rawtypes")HttpClientRequest originalRequest) {
                 visitedLocations = new ArrayList<String>();
@@ -193,6 +191,14 @@ public class RedirectOperator<I, O>
             public URI getNextRedirect() {
                 return nextRedirect;
             }
+
+            public HttpResponseStatus getLastRedirectStatus() {
+                return lastRedirectStatus;
+            }
+
+            public void setLastRedirectStatus(HttpResponseStatus lastRedirectStatus) {
+                this.lastRedirectStatus = lastRedirectStatus;
+            }
         }
     }
 
@@ -203,6 +209,7 @@ public class RedirectOperator<I, O>
         private final SerialSubscription serialSubscription;
         private final RedirectHandler<I, O> redirectHandler;
         private final AtomicBoolean finished = new AtomicBoolean();
+        private volatile boolean doRedirectOnNextComplete;
 
         public RedirectSubscriber(Subscriber<? super HttpClientResponse<O>> child,
                                   RedirectHandler.RedirectionContext redirectionContext,
@@ -216,6 +223,8 @@ public class RedirectOperator<I, O>
 
         @Override
         public void onCompleted() {
+            doRedirectIfRequired();
+
             if (!isUnsubscribed() && finished.compareAndSet(false, true)) {
                 child.onCompleted();
             }
@@ -223,6 +232,7 @@ public class RedirectOperator<I, O>
 
         @Override
         public void onError(Throwable e) {
+            doRedirectIfRequired();
             if (!isUnsubscribed() && finished.compareAndSet(false, true)) {
                 child.onError(e);
             }
@@ -236,18 +246,30 @@ public class RedirectOperator<I, O>
             if (redirectHandler.requiresRedirect(redirectionContext, response)) {
                 try {
                     redirectHandler.validate(redirectionContext, response);
-                    redirectionContext.onNewRedirect();
-                    Observable<HttpClientResponse<O>> redirect = redirectHandler.doRedirect(redirectionContext,
-                                                                                            originalRequest,
-                                                                                            response, clientConfig);
-                    RedirectSubscriber newSub = copy();
-                    serialSubscription.set(newSub); // Set is required first to avoid new subscribe before previous unsubscribe.
-                    redirect.unsafeSubscribe(newSub);
+                    redirectionContext.setLastRedirectStatus(response.getStatus());
+                    doRedirectOnNextComplete = true;
                 } catch (HttpRedirectException e) {
                     onError(e);
                 }
             } else {
+                doRedirectOnNextComplete = false;
                 child.onNext(response);
+            }
+        }
+
+        private void doRedirectIfRequired() {
+            /**
+             * We should not do a redirect as part of onNext() because the onNext() is called when the response headers
+             * are receieved. We should instead do the redirect when the first observable finishes (onComplete/onError)
+             */
+            if(doRedirectOnNextComplete && !finished.get()) {
+                redirectionContext.onNewRedirect();
+                Observable<HttpClientResponse<O>> redirect = redirectHandler.doRedirect(redirectionContext,
+                                                                                        originalRequest,
+                                                                                        clientConfig);
+                RedirectSubscriber newSub = copy();
+                serialSubscription.set(newSub); // Set is required first to avoid new subscribe before previous unsubscribe.
+                redirect.unsafeSubscribe(newSub);
             }
         }
 
