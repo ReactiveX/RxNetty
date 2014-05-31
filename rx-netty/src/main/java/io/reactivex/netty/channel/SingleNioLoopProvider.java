@@ -30,7 +30,15 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class SingleNioLoopProvider implements RxEventLoopProvider {
 
-    private final SharedNioEventLoopGroup eventLoop = new SharedNioEventLoopGroup();
+    private final SharedNioEventLoopGroup eventLoop;
+
+    public SingleNioLoopProvider() {
+        eventLoop = new SharedNioEventLoopGroup();
+    }
+
+    public SingleNioLoopProvider(int threadCount) {
+        eventLoop = new SharedNioEventLoopGroup(threadCount);
+    }
 
     @Override
     public EventLoopGroup globalClientEventLoop() {
@@ -44,12 +52,16 @@ public class SingleNioLoopProvider implements RxEventLoopProvider {
         return eventLoop;
     }
 
-    private static class SharedNioEventLoopGroup extends NioEventLoopGroup {
+    public static class SharedNioEventLoopGroup extends NioEventLoopGroup {
 
         private final AtomicInteger refCount = new AtomicInteger();
 
         public SharedNioEventLoopGroup() {
             super(0, new RxDefaultThreadFactory("rx-selector"));
+        }
+
+        public SharedNioEventLoopGroup(int threadCount) {
+            super(threadCount, new RxDefaultThreadFactory("rx-selector"));
         }
 
         @Override
