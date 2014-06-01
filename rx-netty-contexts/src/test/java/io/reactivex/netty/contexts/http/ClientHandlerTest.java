@@ -42,13 +42,13 @@ public class ClientHandlerTest {
 
     @Test
     public void testRequest() throws Exception {
-        HandlerHolder holder = new HandlerHolder(false);
+        HandlerHolder holder = new HandlerHolder(false, "ClientHandlerTest.testRequest");
         sendRequestAndAssert(holder);
     }
 
     @Test
     public void testResponse() throws Exception {
-        HandlerHolder holder = new HandlerHolder(false);
+        HandlerHolder holder = new HandlerHolder(false, "ClientHandlerTest.testResponse");
         sendRequestAndAssert(holder);
 
 

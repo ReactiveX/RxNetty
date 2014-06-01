@@ -65,8 +65,6 @@ public class ContextPropagationTest {
 
     private HttpServer<ByteBuf, ByteBuf> mockServer;
     private static final String REQUEST_ID_HEADER_NAME = "request_id";
-    private static final String REQUEST_ID = "id1";
-    private static final String REQUEST_ID_2 = "id2";
     private static final String CTX_1_NAME = "ctx1";
     private static final String CTX_1_VAL = "ctx1_val";
     private static final String CTX_2_NAME = "ctx2";
@@ -127,7 +125,8 @@ public class ContextPropagationTest {
         HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", server.getServerPort())
                                                          .enableWireLogging(LogLevel.DEBUG).build();
 
-        sendTestRequest(testClient, REQUEST_ID);
+        String reqId = "testE2E";
+        sendTestRequest(testClient, reqId);
     }
 
     @Test(expected = MockBackendRequestFailedException.class)
@@ -148,7 +147,8 @@ public class ContextPropagationTest {
 
         HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.createHttpClient("localhost", server.getServerPort());
 
-        sendTestRequest(testClient, REQUEST_ID);
+        String reqId = "testWithThreadSwitchNegative";
+        sendTestRequest(testClient, reqId);
     }
 
     @Test
@@ -173,7 +173,8 @@ public class ContextPropagationTest {
 
         HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.createHttpClient("localhost", server.getServerPort());
 
-        sendTestRequest(testClient, REQUEST_ID);
+        String reqId = "testWithThreadSwitch";
+        sendTestRequest(testClient, reqId);
     }
 
     @Test
@@ -187,11 +188,12 @@ public class ContextPropagationTest {
         container.addContext(CTX_1_NAME, CTX_1_VAL);
         container.addContext(CTX_2_NAME, CTX_2_VAL, new TestContextSerializer());
 
-        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(REQUEST_ID, container);
+        String reqId = "testWithPooledConnections";
+        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(reqId, container);
 
-        invokeMockServer(testClient, REQUEST_ID, false);
+        invokeMockServer(testClient, reqId, false);
 
-        invokeMockServer(testClient, REQUEST_ID, true);
+        invokeMockServer(testClient, reqId, true);
     }
 
     @Test(expected = MockBackendRequestFailedException.class)
@@ -206,15 +208,16 @@ public class ContextPropagationTest {
         container.addContext(CTX_1_NAME, CTX_1_VAL);
         container.addContext(CTX_2_NAME, CTX_2_VAL, new TestContextSerializer());
 
-        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(REQUEST_ID, container);
+        String reqId = "testNoStateLeakOnThreadReuse";
+        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(reqId, container);
 
         try {
-            invokeMockServer(testClient, REQUEST_ID, true);
+            invokeMockServer(testClient, reqId, true);
         } catch (MockBackendRequestFailedException e) {
             throw new AssertionError("First request to mock backend failed. Error: " + e.getMessage());
         }
 
-        invokeMockServer(testClient, REQUEST_ID_2, false);
+        invokeMockServer(testClient, reqId, false);
     }
 
     private HttpServerBuilder<ByteBuf, ByteBuf> newTestServerBuilder(final Func1<HttpClient<ByteBuf, ByteBuf>,

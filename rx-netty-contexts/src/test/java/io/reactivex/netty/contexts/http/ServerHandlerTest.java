@@ -40,13 +40,13 @@ public class ServerHandlerTest {
 
     @Test
     public void testRequest() throws Exception {
-        HandlerHolder holder = new HandlerHolder(true);
+        HandlerHolder holder = new HandlerHolder(true, "ServerHandlerTest.testRequest");
         readRequestAndAssert(holder);
     }
 
     @Test
     public void testResponse() throws Exception {
-        HandlerHolder holder = new HandlerHolder(true);
+        HandlerHolder holder = new HandlerHolder(true, "ServerHandlerTest.testResponse");
         readRequestAndAssert(holder);
 
 
