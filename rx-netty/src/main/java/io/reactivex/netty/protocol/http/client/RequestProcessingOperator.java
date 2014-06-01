@@ -68,7 +68,7 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                         cs.add(connection.getInput()
                                          .doOnNext(new Action1<HttpClientResponse<O>>() {
                                              @Override
-                                             public void call(HttpClientResponse<O> response) {
+                                             public void call(final HttpClientResponse<O> response) {
                                                  cs.add(response.getContent().subscribe(new Observer<O>() {
                                                      @Override
                                                      public void onCompleted() {

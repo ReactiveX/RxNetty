@@ -37,11 +37,16 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
         public enum RedirectsHandling {Enable, Disable, Undefined}
 
         private String userAgent = "RxNetty Client";
-        
+
         private RedirectsHandling followRedirect = RedirectsHandling.Undefined;
+        private int maxRedirects = RedirectOperator.DEFAULT_MAX_HOPS;
 
         protected HttpClientConfig() {
             // Only the builder can create this instance, so that we can change the constructor signature at will.
+        }
+
+        protected HttpClientConfig(ClientConfig config) {
+            super(config);
         }
 
         public String getUserAgent() {
@@ -50,6 +55,15 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
 
         public RedirectsHandling getFollowRedirect() {
             return followRedirect;
+        }
+
+        public int getMaxRedirects() {
+            return maxRedirects;
+        }
+
+        @Override
+        public HttpClientConfig clone() throws CloneNotSupportedException {
+            return (HttpClientConfig) super.clone();
         }
 
         public static class Builder extends AbstractBuilder<Builder, HttpClientConfig> {
@@ -72,10 +86,27 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
                 return returnBuilder();
             }
 
+            public Builder followRedirect(int maxRedirects) {
+                setFollowRedirect(true);
+                config.maxRedirects = maxRedirects;
+                return returnBuilder();
+            }
+
             public static HttpClientConfig newDefaultConfig() {
                 return new Builder().build();
             }
 
+            public static Builder fromDefaultConfig() {
+                return from(newDefaultConfig());
+            }
+
+            public static Builder from(HttpClientConfig source) {
+                try {
+                    return new Builder(null == source ? newDefaultConfig() : source.clone());
+                } catch (CloneNotSupportedException e) {
+                    throw new RuntimeException(e);
+                }
+            }
         }
     }
 }

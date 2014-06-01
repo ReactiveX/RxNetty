@@ -43,10 +43,10 @@ class HandlerHolder {
     final NoOpChannelHandlerContext ctx = new NoOpChannelHandlerContext();
     final RequestCorrelator correlator;
 
-    HandlerHolder(boolean server) {
+    HandlerHolder(boolean server, final String reqId) {
         String headerName = "requestId";
         correlator = new ThreadLocalRequestCorrelator();
-        requestId = "baaaa";
+        requestId = reqId;
         RequestIdGenerator generator = new RequestIdGenerator() {
             @Override
             public String newRequestId(ContextKeySupplier keySupplier, AttributeMap channelAttributeMap) {

@@ -77,12 +77,21 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
+        /**
+         *  Issue: https://github.com/Netflix/RxNetty/issues/129
+         *  The contentSubject changes in a different method userEventTriggered() when the connection is reused. If the
+         *  connection reuse event is generated as part of execution of this method (for the specific issue, as part of
+         *  super.channelRead(ctx, rxResponse); below) it will so happen that we invoke onComplete (below code when the
+         *  first response completes) on the new subject as opposed to the old response subject.
+         */
+        @SuppressWarnings("rawtypes") final PublishSubject subjectToUse = contentSubject;
+
         if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpResponse response = (HttpResponse) msg;
 
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpClientResponse rxResponse = new HttpClientResponse(response, contentSubject);
+            HttpClientResponse rxResponse = new HttpClientResponse(response, subjectToUse);
             Long keepAliveTimeoutSeconds = rxResponse.getKeepAliveTimeoutSeconds();
             if (null != keepAliveTimeoutSeconds) {
                 ctx.channel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).set(keepAliveTimeoutSeconds * 1000);
@@ -101,7 +110,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 invokeContentOnNext(content);
             }
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
-                contentSubject.onCompleted();
+                subjectToUse.onCompleted();
             }
         } else if(!HttpResponse.class.isAssignableFrom(recievedMsgClass)){
             invokeContentOnNext(msg);

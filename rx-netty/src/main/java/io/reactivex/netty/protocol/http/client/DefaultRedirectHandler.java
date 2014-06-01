@@ -18,7 +18,6 @@ package io.reactivex.netty.protocol.http.client;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
-import io.reactivex.netty.client.RxClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -46,24 +45,16 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
 
     private final int maxHops;
     private final HttpClient<I, O> client;
-    private final RxClient.ClientConfig config;
 
     public DefaultRedirectHandler(int maxHops, HttpClient<I, O> client) {
         this.maxHops = maxHops;
         this.client = client;
-        config = null;
-    }
-
-    public DefaultRedirectHandler(int maxHops, HttpClient<I, O> client, RxClient.ClientConfig config) {
-        this.maxHops = maxHops;
-        this.client = client;
-        this.config = config;
     }
 
     @Override
     public Observable<HttpClientResponse<O>> doRedirect(RedirectionContext context,
                                                         HttpClientRequest<I> originalRequest,
-                                                        HttpClientResponse<O> redirectedResponse) {
+                                                        HttpClient.HttpClientConfig config) {
         URI nextRedirect = context.getNextRedirect(); // added by validate()
 
         if (logger.isDebugEnabled()) {
@@ -72,12 +63,13 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
         }
 
         HttpClientRequest<I> redirectRequest = createRedirectRequest(originalRequest, nextRedirect,
-                                                                     redirectedResponse.getStatus().code());
+                                                                     context.getLastRedirectStatus().code());
 
-        return redirect(redirectRequest);
+        return redirect(redirectRequest, config);
     }
 
-    protected Observable<HttpClientResponse<O>> redirect(HttpClientRequest<I> redirectRequest) {
+    protected Observable<HttpClientResponse<O>> redirect(HttpClientRequest<I> redirectRequest,
+                                                         HttpClient.HttpClientConfig config) {
         return client.submit(redirectRequest, config);
     }
 
@@ -137,10 +129,10 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
         }
     }
 
-    protected <I> HttpClientRequest<I> createRedirectRequest(HttpClientRequest<I> original, URI redirectLocation,
-                                                             int redirectStatus) {
+    protected HttpClientRequest<I> createRedirectRequest(HttpClientRequest<I> original, URI redirectLocation,
+                                                         int redirectStatus) {
         HttpRequest nettyRequest = original.getNettyRequest();
-        nettyRequest.setUri(redirectLocation.toString() /*Uses the string with which this was created*/);
+        nettyRequest.setUri(getNettyRequestUri(redirectLocation));
 
         if (redirectStatus == 303) {
             // according to HTTP spec, 303 mandates the change of request type to GET
@@ -155,5 +147,19 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
             newRequest.rawContentFactory = original.rawContentFactory;
         }
         return newRequest;
+    }
+
+    private static String getNettyRequestUri(URI uri) {
+        StringBuilder sb = new StringBuilder();
+        if (uri.getRawPath() != null) {
+            sb.append(uri.getRawPath());
+        }
+        if (uri.getRawQuery() != null) {
+            sb.append('?').append(uri.getRawQuery());
+        }
+        if (uri.getRawFragment() != null) {
+            sb.append('#').append(uri.getRawFragment());
+        }
+        return sb.toString();
     }
 }
