@@ -27,7 +27,10 @@ import io.reactivex.netty.contexts.ContextAttributeStorageHelper;
 import io.reactivex.netty.contexts.ContextKeySupplier;
 import io.reactivex.netty.contexts.ContextsContainer;
 import io.reactivex.netty.contexts.ContextsContainerImpl;
+import io.reactivex.netty.contexts.RxContexts;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -37,16 +40,34 @@ public class ServerHandlerTest {
 
     public static final String CTX_1_NAME = "ctx1";
     public static final String CTX_1_VAL = "doom";
+    private String requestId;
+
+    @Before
+    public void setUp() throws Exception {
+        System.err.print(">>>> ServerHandlerTest.setUp()");
+        RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        if (null != requestId) {
+            RxContexts.DEFAULT_CORRELATOR.onServerProcessingEnd(requestId);
+        }
+        System.err.print(">>>> ServerHandlerTest.tearDown()");
+        RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
+    }
 
     @Test
     public void testRequest() throws Exception {
-        HandlerHolder holder = new HandlerHolder(true, "ServerHandlerTest.testRequest");
+        requestId = "ServerHandlerTest.testRequest";
+        HandlerHolder holder = new HandlerHolder(true, requestId);
         readRequestAndAssert(holder);
     }
 
     @Test
     public void testResponse() throws Exception {
-        HandlerHolder holder = new HandlerHolder(true, "ServerHandlerTest.testResponse");
+        requestId = "ServerHandlerTest.testResponse";
+        HandlerHolder holder = new HandlerHolder(true, requestId);
         readRequestAndAssert(holder);
 
 

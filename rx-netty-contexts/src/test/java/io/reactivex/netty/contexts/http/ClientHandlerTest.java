@@ -29,7 +29,9 @@ import io.reactivex.netty.contexts.ContextKeySupplier;
 import io.reactivex.netty.contexts.ContextsContainer;
 import io.reactivex.netty.contexts.ContextsContainerImpl;
 import io.reactivex.netty.contexts.RxContexts;
+import org.junit.After;
 import org.junit.Assert;
+import org.junit.Before;
 import org.junit.Test;
 
 /**
@@ -39,6 +41,18 @@ public class ClientHandlerTest {
 
     public static final String CTX_1_NAME = "ctx1";
     public static final BidirectionalTestContext CTX_1_VAL = new BidirectionalTestContext(CTX_1_NAME);
+
+    @Before
+    public void setUp() throws Exception {
+        System.err.print(">>>> ClientHandlerTest.setUp()");
+        RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        System.err.print(">>>> ClientHandlerTest.tearDown()");
+        RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
+    }
 
     @Test
     public void testRequest() throws Exception {
