@@ -65,8 +65,6 @@ public class ContextPropagationTest {
 
     private HttpServer<ByteBuf, ByteBuf> mockServer;
     private static final String REQUEST_ID_HEADER_NAME = "request_id";
-    private static final String REQUEST_ID = "id1";
-    private static final String REQUEST_ID_2 = "id2";
     private static final String CTX_1_NAME = "ctx1";
     private static final String CTX_1_VAL = "ctx1_val";
     private static final String CTX_2_NAME = "ctx2";
@@ -104,7 +102,7 @@ public class ContextPropagationTest {
                     return Observable.error(e);
                 }
             }
-        }).enableWireLogging(LogLevel.ERROR).build();
+        }).enableWireLogging(LogLevel.DEBUG).build();
         mockServer.start();
     }
 
@@ -122,11 +120,13 @@ public class ContextPropagationTest {
                             public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
                                 return client.submit(HttpClientRequest.createGet("/"));
                             }
-                        }).build().start();
+                        }).enableWireLogging(LogLevel.ERROR).build().start();
 
-        HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.createHttpClient("localhost", server.getServerPort());
+        HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", server.getServerPort())
+                                                         .enableWireLogging(LogLevel.DEBUG).build();
 
-        sendTestRequest(testClient, REQUEST_ID);
+        String reqId = "testE2E";
+        sendTestRequest(testClient, reqId);
     }
 
     @Test(expected = MockBackendRequestFailedException.class)
@@ -147,7 +147,8 @@ public class ContextPropagationTest {
 
         HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.createHttpClient("localhost", server.getServerPort());
 
-        sendTestRequest(testClient, REQUEST_ID);
+        String reqId = "testWithThreadSwitchNegative";
+        sendTestRequest(testClient, reqId);
     }
 
     @Test
@@ -172,7 +173,8 @@ public class ContextPropagationTest {
 
         HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.createHttpClient("localhost", server.getServerPort());
 
-        sendTestRequest(testClient, REQUEST_ID);
+        String reqId = "testWithThreadSwitch";
+        sendTestRequest(testClient, reqId);
     }
 
     @Test
@@ -186,11 +188,12 @@ public class ContextPropagationTest {
         container.addContext(CTX_1_NAME, CTX_1_VAL);
         container.addContext(CTX_2_NAME, CTX_2_VAL, new TestContextSerializer());
 
-        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(REQUEST_ID, container);
+        String reqId = "testWithPooledConnections";
+        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(reqId, container);
 
-        invokeMockServer(testClient, REQUEST_ID, false);
+        invokeMockServer(testClient, reqId, false);
 
-        invokeMockServer(testClient, REQUEST_ID, true);
+        invokeMockServer(testClient, reqId, true);
     }
 
     @Test(expected = MockBackendRequestFailedException.class)
@@ -205,22 +208,24 @@ public class ContextPropagationTest {
         container.addContext(CTX_1_NAME, CTX_1_VAL);
         container.addContext(CTX_2_NAME, CTX_2_VAL, new TestContextSerializer());
 
-        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(REQUEST_ID, container);
+        String reqId = "testNoStateLeakOnThreadReuse";
+        RxContexts.DEFAULT_CORRELATOR.onNewServerRequest(reqId, container);
 
         try {
-            invokeMockServer(testClient, REQUEST_ID, true);
+            invokeMockServer(testClient, reqId, true);
         } catch (MockBackendRequestFailedException e) {
             throw new AssertionError("First request to mock backend failed. Error: " + e.getMessage());
         }
 
-        invokeMockServer(testClient, REQUEST_ID_2, false);
+        invokeMockServer(testClient, reqId, false);
     }
 
     private HttpServerBuilder<ByteBuf, ByteBuf> newTestServerBuilder(final Func1<HttpClient<ByteBuf, ByteBuf>,
             Observable<HttpClientResponse<ByteBuf>>> clientInvoker) {
         return RxContexts.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
-            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
+                                           final HttpServerResponse<ByteBuf> serverResponse) {
                 String reqId = getCurrentRequestId();
                 if (null == reqId) {
                     return Observable.error(new AssertionError("Request Id not found at server."));
@@ -236,20 +241,17 @@ public class ContextPropagationTest {
                         RxContexts.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", mockServer.getServerPort(),
                                                                           REQUEST_ID_HEADER_NAME,
                                                                           RxContexts.DEFAULT_CORRELATOR)
-                                  .withMaxConnections(1).enableWireLogging(LogLevel.ERROR)
+                                  .withMaxConnections(1).enableWireLogging(LogLevel.DEBUG)
                                   .build();
 
-                return clientInvoker.call(client)
-                                    .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
-                                        @Override
-                                        public Observable<Void> call(HttpClientResponse<ByteBuf> response1) {
-                                            if (response1.getStatus().code() != HttpResponseStatus.OK.code()) {
-                                                return Observable.error(new AssertionError(
-                                                        "Mock backend request failed."));
-                                            }
-                                            return Observable.empty();
-                                        }
-                                    });
+                return clientInvoker.call(client).flatMap(
+                        new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
+                            @Override
+                            public Observable<Void> call(HttpClientResponse<ByteBuf> response) {
+                                serverResponse.setStatus(response.getStatus());
+                                return Observable.empty();
+                            }
+                        });
             }
         }, REQUEST_ID_HEADER_NAME, RxContexts.DEFAULT_CORRELATOR);
     }

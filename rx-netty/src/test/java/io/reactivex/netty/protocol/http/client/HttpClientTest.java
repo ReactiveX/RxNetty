@@ -31,7 +31,6 @@ import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClient.ClientConfig.Builder;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.protocol.http.client.HttpClient.HttpClientConfig;
 import io.reactivex.netty.protocol.http.client.RawContentSource.SingletonRawSource;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
@@ -71,7 +70,7 @@ public class HttpClientTest {
     public static void init() {
         HttpServerBuilder<ByteBuf, ByteBuf> builder
             = new HttpServerBuilder<ByteBuf, ByteBuf>(new ServerBootstrap().group(new NioEventLoopGroup(10, new RxServerThreadFactory())), port, new RequestProcessor());
-        server = builder.enableWireLogging(LogLevel.ERROR).build();
+        server = builder.enableWireLogging(LogLevel.DEBUG).build();
         server.start();
         port = server.getServerPort(); // Using ephemeral ports
         System.out.println("Mock server using ephemeral port; " + port);
@@ -80,24 +79,6 @@ public class HttpClientTest {
     @AfterClass
     public static void shutDown() throws InterruptedException {
         server.shutdown();
-    }
-    private static String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, String uri) {
-        return invokeBlockingCall(client, HttpClientRequest.createGet(uri));
-    }
-
-    private static String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, HttpClientRequest<ByteBuf> request) {
-        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
-        return response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
-            @Override
-            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
-                return response.getContent().map(new Func1<ByteBuf, String>() {
-                    @Override
-                    public String call(ByteBuf byteBuf) {
-                        return byteBuf.toString(Charset.defaultCharset());
-                    }
-                });
-            }
-        }).toBlockingObservable().single();
     }
 
     @Test
@@ -274,7 +255,7 @@ public class HttpClientTest {
                 = PipelineConfigurators.httpClientConfigurator();
 
         HttpClient<String, ByteBuf> client = RxNetty.createHttpClient("localhost", port, pipelineConfigurator);
-        HttpClientRequest<String> request = HttpClientRequest.<String>create(HttpMethod.POST, "test/post");
+        HttpClientRequest<String> request = HttpClientRequest.create(HttpMethod.POST, "test/post");
         SingletonRawSource<String> rawContentSource = new SingletonRawSource<String>("Hello world", transformer);
         request.withRawContentSource(rawContentSource);
         Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
@@ -405,8 +386,6 @@ public class HttpClientTest {
         }
     }
 
-    
-
     @Test
     public void testNoReadTimeout() throws Exception {
         RxClient.ClientConfig clientConfig = new Builder(null)
@@ -439,59 +418,6 @@ public class HttpClientTest {
         assertEquals(200, status[0]);
         assertNull(exceptionHolder.get());
     }
-
-    @Test
-    public void testRedirect() {
-        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null);
-        HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                .build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config)
-                .build();
-        String content = invokeBlockingCall(client, "test/redirect?port=" + port);
-        assertEquals("Hello world", content);
-    }
-    
-    @Test
-    public void testNoRedirect() {
-        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null).setFollowRedirect(false);
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("test/redirect?port=" + port);
-        HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                .build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config)
-                .build();
-        HttpClientResponse<ByteBuf> response = client.submit(request).toBlockingObservable().single();
-        assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
-    }
-
-
-    @Test
-    public void testRedirectPost() {
-        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null);
-        HttpClientConfig config = builder.setFollowRedirect(true).build();
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost?port=" + port)
-                .withContent("Hello world");
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config)
-                .build();
-        String content = invokeBlockingCall(client, request);
-        assertEquals("Hello world", content);
-    }
-
-    @Test
-    public void testNoRedirectPost() {
-        HttpClientConfig.Builder builder = new HttpClientConfig.Builder(null);
-        HttpClientConfig config = builder.build();
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost?port=" + port)
-                .withContent("Hello world");
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config)
-                .build();
-        HttpClientResponse<ByteBuf> response = client.submit(request).toBlockingObservable().single();
-        assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
-    }
-
 
     private static void readResponseContent(Observable<HttpClientResponse<ServerSentEvent>> response,
                                             final List<String> result) {

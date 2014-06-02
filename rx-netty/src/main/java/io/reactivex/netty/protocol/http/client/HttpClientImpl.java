@@ -62,30 +62,17 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                                                      ? HttpClientConfig.Builder.newDefaultConfig() : clientConfig);
     }
     
-    protected boolean shouldFollowRedirectForRequest(ClientConfig config, HttpClientRequest<I> request) {
-        HttpClientConfig.RedirectsHandling redirectsHandling = HttpClientConfig.RedirectsHandling.Undefined;
-
-        if (config instanceof HttpClientConfig) {
-            redirectsHandling = ((HttpClientConfig) config).getFollowRedirect();
-        }
-
-        switch (redirectsHandling) {
-            case Enable:
-                return true;
-            case Disable:
-                return false;
-            case Undefined:
-                return request.getMethod() == HttpMethod.HEAD || request.getMethod() == HttpMethod.GET;
-            default:
-                return false;
-        }
-    }
-
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
                                                        final Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable,
                                                        final ClientConfig config) {
 
-        boolean followRedirect = shouldFollowRedirectForRequest(clientConfig, request);
+        HttpClientConfig httpClientConfig;
+        if (config instanceof HttpClientConfig) {
+            httpClientConfig = (HttpClientConfig) config;
+        } else {
+            httpClientConfig = new HttpClientConfig(config);
+        }
+        boolean followRedirect = shouldFollowRedirectForRequest(httpClientConfig, request);
 
         final HttpClientRequest<I> _request;
 
@@ -97,13 +84,12 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
             _request = request;
         }
 
-        enrichRequest(_request, config);
+        enrichRequest(_request, httpClientConfig);
         Observable<HttpClientResponse<O>> toReturn =
                 connectionObservable.lift(new RequestProcessingOperator<I, O>(_request));
 
         if (followRedirect) {
-            toReturn = toReturn.lift(new RedirectOperator<I, O>(_request, RedirectOperator.DEFAULT_MAX_HOPS, this,
-                                                                config));
+            toReturn = toReturn.lift(new RedirectOperator<I, O>(_request, this, httpClientConfig));
         }
         return toReturn;
     }
@@ -115,6 +101,21 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator =
                 new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator, new ClientRequiredConfigurator<I, O>());
         return super.adaptPipelineConfigurator(configurator, clientConfig);
+    }
+
+    protected boolean shouldFollowRedirectForRequest(HttpClientConfig config, HttpClientRequest<I> request) {
+        HttpClientConfig.RedirectsHandling redirectsHandling = config.getFollowRedirect();
+
+        switch (redirectsHandling) {
+            case Enable:
+                return true;
+            case Disable:
+                return false;
+            case Undefined:
+                return request.getMethod() == HttpMethod.HEAD || request.getMethod() == HttpMethod.GET;
+            default:
+                return false;
+        }
     }
 
     /*visible for testing*/ ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> getConnectionPool() {

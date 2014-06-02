@@ -60,7 +60,7 @@ public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublish
     /**
      * A configuration to be used for this client.
      */
-    class ClientConfig {
+    class ClientConfig implements Cloneable {
 
         public static final long NO_TIMEOUT = -1;
 
@@ -68,6 +68,10 @@ public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublish
 
         protected ClientConfig() {
             // Only the builder can create this instance, so that we can change the constructor signature at will.
+        }
+
+        protected ClientConfig(ClientConfig config) {
+            readTimeoutInMillis = config.readTimeoutInMillis;
         }
 
         /**
@@ -85,6 +89,11 @@ public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublish
 
         public boolean isReadTimeoutSet() {
             return NO_TIMEOUT != readTimeoutInMillis;
+        }
+
+        @Override
+        public ClientConfig clone() throws CloneNotSupportedException {
+            return (ClientConfig) super.clone();
         }
 
         @SuppressWarnings("rawtypes")
@@ -190,7 +199,7 @@ public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublish
         }
 
         @Override
-        public java.lang.String toString() {
+        public String toString() {
             return "ServerInfo{" +
                 "host='" + host + '\'' +
                 ", port=" + port +
