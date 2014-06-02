@@ -21,7 +21,7 @@ import rx.Observer;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
-import rx.subscriptions.CompositeSubscription;
+import rx.subscriptions.SubscriptionList;
 import rx.subscriptions.Subscriptions;
 
 /**
@@ -40,9 +40,11 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
     public Subscriber<? super ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> call(
             final Subscriber<? super HttpClientResponse<O>> child) {
 
+        final SubscriptionList cs = new SubscriptionList();
+        child.add(cs);// Unsubscribe when the child unsubscribes.
 
         Subscriber<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> toReturn =
-                new Subscriber<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>>() {
+                new Subscriber<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>>(cs) {
 
                     @Override
                     public void onCompleted() {
@@ -56,20 +58,19 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
 
                     @Override
                     public void onNext(final ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
-                        final CompositeSubscription cs = new CompositeSubscription();
-                        //child.add(cs);
-                        child.add(Subscriptions.create(new Action0() {
+
+                        add(Subscriptions.create(new Action0() {
                             @Override
                             public void call() {
                                 connection.close();
                             }
                         }));
 
-                        cs.add(connection.getInput()
+                        add(connection.getInput()
                                          .doOnNext(new Action1<HttpClientResponse<O>>() {
                                              @Override
                                              public void call(final HttpClientResponse<O> response) {
-                                                 cs.add(response.getContent().subscribe(new Observer<O>() {
+                                                 add(response.getContent().subscribe(new Observer<O>() {
                                                      @Override
                                                      public void onCompleted() {
                                                          child.onCompleted();
@@ -87,8 +88,7 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                                                      }
                                                  }));
                                              }
-                                         })
-                                         .subscribe(child)); //subscribe the child for response.
+                                         }).subscribe(child)); //subscribe the child for response.
 
                         connection.writeAndFlush(request).doOnError(new Action1<Throwable>() {
                             @Override
@@ -98,8 +98,6 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                         });
                     }
                 };
-
-        child.add(toReturn); // Unsubscribe when the child unsubscribes.
         return toReturn;
     }
 }

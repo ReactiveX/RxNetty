@@ -83,24 +83,24 @@ public class HttpClientTest {
 
     @Test
     public void testConnectionClose() throws Exception {
-        HttpClientImpl<ByteBuf, ByteBuf> client = (HttpClientImpl<ByteBuf, ByteBuf>) RxNetty.createHttpClient( "localhost", port);
+        HttpClientImpl<ByteBuf, ByteBuf> client = (HttpClientImpl<ByteBuf, ByteBuf>) RxNetty.createHttpClient(
+                "localhost", port);
         Observable<ObservableConnection<HttpClientResponse<ByteBuf>,HttpClientRequest<ByteBuf>>> connectionObservable = client.connect().cache();
 
         final Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"), connectionObservable);
         ObservableConnection<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> conn = connectionObservable.toBlockingObservable().last();
         Assert.assertFalse("Connection already closed.", conn.isCloseIssued());
-        final Object responseCompleteMonitor = new Object();
+
+        final CountDownLatch responseCompleteLatch = new CountDownLatch(1);
         response.finallyDo(new Action0() {
             @Override
             public void call() {
-                synchronized (responseCompleteMonitor) {
-                    responseCompleteMonitor.notifyAll();
-                }
+                responseCompleteLatch.countDown();
             }
         }).subscribe();
-        synchronized (responseCompleteMonitor) {
-            responseCompleteMonitor.wait(60*1000);
-        }
+
+        responseCompleteLatch.await(1, TimeUnit.MINUTES);
+
         assertTrue("Connection not closed after response recieved.", conn.isCloseIssued());
     }
 

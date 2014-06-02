@@ -53,8 +53,7 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
             @Override
             public void call() {
                 if (!connectFuture.isDone()) {
-                    connectFuture.cancel(
-                            true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
+                    connectFuture.cancel( true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
                 }
             }
         }));
