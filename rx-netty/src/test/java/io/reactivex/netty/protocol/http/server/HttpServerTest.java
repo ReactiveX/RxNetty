@@ -54,7 +54,7 @@ public class HttpServerTest {
     public static void tearDown() throws InterruptedException {
         if (null != mockServer) {
             mockServer.shutdown();
-            mockServer.waitTillShutdown();
+            mockServer.waitTillShutdown(1, TimeUnit.MINUTES);
         }
     }
 
@@ -75,7 +75,7 @@ public class HttpServerTest {
                                                           public void call() {
                                                               finishLatch.countDown();
                                                           }
-                                                      }).toBlockingObservable().toFuture().get(10, TimeUnit.SECONDS);
+                                                      }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
         Assert.assertTrue("The returned observable did not finish.", finishLatch.await(1, TimeUnit.MINUTES));
         Assert.assertEquals("Request failed.", response.getStatus(), HttpResponseStatus.NOT_FOUND);
     }
@@ -103,7 +103,7 @@ public class HttpServerTest {
                                                           public void call() {
                                                               finishLatch.countDown();
                                                           }
-                                                      }).toBlockingObservable().toFuture().get(10, TimeUnit.SECONDS);
+                                                      }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
         Assert.assertTrue("The returned observable did not finish.", finishLatch.await(1, TimeUnit.MINUTES));
         Assert.assertEquals("Request failed.", response.getStatus(), HttpResponseStatus.NOT_FOUND);
     }
@@ -134,7 +134,7 @@ public class HttpServerTest {
                                                           public void call() {
                                                               finishLatch.countDown();
                                                           }
-                                                      }).toBlockingObservable().toFuture().get(10, TimeUnit.SECONDS);
+                                                      }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
         Assert.assertTrue("The returned observable did not finish.", finishLatch.await(10, TimeUnit.SECONDS));
         Assert.assertEquals("Request failed.", response.getStatus(), HttpResponseStatus.OK);
     }

@@ -135,20 +135,23 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             return Observable.error(new IllegalStateException("Client is already shutdown."));
         }
 
+        Observable<ObservableConnection<O, I>> toReturn;
         if (null != pool) {
-            return pool.acquire();
+            toReturn = pool.acquire();
+        } else {
+            toReturn = Observable.create(new OnSubscribe<ObservableConnection<O, I>>() {
+                @Override
+                public void call(final Subscriber<? super ObservableConnection<O, I>> subscriber) {
+                    try {
+                        channelFactory.connect(subscriber, serverInfo, connectionFactory);
+                    } catch (Throwable throwable) {
+                        subscriber.onError(throwable);
+                    }
+                }
+            });
         }
 
-        return Observable.create(new OnSubscribe<ObservableConnection<O, I>>() {
-            @Override
-            public void call(final Subscriber<? super ObservableConnection<O, I>> subscriber) {
-                try {
-                    channelFactory.connect(subscriber, serverInfo, connectionFactory);
-                } catch (Throwable throwable) {
-                    subscriber.onError(throwable);
-                }
-            }
-        });
+        return toReturn.take(1); // We only need one connection, even if the underlying source emits multiple.
     }
 
     @Override

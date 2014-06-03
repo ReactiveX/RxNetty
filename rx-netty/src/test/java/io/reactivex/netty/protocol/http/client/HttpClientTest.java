@@ -83,24 +83,24 @@ public class HttpClientTest {
 
     @Test
     public void testConnectionClose() throws Exception {
-        HttpClientImpl<ByteBuf, ByteBuf> client = (HttpClientImpl<ByteBuf, ByteBuf>) RxNetty.createHttpClient( "localhost", port);
+        HttpClientImpl<ByteBuf, ByteBuf> client = (HttpClientImpl<ByteBuf, ByteBuf>) RxNetty.createHttpClient(
+                "localhost", port);
         Observable<ObservableConnection<HttpClientResponse<ByteBuf>,HttpClientRequest<ByteBuf>>> connectionObservable = client.connect().cache();
 
         final Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"), connectionObservable);
-        ObservableConnection<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> conn = connectionObservable.toBlockingObservable().last();
+        ObservableConnection<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> conn = connectionObservable.toBlocking().last();
         Assert.assertFalse("Connection already closed.", conn.isCloseIssued());
-        final Object responseCompleteMonitor = new Object();
+
+        final CountDownLatch responseCompleteLatch = new CountDownLatch(1);
         response.finallyDo(new Action0() {
             @Override
             public void call() {
-                synchronized (responseCompleteMonitor) {
-                    responseCompleteMonitor.notifyAll();
-                }
+                responseCompleteLatch.countDown();
             }
         }).subscribe();
-        synchronized (responseCompleteMonitor) {
-            responseCompleteMonitor.wait(60*1000);
-        }
+
+        responseCompleteLatch.await(1, TimeUnit.MINUTES);
+
         assertTrue("Connection not closed after response recieved.", conn.isCloseIssued());
     }
 
@@ -152,7 +152,7 @@ public class HttpClientTest {
         });
 
        final List<String> result = new ArrayList<String>();
-        transformed.toBlockingObservable().forEach(new Action1<String>() {
+        transformed.toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -178,7 +178,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
+        }).toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -207,7 +207,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
+        }).toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -230,7 +230,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
+        }).toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -269,7 +269,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().single();
+        }).toBlocking().single();
         assertEquals("Hello world", result);
     }
     
@@ -285,7 +285,7 @@ public class HttpClientTest {
             public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> httpResponse) {
                 return httpResponse.getContent();
             }
-        }).toBlockingObservable().forEach(new Action1<ServerSentEvent>() {
+        }).toBlocking().forEach(new Action1<ServerSentEvent>() {
             @Override
             public void call(ServerSentEvent event) {
                 result.add(event.getEventData());
@@ -428,7 +428,7 @@ public class HttpClientTest {
                         return sseEventHttpResponse.getContent();
                     }
                 })
-                .toBlockingObservable().forEach(new Action1<ServerSentEvent>() {
+                .toBlocking().forEach(new Action1<ServerSentEvent>() {
             @Override
             public void call(ServerSentEvent serverSentEvent) {
                 result.add(serverSentEvent.getEventData());

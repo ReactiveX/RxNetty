@@ -113,7 +113,7 @@ public class HttpRedirectTest {
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config)
                 .build();
-        HttpClientResponse<ByteBuf> response = client.submit(request).toBlockingObservable().single();
+        HttpClientResponse<ByteBuf> response = client.submit(request).toBlocking().single();
         assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
     }
 
@@ -140,7 +140,7 @@ public class HttpRedirectTest {
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config)
                 .build();
-        HttpClientResponse<ByteBuf> response = client.submit(request).toBlockingObservable().single();
+        HttpClientResponse<ByteBuf> response = client.submit(request).toBlocking().single();
         assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
     }
 
@@ -158,7 +158,7 @@ public class HttpRedirectTest {
                         }
                     });
                 }
-            }).toBlockingObservable().toFuture().get(1, TimeUnit.MINUTES);
+            }).toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         } catch (ExecutionException e) {
             if (e.getCause() instanceof HttpRedirectException) {
                 throw e.getCause();

@@ -58,7 +58,7 @@ public class HttpClientPoolTest {
 
     @BeforeClass
     public static void init() throws Exception {
-        mockServer = RxNetty.newHttpServerBuilder(port, new RequestProcessor()).enableWireLogging(LogLevel.ERROR)
+        mockServer = RxNetty.newHttpServerBuilder(0, new RequestProcessor()).enableWireLogging(LogLevel.ERROR)
                             .build().start();
         port = mockServer.getServerPort();
     }
@@ -66,7 +66,7 @@ public class HttpClientPoolTest {
     @AfterClass
     public static void shutdown() throws InterruptedException {
         mockServer.shutdown();
-        mockServer.waitTillShutdown();
+        mockServer.waitTillShutdown(1, TimeUnit.MINUTES);
     }
 
     @After
@@ -221,7 +221,7 @@ public class HttpClientPoolTest {
             public void call() {
                 completionLatch.countDown();
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
+        }).toBlocking().forEach(new Action1<String>() {
             @Override
             public void call(String s) {
                 toReturn.add(s);
@@ -247,7 +247,7 @@ public class HttpClientPoolTest {
             public void call() {
                 completionLatch.countDown();
             }
-        }).toBlockingObservable().last();
+        }).toBlocking().last();
 
         completionLatch.await(1, TimeUnit.MINUTES);
 

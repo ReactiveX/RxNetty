@@ -29,6 +29,7 @@ import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -120,6 +121,22 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
                 throw new IllegalStateException("Server not started yet.");
             case Started:
                 bindFuture.channel().closeFuture().await();
+                break;
+            case Shutdown:
+                // Nothing to do as it is already shutdown.
+                break;
+        }
+    }
+
+    @SuppressWarnings("fallthrough")
+    public void waitTillShutdown(long duration, TimeUnit timeUnit) throws InterruptedException {
+        ServerState serverState = serverStateRef.get();
+        switch (serverState) {
+            case Created:
+            case Starting:
+                throw new IllegalStateException("Server not started yet.");
+            case Started:
+                bindFuture.channel().closeFuture().await(duration, timeUnit);
                 break;
             case Shutdown:
                 // Nothing to do as it is already shutdown.

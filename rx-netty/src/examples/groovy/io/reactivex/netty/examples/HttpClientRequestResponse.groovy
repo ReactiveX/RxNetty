@@ -15,13 +15,12 @@
  */
 package io.reactivex.netty.examples
 
-
-import java.nio.charset.Charset;
-
 import io.netty.buffer.ByteBuf
 import io.reactivex.netty.RxNetty
 import io.reactivex.netty.protocol.http.client.HttpClientRequest
 import io.reactivex.netty.protocol.http.client.HttpClientResponse
+
+import java.nio.charset.Charset
 
 public class HttpClientRequestResponse {
 
@@ -34,6 +33,6 @@ public class HttpClientRequestResponse {
                     return response.getContent().map({
                         println(it.toString(Charset.defaultCharset()))
                     });
-                }).toBlockingObservable().last();
+                }).toBlocking().last();
     }
 }

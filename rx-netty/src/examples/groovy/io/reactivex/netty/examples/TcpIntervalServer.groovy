@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit
 class TcpIntervalServer {
 
     public static void main(String[] args) {
-        createServer(8181).toBlockingObservable().last();
+        createServer(8181).toBlocking().last();
     }
 
     public static Observable<String> createServer(final int port) {

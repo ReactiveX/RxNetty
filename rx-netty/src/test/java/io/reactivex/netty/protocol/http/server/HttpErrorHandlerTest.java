@@ -72,7 +72,7 @@ public class HttpErrorHandlerTest {
                 HttpClientRequest.createGet("/");
 
         HttpClientResponse<ByteBuf> response =
-                RxNetty.createHttpClient("localhost", port).submit(request).toBlockingObservable().last();
+                RxNetty.createHttpClient("localhost", port).submit(request).toBlocking().last();
 
         Assert.assertEquals("Unexpected response status", HttpResponseStatus.INTERNAL_SERVER_ERROR.code(),
                             response.getStatus().code());
@@ -101,7 +101,7 @@ public class HttpErrorHandlerTest {
                 HttpClientRequest.createGet("/");
 
         HttpClientResponse<ByteBuf> response =
-                RxNetty.createHttpClient("localhost", port).submit(request).toBlockingObservable().last();
+                RxNetty.createHttpClient("localhost", port).submit(request).toBlocking().last();
 
         Assert.assertEquals("Unexpected response status", HttpResponseStatus.INTERNAL_SERVER_ERROR.code(),
                             response.getStatus().code());
