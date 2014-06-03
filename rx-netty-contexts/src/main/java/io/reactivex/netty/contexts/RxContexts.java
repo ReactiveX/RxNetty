@@ -43,7 +43,15 @@ public final class RxContexts {
 
     public static final ThreadLocalRequestCorrelator DEFAULT_CORRELATOR = new ThreadLocalRequestCorrelator();
 
+    private static String defaultRequestIdContextKeyName = "X-RXNETTY-REQUEST-ID";
+
     private RxContexts() {
+    }
+
+    public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler,
+                                                                      RequestCorrelator correlator) {
+        HttpRequestIdProvider provider = new HttpRequestIdProvider(defaultRequestIdContextKeyName, correlator);
+        return newHttpServerBuilder(port, requestHandler, provider, correlator);
     }
 
     public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler,
@@ -51,6 +59,12 @@ public final class RxContexts {
                                                                       RequestCorrelator correlator) {
         HttpRequestIdProvider provider = new HttpRequestIdProvider(requestIdHeaderName, correlator);
         return newHttpServerBuilder(port, requestHandler, provider, correlator);
+    }
+
+    public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port,
+                                                                      RequestCorrelator correlator) {
+        HttpRequestIdProvider provider = new HttpRequestIdProvider(defaultRequestIdContextKeyName, correlator);
+        return newHttpClientBuilder(host, port, provider, correlator);
     }
 
     public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port, String requestIdHeaderName,
@@ -71,9 +85,15 @@ public final class RxContexts {
                                                                       RequestIdProvider provider,
                                                                       RequestCorrelator correlator) {
         HttpClientBuilder<I, O> builder = RxNetty.newHttpClientBuilder(host, port);
-        return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider, correlator))
+        return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider,
+                                                                                                      correlator))
                       .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(),
                                                                                     correlator));
+    }
+
+    public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
+        return newHttpServerBuilder(port, requestHandler, defaultRequestIdContextKeyName,
+                                    DEFAULT_CORRELATOR).build();
     }
 
     public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler,
@@ -81,9 +101,22 @@ public final class RxContexts {
         return newHttpServerBuilder(port, requestHandler, requestIdHeaderName, DEFAULT_CORRELATOR).build();
     }
 
+    public static HttpClient<ByteBuf, ByteBuf> createHttpClient(String host, int port) {
+        return RxContexts.<ByteBuf, ByteBuf>newHttpClientBuilder(host, port, defaultRequestIdContextKeyName,
+                                                                 DEFAULT_CORRELATOR).build();
+    }
+
     public static HttpClient<ByteBuf, ByteBuf> createHttpClient(String host, int port, String requestIdHeaderName) {
         return RxContexts.<ByteBuf, ByteBuf>newHttpClientBuilder(host, port, requestIdHeaderName,
                                                                  DEFAULT_CORRELATOR).build();
+    }
+
+    public static <I, O> HttpServer<I, O> createHttpServer(int port, RequestHandler<I, O> requestHandler,
+                                                           PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> configurator) {
+        HttpRequestIdProvider provider = new HttpRequestIdProvider(defaultRequestIdContextKeyName, DEFAULT_CORRELATOR);
+        return newHttpServerBuilder(port, requestHandler, defaultRequestIdContextKeyName, DEFAULT_CORRELATOR)
+                .pipelineConfigurator(ContextPipelineConfigurators
+                                              .httpServerConfigurator(provider, DEFAULT_CORRELATOR, configurator)).build();
     }
 
     public static <I, O> HttpServer<I, O> createHttpServer(int port, RequestHandler<I, O> requestHandler,
@@ -95,6 +128,17 @@ public final class RxContexts {
                                               .httpServerConfigurator(provider, DEFAULT_CORRELATOR, configurator)).build();
     }
 
+    public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
+                                                           PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator) {
+        HttpRequestIdProvider provider = new HttpRequestIdProvider(defaultRequestIdContextKeyName, DEFAULT_CORRELATOR);
+        return RxContexts.<I, O>newHttpClientBuilder(host, port, defaultRequestIdContextKeyName,
+                                                     DEFAULT_CORRELATOR)
+                         .pipelineConfigurator(ContextPipelineConfigurators.httpClientConfigurator(provider,
+                                                                                                   DEFAULT_CORRELATOR,
+                                                                                                   configurator))
+                         .build();
+    }
+
     public static <I, O> HttpClient<I, O> createHttpClient(String host, int port, String requestIdHeaderName,
                                                            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator) {
         HttpRequestIdProvider provider = new HttpRequestIdProvider(requestIdHeaderName, DEFAULT_CORRELATOR);
@@ -103,5 +147,16 @@ public final class RxContexts {
                                                                                                    DEFAULT_CORRELATOR,
                                                                                                    configurator))
                          .build();
+    }
+
+    /**
+     * Default Context key name used for extracting the request Id. This is the default and will be useful to set a
+     * system wide requestId key name so that it is consistent between all clients and the server created through
+     * this factory class.
+     *
+     * @param name The name of the context key to be used as default.
+     */
+    public static void useRequestIdContextKey(String name) {
+        defaultRequestIdContextKeyName = name;
     }
 }
