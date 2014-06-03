@@ -120,6 +120,7 @@ public class ConnectionPoolTest {
             clientBootstrap.group().shutdownGracefully();
         }
         if (null != server) {
+            serverConnHandler.closeNewConnectionsOnReceive(false); // reset state after test. Close New should be explicit.
             try {
                 serverConnHandler.closeAllClientConnections();
             } catch (IllegalStateException e) {
@@ -342,14 +343,18 @@ public class ConnectionPoolTest {
 
     @Test
     public void testIdleCleanupThread() throws Exception {
+        serverConnHandler.closeNewConnectionsOnReceive(false);
         pool.shutdown();
-        pool = new ConnectionPoolImpl<String, String>(serverInfo, PoolConfig.DEFAULT_CONFIG, strategy, Executors.newScheduledThreadPool(1),
+        pool = new ConnectionPoolImpl<String, String>(serverInfo, PoolConfig.DEFAULT_CONFIG, strategy,
+                                                      Executors.newScheduledThreadPool(1),
                                                       new PoolStatsImpl(), factory);
 
         stats = pool.getStats();
 
         ObservableConnection<String, String> connection = acquireAndTestStats();
         connection.close();
+
+        serverConnHandler.closeAllClientConnections();
 
         waitForClose();
 
