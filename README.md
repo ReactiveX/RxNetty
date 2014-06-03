@@ -53,17 +53,17 @@ public class RxNettyExample {
         client.submit(HttpClientRequest.createGet("/"))
                 .flatMap(response -> response.getContent())
                 .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-                .toBlockingObservable().forEach(System.out::println);
+                .toBlocking().forEach(System.out::println);
 
         client.submit(HttpClientRequest.createGet("/error"))
                 .flatMap(response -> response.getContent())
                 .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-                .toBlockingObservable().forEach(System.out::println);
+                .toBlocking().forEach(System.out::println);
 
         client.submit(HttpClientRequest.createGet("/data"))
                 .flatMap(response -> response.getContent())
                 .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-                .toBlockingObservable().forEach(System.out::println);
+                .toBlocking().forEach(System.out::println);
 
         server.shutdown();
     }

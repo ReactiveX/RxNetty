@@ -179,6 +179,17 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    /**
+     * Overrides all the connection pool settings done previous to this call and disables connection pooling for this
+     * client, unless enabled again after this call returns.
+     *
+     * @return This builder.
+     */
+    public B withNoConnectionPooling() {
+        poolBuilder = null;
+        return returnBuilder();
+    }
+
     public Bootstrap getBootstrap() {
         return bootstrap;
     }

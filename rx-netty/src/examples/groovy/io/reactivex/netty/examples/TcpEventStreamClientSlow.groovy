@@ -50,7 +50,7 @@ class TcpEventStreamClientSlow {
                         Thread.sleep(1000)
                         return msg.trim()
                     });
-                }).toBlockingObservable().forEach({ String o ->
+                }).toBlocking().forEach({ String o ->
                     println("onNext event => " + o + "\n")
                 });
 

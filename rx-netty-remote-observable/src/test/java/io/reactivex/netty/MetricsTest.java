@@ -16,10 +16,8 @@
 package io.reactivex.netty;
 
 import io.reactivex.netty.codec.Codecs;
-
 import org.junit.Assert;
 import org.junit.Test;
-
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -46,7 +44,7 @@ public class MetricsTest {
 		
 		RemoteRxConnection<Integer> rc = RemoteObservable.connect(cc);
 		// assert
-		MathObservable.sumInteger(rc.getObservable()).toBlockingObservable().forEach(new Action1<Integer>(){
+		MathObservable.sumInteger(rc.getObservable()).toBlocking().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(500500, t1.intValue()); // sum of number 0-100
@@ -76,7 +74,7 @@ public class MetricsTest {
 		
 		Observable<Integer> oc = RemoteObservable.connect(cc).getObservable();
 		// assert
-		MathObservable.sumInteger(oc).toBlockingObservable().forEach(new Action1<Integer>(){
+		MathObservable.sumInteger(oc).toBlocking().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(500500, t1.intValue()); // sum of number 0-100
@@ -106,7 +104,7 @@ public class MetricsTest {
 		
 		RemoteRxConnection<Integer> ro1 = RemoteObservable.connect(cc);
 		// assert
-		MathObservable.sumInteger(ro1.getObservable()).toBlockingObservable().forEach(new Action1<Integer>(){
+		MathObservable.sumInteger(ro1.getObservable()).toBlocking().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(500500, t1.intValue()); // sum of number 0-100
@@ -115,7 +113,7 @@ public class MetricsTest {
 		
 		RemoteRxConnection<Integer> ro2 = RemoteObservable.connect(cc);
 		// assert
-		MathObservable.sumInteger(ro2.getObservable()).toBlockingObservable().forEach(new Action1<Integer>(){
+		MathObservable.sumInteger(ro2.getObservable()).toBlocking().forEach(new Action1<Integer>(){
 			@Override
 			public void call(Integer t1) {
 				Assert.assertEquals(500500, t1.intValue()); // sum of number 0-100
@@ -168,7 +166,7 @@ public class MetricsTest {
 		
 		RemoteRxConnection<Integer> ro1 = RemoteObservable.connect(cc);
 		try{
-			MathObservable.sumInteger(ro1.getObservable()).toBlockingObservable().forEach(new Action1<Integer>(){
+			MathObservable.sumInteger(ro1.getObservable()).toBlocking().forEach(new Action1<Integer>(){
 				@Override
 				public void call(Integer t1) {
 					Assert.assertEquals(500500, t1.intValue()); // sum of number 0-100
@@ -180,7 +178,7 @@ public class MetricsTest {
 		
 		RemoteRxConnection<Integer> ro2 = RemoteObservable.connect(cc);
 		try{
-			MathObservable.sumInteger(ro2.getObservable()).toBlockingObservable().forEach(new Action1<Integer>(){
+			MathObservable.sumInteger(ro2.getObservable()).toBlocking().forEach(new Action1<Integer>(){
 				@Override
 				public void call(Integer t1) {
 					Assert.assertEquals(500500, t1.intValue()); // sum of number 0-100
@@ -238,7 +236,7 @@ public class MetricsTest {
 		
 		// assert
 		try{
-			MathObservable.sumInteger(rc.getObservable()).toBlockingObservable().forEach(new Action1<Integer>(){
+			MathObservable.sumInteger(rc.getObservable()).toBlocking().forEach(new Action1<Integer>(){
 				@Override
 				public void call(Integer t1) {
 					Assert.assertEquals(500500, t1.intValue()); // sum of number 0-100

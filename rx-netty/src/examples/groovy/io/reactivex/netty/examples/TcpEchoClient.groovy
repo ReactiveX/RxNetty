@@ -76,7 +76,7 @@ class TcpEchoClient {
                 .doOnCompleted({
                      println("COMPLETED!")   
                 })
-                .toBlockingObservable().forEach({ String o ->
+                .toBlocking().forEach({ String o ->
                     println("onNext: " + o)
                 });
 
