@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.serialization.ByteTransformer;
+import io.reactivex.netty.serialization.ContentTransformer;
 
 import java.nio.charset.Charset;
 
@@ -118,6 +119,10 @@ public class HttpClientRequest<T> {
     public HttpClientRequest<T> withRawContentSource(final RawContentSource<?> rawContentSource) {
         setRawContentFactory(new SimpleContentSourceFactory(rawContentSource));
         return this;
+    }
+    
+    public HttpClientRequest<T> withRawContent(T content, ContentTransformer<T> transformer) {
+        return withRawContentSource(new SingletonRawSource<T>(content, transformer));
     }
 
     public HttpClientRequest<T> withContent(T content) {
