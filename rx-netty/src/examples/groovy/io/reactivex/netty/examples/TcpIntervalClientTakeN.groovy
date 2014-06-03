@@ -50,7 +50,7 @@ class TcpIntervalClientTakeN {
                     return Observable.concat(subscribeWrite, data);
                 })
                 .take(3)
-                .toBlockingObservable().forEach({ String o ->
+                .toBlocking().forEach({ String o ->
                     println("onNext: " + o) }
                 );
 

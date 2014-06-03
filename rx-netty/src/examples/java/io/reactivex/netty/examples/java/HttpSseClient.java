@@ -37,7 +37,7 @@ public final class HttpSseClient {
                 RxNetty.createHttpClient("localhost", 8080, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
 
         Observable<HttpClientResponse<ServerSentEvent>> response = client.submit(HttpClientRequest.createGet("/hello"));
-        response.toBlockingObservable().forEach(new Action1<HttpClientResponse<ServerSentEvent>>() {
+        response.toBlocking().forEach(new Action1<HttpClientResponse<ServerSentEvent>>() {
             @Override
             public void call(HttpClientResponse<ServerSentEvent> response) {
                 System.out.println("New response recieved.");

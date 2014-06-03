@@ -29,7 +29,7 @@ import java.util.Map;
 public final class HelloHttpClient {
 
     public static void main(String[] args) {
-        RxNetty.createHttpGet("http://localhost:8080/hello").toBlockingObservable().forEach(new Action1<HttpClientResponse<ByteBuf>>() {
+        RxNetty.createHttpGet("http://localhost:8080/hello").toBlocking().forEach(new Action1<HttpClientResponse<ByteBuf>>() {
             @Override
             public void call(HttpClientResponse<ByteBuf> response) {
                 System.out.println("New response recieved.");

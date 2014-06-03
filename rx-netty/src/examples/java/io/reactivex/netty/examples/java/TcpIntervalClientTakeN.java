@@ -59,7 +59,7 @@ public final class TcpIntervalClientTakeN {
 
                 return Observable.concat(subscribeWrite, data);
             }
-        }).take(3).toBlockingObservable().forEach(new Action1<Object>() {
+        }).take(3).toBlocking().forEach(new Action1<Object>() {
             @Override
             public void call(Object o) {
                 System.out.println("onNext: " + o);

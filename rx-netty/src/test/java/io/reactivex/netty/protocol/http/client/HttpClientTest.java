@@ -88,7 +88,7 @@ public class HttpClientTest {
         Observable<ObservableConnection<HttpClientResponse<ByteBuf>,HttpClientRequest<ByteBuf>>> connectionObservable = client.connect().cache();
 
         final Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"), connectionObservable);
-        ObservableConnection<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> conn = connectionObservable.toBlockingObservable().last();
+        ObservableConnection<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> conn = connectionObservable.toBlocking().last();
         Assert.assertFalse("Connection already closed.", conn.isCloseIssued());
 
         final CountDownLatch responseCompleteLatch = new CountDownLatch(1);
@@ -152,7 +152,7 @@ public class HttpClientTest {
         });
 
        final List<String> result = new ArrayList<String>();
-        transformed.toBlockingObservable().forEach(new Action1<String>() {
+        transformed.toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -178,7 +178,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
+        }).toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -207,7 +207,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
+        }).toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -230,7 +230,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<String>() {
+        }).toBlocking().forEach(new Action1<String>() {
 
             @Override
             public void call(String t1) {
@@ -269,7 +269,7 @@ public class HttpClientTest {
                     }
                 });
             }
-        }).toBlockingObservable().single();
+        }).toBlocking().single();
         assertEquals("Hello world", result);
     }
     
@@ -285,7 +285,7 @@ public class HttpClientTest {
             public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> httpResponse) {
                 return httpResponse.getContent();
             }
-        }).toBlockingObservable().forEach(new Action1<ServerSentEvent>() {
+        }).toBlocking().forEach(new Action1<ServerSentEvent>() {
             @Override
             public void call(ServerSentEvent event) {
                 result.add(event.getEventData());
@@ -428,7 +428,7 @@ public class HttpClientTest {
                         return sseEventHttpResponse.getContent();
                     }
                 })
-                .toBlockingObservable().forEach(new Action1<ServerSentEvent>() {
+                .toBlocking().forEach(new Action1<ServerSentEvent>() {
             @Override
             public void call(ServerSentEvent serverSentEvent) {
                 result.add(serverSentEvent.getEventData());

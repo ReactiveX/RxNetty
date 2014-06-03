@@ -21,7 +21,7 @@ import rx.Observer;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
-import rx.subscriptions.SubscriptionList;
+import rx.internal.util.SubscriptionList;
 import rx.subscriptions.Subscriptions;
 
 /**
@@ -44,7 +44,7 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
         child.add(cs);// Unsubscribe when the child unsubscribes.
 
         Subscriber<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> toReturn =
-                new Subscriber<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>>(cs) {
+                new Subscriber<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>>() {
 
                     @Override
                     public void onCompleted() {
@@ -59,18 +59,18 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                     @Override
                     public void onNext(final ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
 
-                        add(Subscriptions.create(new Action0() {
+                        cs.add(Subscriptions.create(new Action0() {
                             @Override
                             public void call() {
                                 connection.close();
                             }
                         }));
 
-                        add(connection.getInput()
+                        cs.add(connection.getInput()
                                          .doOnNext(new Action1<HttpClientResponse<O>>() {
                                              @Override
                                              public void call(final HttpClientResponse<O> response) {
-                                                 add(response.getContent().subscribe(new Observer<O>() {
+                                                 cs.add(response.getContent().subscribe(new Observer<O>() {
                                                      @Override
                                                      public void onCompleted() {
                                                          child.onCompleted();

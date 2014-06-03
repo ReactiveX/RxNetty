@@ -81,7 +81,7 @@ public final class TcpEchoClient {
             public void call() {
                 System.out.println("COMPLETED!");
             }
-        }).toBlockingObservable().forEach(new Action1<Object>() {
+        }).toBlocking().forEach(new Action1<Object>() {
             @Override
             public void call(Object o) {
                 System.out.println("onNext: " + o);
