@@ -15,12 +15,13 @@
  */
 package io.reactivex.netty.metrics;
 
+import rx.Subscription;
+
 /**
  * @author Nitesh Kant
  */
 public interface MetricEventsPublisher<E extends MetricsEvent> {
 
-    void addListener(MetricEventsListener<? extends E> listener);
+    Subscription subscribe(MetricEventsListener<? extends E> listener);
 
-    boolean removeListener(MetricEventsListener<? extends E> listener);
 }

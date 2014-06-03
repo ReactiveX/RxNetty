@@ -242,7 +242,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         if (null != eventListenersFactory) {
             MetricEventsListener<? extends ClientMetricsEvent> listener =
                     newMetricsListener(eventListenersFactory, client);
-            client.addListener(listener);
+            client.subscribe(listener);
         }
         return client;
     }

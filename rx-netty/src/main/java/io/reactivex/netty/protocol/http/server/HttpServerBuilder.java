@@ -20,6 +20,7 @@ import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.server.ConnectionBasedServerBuilder;
+import io.reactivex.netty.server.RxServer;
 
 /**
  * A convenience builder to create instances of {@link HttpServer}

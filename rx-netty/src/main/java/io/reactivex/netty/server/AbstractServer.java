@@ -26,6 +26,7 @@ import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
+import rx.Subscription;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -156,13 +157,8 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     }
 
     @Override
-    public void addListener(MetricEventsListener<? extends ServerMetricsEvent> listener) {
-        eventsSubject.addListener(listener);
-    }
-
-    @Override
-    public boolean removeListener(MetricEventsListener<? extends ServerMetricsEvent> listener) {
-        return eventsSubject.removeListener(listener);
+    public Subscription subscribe(MetricEventsListener<? extends ServerMetricsEvent> listener) {
+        return eventsSubject.subscribe(listener);
     }
 
     @SuppressWarnings("unchecked")

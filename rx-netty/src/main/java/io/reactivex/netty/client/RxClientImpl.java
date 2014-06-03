@@ -26,6 +26,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.Subscription;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -196,12 +197,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     }
 
     @Override
-    public void addListener(MetricEventsListener<? extends ClientMetricsEvent> listener) {
-        eventsSubject.addListener(listener);
+    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent> listener) {
+        return eventsSubject.subscribe(listener);
     }
 
-    @Override
-    public boolean removeListener(MetricEventsListener<? extends ClientMetricsEvent> listener) {
-        return eventsSubject.removeListener(listener);
-    }
 }

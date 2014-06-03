@@ -143,7 +143,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         if (null != eventListenersFactory) {
             MetricEventsListener<? extends ServerMetricsEvent> listener = newMetricsListener(eventListenersFactory,
                                                                                              server);
-            server.addListener(listener);
+            server.subscribe(listener);
         }
         return server;
     }

@@ -15,7 +15,10 @@
  */
 package io.reactivex.netty.metrics;
 
+import rx.Subscription;
 import rx.exceptions.Exceptions;
+import rx.functions.Action0;
+import rx.subscriptions.Subscriptions;
 
 import java.util.concurrent.CopyOnWriteArrayList;
 
@@ -123,13 +126,14 @@ public class MetricEventsSubject<E extends MetricsEvent> implements MetricEvents
     }
 
     @Override
-    public void addListener(MetricEventsListener<? extends E> listener) {
+    public Subscription subscribe(final MetricEventsListener<? extends E> listener) {
         listeners.add(listener);
-    }
-
-    @Override
-    public boolean removeListener(MetricEventsListener<? extends E> listener) {
-        return listeners.remove(listener);
+        return Subscriptions.create(new Action0() {
+            @Override
+            public void call() {
+                listeners.remove(listener);
+            }
+        });
     }
 
     protected ListenerInvocationException handleListenerError(ListenerInvocationException exception,
