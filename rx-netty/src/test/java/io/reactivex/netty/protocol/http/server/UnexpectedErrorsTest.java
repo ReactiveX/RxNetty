@@ -65,7 +65,7 @@ public class UnexpectedErrorsTest {
     @After
     public void tearDown() throws Exception {
         server.shutdown();
-        server.waitTillShutdown();
+        server.waitTillShutdown(1, TimeUnit.MINUTES);
     }
 
     @Test
@@ -100,7 +100,7 @@ public class UnexpectedErrorsTest {
                     public Observable<Void> call(ObservableConnection<ByteBuf, ByteBuf> connection) {
                         return connection.close();
                     }
-                }).toBlockingObservable().toFuture().get();
+                }).toBlocking().toFuture().get();
     }
 
 

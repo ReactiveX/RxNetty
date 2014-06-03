@@ -126,7 +126,7 @@ public class ConnectionPoolTest {
                 // Do nothing if there are no connections
             }
             server.shutdown();
-            server.waitTillShutdown();
+            server.waitTillShutdown(1, TimeUnit.MINUTES);
         }
     }
 
@@ -216,9 +216,9 @@ public class ConnectionPoolTest {
         serverConnHandler.closeNewConnectionsOnReceive(false);
         strategy.incrementMaxConnections(2);
 
-        ObservableConnection<String, String> connection1 = pool.acquire().toBlockingObservable().last();
-        ObservableConnection<String, String> connection2 = pool.acquire().toBlockingObservable().last();
-        ObservableConnection<String, String> connection3 = pool.acquire().toBlockingObservable().last();
+        ObservableConnection<String, String> connection1 = pool.acquire().toBlocking().last();
+        ObservableConnection<String, String> connection2 = pool.acquire().toBlocking().last();
+        ObservableConnection<String, String> connection3 = pool.acquire().toBlocking().last();
 
         Assert.assertEquals("Unexpected pool idle count.", 0, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count.", 3, stats.getInUseCount());
@@ -253,7 +253,7 @@ public class ConnectionPoolTest {
         pool.poolStateChangeObservable().subscribe(stateChangeListener);
 
         try {
-            pool.acquire().toBlockingObservable().last();
+            pool.acquire().toBlocking().last();
             throw new AssertionError("Connect to a nonexistent server did not fail.");
         } catch (Exception e) {
             // Expected.
@@ -270,7 +270,7 @@ public class ConnectionPoolTest {
         strategy.incrementMaxConnections(1);
 
         PooledConnection<String, String> conn =
-                (PooledConnection<String, String>) pool.acquire().toBlockingObservable().last();
+                (PooledConnection<String, String>) pool.acquire().toBlocking().last();
         Assert.assertEquals("Unexpected acquire attempted count.", 1, stateChangeListener.getAcquireAttemptedCount());
         Assert.assertEquals("Unexpected acquire succeeded count.", 1, stateChangeListener.getAcquireSucceededCount());
         Assert.assertEquals("Unexpected acquire failed count.", 0, stateChangeListener.getAcquireFailedCount());
@@ -284,7 +284,7 @@ public class ConnectionPoolTest {
         Assert.assertEquals("Unexpected create connection count.", 1, stateChangeListener.getCreationCount());
 
         PooledConnection<String, String> reusedConn =
-                (PooledConnection<String, String>) pool.acquire().toBlockingObservable().last();
+                (PooledConnection<String, String>) pool.acquire().toBlocking().last();
 
         Assert.assertEquals("Reused connection not same as original.", conn, reusedConn);
 
@@ -318,7 +318,7 @@ public class ConnectionPoolTest {
         PooledConnection<String, String> connection = (PooledConnection<String, String>) acquireAndTestStats();
 
         try {
-            pool.acquire().toBlockingObservable().last();
+            pool.acquire().toBlocking().last();
             throw new AssertionError("Pool did not exhaust.");
         } catch (Exception e) {
             // expected
@@ -383,7 +383,7 @@ public class ConnectionPoolTest {
     }
 
     private ObservableConnection<String, String> acquireAndTestStats() throws InterruptedException {
-        ObservableConnection<String, String> conn = pool.acquire().toBlockingObservable().last();
+        ObservableConnection<String, String> conn = pool.acquire().toBlocking().last();
         Assert.assertEquals("Unexpected pool idle count.", 0, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count.", 1, stats.getInUseCount());
         Assert.assertEquals("Unexpected pool total connections count.", 1, stats.getTotalConnectionCount());

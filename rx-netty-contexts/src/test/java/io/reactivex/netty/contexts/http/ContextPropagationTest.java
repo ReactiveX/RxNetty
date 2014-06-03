@@ -109,7 +109,7 @@ public class ContextPropagationTest {
     @After
     public void tearDown() throws Exception {
         mockServer.shutdown();
-        mockServer.waitTillShutdown();
+        mockServer.waitTillShutdown(1, TimeUnit.MINUTES);
     }
 
     @Test
@@ -162,7 +162,7 @@ public class ContextPropagationTest {
                                 RxContexts.DEFAULT_CORRELATOR.makeClosure(new Callable<HttpClientResponse<ByteBuf>>() {
                                     @Override
                                     public HttpClientResponse<ByteBuf> call() throws Exception {
-                                        return client.submit(HttpClientRequest.createGet("/")).toBlockingObservable()
+                                        return client.submit(HttpClientRequest.createGet("/")).toBlocking()
                                                      .last();
                                     }
                                 });
