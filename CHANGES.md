@@ -1,5 +1,13 @@
 # RxNetty Releases #
 
+
+### Version 0.3.6 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=2&state=closed)
+
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.6%22)
+
 ### Version 0.3.5 ###
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=1&page=1&state=closed)
