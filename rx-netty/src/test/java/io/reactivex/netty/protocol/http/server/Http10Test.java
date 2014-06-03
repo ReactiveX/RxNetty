@@ -57,7 +57,7 @@ public class Http10Test {
     public void tearDown() throws Exception {
         if (null != mockServer) {
             mockServer.shutdown();
-            mockServer.waitTillShutdown();
+            mockServer.waitTillShutdown(1, TimeUnit.MINUTES);
         }
     }
 
@@ -73,7 +73,7 @@ public class Http10Test {
         HttpClientRequest<ByteBuf> request = HttpClientRequest.create(HttpVersion.HTTP_1_0, HttpMethod.GET, "/");
         HttpClientResponse<ByteBuf> response =
                 RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", mockServer.getServerPort())
-                       .enableWireLogging(LogLevel.ERROR).build().submit(request).toBlockingObservable()
+                       .enableWireLogging(LogLevel.ERROR).build().submit(request).toBlocking()
                        .toFuture().get(1, TimeUnit.MINUTES);
         HttpVersion httpVersion = response.getHttpVersion();
         Assert.assertEquals("Unexpected HTTP version.", HttpVersion.HTTP_1_0, httpVersion);
@@ -86,7 +86,7 @@ public class Http10Test {
         HttpClientRequest<ByteBuf> request = HttpClientRequest.create(HttpVersion.HTTP_1_0, HttpMethod.GET, "/");
         HttpClientResponse<ByteBuf> response = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", mockServerPort)
                                                       .enableWireLogging(LogLevel.ERROR).build()
-                                                      .submit(request).toBlockingObservable()
+                                                      .submit(request).toBlocking()
                                                       .toFuture().get(1, TimeUnit.MINUTES);
         HttpVersion httpVersion = response.getHttpVersion();
         Assert.assertEquals("Unexpected HTTP version.", HttpVersion.HTTP_1_1, httpVersion);
@@ -107,7 +107,7 @@ public class Http10Test {
                                                                           HttpClientResponse<ByteBuf> response) {
                                                                       return response.getContent();
                                                                   }
-                                                              }).toBlockingObservable()
+                                                              }).toBlocking()
                                                       .toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected Content.", WELCOME_SERVER_MSG, response.toString(Charset.defaultCharset()));
     }

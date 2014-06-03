@@ -31,7 +31,7 @@ class TcpEventStreamClientFast {
                     return connection.getInput().map({ String msg ->
                         return msg.trim()
                     });
-                }).toBlockingObservable().forEach({ String o ->
+                }).toBlocking().forEach({ String o ->
                     println("onNext event => " + o)
                 });
 

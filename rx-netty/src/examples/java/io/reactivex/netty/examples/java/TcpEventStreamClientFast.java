@@ -40,7 +40,7 @@ public final class TcpEventStreamClientFast {
                     }
                 });
             }
-        }).toBlockingObservable().forEach(new Action1<Object>() {
+        }).toBlocking().forEach(new Action1<Object>() {
             @Override
             public void call(Object o) {
                 System.out.println("onNext event => " + o);

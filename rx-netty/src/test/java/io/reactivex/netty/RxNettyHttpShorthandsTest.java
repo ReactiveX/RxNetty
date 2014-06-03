@@ -75,13 +75,13 @@ public class RxNettyHttpShorthandsTest {
     @After
     public void tearDown() throws Exception {
         mockServer.shutdown();
-        mockServer.waitTillShutdown();
+        mockServer.waitTillShutdown(1, TimeUnit.MINUTES);
     }
 
     @Test
     public void testGet() throws Exception {
         HttpClientResponse<ByteBuf> response = RxNetty.createHttpGet("http://localhost:" + mockServer.getServerPort()
-                                                                     + '/').toBlockingObservable()
+                                                                     + '/').toBlocking()
                                                       .toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "GET", response.getHeaders().get(METHOD_HEADER));
     }
@@ -89,7 +89,7 @@ public class RxNettyHttpShorthandsTest {
     @Test
     public void testDelete() throws Exception {
         HttpClientResponse<ByteBuf> response = RxNetty.createHttpDelete("http://localhost:" + mockServer.getServerPort()
-                                                                        + '/').toBlockingObservable().last();
+                                                                        + '/').toBlocking().last();
         Assert.assertEquals("Unexpected HTTP method sent.", "DELETE", response.getHeaders().get(METHOD_HEADER));
     }
 
@@ -99,7 +99,7 @@ public class RxNettyHttpShorthandsTest {
                 Unpooled.buffer().writeBytes("Hello!".getBytes()));
         HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpPost("http://localhost:" + mockServer.getServerPort() + '/', content)
-                       .toBlockingObservable().toFuture().get(1, TimeUnit.MINUTES);
+                       .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "POST", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
     }
@@ -110,7 +110,7 @@ public class RxNettyHttpShorthandsTest {
                 Unpooled.buffer().writeBytes("Hello!".getBytes()));
         HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpPut("http://localhost:" + mockServer.getServerPort() + '/', content)
-                       .toBlockingObservable().toFuture().get(1, TimeUnit.MINUTES);
+                       .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "PUT", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
     }
@@ -120,7 +120,7 @@ public class RxNettyHttpShorthandsTest {
         RawContentSource<String> content = getRawContentSource();
         HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpPost("http://localhost:" + mockServer.getServerPort() + '/', content)
-                       .toBlockingObservable().toFuture().get(1, TimeUnit.MINUTES);
+                       .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "POST", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
     }
@@ -130,7 +130,7 @@ public class RxNettyHttpShorthandsTest {
         RawContentSource<String> content = getRawContentSource();
         HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpPut("http://localhost:" + mockServer.getServerPort() + '/', content)
-                       .toBlockingObservable().toFuture().get(1, TimeUnit.MINUTES);
+                       .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "PUT", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
     }

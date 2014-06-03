@@ -38,7 +38,7 @@ public final class HelloUdpClient {
                        connection.writeStringAndFlush("Is there anybody out there?");
                        return connection.getInput();
                    }
-               }).toBlockingObservable().forEach(new Action1<DatagramPacket>() {
+               }).toBlocking().forEach(new Action1<DatagramPacket>() {
             @Override
             public void call(DatagramPacket datagramPacket) {
                 System.out.println("Received a new message: "

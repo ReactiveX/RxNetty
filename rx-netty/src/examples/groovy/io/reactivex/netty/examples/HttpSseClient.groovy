@@ -35,7 +35,7 @@ class HttpSseClient {
                     return response.content();
                 })
                 .take(10)
-                .toBlockingObservable().forEach({ println(it)});
+                .toBlocking().forEach({ println(it)});
 */
     }
 }
