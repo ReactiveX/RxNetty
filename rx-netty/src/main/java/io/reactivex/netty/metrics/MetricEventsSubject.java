@@ -21,6 +21,8 @@ import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * A subject which is both a {@link MetricEventsListener} and {@link MetricEventsPublisher}.
@@ -33,7 +35,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *
  * @author Nitesh Kant
  */
-public class MetricEventsSubject<E extends MetricsEvent> implements MetricEventsPublisher<E>, MetricEventsListener<E> {
+public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEventsPublisher<E>, MetricEventsListener<E> {
 
     private final CopyOnWriteArrayList<MetricEventsListener<? extends E>> listeners;
 
@@ -43,81 +45,53 @@ public class MetricEventsSubject<E extends MetricsEvent> implements MetricEvents
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
+    public void onEvent(E event, long duration, TimeUnit timeUnit, Throwable throwable, Object value) {
+        ListenerInvocationException exception = null;
+        for (MetricEventsListener listener : listeners) {
+            try {
+                listener.onEvent(event, duration, timeUnit, throwable, value);
+            } catch (Throwable e) {
+                exception = handleListenerError(exception, listener, e);
+            }
+        }
+        throwIfErrorOccured(exception);
+    }
+
     public void onEvent(E event) {
-        ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
-            try {
-                listener.onEvent(event);
-            } catch (Throwable e) {
-                exception = handleListenerError(exception, listener, e);
-            }
-        }
-        throwIfErrorOccured(exception);
+        onEvent(event, NO_DURATION, NO_TIME_UNIT, NO_ERROR, NO_VALUE);
+    }
+
+    public void onEvent(E event, long duration, TimeUnit timeUnit) {
+        onEvent(event, duration, timeUnit, NO_ERROR, NO_VALUE);
+    }
+
+    public void onEvent(E event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        onEvent(event, duration, timeUnit, throwable, NO_VALUE);
+    }
+
+    public void onEvent(E event, long duration, TimeUnit timeUnit, Object value) {
+        onEvent(event, duration, timeUnit, NO_ERROR, value);
+    }
+
+    public void onEvent(E event, long durationInMillis) {
+        onEvent(event, durationInMillis, TimeUnit.MILLISECONDS, NO_ERROR, NO_VALUE);
+    }
+
+    public void onEvent(E event, long durationInMillis, Throwable throwable) {
+        onEvent(event, durationInMillis, TimeUnit.MILLISECONDS, throwable, NO_VALUE);
+    }
+
+    public void onEvent(E event, long durationInMillis, Object value) {
+        onEvent(event, durationInMillis, TimeUnit.MILLISECONDS, NO_ERROR, value);
     }
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public void onEvent(E event, long duration) {
+    public void onCompleted() {
         ListenerInvocationException exception = null;
         for (MetricEventsListener listener : listeners) {
             try {
-                listener.onEvent(event, duration);
-            } catch (Throwable e) {
-                exception = handleListenerError(exception, listener, e);
-            }
-        }
-        throwIfErrorOccured(exception);
-    }
-
-    @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public void onEvent(E event, Throwable throwable) {
-        ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
-            try {
-                listener.onEvent(event, throwable);
-            } catch (Throwable e) {
-                exception = handleListenerError(exception, listener, e);
-            }
-        }
-        throwIfErrorOccured(exception);
-    }
-
-    @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public void onEvent(E event, Throwable throwable, long duration) {
-        ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
-            try {
-                listener.onEvent(event, throwable, duration);
-            } catch (Throwable e) {
-                exception = handleListenerError(exception, listener, e);
-            }
-        }
-        throwIfErrorOccured(exception);
-    }
-
-    @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public void onEvent(E event, Object value) {
-        ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
-            try {
-                listener.onEvent(event, value);
-            } catch (Throwable e) {
-                exception = handleListenerError(exception, listener, e);
-            }
-        }
-        throwIfErrorOccured(exception);
-    }
-
-    @Override
-    @SuppressWarnings({"rawtypes", "unchecked"})
-    public void onEvent(E event, Object value, long duration) {
-        ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
-            try {
-                listener.onEvent(event, value, duration);
+                listener.onCompleted();
             } catch (Throwable e) {
                 exception = handleListenerError(exception, listener, e);
             }
@@ -127,13 +101,14 @@ public class MetricEventsSubject<E extends MetricsEvent> implements MetricEvents
 
     @Override
     public Subscription subscribe(final MetricEventsListener<? extends E> listener) {
-        listeners.add(listener);
-        return Subscriptions.create(new Action0() {
+        Subscription subscription = Subscriptions.create(new Action0() {
             @Override
             public void call() {
                 listeners.remove(listener);
             }
         });
+        listeners.add(new SafeListener<E>(listener, subscription));
+        return subscription;
     }
 
     protected ListenerInvocationException handleListenerError(ListenerInvocationException exception,
@@ -149,6 +124,38 @@ public class MetricEventsSubject<E extends MetricsEvent> implements MetricEvents
     protected void throwIfErrorOccured(ListenerInvocationException exception) {
         if (null != exception) {
             throw exception;
+        }
+    }
+
+    private static class SafeListener<E extends MetricsEvent<?>> implements MetricEventsListener<E> {
+
+        @SuppressWarnings("rawtypes") private final MetricEventsListener delegate;
+        private final Subscription subscription;
+        private final AtomicBoolean isDone;
+
+        public SafeListener(MetricEventsListener<? extends E> delegate, Subscription subscription) {
+            this.delegate = delegate;
+            this.subscription = subscription;
+            isDone = new AtomicBoolean();
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void onEvent(E event, long duration, TimeUnit timeUnit, Throwable throwable, Object value) {
+            if (!isDone.get()) {
+                delegate.onEvent(event, duration, timeUnit, throwable, value);
+            }
+        }
+
+        @Override
+        public void onCompleted() {
+            if (isDone.compareAndSet(false, true)) {
+                try {
+                    delegate.onCompleted();
+                } finally {
+                    subscription.unsubscribe();
+                }
+            }
         }
     }
 }

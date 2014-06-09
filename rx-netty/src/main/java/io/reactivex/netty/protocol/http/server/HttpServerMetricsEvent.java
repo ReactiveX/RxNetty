@@ -20,9 +20,14 @@ import io.reactivex.netty.server.ServerMetricsEvent;
 /**
  * @author Nitesh Kant
  */
-public class HttpServerMetricsEvent extends ServerMetricsEvent {
+@SuppressWarnings("rawtypes")
+public class HttpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T> {
 
-    /*Always refer to as constants*/protected HttpServerMetricsEvent(String name, boolean isTimed, boolean isError) {
-        super(name, isTimed, isError);
+    public enum HttpEventType {
+
+    }
+
+    /*Always refer to as constants*/protected HttpServerMetricsEvent(T type, boolean isTimed, boolean isError) {
+        super(type, isTimed, isError);
     }
 }

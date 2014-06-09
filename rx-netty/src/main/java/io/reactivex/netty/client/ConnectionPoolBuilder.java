@@ -16,6 +16,7 @@
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.RxDefaultThreadFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -31,6 +32,7 @@ public class ConnectionPoolBuilder<I, O> {
             Executors.newScheduledThreadPool(1, new RxDefaultThreadFactory("global-client-idle-conn-cleanup-scheduler"));
 
     private final RxClient.ServerInfo serverInfo;
+    private MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
     private ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory;
     private ClientChannelFactory<I, O> channelFactory; // Nullable
     private PoolLimitDeterminationStrategy limitDeterminationStrategy = new MaxConnectionsBasedStrategy();
@@ -38,12 +40,14 @@ public class ConnectionPoolBuilder<I, O> {
     private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
     private PoolStatsProvider statsProvider = new PoolStatsImpl();
 
-    public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory) {
-        this(serverInfo, channelFactory, new PooledConnectionFactory<I, O>(PoolConfig.DEFAULT_CONFIG));
+    public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
+                                 MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this(serverInfo, channelFactory, new PooledConnectionFactory<I, O>(PoolConfig.DEFAULT_CONFIG), eventsSubject);
     }
 
     public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
-                                 ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory) {
+                                 ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory,
+                                 MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         if (null == serverInfo) {
             throw new NullPointerException("Server info can not be null.");
         }
@@ -53,6 +57,7 @@ public class ConnectionPoolBuilder<I, O> {
         if (null == connectionFactory) {
             throw new NullPointerException("Connection factory can not be null.");
         }
+        this.eventsSubject = eventsSubject;
         this.serverInfo = serverInfo;
         this.connectionFactory = connectionFactory;
         this.channelFactory = channelFactory;
@@ -115,11 +120,12 @@ public class ConnectionPoolBuilder<I, O> {
         PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
 
         return new ConnectionPoolImpl<I, O>(serverInfo, poolConfig, limitDeterminationStrategy, poolIdleCleanupScheduler,
-                                            statsProvider, connectionFactory, channelFactory);
+                                            statsProvider, connectionFactory, channelFactory, eventsSubject);
     }
 
     public ConnectionPoolBuilder<I, O> copy(RxClient.ServerInfo serverInfo) {
-        ConnectionPoolBuilder<I, O> copy = new ConnectionPoolBuilder<I, O>(serverInfo, channelFactory, connectionFactory);
+        ConnectionPoolBuilder<I, O> copy = new ConnectionPoolBuilder<I, O>(serverInfo, channelFactory, connectionFactory,
+                                                                           eventsSubject);
         copy.withIdleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis)
             .withPoolStatsProvider(statsProvider)
             .withPoolIdleCleanupScheduler(poolIdleCleanupScheduler)

@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @SuppressWarnings("rawtypes")
 public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends Channel, S extends AbstractServer>
-        implements MetricEventsPublisher<ServerMetricsEvent> {
+        implements MetricEventsPublisher<ServerMetricsEvent<?>> {
 
     protected enum ServerState {Created, Starting, Started, Shutdown}
 
@@ -46,7 +46,7 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     protected final B bootstrap;
     protected final int port;
     protected final AtomicReference<ServerState> serverStateRef;
-    protected final MetricEventsSubject<ServerMetricsEvent> eventsSubject;
+    protected final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
     protected ErrorHandler errorHandler;
     private ChannelFuture bindFuture;
 
@@ -58,7 +58,7 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         this.bootstrap = bootstrap;
         this.port = port;
         connectionFactory = new UnpooledConnectionFactory<I, O>();
-        eventsSubject = new MetricEventsSubject<ServerMetricsEvent>();
+        eventsSubject = new MetricEventsSubject<ServerMetricsEvent<?>>();
     }
 
     public void startAndWait() {
@@ -157,7 +157,7 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     }
 
     @Override
-    public Subscription subscribe(MetricEventsListener<? extends ServerMetricsEvent> listener) {
+    public Subscription subscribe(MetricEventsListener<? extends ServerMetricsEvent<?>> listener) {
         return eventsSubject.subscribe(listener);
     }
 

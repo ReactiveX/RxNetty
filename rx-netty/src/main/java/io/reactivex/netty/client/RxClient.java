@@ -27,7 +27,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
-public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublisher<ClientMetricsEvent> {
+@SuppressWarnings("deprecation")
+public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublisher<ClientMetricsEvent<?>> {
 
     /**
      * Creates exactly one new connection for every subscription to the returned observable.

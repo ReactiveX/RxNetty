@@ -46,7 +46,8 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new UdpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory);
+        return new UdpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
+                                   channelFactory, eventsSubject);
     }
 
     @Override
@@ -69,9 +70,8 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
     }
 
     @Override
-    @SuppressWarnings("rawtypes")
-    protected MetricEventsListener<? extends ClientMetricsEvent> newMetricsListener(MetricEventsListenerFactory factory,
-                                                                                    RxClient<I, O> client) {
-        return factory.forUdpClient((UdpClient) client);
+    protected MetricEventsListener<? extends ClientMetricsEvent<UdpClientMetricsEvent.UdpEventType>>
+    newMetricsListener(MetricEventsListenerFactory factory, RxClient<I, O> client) {
+        return factory.forUdpClient((UdpClient<I, O>) client);
     }
 }

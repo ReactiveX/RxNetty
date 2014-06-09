@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.client;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author Nitesh Kant
  */
@@ -35,13 +37,22 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     }
 
     @Override
+    @Deprecated
     public boolean acquireCreationPermit() {
+        return acquireCreationPermit(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public boolean acquireCreationPermit(long acquireStartTime, TimeUnit timeUnit) {
         for (int i = 0; i < strategies.length; i++) {
             PoolLimitDeterminationStrategy strategy = strategies[i];
-            if (!strategy.acquireCreationPermit()) {
+            if (!strategy.acquireCreationPermit(acquireStartTime, timeUnit)) {
                 if (i > 0) {
+                    long now = timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
                     for (int j = i - 1; j >= 0; j--) {
-                        strategies[j].onNext(PoolInsightProvider.PoolStateChangeEvent.ConnectFailed); // release all permits acquired before this failure.
+                        strategies[j].onEvent(ClientMetricsEvent.CONNECT_FAILED, now - acquireStartTime,
+                                              timeUnit, ConnectionPoolImpl.POOL_EXHAUSTED_EXCEPTION,
+                                              null); // release all permits acquired before this failure.
                     }
                 }
                 return false;
@@ -66,6 +77,14 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     }
 
     @Override
+    public void onEvent(ClientMetricsEvent<ClientMetricsEvent.EventType> event, long duration, TimeUnit timeUnit,
+                        Throwable throwable, Object value) {
+        for (PoolLimitDeterminationStrategy strategy : strategies) {
+            strategy.onEvent(event, duration, timeUnit, throwable, value);
+        }
+    }
+
+    @Override
     public void onCompleted() {
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             strategy.onCompleted();
@@ -80,6 +99,7 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     }
 
     @Override
+    @Deprecated
     public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             strategy.onNext(stateChangeEvent);

@@ -36,15 +36,15 @@ import io.reactivex.netty.server.ServerMetricsEvent;
  */
 public interface MetricEventsListenerFactory {
 
-    MetricEventsListener<ClientMetricsEvent> forClient(@SuppressWarnings("rawtypes")RxClient client);
+    MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> forClient(@SuppressWarnings("rawtypes")RxClient client);
 
-    MetricEventsListener<HttpClientMetricsEvent> forHttpClient(@SuppressWarnings("rawtypes")HttpClient client);
+    MetricEventsListener<HttpClientMetricsEvent<HttpClientMetricsEvent.HttpEventType>> forHttpClient(@SuppressWarnings("rawtypes")HttpClient client);
 
-    MetricEventsListener<UdpClientMetricsEvent> forUdpClient(@SuppressWarnings("rawtypes")UdpClient client);
+    MetricEventsListener<UdpClientMetricsEvent<UdpClientMetricsEvent.UdpEventType>> forUdpClient(@SuppressWarnings("rawtypes")UdpClient client);
 
-    MetricEventsListener<ServerMetricsEvent> forServer(@SuppressWarnings("rawtypes")RxServer server);
+    MetricEventsListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> forServer(@SuppressWarnings("rawtypes")RxServer server);
 
-    MetricEventsListener<HttpServerMetricsEvent> forHttpServer(@SuppressWarnings("rawtypes")HttpServer server);
+    MetricEventsListener<HttpServerMetricsEvent<HttpClientMetricsEvent.HttpEventType>> forHttpServer(@SuppressWarnings("rawtypes")HttpServer server);
 
-    MetricEventsListener<UdpServerMetricsEvent> forUdpServer(@SuppressWarnings("rawtypes")UdpServer server);
+    MetricEventsListener<UdpServerMetricsEvent<UdpServerMetricsEvent.UdpEventType>> forUdpServer(@SuppressWarnings("rawtypes")UdpServer server);
 }

@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.metrics;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * A contract to listen for events based on which all metrics can be calculated.
  *
@@ -23,18 +25,29 @@ package io.reactivex.netty.metrics;
  * @param <E> The type of {@link MetricsEvent} this listener listens.
  *
  */
-public interface MetricEventsListener<E extends MetricsEvent> {
+public interface MetricEventsListener<E extends MetricsEvent<?>> {
 
-    void onEvent(E event);
+    int NO_DURATION = -1;
+    Object NO_VALUE = null;
+    Throwable NO_ERROR = null;
+    TimeUnit NO_TIME_UNIT = null;
 
-    void onEvent(E event, long duration);
+    /**
+     * Event callback for any {@link MetricsEvent}. The parameters passed are all the contextual information possible for
+     * any event. There presence or absence will depend on the type of event.
+     *
+     * @param event Event for which this callback has been invoked. This will never be {@code null}
+     * @param duration If the passed event is {@link MetricsEvent#isTimed()} then the actual duration, else
+     * {@link #NO_DURATION}
+     * @param timeUnit The time unit for the duration, if exists, else {@link #NO_TIME_UNIT}
+     * @param throwable If the passed event is {@link MetricsEvent#isError()} then the cause of the error, else
+     * {@link #NO_ERROR}
+     * @param value If the passed event requires custom object to be passed, then that object, else {@link #NO_VALUE}
+     */
+    void onEvent(E event, long duration, TimeUnit timeUnit, Throwable throwable, Object value);
 
-    void onEvent(E event, Throwable throwable);
-
-    void onEvent(E event, Throwable throwable, long duration);
-
-    void onEvent(E event, Object value);
-
-    void onEvent(E event, Object value, long duration);
-
+    /**
+     * Marks the end of all event callbacks. No methods on this listener will ever be called once this method is called.
+     */
+    void onCompleted();
 }

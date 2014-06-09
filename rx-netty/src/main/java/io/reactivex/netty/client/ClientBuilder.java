@@ -52,10 +52,10 @@ public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilde
     protected RxClient<I, O> createClient() {
         if (null == poolBuilder) {
             return new RxClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
-                                          channelFactory, connectionFactory);
+                                          channelFactory, connectionFactory, eventsSubject);
         } else {
             return new RxClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
-                                          poolBuilder);
+                                          poolBuilder, eventsSubject);
         }
     }
 
@@ -65,8 +65,8 @@ public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilde
     }
 
     @Override
-    protected MetricEventsListener<? extends ClientMetricsEvent> newMetricsListener(MetricEventsListenerFactory factory,
-                                                                                    RxClient<I, O> client) {
+    protected MetricEventsListener<? extends ClientMetricsEvent<ClientMetricsEvent.EventType>>
+    newMetricsListener(MetricEventsListenerFactory factory, RxClient<I, O> client) {
         return factory.forClient(client);
     }
 }

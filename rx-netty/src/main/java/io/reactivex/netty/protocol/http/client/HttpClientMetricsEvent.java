@@ -20,9 +20,14 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 /**
  * @author Nitesh Kant
  */
-public class HttpClientMetricsEvent extends ClientMetricsEvent {
+@SuppressWarnings("rawtypes")
+public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T> {
 
-    /*Always refer to as constants*/protected HttpClientMetricsEvent(String name, boolean isTimed, boolean isError) {
-        super(name, isTimed, isError);
+    public enum HttpEventType {
+
+    }
+
+    /*Always refer to as constants*/protected HttpClientMetricsEvent(T type, boolean isTimed, boolean isError) {
+        super(type, isTimed, isError);
     }
 }

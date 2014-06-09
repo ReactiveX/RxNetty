@@ -18,9 +18,10 @@ package io.reactivex.netty.metrics;
 /**
  * An interface usually implemented as an {@link Enum} representing a metric event.
  */
-public interface MetricsEvent {
+@SuppressWarnings("rawtypes")
+public interface MetricsEvent<T extends Enum> {
 
-    String name();
+    T getType();
 
     boolean isTimed();
 

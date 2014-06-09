@@ -20,20 +20,21 @@ import io.reactivex.netty.metrics.MetricsEvent;
 /**
  * @author Nitesh Kant
  */
-public abstract class AbstractMetricsEvent implements MetricsEvent {
+@SuppressWarnings("rawtypes")
+public abstract class AbstractMetricsEvent<T extends Enum> implements MetricsEvent<T> {
 
-    protected final String name;
+    protected final T name;
     protected final boolean isTimed;
     protected final boolean isError;
 
-    protected AbstractMetricsEvent(String name, boolean isTimed, boolean isError) {
+    protected AbstractMetricsEvent(T name, boolean isTimed, boolean isError) {
         this.isTimed = isTimed;
         this.name = name;
         this.isError = isError;
     }
 
     @Override
-    public String name() {
+    public T getType() {
         return name;
     }
 
@@ -64,7 +65,7 @@ public abstract class AbstractMetricsEvent implements MetricsEvent {
         if (isTimed != that.isTimed) {
             return false;
         }
-        if (!name.equals(that.name)) {
+        if (name != that.name) {
             return false;
         }
 

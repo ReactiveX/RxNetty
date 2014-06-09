@@ -20,9 +20,14 @@ import io.reactivex.netty.server.ServerMetricsEvent;
 /**
  * @author Nitesh Kant
  */
-public class UdpServerMetricsEvent extends ServerMetricsEvent {
+@SuppressWarnings("rawtypes")
+public class UdpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T> {
 
-    /*Always refer to as constants*/protected UdpServerMetricsEvent(String name, boolean isTimed, boolean isError) {
-        super(name, isTimed, isError);
+    public enum UdpEventType {
+
+    }
+
+    /*Always refer to as constants*/protected UdpServerMetricsEvent(T type, boolean isTimed, boolean isError) {
+        super(type, isTimed, isError);
     }
 }

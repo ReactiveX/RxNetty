@@ -17,15 +17,13 @@ package io.reactivex.netty.client;
 
 import io.netty.util.internal.chmv8.LongAdder;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author Nitesh Kant
  */
 public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.CloneablePoolStatsProvider {
-
-    private static final Logger logger = LoggerFactory.getLogger(PoolStatsImpl.class);
 
     private final LongAdder idleConnections;
     private final LongAdder inUseConnections;
@@ -67,49 +65,45 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
     }
 
     @Override
-    public void onCompleted() {
-        // No op.
-    }
-
-    @Override
-    public void onError(Throwable e) {
-        logger.error("Connection pool emitted an error for state change events.", e);
-    }
-
-    @Override
-    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
-        switch (stateChangeEvent) {
-            case NewConnectionCreated:
+    public void onEvent(ClientMetricsEvent<ClientMetricsEvent.EventType> event, long duration, TimeUnit timeUnit,
+                        Throwable throwable, Object value) {
+        switch (event.getType()) {
+            case ConnectSuccess:
                 onConnectionCreation();
                 break;
             case ConnectFailed:
                 onConnectFailed();
                 break;
-            case OnConnectionReuse:
+            case PooledConnectionReuse:
                 onConnectionReuse();
                 break;
-            case OnConnectionEviction:
+            case PooledConnectionEviction:
                 onConnectionEviction();
                 break;
-            case onAcquireAttempted:
+            case PoolAcquireStart:
                 onAcquireAttempted();
                 break;
-            case onAcquireSucceeded:
+            case PoolAcquireSuccess:
                 onAcquireSucceeded();
                 break;
-            case onAcquireFailed:
+            case PoolAcquireFailed:
                 onAcquireFailed();
                 break;
-            case onReleaseAttempted:
+            case PoolReleaseStart:
                 onReleaseAttempted();
                 break;
-            case onReleaseSucceeded:
+            case PoolReleaseSuccess:
                 onReleaseSucceeded();
                 break;
-            case onReleaseFailed:
+            case PoolReleaseFailed:
                 onReleaseFailed();
                 break;
         }
+    }
+
+    @Override
+    public void onCompleted() {
+        // No Op.
     }
 
     @Override

@@ -19,10 +19,14 @@ import io.netty.bootstrap.Bootstrap;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.ClientChannelFactory;
 import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.PoolStats;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
+import rx.Subscription;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -49,8 +53,10 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
                                ClientConfig clientConfig,
                                ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> channelFactory,
                                ClientConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>,
-                                       ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory) {
-        super(name, defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
+                                       ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory,
+                               MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        super(name, defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory,
+              eventsSubject);
         httpClients = new ConcurrentHashMap<ServerInfo, HttpClient<I, O>>();
         this.pipelineConfigurator = pipelineConfigurator;
         poolBuilder = null;
@@ -60,8 +66,9 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
     CompositeHttpClient(String name, ServerInfo defaultServer, Bootstrap clientBootstrap,
                         PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
                         ClientConfig clientConfig,
-                        ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder) {
-        super(name, defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+                        ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder,
+                        MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        super(name, defaultServer, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder, eventsSubject);
         httpClients = new ConcurrentHashMap<ServerInfo, HttpClient<I, O>>();
         this.pipelineConfigurator = pipelineConfigurator;
         this.poolBuilder = poolBuilder;
@@ -94,10 +101,9 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
 
     @Override
     public void shutdown() {
-        for (HttpClient<I, O> client : httpClients.values()) {
+        for (HttpClient<I, O> client : httpClients.values()) { // This map also contains the default client, so we don't need to shut the default explicitly.
             client.shutdown();
         }
-        super.shutdown();
     }
 
     public PoolStats getStats(ServerInfo server) {
@@ -108,12 +114,21 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
         return client.getStats();
     }
 
+    @Deprecated
     public Observable<PoolStateChangeEvent> poolStateChangeObservable(ServerInfo server) {
         HttpClient<I, O> client = httpClients.get(server);
         if (null == client) {
             throw new IllegalArgumentException("Invalid server: " + server.getHost() + ':' + server.getPort());
         }
         return client.poolStateChangeObservable();
+    }
+
+    public Subscription subscribe(ServerInfo server, MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
+        HttpClient<I, O> client = httpClients.get(server);
+        if (null == client) {
+            throw new IllegalArgumentException("Invalid server: " + server.getHost() + ':' + server.getPort());
+        }
+        return client.subscribe(listener);
     }
 
     public ServerInfo getDefaultServer() {
@@ -123,10 +138,10 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
     private HttpClientImpl<I, O> newClient(ServerInfo serverInfo) {
         if (null != poolBuilder) {
             return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap.clone(), pipelineConfigurator, clientConfig,
-                                            clonePoolBuilder(serverInfo, poolBuilder));
+                                            clonePoolBuilder(serverInfo, poolBuilder), eventsSubject);
         } else {
             return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap.clone(), pipelineConfigurator, clientConfig,
-                                            channelFactory, connectionFactory);
+                                            channelFactory, connectionFactory, eventsSubject);
         }
     }
 

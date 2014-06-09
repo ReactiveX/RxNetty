@@ -27,6 +27,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 
@@ -53,10 +54,13 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected RxClient.ClientConfig clientConfig;
     protected LogLevel wireLogginLevel;
     protected MetricEventsListenerFactory eventListenersFactory;
+    protected MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port,
                                     ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
                                     ClientChannelFactory<O, I> factory) {
+        eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
+        factory.useMetricEventsSubject(eventsSubject);
         this.bootstrap = bootstrap;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
         clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
@@ -67,6 +71,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     }
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port, ConnectionPoolBuilder<O, I> poolBuilder) {
+        eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         this.bootstrap = bootstrap;
         this.poolBuilder = poolBuilder;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
@@ -215,6 +220,10 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return serverInfo;
     }
 
+    public MetricEventsSubject<ClientMetricsEvent<?>> getEventsSubject() {
+        return eventsSubject;
+    }
+
     public C build() {
         if (null == socketChannel) {
             socketChannel = NioSocketChannel.class;
@@ -240,7 +249,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         }
         C client = createClient();
         if (null != eventListenersFactory) {
-            MetricEventsListener<? extends ClientMetricsEvent> listener =
+            MetricEventsListener<? extends ClientMetricsEvent<?>> listener =
                     newMetricsListener(eventListenersFactory, client);
             client.subscribe(listener);
         }
@@ -262,7 +271,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
              * This works well as someone who wants to override the connection factory should either start with a
              * pool builder or don't choose a pooled connection later.
              */
-            poolBuilder = new ConnectionPoolBuilder<O, I>(serverInfo, channelFactory); // Overrides the connection factory
+            poolBuilder = new ConnectionPoolBuilder<O, I>(serverInfo, channelFactory, eventsSubject); // Overrides the connection factory
         }
         return poolBuilder;
     }
@@ -280,6 +289,6 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return "RxClient-";
     }
 
-    protected abstract MetricEventsListener<? extends ClientMetricsEvent>
+    protected abstract MetricEventsListener<? extends ClientMetricsEvent<? extends Enum>>
     newMetricsListener(MetricEventsListenerFactory factory, C client);
 }

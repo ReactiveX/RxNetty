@@ -20,7 +20,7 @@ import rx.Subscription;
 /**
  * @author Nitesh Kant
  */
-public interface MetricEventsPublisher<E extends MetricsEvent> {
+public interface MetricEventsPublisher<E extends MetricsEvent<?>> {
 
     Subscription subscribe(MetricEventsListener<? extends E> listener);
 

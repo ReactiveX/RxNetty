@@ -68,10 +68,10 @@ public class HttpClientBuilder<I, O>
     protected HttpClient<I, O> createClient() {
         if (null == poolBuilder) {
             return new HttpClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator,
-                                            clientConfig, channelFactory, connectionFactory);
+                                            clientConfig, channelFactory, connectionFactory, eventsSubject);
         }
         return new HttpClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
-                                        poolBuilder);
+                                        poolBuilder, eventsSubject);
     }
 
     @Override
@@ -80,8 +80,8 @@ public class HttpClientBuilder<I, O>
     }
 
     @Override
-    protected MetricEventsListener<? extends ClientMetricsEvent> newMetricsListener(MetricEventsListenerFactory factory,
-                                                                                    HttpClient<I, O> client) {
+    protected MetricEventsListener<? extends ClientMetricsEvent<HttpClientMetricsEvent.HttpEventType>>
+    newMetricsListener(MetricEventsListenerFactory factory, HttpClient<I, O> client) {
         return factory.forHttpClient(client);
     }
 }

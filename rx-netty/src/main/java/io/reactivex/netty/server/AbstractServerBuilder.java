@@ -141,7 +141,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         }
         S server = createServer();
         if (null != eventListenersFactory) {
-            MetricEventsListener<? extends ServerMetricsEvent> listener = newMetricsListener(eventListenersFactory,
+            MetricEventsListener<? extends ServerMetricsEvent<?>> listener = newMetricsListener(eventListenersFactory,
                                                                                              server);
             server.subscribe(listener);
         }
@@ -152,7 +152,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
 
     protected abstract S createServer();
 
-    protected abstract MetricEventsListener<? extends ServerMetricsEvent>
+    protected abstract MetricEventsListener<? extends ServerMetricsEvent<? extends Enum>>
     newMetricsListener(MetricEventsListenerFactory factory, S server);
 
     @SuppressWarnings("unchecked")

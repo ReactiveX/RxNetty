@@ -107,10 +107,10 @@ public class CompositeHttpClientBuilder<I, O>
     protected CompositeHttpClient<I, O> createClient() {
         if (null == poolBuilder) {
             return new CompositeHttpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator,
-                                                 clientConfig, channelFactory, connectionFactory);
+                                                 clientConfig, channelFactory, connectionFactory, eventsSubject);
         } else {
             return new CompositeHttpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator,
-                                                 clientConfig, poolBuilder);
+                                                 clientConfig, poolBuilder, eventsSubject);
         }
     }
 
@@ -120,8 +120,8 @@ public class CompositeHttpClientBuilder<I, O>
     }
 
     @Override
-    protected MetricEventsListener<? extends ClientMetricsEvent> newMetricsListener(MetricEventsListenerFactory factory,
-                                                                                    CompositeHttpClient<I, O> client) {
+    protected MetricEventsListener<? extends ClientMetricsEvent<HttpClientMetricsEvent.HttpEventType>>
+    newMetricsListener(MetricEventsListenerFactory factory, CompositeHttpClient<I, O> client) {
         return factory.forHttpClient(client);
     }
 

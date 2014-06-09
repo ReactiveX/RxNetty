@@ -21,9 +21,11 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.ClientChannelFactory;
 import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPool;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.RxClientImpl;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import rx.Observable;
@@ -35,15 +37,18 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                           ClientConfig clientConfig,
                           ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> channelFactory,
                           ClientConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>,
-                                  ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory) {
-        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
+                                  ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory,
+                          MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory,
+              eventsSubject);
     }
 
     public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
                           PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
                           ClientConfig clientConfig,
-                          ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder) {
-        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+                          ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder,
+                          MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder, eventsSubject);
     }
 
     @Override

@@ -25,6 +25,7 @@ import io.reactivex.netty.ChannelCloseListener;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
@@ -103,8 +104,10 @@ public class ConnectionPoolTest {
         });
 
         poolConfig = new PoolConfig(MAX_IDLE_TIME_MILLIS);
-        factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap);
-        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, new PoolStatsImpl(), factory);
+        MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
+        factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
+        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, new PoolStatsImpl(),
+                                                      factory, eventsSubject);
         pool.poolStateChangeObservable().subscribe(stateChangeListener);
         stats = pool.getStats();
     }
@@ -247,10 +250,11 @@ public class ConnectionPoolTest {
     @Test
     public void testConnectFail() throws Exception {
         RxClient.ServerInfo unavailableServer = new RxClient.ServerInfo("trampledunderfoot", 999);
-        factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap);
+        MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
+        factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
 
         pool = new ConnectionPoolImpl<String, String>(unavailableServer, poolConfig, strategy, null,
-                                                      new PoolStatsImpl(), factory);
+                                                      new PoolStatsImpl(), factory, eventsSubject);
         pool.poolStateChangeObservable().subscribe(stateChangeListener);
 
         try {
@@ -345,9 +349,11 @@ public class ConnectionPoolTest {
     public void testIdleCleanupThread() throws Exception {
         serverConnHandler.closeNewConnectionsOnReceive(false);
         pool.shutdown();
+        MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
+        factory.useMetricEventsSubject(eventsSubject);
         pool = new ConnectionPoolImpl<String, String>(serverInfo, PoolConfig.DEFAULT_CONFIG, strategy,
                                                       Executors.newScheduledThreadPool(1),
-                                                      new PoolStatsImpl(), factory);
+                                                      new PoolStatsImpl(), factory, eventsSubject);
 
         stats = pool.getStats();
 

@@ -45,14 +45,15 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     protected final ClientChannelFactory<O, I> channelFactory;
     protected final ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory;
     protected final ClientConfig clientConfig;
-    protected ConnectionPool<O, I> pool;
+    protected final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    protected final ConnectionPool<O, I> pool;
     private final AtomicBoolean isShutdown = new AtomicBoolean();
-    private final MetricEventsSubject<ClientMetricsEvent> eventsSubject;
 
     public RxClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
                         PipelineConfigurator<O, I> pipelineConfigurator,
                         ClientConfig clientConfig, ClientChannelFactory<O, I> channelFactory,
-                        ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory) {
+                        ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
+                        MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         if (null == name) {
             throw new NullPointerException("Name can not be null.");
         }
@@ -72,7 +73,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             throw new NullPointerException("Channel factory can not be null.");
         }
         this.name = name;
-        eventsSubject = new MetricEventsSubject<ClientMetricsEvent>();
+        pool = null;
+        this.eventsSubject = eventsSubject;
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
@@ -90,7 +92,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
 
     public RxClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
                         PipelineConfigurator<O, I> pipelineConfigurator,
-                        ClientConfig clientConfig, ConnectionPoolBuilder<O, I> poolBuilder) {
+                        ClientConfig clientConfig, ConnectionPoolBuilder<O, I> poolBuilder,
+                        MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         if (null == name) {
             throw new NullPointerException("Name can not be null.");
         }
@@ -107,7 +110,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             throw new NullPointerException("Pool builder can not be null.");
         }
         this.name = name;
-        eventsSubject = new MetricEventsSubject<ClientMetricsEvent>();
+        this.eventsSubject = eventsSubject;
         this.clientConfig = clientConfig;
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
@@ -171,6 +174,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     }
 
     @Override
+    @Deprecated
     public Observable<PoolStateChangeEvent> poolStateChangeObservable() {
         if (null == pool) {
             return Observable.empty();
@@ -197,8 +201,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     }
 
     @Override
-    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent> listener) {
+    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
         return eventsSubject.subscribe(listener);
     }
-
 }

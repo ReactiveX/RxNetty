@@ -15,15 +15,15 @@
  */
 package io.reactivex.netty.client;
 
-import rx.Observer;
+import io.reactivex.netty.metrics.MetricEventsListener;
 
 /**
- * A provider for {@link PoolStats} for a pool which also listens for {@link PoolInsightProvider.PoolStateChangeEvent}
+ * A provider for {@link PoolStats} for a pool which also listens for {@link ClientMetricsEvent}s
  * as that is the only way to update stats.
  *
  * @author Nitesh Kant
  */
-public interface PoolStatsProvider extends Observer<PoolInsightProvider.PoolStateChangeEvent> {
+public interface PoolStatsProvider extends MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> {
 
     PoolStats getStats();
 }
