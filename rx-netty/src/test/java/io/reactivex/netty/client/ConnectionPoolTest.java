@@ -108,7 +108,7 @@ public class ConnectionPoolTest {
         factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
         pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, new PoolStatsImpl(),
                                                       factory, eventsSubject);
-        pool.poolStateChangeObservable().subscribe(stateChangeListener);
+        pool.subscribe(stateChangeListener);
         stats = pool.getStats();
     }
 
@@ -255,7 +255,7 @@ public class ConnectionPoolTest {
 
         pool = new ConnectionPoolImpl<String, String>(unavailableServer, poolConfig, strategy, null,
                                                       new PoolStatsImpl(), factory, eventsSubject);
-        pool.poolStateChangeObservable().subscribe(stateChangeListener);
+        pool.subscribe(stateChangeListener);
 
         try {
             pool.acquire().toBlocking().last();
