@@ -38,11 +38,9 @@ tasks.withType(Javadoc).each {
     it.classpath = sourceSets.main.compileClasspath
 }
 
-//include /src/examples folder
 sourceSets {
     examples {
-        // no idea why this is needed
-        java.srcDirs = []
+        java.srcDirs = ['src/examples']
     }
 }
 
@@ -55,6 +53,7 @@ dependencies {
     // we only support Groovy in the /src/examples/ code
     examples 'org.codehaus.groovy:groovy-all:[2.1,)'
 
+    examplesCompile project(':rx-netty')
     examplesRuntime 'com.netflix.rxjava:rxjava-groovy:[0.17,)'
     testCompile 'junit:junit:4.10'
 }
