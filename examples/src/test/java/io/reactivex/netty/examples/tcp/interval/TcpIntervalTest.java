@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.udp;
+package io.reactivex.netty.examples.tcp.interval;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -24,8 +24,10 @@ import org.junit.Test;
 /**
  * @author Tomasz Bak
  */
-public class HelloUdpTest {
-    private static final int PORT = 8098;
+public class TcpIntervalTest {
+    private static final int PORT = 8101;
+    private static final int NO_OF_MSG = 3;
+    private static final int INTERVAL = 100;
 
     private Thread server;
 
@@ -34,7 +36,7 @@ public class HelloUdpTest {
         server = new Thread(new Runnable() {
             @Override
             public void run() {
-                HelloUdpServer.main(new String[]{Integer.toString(PORT)});
+                TcpIntervalServer.main(new String[]{Integer.toString(PORT), Integer.toString(INTERVAL)});
             }
         });
         server.start();
@@ -49,9 +51,7 @@ public class HelloUdpTest {
 
     @Test
     public void testRequestReplySequence() {
-        HelloUdpClient client = new HelloUdpClient(PORT);
-        String reply = client.sendHello();
-        Assert.assertEquals(HelloUdpServer.WELCOME_MSG, reply);
+        int count = new TcpIntervalClientTakeN(PORT, NO_OF_MSG).collectMessages();
+        Assert.assertEquals(NO_OF_MSG, count);
     }
-
 }

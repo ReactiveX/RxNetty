@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.examples.tcp;
+package io.reactivex.netty.examples.tcp.echo;
 
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
 import rx.functions.Action0;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,11 +31,17 @@ import java.util.concurrent.TimeUnit;
  */
 public final class TcpEchoClient {
 
-    public static void main(String[] args) {
-        Observable<ObservableConnection<String, String>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, PipelineConfigurators.textOnlyConfigurator()).connect();
+    private int port;
 
-        connectionObservable.flatMap(new Func1<ObservableConnection<String, String>, Observable<?>>() {
+    public TcpEchoClient(int port) {
+        this.port = port;
+    }
+
+    public List<String> sendEchos() {
+        Observable<ObservableConnection<String, String>> connectionObservable =
+                RxNetty.createTcpClient("localhost", port, PipelineConfigurators.textOnlyConfigurator()).connect();
+
+        Iterable<Object> echos = connectionObservable.flatMap(new Func1<ObservableConnection<String, String>, Observable<?>>() {
             @Override
             public Observable<?> call(final ObservableConnection<String, String> connection) {
                 // we expect the EchoServer to output a single value at the beginning
@@ -42,7 +49,7 @@ public final class TcpEchoClient {
                 // because the unsubscribe will hit the ChannelObservable is a PublishSubject
                 // so we can re-subscribe to the 'hot' stream of data
                 Observable<String> helloMessage = connection.getInput()
-                                                            .take(1).map(new Func1<String, String>() {
+                        .take(1).map(new Func1<String, String>() {
                             @Override
                             public String call(String s) {
                                 return s.trim();
@@ -52,18 +59,18 @@ public final class TcpEchoClient {
                 // output 10 values at intervals and receive the echo back
                 Observable<String> intervalOutput =
                         Observable.interval(500, TimeUnit.MILLISECONDS)
-                                  .flatMap(new Func1<Long, Observable<String>>() {
-                                      @Override
-                                      public Observable<String> call(Long aLong) {
-                                          return connection.writeAndFlush(String.valueOf(aLong + 1))
-                                                           .map(new Func1<Void, String>() {
-                                                               @Override
-                                                               public String call(Void aVoid) {
-                                                                   return "";
-                                                               }
-                                                           });
-                                      }
-                                  });
+                                .flatMap(new Func1<Long, Observable<String>>() {
+                                    @Override
+                                    public Observable<String> call(Long aLong) {
+                                        return connection.writeAndFlush(String.valueOf(aLong + 1))
+                                                .map(new Func1<Void, String>() {
+                                                    @Override
+                                                    public String call(Void aVoid) {
+                                                        return "";
+                                                    }
+                                                });
+                                    }
+                                });
 
                 // capture the output from the server
                 Observable<String> echo = connection.getInput().map(new Func1<String, String>() {
@@ -81,11 +88,17 @@ public final class TcpEchoClient {
             public void call() {
                 System.out.println("COMPLETED!");
             }
-        }).toBlocking().forEach(new Action1<Object>() {
-            @Override
-            public void call(Object o) {
-                System.out.println("onNext: " + o);
-            }
-        });
+        }).toBlocking().toIterable();
+
+        List<String> result = new ArrayList<String>();
+        for (Object e : echos) {
+            System.out.println(e);
+            result.add(e.toString());
+        }
+        return result;
+    }
+
+    public static void main(String[] args) {
+        new TcpEchoClient(8098).sendEchos();
     }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.udp;
+package io.reactivex.netty.examples.tcp.event;
 
 import org.junit.After;
 import org.junit.Assert;
@@ -24,8 +24,10 @@ import org.junit.Test;
 /**
  * @author Tomasz Bak
  */
-public class HelloUdpTest {
-    private static final int PORT = 8098;
+public class TcpEventStreamTest {
+    private static final int PORT = 8100;
+    private static final int NO_DELAY = 0;
+    private static final int NO_OF_EVENTS = 20;
 
     private Thread server;
 
@@ -34,7 +36,7 @@ public class HelloUdpTest {
         server = new Thread(new Runnable() {
             @Override
             public void run() {
-                HelloUdpServer.main(new String[]{Integer.toString(PORT)});
+                TcpEventStreamServer.main(new String[]{Integer.toString(PORT)});
             }
         });
         server.start();
@@ -48,10 +50,9 @@ public class HelloUdpTest {
     }
 
     @Test
-    public void testRequestReplySequence() {
-        HelloUdpClient client = new HelloUdpClient(PORT);
-        String reply = client.sendHello();
-        Assert.assertEquals(HelloUdpServer.WELCOME_MSG, reply);
+    public void testEventStreamForFastClient() {
+        TcpEventStreamClient client = new TcpEventStreamClient(PORT, NO_DELAY, NO_OF_EVENTS);
+        int count = client.readEvents();
+        Assert.assertEquals(NO_OF_EVENTS, count);
     }
-
 }

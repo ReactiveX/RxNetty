@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.examples.tcp;
+package io.reactivex.netty.examples.tcp.interval;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -23,7 +23,6 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
 /**
@@ -31,15 +30,23 @@ import rx.functions.Func1;
  */
 public final class TcpIntervalClientTakeN {
 
-    public static void main(String[] args) {
+    private int port;
+    private int noOfMsg;
+
+    public TcpIntervalClientTakeN(int port, int noOfMsg) {
+        this.port = port;
+        this.noOfMsg = noOfMsg;
+    }
+
+    public int collectMessages() {
         Observable<ObservableConnection<String, ByteBuf>> connectionObservable =
-                RxNetty.createTcpClient("localhost", 8181, new PipelineConfigurator<String, ByteBuf>() {
+                RxNetty.createTcpClient("localhost", port, new PipelineConfigurator<String, ByteBuf>() {
                     @Override
                     public void configureNewPipeline(ChannelPipeline pipeline) {
                         pipeline.addLast(new StringDecoder());
                     }
                 }).connect();
-        connectionObservable.flatMap(new Func1<ObservableConnection<String, ByteBuf>, Observable<String>>() {
+        Iterable<String> msgIterable = connectionObservable.flatMap(new Func1<ObservableConnection<String, ByteBuf>, Observable<String>>() {
             @Override
             public Observable<String> call(ObservableConnection<String, ByteBuf> connection) {
                 ByteBuf request = Unpooled.copiedBuffer("subscribe:".getBytes());
@@ -59,12 +66,23 @@ public final class TcpIntervalClientTakeN {
 
                 return Observable.concat(subscribeWrite, data);
             }
-        }).take(3).toBlocking().forEach(new Action1<Object>() {
-            @Override
-            public void call(Object o) {
-                System.out.println("onNext: " + o);
-            }
-        });
+        }).take(noOfMsg).toBlocking().toIterable();
 
+        int count = 0;
+        for (String m : msgIterable) {
+            System.out.println("onNext: " + m);
+            count++;
+        }
+        return count;
+    }
+
+    public static void main(String[] args) {
+        int port = 8080;
+        int noOfMsg = 100;
+        if (args.length > 1) {
+            port = Integer.valueOf(args[0]);
+            noOfMsg = Integer.valueOf(args[2]);
+        }
+        new TcpIntervalClientTakeN(port, noOfMsg).collectMessages();
     }
 }

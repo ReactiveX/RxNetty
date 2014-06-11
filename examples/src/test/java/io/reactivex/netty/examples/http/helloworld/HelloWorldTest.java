@@ -6,6 +6,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+/**
+ * @author Tomasz Bak
+ */
 public class HelloWorldTest {
 
     private static final int PORT = 8090;

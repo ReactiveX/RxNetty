@@ -24,6 +24,9 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * @author Tomasz Bak
+ */
 public class LogTailClientTest {
 
     private static final int AG_PORT = 8091;
