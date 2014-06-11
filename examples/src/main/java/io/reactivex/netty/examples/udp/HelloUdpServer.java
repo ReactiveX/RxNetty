@@ -31,11 +31,17 @@ import java.nio.charset.Charset;
  */
 public final class HelloUdpServer {
 
-    private static final byte[] WELCOME_MSG_BYTES = "Welcome to the broadcast world!".getBytes(Charset.defaultCharset());
-    public static final int PORT = 8000;
+    static final String WELCOME_MSG = "Welcome to the broadcast world!";
+    static final byte[] WELCOME_MSG_BYTES = WELCOME_MSG.getBytes(Charset.defaultCharset());
 
-    public static void main(String[] args) {
-        RxNetty.createUdpServer(PORT, new ConnectionHandler<DatagramPacket, DatagramPacket>() {
+    public final int port;
+
+    public HelloUdpServer(int port) {
+        this.port = port;
+    }
+
+    public void runServer() {
+        RxNetty.createUdpServer(port, new ConnectionHandler<DatagramPacket, DatagramPacket>() {
             @Override
             public Observable<Void> handle(final ObservableConnection<DatagramPacket, DatagramPacket> newConnection) {
                 return newConnection.getInput().flatMap(new Func1<DatagramPacket, Observable<Void>>() {
@@ -43,7 +49,7 @@ public final class HelloUdpServer {
                     public Observable<Void> call(DatagramPacket received) {
                         InetSocketAddress sender = received.sender();
                         System.out.println("Received datagram. Sender: " + sender + ", data: "
-                                           + received.content().toString(Charset.defaultCharset()));
+                                + received.content().toString(Charset.defaultCharset()));
                         ByteBuf data = newConnection.getChannelHandlerContext().alloc().buffer(WELCOME_MSG_BYTES.length);
                         data.writeBytes(WELCOME_MSG_BYTES);
                         return newConnection.writeAndFlush(new DatagramPacket(data, sender));
@@ -51,5 +57,13 @@ public final class HelloUdpServer {
                 });
             }
         }).startAndWait();
+    }
+
+    public static void main(String[] args) {
+        int port = 8080;
+        if (args.length > 0) {
+            port = Integer.parseInt(args[0]);
+        }
+        new HelloUdpServer(port).runServer();
     }
 }

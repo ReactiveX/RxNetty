@@ -19,7 +19,6 @@ import io.netty.channel.socket.DatagramPacket;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
 import java.nio.charset.Charset;
@@ -29,21 +28,40 @@ import java.nio.charset.Charset;
  */
 public final class HelloUdpClient {
 
-    public static void main(String[] args) {
-        RxNetty.createUdpClient("localhost", HelloUdpServer.PORT).connect()
-               .flatMap(new Func1<ObservableConnection<DatagramPacket, DatagramPacket>,
-                       Observable<DatagramPacket>>() {
-                   @Override
-                   public Observable<DatagramPacket> call(ObservableConnection<DatagramPacket, DatagramPacket> connection) {
-                       connection.writeStringAndFlush("Is there anybody out there?");
-                       return connection.getInput();
-                   }
-               }).toBlocking().forEach(new Action1<DatagramPacket>() {
-            @Override
-            public void call(DatagramPacket datagramPacket) {
-                System.out.println("Received a new message: "
-                                   + datagramPacket.content().toString(Charset.defaultCharset()));
-            }
-        });
+    private int port;
+
+    public HelloUdpClient(int port) {
+        this.port = port;
     }
+
+    public String sendHello() {
+        String content = RxNetty.createUdpClient("localhost", port).connect()
+                .flatMap(new Func1<ObservableConnection<DatagramPacket, DatagramPacket>,
+                        Observable<DatagramPacket>>() {
+                    @Override
+                    public Observable<DatagramPacket> call(ObservableConnection<DatagramPacket, DatagramPacket> connection) {
+                        connection.writeStringAndFlush("Is there anybody out there?");
+                        return connection.getInput();
+                    }
+                }).take(1)
+                .map(new Func1<DatagramPacket, String>() {
+                    @Override
+                    public String call(DatagramPacket datagramPacket) {
+                        return datagramPacket.content().toString(Charset.defaultCharset());
+                    }
+                })
+                .toBlocking()
+                .first();
+        System.out.println("Received: " + content);
+        return content;
+    }
+
+    public static void main(String[] args) {
+        int port = 8080;
+        if (args.length > 0) {
+            port = Integer.parseInt(args[0]);
+        }
+        new HelloUdpClient(port).sendHello();
+    }
+
 }
