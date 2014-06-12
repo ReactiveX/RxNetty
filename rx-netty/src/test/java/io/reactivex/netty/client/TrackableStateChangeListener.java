@@ -156,4 +156,9 @@ public class TrackableStateChangeListener implements MetricEventsListener<Client
     public void onCompleted() {
         // No op
     }
+
+    @Override
+    public void onSubscribe() {
+        // No op.
+    }
 }

@@ -120,7 +120,7 @@ public class CompositeHttpClientBuilder<I, O>
     }
 
     @Override
-    protected MetricEventsListener<? extends ClientMetricsEvent<HttpClientMetricsEvent.HttpEventType>>
+    protected MetricEventsListener<? extends ClientMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, CompositeHttpClient<I, O> client) {
         return factory.forHttpClient(client);
     }

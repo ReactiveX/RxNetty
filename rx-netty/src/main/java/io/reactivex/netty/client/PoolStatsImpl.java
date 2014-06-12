@@ -107,6 +107,12 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
     }
 
     @Override
+    public void onSubscribe() {
+        // No op.
+
+    }
+
+    @Override
     public PoolStats getStats() {
         return this;
     }

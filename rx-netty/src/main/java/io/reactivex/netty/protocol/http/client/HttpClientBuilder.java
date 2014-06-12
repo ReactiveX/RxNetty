@@ -80,7 +80,7 @@ public class HttpClientBuilder<I, O>
     }
 
     @Override
-    protected MetricEventsListener<? extends ClientMetricsEvent<HttpClientMetricsEvent.HttpEventType>>
+    protected MetricEventsListener<? extends ClientMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, HttpClient<I, O> client) {
         return factory.forHttpClient(client);
     }

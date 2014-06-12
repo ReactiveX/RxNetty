@@ -140,6 +140,12 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
     }
 
     @Override
+    public void onSubscribe() {
+        // No Op.
+
+    }
+
+    @Override
     public void onError(Throwable e) {
         logger.error("Connection pool emitted an error for state change events.", e);
     }

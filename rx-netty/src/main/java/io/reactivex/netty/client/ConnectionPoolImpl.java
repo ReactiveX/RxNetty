@@ -367,5 +367,10 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         public void onCompleted() {
             stateChangeObservable.onCompleted();
         }
+
+        @Override
+        public void onSubscribe() {
+            // No Op.
+        }
     }
 }

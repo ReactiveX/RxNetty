@@ -23,11 +23,78 @@ import io.reactivex.netty.server.ServerMetricsEvent;
 @SuppressWarnings("rawtypes")
 public class HttpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T> {
 
-    public enum HttpEventType {
+    public enum EventType implements MetricEventType {
 
+        NewRequestReceived(false, false, Void.class),
+
+        RequestHandlingStart(true, false, Void.class),
+
+        RequestHeadersReceived(true, false, Void.class),
+        RequestContentReceived(true, false, Void.class),
+        RequestReceiveComplete(true, false, Void.class),
+
+        ResponseHeadersWriteStart(true, false, Void.class),
+        ResponseHeadersWriteSuccess(true, false, Void.class),
+        ResponseHeadersWriteFailed(true, true, Void.class),
+        ResponseContentWriteStart(true, false, Void.class),
+        ResponseContentWriteSuccess(true, false, Void.class),
+        ResponseContentWriteFailed(true, true, Void.class),
+
+        ResponseWriteComplete(true, false, Void.class),
+
+        RequestHandlingSuccess(true, false, Void.class),
+        RequestHandlingFailed(true, true, Void.class),
+        ;
+
+        private final boolean isTimed;
+        private final boolean isError;
+        private final Class<?> optionalDataType;
+
+        EventType(boolean isTimed, boolean isError, Class<?> optionalDataType) {
+            this.isTimed = isTimed;
+            this.isError = isError;
+            this.optionalDataType = optionalDataType;
+        }
+
+        @Override
+        public boolean isTimed() {
+            return isTimed;
+        }
+
+        @Override
+        public boolean isError() {
+            return isError;
+        }
+
+        @Override
+        public Class<?> getOptionalDataType() {
+            return optionalDataType;
+        }
     }
+
+    public static final HttpServerMetricsEvent<EventType> NEW_REQUEST_RECEIVED = from(EventType.NewRequestReceived);
+    public static final HttpServerMetricsEvent<EventType> REQUEST_HANDLING_START = from(EventType.RequestHandlingStart);
+    public static final HttpServerMetricsEvent<EventType> REQUEST_HEADERS_RECEIVED = from(EventType.RequestHeadersReceived);
+    public static final HttpServerMetricsEvent<EventType> REQUEST_CONTENT_RECEIVED = from(EventType.RequestContentReceived);
+    public static final HttpServerMetricsEvent<EventType> REQUEST_RECEIVE_COMPLETE = from(EventType.RequestReceiveComplete);
+
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_HEADERS_WRITE_START = from(EventType.ResponseHeadersWriteStart);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_HEADERS_WRITE_SUCCESS = from(EventType.ResponseHeadersWriteSuccess);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_HEADERS_WRITE_FAILED = from(EventType.ResponseHeadersWriteFailed);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_CONTENT_WRITE_START = from(EventType.ResponseContentWriteStart);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_CONTENT_WRITE_SUCCESS = from(EventType.ResponseContentWriteSuccess);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_CONTENT_WRITE_FAILED = from(EventType.ResponseContentWriteFailed);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_WRITE_COMPLETE = from(EventType.ResponseWriteComplete);
+
+    public static final HttpServerMetricsEvent<EventType> REQUEST_HANDLING_SUCCESS = from(EventType.RequestHandlingSuccess);
+    public static final HttpServerMetricsEvent<EventType> REQUEST_HANDLING_FAILED = from(EventType.RequestHandlingFailed);
+
 
     /*Always refer to as constants*/protected HttpServerMetricsEvent(T type, boolean isTimed, boolean isError) {
         super(type, isTimed, isError);
+    }
+
+    private static HttpServerMetricsEvent<EventType> from(EventType type) {
+        return new HttpServerMetricsEvent<EventType>(type, type.isTimed(), type.isError());
     }
 }

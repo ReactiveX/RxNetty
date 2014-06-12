@@ -21,37 +21,61 @@ package io.reactivex.netty.client;
 @SuppressWarnings("rawtypes")
 public class ClientMetricsEvent<T extends Enum> extends AbstractMetricsEvent<T> {
 
-    public enum EventType {
-        ConnectStart(false, false),
-        ConnectSuccess(true, false),
-        ConnectFailed(true, true),
-        ConnectionCloseStart(false, false),
-        ConnectionCloseSuccess(true, false),
-        ConnectionCloseFailed(true, true),
+    public enum EventType implements MetricEventType {
 
-        PoolAcquireStart(false, false),
-        PoolAcquireSuccess(true, false),
-        PooledConnectionReuse(true, false),
-        PooledConnectionEviction(false, false),
-        PoolAcquireFailed(true, true),
-        PoolReleaseStart(false, false),
-        PoolReleaseSuccess(true, false),
-        PoolReleaseFailed(true, true);
+        /* Connection specific events. */
+        ConnectStart(false, false, Void.class),
+        ConnectSuccess(true, false, Void.class),
+        ConnectFailed(true, true, Void.class),
+        ConnectionCloseStart(false, false, Void.class),
+        ConnectionCloseSuccess(true, false, Void.class),
+        ConnectionCloseFailed(true, true, Void.class),
+
+        /*Pool specific events, any underlying connection events will not be different for pooled connections*/
+        PoolAcquireStart(false, false, Void.class),
+        PoolAcquireSuccess(true, false, Void.class),
+        PoolAcquireFailed(true, true, Void.class),
+        PooledConnectionReuse(true, false, Void.class),
+        PooledConnectionEviction(false, false, Void.class),
+        PoolReleaseStart(false, false, Void.class),
+        PoolReleaseSuccess(true, false, Void.class),
+        PoolReleaseFailed(true, true, Void.class),
+
+        /* Write events on underlying connection, this has no associated protocol, so it is raw bytes written. */
+        WriteStart(false, false, Void.class),
+        WriteSuccess(true, false, Long.class),
+        WriteFailed(true, true, Void.class),
+        FlushStart(false, false, Void.class),
+        FlushSuccess(true, false, Void.class),
+        FlushFailed(true, true, Void.class),
+
+        /* Read events on the connection, this has no associated protocol, so it depicts raw bytes read. */
+        BytesRead(false, false, Long.class)
+        ;
 
         private final boolean isTimed;
         private final boolean isError;
+        private final Class<?> optionalDataType;
 
-        EventType(boolean isTimed, boolean isError) {
+        EventType(boolean isTimed, boolean isError, Class<?> optionalDataType) {
             this.isTimed = isTimed;
             this.isError = isError;
+            this.optionalDataType = optionalDataType;
         }
 
+        @Override
         public boolean isTimed() {
             return isTimed;
         }
 
+        @Override
         public boolean isError() {
             return isError;
+        }
+
+        @Override
+        public Class<?> getOptionalDataType() {
+            return optionalDataType;
         }
     }
 
@@ -71,6 +95,15 @@ public class ClientMetricsEvent<T extends Enum> extends AbstractMetricsEvent<T> 
     public static final ClientMetricsEvent<EventType> POOL_RELEASE_FAILED = from(EventType.PoolReleaseFailed);
     public static final ClientMetricsEvent<EventType> POOLED_CONNECTION_REUSE = from(EventType.PooledConnectionReuse);
     public static final ClientMetricsEvent<EventType> POOLED_CONNECTION_EVICTION = from(EventType.PooledConnectionEviction);
+
+    public static final ClientMetricsEvent<EventType> WRITE_START = from(EventType.WriteStart);
+    public static final ClientMetricsEvent<EventType> WRITE_SUCCESS = from(EventType.WriteSuccess);
+    public static final ClientMetricsEvent<EventType> WRITE_FAILED = from(EventType.WriteFailed);
+    public static final ClientMetricsEvent<EventType> FLUSH_START = from(EventType.FlushStart);
+    public static final ClientMetricsEvent<EventType> FLUSH_SUCCESS = from(EventType.FlushSuccess);
+    public static final ClientMetricsEvent<EventType> FLUSH_FAILED = from(EventType.FlushFailed);
+
+    public static final ClientMetricsEvent<EventType> BYTES_READ = from(EventType.BytesRead);
 
 
     /*Always refer to as constants*/protected ClientMetricsEvent(T name, boolean isTimed, boolean isError) {

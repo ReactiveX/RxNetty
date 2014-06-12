@@ -21,7 +21,7 @@ import rx.Observer;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
-import rx.internal.util.SubscriptionList;
+import rx.subscriptions.CompositeSubscription;
 import rx.subscriptions.Subscriptions;
 
 /**
@@ -40,7 +40,7 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
     public Subscriber<? super ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> call(
             final Subscriber<? super HttpClientResponse<O>> child) {
 
-        final SubscriptionList cs = new SubscriptionList();
+        final CompositeSubscription cs = new CompositeSubscription();
         child.add(cs);// Unsubscribe when the child unsubscribes.
 
         Subscriber<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> toReturn =

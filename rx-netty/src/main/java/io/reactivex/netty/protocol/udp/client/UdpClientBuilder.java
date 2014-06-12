@@ -70,7 +70,7 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
     }
 
     @Override
-    protected MetricEventsListener<? extends ClientMetricsEvent<UdpClientMetricsEvent.UdpEventType>>
+    protected MetricEventsListener<? extends ClientMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, RxClient<I, O> client) {
         return factory.forUdpClient((UdpClient<I, O>) client);
     }

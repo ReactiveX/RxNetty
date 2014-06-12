@@ -13,30 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.metrics;
 
-/**
- * An interface usually implemented as an {@link Enum} representing a metric event.
- */
-@SuppressWarnings("rawtypes")
-public interface MetricsEvent<T extends Enum> {
+apply plugin: 'osgi'
 
-    T getType();
+sourceCompatibility = JavaVersion.VERSION_1_6
+targetCompatibility = JavaVersion.VERSION_1_6
 
-    boolean isTimed();
+dependencies {
+    compile project(':rx-netty')
+    compile 'com.netflix.servo:servo-core:0.7.4'
+    testCompile 'junit:junit:4.10'
+}
 
-    boolean isError();
-
-    /**
-     * This interface is a "best-practice" rather than a contract as a more strongly required contract is for the event
-     * type to be an enum.
-     */
-    interface MetricEventType {
-
-        boolean isTimed();
-
-        boolean isError();
-
-        Class<?> getOptionalDataType();
+jar {
+    manifest {
+        name = 'rx-netty-servo'
+        instruction 'Bundle-Vendor', 'Netflix'
+        instruction 'Bundle-DocURL', 'https://github.com/Netflix/RxNetty'
+        instruction 'Import-Package', '!org.junit,!junit.framework,!org.mockito.*,*'
     }
 }

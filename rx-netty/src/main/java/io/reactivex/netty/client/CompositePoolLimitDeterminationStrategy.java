@@ -92,6 +92,13 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     }
 
     @Override
+    public void onSubscribe() {
+        for (PoolLimitDeterminationStrategy strategy : strategies) {
+            strategy.onCompleted();
+        }
+    }
+
+    @Override
     public void onError(Throwable e) {
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             strategy.onError(e);

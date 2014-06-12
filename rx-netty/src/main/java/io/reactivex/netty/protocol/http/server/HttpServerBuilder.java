@@ -19,7 +19,6 @@ import io.netty.bootstrap.ServerBootstrap;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.server.ConnectionBasedServerBuilder;
 import io.reactivex.netty.server.RxServer;
 
@@ -64,7 +63,7 @@ public class HttpServerBuilder<I, O>
     }
 
     @Override
-    protected MetricEventsListener<HttpServerMetricsEvent<HttpClientMetricsEvent.HttpEventType>>
+    protected MetricEventsListener<HttpServerMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, RxServer<HttpServerRequest<I>, HttpServerResponse<O>> server) {
         return factory.forHttpServer((HttpServer<I, O>) server);
     }

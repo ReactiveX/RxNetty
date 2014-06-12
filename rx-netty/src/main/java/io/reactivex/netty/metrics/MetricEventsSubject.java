@@ -100,6 +100,20 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
     }
 
     @Override
+    @SuppressWarnings({"rawtypes", "unchecked"})
+    public void onSubscribe() {
+        ListenerInvocationException exception = null;
+        for (MetricEventsListener listener : listeners) {
+            try {
+                listener.onSubscribe();
+            } catch (Throwable e) {
+                exception = handleListenerError(exception, listener, e);
+            }
+        }
+        throwIfErrorOccured(exception);
+    }
+
+    @Override
     public Subscription subscribe(final MetricEventsListener<? extends E> listener) {
         Subscription subscription = Subscriptions.create(new Action0() {
             @Override
@@ -108,6 +122,7 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
             }
         });
         listeners.add(new SafeListener<E>(listener, subscription));
+        listener.onSubscribe();
         return subscription;
     }
 
@@ -155,6 +170,13 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
                 } finally {
                     subscription.unsubscribe();
                 }
+            }
+        }
+
+        @Override
+        public void onSubscribe() {
+            if (!isDone.get()) {
+                delegate.onSubscribe();
             }
         }
     }

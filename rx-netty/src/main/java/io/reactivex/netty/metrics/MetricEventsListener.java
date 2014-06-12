@@ -20,6 +20,11 @@ import java.util.concurrent.TimeUnit;
 /**
  * A contract to listen for events based on which all metrics can be calculated.
  *
+ * <h2>Multiple Subscriptions</h2>
+ *
+ * Theoretically one can register the same listener instance to multiple {@link MetricEventsPublisher}s, however in that
+ * case, there will be multiple callbacks to {@link #onSubscribe()} and {@link #onCompleted()}
+ *
  * @author Nitesh Kant
  *
  * @param <E> The type of {@link MetricsEvent} this listener listens.
@@ -50,4 +55,9 @@ public interface MetricEventsListener<E extends MetricsEvent<?>> {
      * Marks the end of all event callbacks. No methods on this listener will ever be called once this method is called.
      */
     void onCompleted();
+
+    /**
+     * A callback when this listener is subscribed to a {@link MetricEventsPublisher}.
+     */
+    void onSubscribe();
 }

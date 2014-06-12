@@ -59,7 +59,7 @@ public class UdpServerBuilder<I, O> extends AbstractServerBuilder<I, O, Bootstra
     }
 
     @Override
-    protected MetricEventsListener<UdpServerMetricsEvent<UdpServerMetricsEvent.UdpEventType>>
+    protected MetricEventsListener<UdpServerMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, UdpServer<I, O> server) {
         return factory.forUdpServer(server);
     }

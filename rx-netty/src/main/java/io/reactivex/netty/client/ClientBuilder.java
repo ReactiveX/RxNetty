@@ -67,6 +67,6 @@ public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilde
     @Override
     protected MetricEventsListener<? extends ClientMetricsEvent<ClientMetricsEvent.EventType>>
     newMetricsListener(MetricEventsListenerFactory factory, RxClient<I, O> client) {
-        return factory.forClient(client);
+        return factory.forTcpClient(client);
     }
 }

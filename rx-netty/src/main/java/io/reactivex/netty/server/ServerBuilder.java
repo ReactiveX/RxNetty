@@ -43,6 +43,6 @@ public class ServerBuilder<I, O> extends ConnectionBasedServerBuilder<I,O, Serve
     @Override
     protected MetricEventsListener<ServerMetricsEvent<ServerMetricsEvent.EventType>>
     newMetricsListener(MetricEventsListenerFactory factory, RxServer<I, O> server) {
-        return factory.forServer(server);
+        return factory.forTcpServer(server);
     }
 }
