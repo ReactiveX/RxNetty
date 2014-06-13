@@ -16,7 +16,7 @@ Examples Catalog
 
 Protocol | Example / Test | Description
 ---------|---------|------------
-HTTP | [Hello World](src/main/java/io/reactivex/netty/examples/http/helloworld) ([test](src/test/java/io/reactivex/netty/examples/http/helloworld))      | Simple HTTP GET client/server implementation.
+HTTP | [Hello World](src/main/java/io/reactivex/netty/examples/http/helloworld/README.md)                                                                | Simple HTTP GET client/server implementation.
 HTTP | [Simple POST](src/main/java/io/reactivex/netty/examples/http/post) ([test](src/test/java/io/reactivex/netty/examples/http/post))                  | Simple HTTP POST client/server implementation.
 HTTP | [Chunked GET](src/main/java/io/reactivex/netty/examples/http/chunk) ([test](src/test/java/io/reactivex/netty/examples/http/chunk))                | An example of how to handle large, chunked reply that is not pre-aggregated by the default pipline configurator.
 HTTP | [Server Side Events](src/main/java/io/reactivex/netty/examples/http/sse) ([test](src/test/java/io/reactivex/netty/examples/http/sse))             | This examples demonstrates how to implement server side event stream, and how to handle it on the client side.
@@ -26,3 +26,33 @@ TCP  | [Echo Server](src/main/java/io/reactivex/netty/examples/tcp/echo) ([test]
 TCP  | [TCP Server Side Event Stream](src/main/java/io/reactivex/netty/examples/tcp/event) ([test](src/test/java/io/reactivex/netty/examples/tcp/event)) | TCP server side event stream example, with configurable client side processing delay to demonstrate????
 TCP  | [Interval](src/main/java/io/reactivex/netty/examples/tcp/interval) ([test](src/test/java/io/reactivex/netty/examples/tcp/interval))               | A bit more sophisticated event stream example, with explicit subscribe/unsubscribe control mechanism.
 UDP  | [Hello World](src/main/java/io/reactivex/netty/examples/udp) ([test](src/test/java/io/reactivex/netty/examples/udp))                              | UDP version of a simple request - reply client/server implementation.
+
+Build
+=====
+
+To build:
+
+```
+$ cd RxNetty/rx-netty-examples
+$ ../gradlew build
+```
+
+It is possible to run example client/server endpoints using gradle. For list of available tasks check "Examples" group
+in the gradle task list:
+
+```
+$ ../gradlew tasks
+```
+
+For example to run HelloWorld example, start server and client process with the following commands:
+
+```
+$ ../gradlew runHelloWorldServer
+```
+
+and in another console:
+
+```
+$ ../gradlew runHelloWorldClient
+```
+Some of the examples require parameters. They must be passed with -P<name>=<value> option. 
