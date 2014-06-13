@@ -45,11 +45,7 @@ public final class HelloWorldServer {
         HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-                System.out.println("New request received");
-                System.out.println(request.getHttpMethod() + " " + request.getUri() + ' ' + request.getHttpVersion());
-                for (Map.Entry<String, String> header : request.getHeaders().entries()) {
-                    System.out.println(header.getKey() + ": " + header.getValue());
-                }
+                printRequestHeader(request);
 
                 return request.getContent().materialize()
                         .flatMap(new Func1<Notification<ByteBuf>, Observable<Void>>() {
@@ -70,6 +66,14 @@ public final class HelloWorldServer {
         });
         System.out.println("HTTP hello world server started...");
         return server;
+    }
+
+    public void printRequestHeader(HttpServerRequest<ByteBuf> request) {
+        System.out.println("New request received");
+        System.out.println(request.getHttpMethod() + " " + request.getUri() + ' ' + request.getHttpVersion());
+        for (Map.Entry<String, String> header : request.getHeaders().entries()) {
+            System.out.println(header.getKey() + ": " + header.getValue());
+        }
     }
 
     public static void main(final String[] args) {
