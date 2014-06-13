@@ -27,11 +27,16 @@ import io.reactivex.netty.serialization.StringTransformer;
 import rx.Observable;
 import rx.functions.Func1;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 /**
  * @author Nitesh Kant
  */
 public class DefaultChannelWriter<O> implements ChannelWriter<O> {
 
+    protected static final Observable<Void> CONNECTION_ALREADY_CLOSED =
+            Observable.error(new IllegalStateException("Connection is already closed."));
+    protected final AtomicBoolean closeIssued = new AtomicBoolean();
     private final ChannelHandlerContext ctx;
     private final MultipleFutureListener unflushedWritesListener;
 
@@ -122,5 +127,21 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
 
     protected Channel getChannel() {
         return ctx.channel();
+    }
+
+    public boolean isCloseIssued() {
+        return closeIssued.get();
+    }
+
+    public Observable<Void> close() {
+        if (closeIssued.compareAndSet(false, true)) {
+            return _close();
+        } else {
+            return CONNECTION_ALREADY_CLOSED;
+        }
+    }
+
+    protected Observable<Void> _close() {
+        return Observable.empty();
     }
 }
