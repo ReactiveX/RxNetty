@@ -71,9 +71,9 @@ public final class TcpEventStreamClient {
     public static void main(String[] args) {
         int delay = 1000;
         int noOfEvents = 100;
-        if (args.length > 2) {
-            delay = Integer.valueOf(args[1]);
-            noOfEvents = Integer.valueOf(args[2]);
+        if (args.length > 1) {
+            delay = Integer.valueOf(args[0]);
+            noOfEvents = Integer.valueOf(args[1]);
         }
         new TcpEventStreamClient(DEFAULT_PORT, delay, noOfEvents).readEvents();
     }

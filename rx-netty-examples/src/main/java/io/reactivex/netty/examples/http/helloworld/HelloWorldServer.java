@@ -17,15 +17,14 @@ package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import rx.Notification;
 import rx.Observable;
 import rx.functions.Func1;
 
-import java.nio.charset.Charset;
 import java.util.Map;
 
 /**
@@ -42,28 +41,19 @@ public final class HelloWorldServer {
     }
 
     public HttpServer<ByteBuf, ByteBuf> createServer() {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 printRequestHeader(request);
-
-                return request.getContent().materialize()
-                        .flatMap(new Func1<Notification<ByteBuf>, Observable<Void>>() {
-                            @Override
-                            public Observable<Void> call(Notification<ByteBuf> notification) {
-                                if (notification.isOnCompleted()) {
-                                    return response.writeStringAndFlush("Welcome!!!");
-                                } else if (notification.isOnError()) {
-                                    return Observable.error(notification.getThrowable());
-                                } else {
-                                    ByteBuf next = notification.getValue();
-                                    System.out.println(next.toString(Charset.defaultCharset()));
-                                    return Observable.empty();
-                                }
-                            }
-                        });
+                return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
+                    @Override
+                    public Observable<Void> call(ByteBuf byteBuf) {
+                        return response.writeStringAndFlush("Welcome!!");
+                    }
+                });
             }
-        });
+        }).pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>httpServerConfigurator()).build();
+
         System.out.println("HTTP hello world server started...");
         return server;
     }

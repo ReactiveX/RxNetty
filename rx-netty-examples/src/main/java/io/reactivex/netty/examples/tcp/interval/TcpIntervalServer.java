@@ -124,7 +124,7 @@ public final class TcpIntervalServer {
     public static void main(String[] args) {
         int interval = 1000;
         if (args.length > 0) {
-            interval = Integer.valueOf(args[1]);
+            interval = Integer.valueOf(args[0]);
         }
         new TcpIntervalServer(DEFAULT_PORT, interval).createServer().startAndWait();
     }

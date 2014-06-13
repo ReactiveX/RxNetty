@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.http.logtail;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
@@ -50,22 +51,28 @@ public class LogTailClient {
         HttpClient<ByteBuf, ServerSentEvent> client =
                 RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
 
-        Iterable<LogEvent> eventIterable = client.submit(HttpClientRequest.createGet("/logstream")).flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
-            @Override
-            public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> response) {
-                return response.getContent();
-            }
-        }).map(new Func1<ServerSentEvent, LogEvent>() {
-            @Override
-            public LogEvent call(ServerSentEvent serverSentEvent) {
-                return LogEvent.fromCSV(serverSentEvent.getEventData());
-            }
-        }).filter(new Func1<LogEvent, Boolean>() {
-            @Override
-            public Boolean call(LogEvent logEvent) {
-                return logEvent.getLevel() == LogEvent.LogLevel.ERROR;
-            }
-        }).take(tailSize).toBlocking().toIterable();
+        Iterable<LogEvent> eventIterable = client.submit(HttpClientRequest.createGet("/logstream"))
+                .flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
+                    @Override
+                    public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> response) {
+                        if (response.getStatus().equals(HttpResponseStatus.OK)) {
+                            return response.getContent();
+                        }
+                        return Observable.error(new IllegalStateException("server returned status " + response.getStatus()));
+                    }
+                }).map(new Func1<ServerSentEvent, LogEvent>() {
+                           @Override
+                           public LogEvent call(ServerSentEvent serverSentEvent) {
+                               return LogEvent.fromCSV(serverSentEvent.getEventData());
+                           }
+                       }
+                ).filter(new Func1<LogEvent, Boolean>() {
+                             @Override
+                             public Boolean call(LogEvent logEvent) {
+                                 return logEvent.getLevel() == LogEvent.LogLevel.ERROR;
+                             }
+                         }
+                ).take(tailSize).toBlocking().toIterable();
 
         List<LogEvent> logs = new ArrayList<LogEvent>();
         for (LogEvent e : eventIterable) {

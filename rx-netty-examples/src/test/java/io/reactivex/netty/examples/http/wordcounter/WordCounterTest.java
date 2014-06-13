@@ -16,45 +16,39 @@
 
 package io.reactivex.netty.examples.http.wordcounter;
 
+import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.protocol.http.server.HttpServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import java.util.Map;
+import static io.reactivex.netty.examples.http.wordcounter.WordCounterServer.DEFAULT_PORT;
 
 /**
  * @author Tomasz Bak
  */
 public class WordCounterTest {
 
-    private static final int PORT = 8097;
     private static final String TEXT_FILE = WordCounterTest.class.getClassLoader().getResource("document.txt").getFile();
     private static final int EXPECTED_N_OF_WORDS = 64;
 
-    private Thread server;
+    private HttpServer<ByteBuf, ByteBuf> server;
 
     @Before
     public void startServer() {
-        server = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                WordCounterServer.main(new String[]{Integer.toString(PORT)});
-            }
-        });
+        server = new WordCounterServer(DEFAULT_PORT).createServer();
         server.start();
     }
 
     @After
-    public void stopServer() {
-        if (server != null) {
-            server.interrupt();
-        }
+    public void stopServer() throws InterruptedException {
+        server.shutdown();
     }
 
     @Test
     public void testWordCounter() throws Exception {
-        WordCounterClient client = new WordCounterClient(PORT, TEXT_FILE);
+        WordCounterClient client = new WordCounterClient(DEFAULT_PORT, TEXT_FILE);
         int amount = client.countWords();
         Assert.assertEquals(EXPECTED_N_OF_WORDS, amount);
     }

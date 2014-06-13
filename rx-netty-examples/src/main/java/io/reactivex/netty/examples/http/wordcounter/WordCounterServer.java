@@ -18,6 +18,7 @@ package io.reactivex.netty.examples.http.wordcounter;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
@@ -33,14 +34,16 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public final class WordCounterServer {
 
+    static final int DEFAULT_PORT = 8097;
+
     private int port;
 
     public WordCounterServer(int port) {
         this.port = port;
     }
 
-    public void runServer() {
-        RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
+    public HttpServer<ByteBuf, ByteBuf> createServer() {
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             public AtomicInteger counter = new AtomicInteger();
 
             @Override
@@ -65,14 +68,12 @@ public final class WordCounterServer {
                             }
                         });
             }
-        }).startAndWait();
+        });
+        System.out.println("Started word counter server...");
+        return server;
     }
 
     public static void main(final String[] args) {
-        int port = 8080;
-        if (args.length > 0) {
-            port = Integer.valueOf(args[0]);
-        }
-        new WordCounterServer(port).runServer();
+        new WordCounterServer(DEFAULT_PORT).createServer().startAndWait();
     }
 }

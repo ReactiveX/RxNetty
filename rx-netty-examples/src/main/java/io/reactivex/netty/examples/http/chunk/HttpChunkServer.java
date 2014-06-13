@@ -116,4 +116,13 @@ public class HttpChunkServer {
             }
         });
     }
+
+    public static void main(String[] args) {
+        if (args.length < 1) {
+            System.err.println("ERROR: give text file name");
+            return;
+        }
+        String textFile = args[0];
+        new HttpChunkServer(DEFAULT_PORT, textFile).createServer().startAndWait();
+    }
 }

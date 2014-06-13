@@ -81,7 +81,7 @@ public final class TcpIntervalClientTakeN {
     public static void main(String[] args) {
         int noOfMsg = 100;
         if (args.length > 0) {
-            noOfMsg = Integer.valueOf(args[2]);
+            noOfMsg = Integer.valueOf(args[0]);
         }
         new TcpIntervalClientTakeN(DEFAULT_PORT, noOfMsg).collectMessages();
     }

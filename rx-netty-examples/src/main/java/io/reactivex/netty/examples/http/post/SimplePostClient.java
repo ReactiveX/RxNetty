@@ -71,7 +71,8 @@ public class SimplePostClient {
     }
 
     public static void main(String[] args) {
-        new SimplePostClient(DEFAULT_PORT).postMessage();
+        System.out.println("Sending POST request to the server...");
+        String replyMessage = new SimplePostClient(DEFAULT_PORT).postMessage();
+        System.out.println("Received " + replyMessage);
     }
-
 }

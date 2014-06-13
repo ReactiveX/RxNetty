@@ -32,6 +32,8 @@ import rx.functions.Action1;
 import java.io.*;
 import java.nio.charset.Charset;
 
+import static io.reactivex.netty.examples.http.wordcounter.WordCounterServer.DEFAULT_PORT;
+
 /**
  * @author Tomasz Bak
  */
@@ -126,14 +128,14 @@ public class WordCounterClient {
     }
 
     public static void main(String[] args) {
-        if (args.length < 2) {
-            System.err.println("ERROR: give server port number and text file name");
+        if (args.length < 1) {
+            System.err.println("ERROR: give text file name");
             return;
         }
-        Integer port = Integer.valueOf(args[0]);
-        String textFile = args[1];
+        String textFile = args[0];
         try {
-            new WordCounterClient(port, textFile).countWords();
+            int count = new WordCounterClient(DEFAULT_PORT, textFile).countWords();
+            System.out.printf("Counted %d words in text file %s", count, textFile);
         } catch (IOException e) {
             System.err.println("ERROR: there is a problem with reading file " + textFile);
         }

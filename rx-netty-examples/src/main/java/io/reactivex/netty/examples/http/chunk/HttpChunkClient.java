@@ -30,6 +30,8 @@ import rx.functions.Func2;
 
 import java.nio.charset.Charset;
 
+import static io.reactivex.netty.examples.http.chunk.HttpChunkServer.DEFAULT_PORT;
+
 /**
  * @author Tomasz Bak
  */
@@ -113,5 +115,15 @@ public class HttpChunkClient {
                 }
             };
         }
+    }
+
+    public static void main(String[] args) {
+        if (args.length < 1) {
+            System.err.println("ERROR: give 'word' parameter");
+            System.exit(-1);
+        }
+        String word = args[0];
+        System.out.println("Sending GET request...");
+        System.out.printf("Counted %d words '%s'", new HttpChunkClient(DEFAULT_PORT).filterWords(word), word);
     }
 }

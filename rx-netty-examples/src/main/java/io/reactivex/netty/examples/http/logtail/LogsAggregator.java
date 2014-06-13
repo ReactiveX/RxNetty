@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.http.logtail;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
@@ -29,6 +30,8 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Notification;
 import rx.Observable;
+import rx.exceptions.OnErrorThrowable;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 import java.util.ArrayList;
@@ -52,26 +55,6 @@ public class LogsAggregator {
         this.producerPortTo = producerPortTo;
     }
 
-    private Observable<ServerSentEvent> connectToLogProducer(int port) {
-        HttpClient<ByteBuf, ServerSentEvent> client =
-                RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
-
-        return client.submit(HttpClientRequest.createGet("/logstream")).flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
-            @Override
-            public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> response) {
-                return response.getContent();
-            }
-        });
-    }
-
-    private Observable<ServerSentEvent> connectToLogProducers() {
-        List<Observable<ServerSentEvent>> oList = new ArrayList<Observable<ServerSentEvent>>(producerPortTo - producerPortFrom + 1);
-        for (int i = producerPortFrom; i <= producerPortTo; i++) {
-            oList.add(connectToLogProducer(i));
-        }
-        return Observable.merge(oList);
-    }
-
     public HttpServer<ByteBuf, ServerSentEvent> createAggregationServer() {
         server = RxNetty.createHttpServer(port,
                 new RequestHandler<ByteBuf, ServerSentEvent>() {
@@ -85,21 +68,37 @@ public class LogsAggregator {
                                 ServerSentEvent data = new ServerSentEvent(sse.getEventId(), "data", sse.getEventData());
                                 return response.writeAndFlush(data);
                             }
-                        }).materialize().flatMap(new Func1<Notification<Void>, Observable<? extends Void>>() {
+                        }).onErrorFlatMap(new Func1<OnErrorThrowable, Observable<? extends Void>>() {
                             @Override
-                            public Observable<? extends Void> call(Notification<Void> notification) {
-                                if (notification.isOnError()) {
-                                    System.err.println("Connection to one of the clients failed");
-                                    return Observable.<Void>error(notification.getThrowable());
-                                }
-                                return Observable.empty();
+                            public Observable<Void> call(OnErrorThrowable onErrorThrowable) {
+                                response.setStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR);
+                                return response.close();
                             }
                         });
-
                     }
                 }, PipelineConfigurators.<ByteBuf>sseServerConfigurator());
         System.out.println("Logs aggregator server started...");
         return server;
+    }
+
+    private Observable<ServerSentEvent> connectToLogProducers() {
+        List<Observable<ServerSentEvent>> oList = new ArrayList<Observable<ServerSentEvent>>(producerPortTo - producerPortFrom + 1);
+        for (int i = producerPortFrom; i <= producerPortTo; i++) {
+            oList.add(connectToLogProducer(i));
+        }
+        return Observable.merge(oList);
+    }
+
+    private Observable<ServerSentEvent> connectToLogProducer(int port) {
+        HttpClient<ByteBuf, ServerSentEvent> client =
+                RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
+
+        return client.submit(HttpClientRequest.createGet("/logstream")).flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
+            @Override
+            public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> response) {
+                return response.getContent();
+            }
+        });
     }
 
     public static void main(final String[] args) {
