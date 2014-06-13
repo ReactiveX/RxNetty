@@ -70,7 +70,8 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         return nettyResponse.getStatus();
     }
 
-    public Observable<Void> close() {
+    @Override
+    public Observable<Void> _close() {
 
         writeHeadersIfNotWritten();
 
