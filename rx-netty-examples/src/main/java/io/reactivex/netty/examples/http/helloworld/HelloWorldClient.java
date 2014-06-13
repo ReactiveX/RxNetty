@@ -16,12 +16,18 @@
 package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import rx.functions.Action1;
+import rx.Observable;
+import rx.functions.Action0;
+import rx.functions.Func1;
+import rx.functions.Func2;
 
 import java.nio.charset.Charset;
 import java.util.Map;
+
+import static io.reactivex.netty.examples.http.helloworld.HelloWorldServer.DEFAULT_PORT;
 
 /**
  * @author Nitesh Kant
@@ -29,39 +35,47 @@ import java.util.Map;
 public class HelloWorldClient {
 
     private final int port;
-    volatile HttpClientResponse<ByteBuf> lastResponse;
 
     public HelloWorldClient(int port) {
         this.port = port;
     }
 
-    public void sendHelloRequest() {
-        RxNetty.createHttpGet("http://localhost:" + port + "/hello").toBlocking().forEach(new Action1<HttpClientResponse<ByteBuf>>() {
-
-            @Override
-            public void call(HttpClientResponse<ByteBuf> response) {
-                HelloWorldClient.this.lastResponse = response;
-
-                System.out.println("New response received.");
-                System.out.println("========================");
-                System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()
-                        + ' ' + response.getStatus().reasonPhrase());
-                for (Map.Entry<String, String> header : response.getHeaders().entries()) {
-                    System.out.println(header.getKey() + ": " + header.getValue());
-                }
-
-                response.getContent().subscribe(new Action1<ByteBuf>() {
+    public HttpResponseStatus sendHelloRequest() {
+        HttpResponseStatus statusCode = RxNetty.createHttpGet("http://localhost:" + port + "/hello")
+                .mergeMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
                     @Override
-                    public void call(ByteBuf content) {
-                        System.out.print(content.toString(Charset.defaultCharset()));
-                        System.out.println("========================");
+                    public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
+                        return response.getContent();
                     }
-                });
-            }
-        });
+                }, new Func2<HttpClientResponse<ByteBuf>, ByteBuf, HttpResponseStatus>() {
+                    @Override
+                    public HttpResponseStatus call(HttpClientResponse<ByteBuf> response, ByteBuf content) {
+                        printResponseHeader(response);
+                        System.out.println(content.toString(Charset.defaultCharset()));
+                        return response.getStatus();
+                    }
+                })
+                .doOnTerminate(new Action0() {
+                    @Override
+                    public void call() {
+                        System.out.println("=======================");
+                    }
+                }).toBlocking().last();
+
+        return statusCode;
+    }
+
+    public void printResponseHeader(HttpClientResponse<ByteBuf> response) {
+        System.out.println("New response received.");
+        System.out.println("========================");
+        System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()
+                + ' ' + response.getStatus().reasonPhrase());
+        for (Map.Entry<String, String> header : response.getHeaders().entries()) {
+            System.out.println(header.getKey() + ": " + header.getValue());
+        }
     }
 
     public static void main(String[] args) {
-        new HelloWorldClient(8080).sendHelloRequest();
+        new HelloWorldClient(DEFAULT_PORT).sendHelloRequest();
     }
 }

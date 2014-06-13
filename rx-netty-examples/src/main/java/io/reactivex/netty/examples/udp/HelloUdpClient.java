@@ -23,6 +23,8 @@ import rx.functions.Func1;
 
 import java.nio.charset.Charset;
 
+import static io.reactivex.netty.examples.udp.HelloUdpServer.DEFAULT_PORT;
+
 /**
  * @author Nitesh Kant
  */
@@ -57,11 +59,7 @@ public final class HelloUdpClient {
     }
 
     public static void main(String[] args) {
-        int port = 8080;
-        if (args.length > 0) {
-            port = Integer.parseInt(args[0]);
-        }
-        new HelloUdpClient(port).sendHello();
+        new HelloUdpClient(DEFAULT_PORT).sendHello();
     }
 
 }

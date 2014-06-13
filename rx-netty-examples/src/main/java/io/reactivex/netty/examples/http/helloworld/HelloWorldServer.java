@@ -17,6 +17,7 @@ package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
@@ -32,14 +33,16 @@ import java.util.Map;
  */
 public final class HelloWorldServer {
 
+    static final int DEFAULT_PORT = 8090;
+
     private int port;
 
     public HelloWorldServer(int port) {
         this.port = port;
     }
 
-    public void runServer() {
-        RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
+    public HttpServer<ByteBuf, ByteBuf> createServer() {
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 System.out.println("New request received");
@@ -64,14 +67,12 @@ public final class HelloWorldServer {
                             }
                         });
             }
-        }).startAndWait();
+        });
+        System.out.println("HTTP hello world server started...");
+        return server;
     }
 
     public static void main(final String[] args) {
-        int port = 8080;
-        if (args.length > 0) {
-            port = Integer.valueOf(args[0]);
-        }
-        new HelloWorldServer(port).runServer();
+        new HelloWorldServer(DEFAULT_PORT).createServer().startAndWait();
     }
 }

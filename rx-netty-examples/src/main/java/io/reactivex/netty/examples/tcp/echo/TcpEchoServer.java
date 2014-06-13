@@ -19,8 +19,8 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.server.RxServer;
 import rx.Observable;
-import rx.Subscriber;
 import rx.functions.Func1;
 
 /**
@@ -28,13 +28,7 @@ import rx.functions.Func1;
  */
 public final class TcpEchoServer {
 
-    public static final Observable<Void> COMPLETED_OBSERVABLE = Observable.create(new Observable.OnSubscribe<Void>() {
-
-        @Override
-        public void call(Subscriber<? super Void> subscriber) {
-            subscriber.onCompleted();
-        }
-    });
+    static final int DEFAULT_PORT = 8099;
 
     private int port;
 
@@ -42,8 +36,8 @@ public final class TcpEchoServer {
         this.port = port;
     }
 
-    public void startServer() {
-        RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
+    public RxServer<String, String> createServer() {
+        RxServer<String, String> server = RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
                 new ConnectionHandler<String, String>() {
                     @Override
                     public Observable<Void> handle(
@@ -58,19 +52,17 @@ public final class TcpEchoServer {
                                 if (!msg.isEmpty()) {
                                     return connection.writeAndFlush("echo => " + msg + '\n');
                                 } else {
-                                    return COMPLETED_OBSERVABLE;
+                                    return Observable.empty();
                                 }
                             }
                         });
                     }
-                }).startAndWait();
+                });
+        System.out.println("TCP echo server started...");
+        return server;
     }
 
     public static void main(final String[] args) {
-        int port = 8181;
-        if (args.length > 0) {
-            port = Integer.valueOf(args[0]);
-        }
-        new TcpEchoServer(port).startServer();
+        new TcpEchoServer(DEFAULT_PORT).createServer().startAndWait();
     }
 }

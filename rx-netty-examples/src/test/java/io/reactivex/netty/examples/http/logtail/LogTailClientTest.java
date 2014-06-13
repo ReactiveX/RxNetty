@@ -16,6 +16,9 @@
 
 package io.reactivex.netty.examples.http.logtail;
 
+import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.protocol.http.server.HttpServer;
+import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -24,19 +27,20 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
+import static io.reactivex.netty.examples.http.logtail.LogTailClient.DEFAULT_TAIL_SIZE;
+import static io.reactivex.netty.examples.http.logtail.LogsAggregator.DEFAULT_AG_PORT;
+
 /**
  * @author Tomasz Bak
  */
 public class LogTailClientTest {
 
-    private static final int AG_PORT = 8091;
     private static final int PR_FROM_PORT = 8092;
     private static final int PR_TO_PORT = 8095;
     private static final int PR_INTERVAL = 50;
-    private static final int TAIL_SIZE = 25;
 
-    private Thread aggregationServer;
-    private List<Thread> producerServers = new ArrayList<Thread>();
+    private HttpServer<ByteBuf, ServerSentEvent> aggregationServer;
+    private List<HttpServer<ByteBuf, ServerSentEvent>> producerServers = new ArrayList<HttpServer<ByteBuf, ServerSentEvent>>();
 
     @Before
     public void setupServers() {
@@ -47,42 +51,28 @@ public class LogTailClientTest {
     }
 
     private void startProducer(final int port) {
-        Thread producerServer = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                LogProducer.main(new String[]{Integer.toString(port), Integer.toString(PR_INTERVAL)});
-            }
-        });
-        producerServer.start();
-        producerServers.add(producerServer);
+        HttpServer<ByteBuf, ServerSentEvent> server = new LogProducer(port, PR_INTERVAL).createServer();
+        server.start();
+        producerServers.add(server);
     }
 
     private void startAggregator() {
-        aggregationServer = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                String[] args = {Integer.toString(AG_PORT), Integer.toString(PR_FROM_PORT), Integer.toString(PR_TO_PORT)};
-                LogsAggregator.main(args);
-            }
-        });
+        aggregationServer = new LogsAggregator(DEFAULT_AG_PORT, PR_FROM_PORT, PR_TO_PORT).createAggregationServer();
         aggregationServer.start();
     }
 
     @After
-    public void stopServer() {
-        if (aggregationServer != null) {
-            aggregationServer.interrupt();
-        }
-        for (Thread t : producerServers) {
-            t.interrupt();
+    public void stopServer() throws InterruptedException {
+        aggregationServer.shutdown();
+        for (HttpServer<ByteBuf, ServerSentEvent> server : producerServers) {
+            server.shutdown();
         }
     }
 
     @Test
     public void testLogTailClient() throws Exception {
-        LogTailClient client = new LogTailClient(AG_PORT, TAIL_SIZE);
-        client.startCollectionProcess();
-        List<LogEvent> logs = client.tail();
+        LogTailClient client = new LogTailClient(DEFAULT_AG_PORT, DEFAULT_TAIL_SIZE);
+        List<LogEvent> logs = client.collectEventLogs();
         Assert.assertEquals(25, logs.size());
     }
 }

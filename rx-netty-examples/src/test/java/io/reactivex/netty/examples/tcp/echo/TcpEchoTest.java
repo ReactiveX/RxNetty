@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.examples.tcp.echo;
 
+import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -23,35 +24,28 @@ import org.junit.Test;
 
 import java.util.List;
 
+import static io.reactivex.netty.examples.tcp.echo.TcpEchoServer.DEFAULT_PORT;
+
 /**
  * @author Tomasz Bak
  */
 public class TcpEchoTest {
-    private static final int PORT = 8099;
-
-    private Thread server;
+    private RxServer server;
 
     @Before
     public void setupServer() {
-        server = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                TcpEchoServer.main(new String[]{Integer.toString(PORT)});
-            }
-        });
+        server = new TcpEchoServer(DEFAULT_PORT).createServer();
         server.start();
     }
 
     @After
-    public void stopServer() {
-        if (server != null) {
-            server.interrupt();
-        }
+    public void stopServer() throws Exception {
+        server.shutdown();
     }
 
     @Test
     public void testRequestReplySequence() {
-        TcpEchoClient client = new TcpEchoClient(PORT);
+        TcpEchoClient client = new TcpEchoClient(DEFAULT_PORT);
         List<String> reply = client.sendEchos();
         Assert.assertEquals(10, reply.size());
     }

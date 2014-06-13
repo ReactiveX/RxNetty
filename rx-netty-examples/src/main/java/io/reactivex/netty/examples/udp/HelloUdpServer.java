@@ -20,6 +20,7 @@ import io.netty.channel.socket.DatagramPacket;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.protocol.udp.server.UdpServer;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -31,6 +32,7 @@ import java.nio.charset.Charset;
  */
 public final class HelloUdpServer {
 
+    static final int DEFAULT_PORT = 8098;
     static final String WELCOME_MSG = "Welcome to the broadcast world!";
     static final byte[] WELCOME_MSG_BYTES = WELCOME_MSG.getBytes(Charset.defaultCharset());
 
@@ -40,8 +42,8 @@ public final class HelloUdpServer {
         this.port = port;
     }
 
-    public void runServer() {
-        RxNetty.createUdpServer(port, new ConnectionHandler<DatagramPacket, DatagramPacket>() {
+    public UdpServer<DatagramPacket, DatagramPacket> createServer() {
+        UdpServer<DatagramPacket, DatagramPacket> server = RxNetty.createUdpServer(port, new ConnectionHandler<DatagramPacket, DatagramPacket>() {
             @Override
             public Observable<Void> handle(final ObservableConnection<DatagramPacket, DatagramPacket> newConnection) {
                 return newConnection.getInput().flatMap(new Func1<DatagramPacket, Observable<Void>>() {
@@ -56,14 +58,12 @@ public final class HelloUdpServer {
                     }
                 });
             }
-        }).startAndWait();
+        });
+        System.out.println("UDP hello server started...");
+        return server;
     }
 
     public static void main(String[] args) {
-        int port = 8080;
-        if (args.length > 0) {
-            port = Integer.parseInt(args[0]);
-        }
-        new HelloUdpServer(port).runServer();
+        new HelloUdpServer(DEFAULT_PORT).createServer().startAndWait();
     }
 }

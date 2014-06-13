@@ -39,6 +39,8 @@ import java.util.List;
  */
 public class LogsAggregator {
 
+    static final int DEFAULT_AG_PORT = 8091;
+
     private final int port;
     private int producerPortFrom;
     private int producerPortTo;
@@ -70,7 +72,7 @@ public class LogsAggregator {
         return Observable.merge(oList);
     }
 
-    private void startAggregationServer() {
+    public HttpServer<ByteBuf, ServerSentEvent> createAggregationServer() {
         server = RxNetty.createHttpServer(port,
                 new RequestHandler<ByteBuf, ServerSentEvent>() {
                     @Override
@@ -96,20 +98,19 @@ public class LogsAggregator {
 
                     }
                 }, PipelineConfigurators.<ByteBuf>sseServerConfigurator());
-        server.startAndWait();
+        System.out.println("Logs aggregator server started...");
+        return server;
     }
 
     public static void main(final String[] args) {
-        int port = 8080;
-        int producerPortFrom = 8081;
-        int producerPortTo = 8082;
-        if (args.length > 2) {
-            port = Integer.valueOf(args[0]);
-            producerPortFrom = Integer.valueOf(args[1]);
-            producerPortTo = Integer.valueOf(args[2]);
+        if (args.length < 2) {
+            System.err.println("ERROR: provide log producers port range");
+            return;
         }
-        LogsAggregator aggregator = new LogsAggregator(port, producerPortFrom, producerPortTo);
-        aggregator.startAggregationServer();
+        int producerPortFrom = Integer.valueOf(args[0]);
+        int producerPortTo = Integer.valueOf(args[1]);
+        LogsAggregator aggregator = new LogsAggregator(DEFAULT_AG_PORT, producerPortFrom, producerPortTo);
+        aggregator.createAggregationServer().startAndWait();
         System.out.println("Aggregator service terminated");
     }
 }

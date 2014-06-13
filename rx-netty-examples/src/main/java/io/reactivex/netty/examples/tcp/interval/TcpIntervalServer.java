@@ -19,6 +19,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.server.RxServer;
 import rx.Notification;
 import rx.Observable;
 import rx.functions.Action0;
@@ -31,6 +32,8 @@ import java.util.concurrent.TimeUnit;
  */
 public final class TcpIntervalServer {
 
+    static final int DEFAULT_PORT = 8101;
+
     private int port;
     private int interval;
 
@@ -39,8 +42,8 @@ public final class TcpIntervalServer {
         this.interval = interval;
     }
 
-    public void startServer() {
-        RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
+    public RxServer<String, String> createServer() {
+        RxServer<String, String> server = RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
                 new ConnectionHandler<String, String>() {
                     @Override
                     public Observable<Void> handle(final ObservableConnection<String, String> connection) {
@@ -88,7 +91,9 @@ public final class TcpIntervalServer {
                             }
                         });
                     }
-                }).startAndWait();
+                });
+        System.out.println("TCP interval server started...");
+        return server;
     }
 
     private Observable<Void> getIntervalObservable(final ObservableConnection<String, String> connection) {
@@ -117,12 +122,10 @@ public final class TcpIntervalServer {
     }
 
     public static void main(String[] args) {
-        int port = 8181;
         int interval = 1000;
-        if (args.length > 1) {
-            port = Integer.valueOf(args[0]);
+        if (args.length > 0) {
             interval = Integer.valueOf(args[1]);
         }
-        new TcpIntervalServer(port, interval).startServer();
+        new TcpIntervalServer(DEFAULT_PORT, interval).createServer().startAndWait();
     }
 }

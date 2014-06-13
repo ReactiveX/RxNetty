@@ -21,6 +21,8 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
 import rx.Observable;
 import rx.functions.Func1;
 
+import static io.reactivex.netty.examples.tcp.event.TcpEventStreamServer.DEFAULT_PORT;
+
 /**
  * @author Nitesh Kant
  */
@@ -67,14 +69,12 @@ public final class TcpEventStreamClient {
     }
 
     public static void main(String[] args) {
-        int port = 8080;
         int delay = 1000;
         int noOfEvents = 100;
         if (args.length > 2) {
-            port = Integer.valueOf(args[0]);
             delay = Integer.valueOf(args[1]);
             noOfEvents = Integer.valueOf(args[2]);
         }
-        new TcpEventStreamClient(port, delay, noOfEvents).readEvents();
+        new TcpEventStreamClient(DEFAULT_PORT, delay, noOfEvents).readEvents();
     }
 }

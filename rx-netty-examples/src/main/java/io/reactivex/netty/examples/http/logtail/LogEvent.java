@@ -29,7 +29,6 @@ public class LogEvent {
     }
 
     private long timeStamp;
-
     private String source;
     private LogLevel level;
     private String message;

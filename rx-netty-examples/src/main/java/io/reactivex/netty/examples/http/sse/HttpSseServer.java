@@ -18,6 +18,7 @@ package io.reactivex.netty.examples.http.sse;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
@@ -33,6 +34,9 @@ import java.util.concurrent.TimeUnit;
  */
 public final class HttpSseServer {
 
+    static final int DEFAULT_PORT = 8096;
+    static final int DEFAULT_INTERVAL = 1000;
+
     private int port;
     private int interval;
 
@@ -41,15 +45,17 @@ public final class HttpSseServer {
         this.interval = interval;
     }
 
-    public void runSseServer() {
-        RxNetty.createHttpServer(port,
+    public HttpServer<ByteBuf, ServerSentEvent> createServer() {
+        HttpServer<ByteBuf, ServerSentEvent> server = RxNetty.createHttpServer(port,
                 new RequestHandler<ByteBuf, ServerSentEvent>() {
                     @Override
                     public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
                                                    HttpServerResponse<ServerSentEvent> response) {
                         return getIntervalObservable(response);
                     }
-                }, PipelineConfigurators.<ByteBuf>sseServerConfigurator()).startAndWait();
+                }, PipelineConfigurators.<ByteBuf>sseServerConfigurator());
+        System.out.println("HTTP Server Sent Events server started...");
+        return server;
     }
 
     private Observable<Void> getIntervalObservable(final HttpServerResponse<ServerSentEvent> response) {
@@ -81,12 +87,6 @@ public final class HttpSseServer {
     }
 
     public static void main(String[] args) {
-        int port = 8080;
-        int interval = 1000;
-        if (args.length > 1) {
-            port = Integer.parseInt(args[0]);
-            interval = Integer.parseInt(args[1]);
-        }
-        new HttpSseServer(port, interval).runSseServer();
+        new HttpSseServer(DEFAULT_PORT, DEFAULT_INTERVAL).createServer().startAndWait();
     }
 }

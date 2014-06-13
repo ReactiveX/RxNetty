@@ -19,11 +19,11 @@ package io.reactivex.netty.examples.http.logtail;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
-import rx.Notification;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -44,15 +44,17 @@ public class LogProducer {
         this.source = "localhost:" + port;
     }
 
-    private void startProducingServer() {
-        RxNetty.createHttpServer(port,
+    public HttpServer<ByteBuf, ServerSentEvent> createServer() {
+        HttpServer<ByteBuf, ServerSentEvent> server = RxNetty.createHttpServer(port,
                 new RequestHandler<ByteBuf, ServerSentEvent>() {
                     @Override
                     public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
                                                    HttpServerResponse<ServerSentEvent> response) {
                         return createReplyHandlerObservable(response);
                     }
-                }, PipelineConfigurators.<ByteBuf>sseServerConfigurator()).startAndWait();
+                }, PipelineConfigurators.<ByteBuf>sseServerConfigurator());
+        System.out.println("Started log producer on port " + port);
+        return server;
     }
 
     private Observable<Void> createReplyHandlerObservable(final HttpServerResponse<ServerSentEvent> response) {
@@ -67,26 +69,17 @@ public class LogProducer {
                         );
                         return response.writeAndFlush(data);
                     }
-                }).materialize().flatMap(new Func1<Notification<Void>, Observable<Void>>() {
-                    @Override
-                    public Observable<Void> call(Notification<Void> notification) {
-                        if (notification.isOnError()) {
-                            System.err.printf("ERROR: LogProducer %s communication failure", source);
-                            return Observable.<Void>error(notification.getThrowable());
-                        }
-                        return Observable.empty();
-                    }
                 });
     }
 
     public static void main(final String[] args) {
-        int port = 8081;
-        int interval = 100;
-        if (args.length > 1) {
-            port = Integer.valueOf(args[0]);
-            interval = Integer.valueOf(args[1]);
+        if (args.length < 2) {
+            System.err.println("ERROR: specify log producer's port number and a message sending interval");
+            return;
         }
-        new LogProducer(port, interval).startProducingServer();
+        int port = Integer.valueOf(args[0]);
+        int interval = Integer.valueOf(args[1]);
+        new LogProducer(port, interval).createServer().startAndWait();
         System.out.println("LogProducer service terminated");
     }
 

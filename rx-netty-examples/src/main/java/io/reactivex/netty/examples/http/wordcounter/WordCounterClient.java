@@ -17,7 +17,6 @@
 package io.reactivex.netty.examples.http.wordcounter;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.codec.http.HttpMethod;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -27,6 +26,7 @@ import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.RawContentSource;
 import io.reactivex.netty.serialization.ContentTransformer;
+import io.reactivex.netty.serialization.StringTransformer;
 import rx.functions.Action1;
 
 import java.io.*;
@@ -61,14 +61,6 @@ public class WordCounterClient {
         fileContentSource.close();
 
         return wAction.wordCount;
-    }
-
-    static class StringTransformer implements ContentTransformer<String> {
-        @Override
-        public ByteBuf transform(String toTransform, ByteBufAllocator byteBufAllocator) {
-            byte[] rawBytes = toTransform.getBytes();
-            return byteBufAllocator.buffer(rawBytes.length).writeBytes(rawBytes);
-        }
     }
 
     static class FileContentSource implements RawContentSource<String> {

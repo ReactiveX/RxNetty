@@ -25,6 +25,8 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import rx.Observable;
 import rx.functions.Func1;
 
+import static io.reactivex.netty.examples.tcp.interval.TcpIntervalServer.DEFAULT_PORT;
+
 /**
  * @author Nitesh Kant
  */
@@ -77,12 +79,10 @@ public final class TcpIntervalClientTakeN {
     }
 
     public static void main(String[] args) {
-        int port = 8080;
         int noOfMsg = 100;
-        if (args.length > 1) {
-            port = Integer.valueOf(args[0]);
+        if (args.length > 0) {
             noOfMsg = Integer.valueOf(args[2]);
         }
-        new TcpIntervalClientTakeN(port, noOfMsg).collectMessages();
+        new TcpIntervalClientTakeN(DEFAULT_PORT, noOfMsg).collectMessages();
     }
 }

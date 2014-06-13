@@ -26,6 +26,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import static io.reactivex.netty.examples.tcp.echo.TcpEchoServer.DEFAULT_PORT;
+
 /**
  * @author Nitesh Kant
  */
@@ -99,6 +101,6 @@ public final class TcpEchoClient {
     }
 
     public static void main(String[] args) {
-        new TcpEchoClient(8098).sendEchos();
+        new TcpEchoClient(DEFAULT_PORT).sendEchos();
     }
 }

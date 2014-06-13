@@ -19,6 +19,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.server.RxServer;
 import rx.Notification;
 import rx.Observable;
 import rx.functions.Action0;
@@ -31,20 +32,24 @@ import java.util.concurrent.TimeUnit;
  */
 public final class TcpEventStreamServer {
 
+    static final int DEFAULT_PORT = 8100;
+
     private int port;
 
     public TcpEventStreamServer(int port) {
         this.port = port;
     }
 
-    public void startServer() {
-        RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
+    public RxServer<String, String> createServer() {
+        RxServer<String, String> server = RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
                 new ConnectionHandler<String, String>() {
                     @Override
                     public Observable<Void> handle(ObservableConnection<String, String> newConnection) {
                         return startEventStream(newConnection);
                     }
-                }).startAndWait();
+                });
+        System.out.println("TCP event stream server started...");
+        return server;
     }
 
     private Observable<Void> startEventStream(final ObservableConnection<String, String> connection) {
@@ -85,10 +90,6 @@ public final class TcpEventStreamServer {
     }
 
     public static void main(String[] args) {
-        int port = 8080;
-        if(args.length > 0) {
-            port = Integer.valueOf(args[0]);
-        }
-        new TcpEventStreamServer(port).startServer();
+        new TcpEventStreamServer(DEFAULT_PORT).createServer().startAndWait();
     }
 }

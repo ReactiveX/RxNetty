@@ -16,40 +16,36 @@
 
 package io.reactivex.netty.examples.udp;
 
+import io.netty.channel.socket.DatagramPacket;
+import io.reactivex.netty.protocol.udp.server.UdpServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import static io.reactivex.netty.examples.udp.HelloUdpServer.DEFAULT_PORT;
+
 /**
  * @author Tomasz Bak
  */
 public class HelloUdpTest {
-    private static final int PORT = 8098;
 
-    private Thread server;
+    private UdpServer<DatagramPacket, DatagramPacket> server;
 
     @Before
     public void setupServer() {
-        server = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                HelloUdpServer.main(new String[]{Integer.toString(PORT)});
-            }
-        });
+        server = new HelloUdpServer(DEFAULT_PORT).createServer();
         server.start();
     }
 
     @After
-    public void stopServer() {
-        if (server != null) {
-            server.interrupt();
-        }
+    public void stopServer() throws InterruptedException {
+        server.shutdown();
     }
 
     @Test
     public void testRequestReplySequence() {
-        HelloUdpClient client = new HelloUdpClient(PORT);
+        HelloUdpClient client = new HelloUdpClient(DEFAULT_PORT);
         String reply = client.sendHello();
         Assert.assertEquals(HelloUdpServer.WELCOME_MSG, reply);
     }

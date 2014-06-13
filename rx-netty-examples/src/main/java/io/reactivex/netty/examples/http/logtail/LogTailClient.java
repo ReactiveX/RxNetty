@@ -23,38 +23,34 @@ import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
-import rx.Notification;
 import rx.Observable;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
+
+import static io.reactivex.netty.examples.http.logtail.LogsAggregator.DEFAULT_AG_PORT;
 
 /**
  * @author Tomasz Bak
  */
 public class LogTailClient {
 
-    ConcurrentLinkedQueue<LogEvent> logs = new ConcurrentLinkedQueue<LogEvent>();
+    static final int DEFAULT_TAIL_SIZE = 25;
 
     private int port;
     private final int tailSize;
-
-    private CountDownLatch doneSignal = new CountDownLatch(1);
 
     public LogTailClient(int port, int tailSize) {
         this.port = port;
         this.tailSize = tailSize;
     }
 
-    public void startCollectionProcess() {
+    public List<LogEvent> collectEventLogs() {
         HttpClient<ByteBuf, ServerSentEvent> client =
                 RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
 
-        client.submit(HttpClientRequest.createGet("/logstream")).flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
+        Iterable<LogEvent> eventIterable = client.submit(HttpClientRequest.createGet("/logstream")).flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
             @Override
             public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> response) {
                 return response.getContent();
@@ -69,52 +65,19 @@ public class LogTailClient {
             public Boolean call(LogEvent logEvent) {
                 return logEvent.getLevel() == LogEvent.LogLevel.ERROR;
             }
-        }).takeWhile(new Func1<LogEvent, Boolean>() {
-            @Override
-            public Boolean call(LogEvent serverSentEvent) {
-                if (logs.size() < tailSize) {
-                    return true;
-                }
-                doneSignal.countDown();
-                return false;
-            }
-        }).materialize().forEach(new Action1<Notification<LogEvent>>() {
-            @Override
-            public void call(Notification<LogEvent> notification) {
-                if (notification.isOnNext()) {
-                    LogEvent event = notification.getValue();
-                    logs.add(event);
-                    System.out.println("event " + logs.size() + ": " + event);
-                } else {
-                    if (notification.isOnError()) {
-                        System.err.println("ERROR: connection failure");
-                        notification.getThrowable().printStackTrace();
-                    }
-                    doneSignal.countDown();
-                }
-            }
-        });
-    }
+        }).take(tailSize).toBlocking().toIterable();
 
-    public List<LogEvent> tail() {
-        try {
-            doneSignal.await();
-        } catch (InterruptedException e) {
-            // IGNORE
+        List<LogEvent> logs = new ArrayList<LogEvent>();
+        for (LogEvent e : eventIterable) {
+            System.out.println("event " + logs.size() + ": " + e);
+            logs.add(e);
         }
-        return new ArrayList<LogEvent>(logs);
+        return logs;
     }
 
     public static void main(String[] args) {
-        int tailSize = 25;
-        int agPort = 8080;
-        if (args.length > 1) {
-            tailSize = Integer.valueOf(args[0]);
-            agPort = Integer.valueOf(args[1]);
-        }
-        LogTailClient client = new LogTailClient(agPort, tailSize);
-        client.startCollectionProcess();
-        client.tail();
-        System.out.println("LogTailClient service terminated");
+        LogTailClient client = new LogTailClient(DEFAULT_AG_PORT, DEFAULT_TAIL_SIZE);
+        List<LogEvent> logEvents = client.collectEventLogs();
+        System.out.printf("LogTailClient service collected %d entries", logEvents.size());
     }
 }
