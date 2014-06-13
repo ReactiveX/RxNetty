@@ -21,3 +21,196 @@ dependencies {
     compile project(':rx-netty')
     testCompile 'junit:junit:4.10'
 }
+
+/**
+ * Tasks to run examples.
+ */
+
+task runHelloWorldClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run Hello World client"
+
+    main = "io.reactivex.netty.examples.http.helloworld.HelloWorldClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+task runHelloWorldServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run Hello World server"
+
+    main = "io.reactivex.netty.examples.http.helloworld.HelloWorldServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runSimplePostClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run simple POST client"
+
+    main = "io.reactivex.netty.examples.http.post.SimplePostClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+task runSimplePostServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run simple POST server"
+
+    main = "io.reactivex.netty.examples.http.post.SimplePostServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runChunkClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run HTTP chunked encoding client"
+
+    main = "io.reactivex.netty.examples.http.chunk.HttpChunkClient"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("word") ) {
+        args = [word]
+    }
+}
+task runChunkServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run HTTP chunked encoding server"
+
+    main = "io.reactivex.netty.examples.http.chunk.HttpChunkServer"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("textFile") ) {
+        args = [textFile]
+    }
+}
+
+task runSseClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run Server side events client"
+
+    main = "io.reactivex.netty.examples.http.sse.HttpSseClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+task runSseServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run server side events server"
+
+    main = "io.reactivex.netty.examples.http.sse.HttpSseServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runLogTailClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run log tail client"
+
+    main = "io.reactivex.netty.examples.http.logtail.LogTailClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+task runLogTailAggregator (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run log tail aggregator"
+
+    main = "io.reactivex.netty.examples.http.logtail.LogsAggregator"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("portFrom") && project.hasProperty("portTo") ) {
+        args = [portFrom, portTo]
+    }
+}
+task runLogTailProducer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run log tail producer"
+
+    main = "io.reactivex.netty.examples.http.logtail.LogProducer"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("port") && project.hasProperty("interval") ) {
+        args = [port, interval]
+    }
+}
+
+task runWordCounterClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run word counter client"
+
+    main = "io.reactivex.netty.examples.http.wordcounter.WordCounterClient"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("textFile") ) {
+        args = [textFile]
+    }
+}
+task runWordCounterServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run server side events server"
+
+    main = "io.reactivex.netty.examples.http.wordcounter.WordCounterServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runTcpEchoClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run TCP echo client"
+
+    main = "io.reactivex.netty.examples.tcp.echo.TcpEchoClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+task runTcpEchoServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run TCP echo server"
+
+    main = "io.reactivex.netty.examples.tcp.echo.TcpEchoServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runTcpEventStreamClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run TCP event stream client"
+
+    main = "io.reactivex.netty.examples.tcp.event.TcpEventStreamClient"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("delay") && project.hasProperty("events") ) {
+        args = [delay, events]
+    }
+}
+task runTcpEventStreamServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run TCP event stream server"
+
+    main = "io.reactivex.netty.examples.tcp.event.TcpEventStreamServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runTcpIntervalClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run TCP interval client"
+
+    main = "io.reactivex.netty.examples.tcp.interval.TcpIntervalClientTakeN"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("events") ) {
+        args = [events]
+    }
+}
+task runTcpIntervalServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run TCP interval server"
+
+    main = "io.reactivex.netty.examples.tcp.interval.TcpIntervalServer"
+    classpath = sourceSets.main.runtimeClasspath
+
+    if ( project.hasProperty("interval") ) {
+        args = [interval]
+    }
+}
+
+task runUdpClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run UDP client"
+
+    main = "io.reactivex.netty.examples.udp.HelloUdpClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+task runUdpServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run UDP server"
+
+    main = "io.reactivex.netty.examples.udp.HelloUdpServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
