@@ -1,7 +1,7 @@
 Overview
 ========
 
-This is the most simplistic example demonstrating how to execute HTTP GET request with rx-netty and how
+This is the most simplistic example demonstrating how to execute HTTP GET request with RxNetty and how
 to read the response.
 
 Running

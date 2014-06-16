@@ -16,7 +16,7 @@ HTTP | [Server Side Events](src/main/java/io/reactivex/netty/examples/http/sse/R
 HTTP | [Log tail](src/main/java/io/reactivex/netty/examples/http/logtail/README.md)                  | A more sophisticated server side event example, with multiple event sources and an intermediary aggregating separate data streams.
 HTTP | [Word Counter](src/main/java/io/reactivex/netty/examples/http/wordcounter/README.md)          | More complex HTTP POST example demonstrating how to use ContentSource framework  to upload a file onto the server.
 TCP  | [Echo Server](src/main/java/io/reactivex/netty/examples/tcp/echo/README.md)                   | A simple echo client.
-TCP  | [TCP Server Side Event Stream](src/main/java/io/reactivex/netty/examples/tcp/event/README.md) | TCP server side event stream example, with configurable client side processing delay to demonstrate????
+TCP  | [TCP Server Side Event Stream](src/main/java/io/reactivex/netty/examples/tcp/event/README.md) | TCP server side event stream example, with configurable client side processing delay.
 TCP  | [Interval](src/main/java/io/reactivex/netty/examples/tcp/interval/README.md)                  | A bit more sophisticated event stream example, with explicit subscribe/unsubscribe control mechanism.
 UDP  | [Hello World](src/main/java/io/reactivex/netty/examples/udp/README.md)                        | UDP version of a simple request - reply client/server implementation.
 
@@ -56,4 +56,4 @@ and in another console:
 ```
 $ ../gradlew runHelloWorldClient
 ```
-Some of the examples require parameters. They must be passed with -P<name>=<value> option. 
+Some of the examples require parameters. They must be passed with ```-P<name>=<value>``` option. 

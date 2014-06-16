@@ -20,7 +20,7 @@ $ ../gradlew runLogTailProducer -Pport=<N+M> -Pinterval=<interval_in_ms> > logPr
 ```
 
 next log aggregator has to be started:
-4
+
 ```
 $ cd RxNetty/rx-netty-examples
 $ ../gradlew runLogTailAggregator -PportFrom=<N> -PportTo=<N+M-1>

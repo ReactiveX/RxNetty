@@ -58,7 +58,7 @@ Netty's output pipeline, and proper encoding is left to Netty. RawContentSource 
 interface that provides a transformer from the original type to Netty's ByteBuf. Thus the encoding is handled at
 RxNetty's level.
 
-The client example above shows utilizes RawContentSource interface. Predefined SingletonRawSource and StringTransformer
+The client example above utilizes RawContentSource interface. Predefined SingletonRawSource and StringTransformer
 are used to create single element RawContentSource object with a transform from String to ByteBuf.
 
 HTTP server

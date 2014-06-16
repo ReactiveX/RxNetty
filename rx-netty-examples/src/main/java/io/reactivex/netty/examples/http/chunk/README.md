@@ -24,7 +24,7 @@ $ ../gradlew runChunkClient -Pword=<word_to_count>
 HTTP client
 ===========
 
-Here is the snippet from [SimplePostClient](HttpChunkClient.java):
+Here is the snippet from [HttpChunkClient](HttpChunkClient.java):
 
 ```java
 public int filterWords(final String word) {
@@ -70,12 +70,12 @@ suitable for streamed content handling.
 
 To deal with splitting the streamed text file, a custom WordSplitOperator is created, and injected in the HTTP
 response processing workflow. WordSplitOperator is an implementation of RxJava's Observable.Operator interface.
-For more information on it look [here](https://github.com/Netflix/RxJava/wiki/Implementing-Your-Own-Operators).
+For more information on the latter look [here](https://github.com/Netflix/RxJava/wiki/Implementing-Your-Own-Operators).
 
 HTTP server
 ===========
 
-Here is the snippet from [SimplePostServer](HttpChunkServer.java):
+Here is the snippet from [HttpChunkServer](HttpChunkServer.java):
 
 ```java
 public HttpServer<ByteBuf, ByteBuf> createServer() {

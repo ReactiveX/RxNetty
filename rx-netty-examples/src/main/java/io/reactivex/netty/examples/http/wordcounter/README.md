@@ -26,7 +26,7 @@ $ ../gradlew runWordCounterClient
 HTTP client
 ===========
 
-Here is the snippet from [WordCounterClient](+.java):
+Here is the snippet from [WordCounterClient](WordCounterClient.java):
 
 ```java
 public int countWords() throws IOException {
