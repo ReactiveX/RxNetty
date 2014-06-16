@@ -104,7 +104,7 @@ public class HttpChunkClient {
                     }
                     String[] words = (lastFragment + text).split("[^\\w]{1,}");
                     int take = words.length;
-                    if (Character.isAlphabetic(text.charAt(text.length() - 1))) {
+                    if (Character.isLetter(text.charAt(text.length() - 1))) {
                         lastFragment = words[--take];
                     } else {
                         lastFragment = "";
