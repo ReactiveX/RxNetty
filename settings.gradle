@@ -1,3 +1,2 @@
 rootProject.name='RxNetty'
-include 'rx-netty', 'rx-netty-remote-observable', 'rx-netty-contexts'
-
+include 'rx-netty', 'rx-netty-remote-observable', 'rx-netty-contexts', 'rx-netty-examples'

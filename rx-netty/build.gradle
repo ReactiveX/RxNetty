@@ -20,42 +20,16 @@ targetCompatibility = JavaVersion.VERSION_1_6
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// make 'examples' use the same classpath
-configurations {
-    // add new configuration
-    examples
-
-    //adding a configuration that extends existing configuration:
-    //(testCompile was added by the java plugin)
-    examples.extendsFrom(compile)
-    examplesCompile.extendsFrom(compile)
-    examplesRuntime.extendsFrom runtime
-}
-
 sourceSets.test.java.srcDir 'src/main/java'
 
 tasks.withType(Javadoc).each {
     it.classpath = sourceSets.main.compileClasspath
 }
 
-//include /src/examples folder
-sourceSets {
-    examples {
-        // no idea why this is needed
-        java.srcDirs = []
-    }
-}
-
-//include 'examples' in build task
-tasks.build { dependsOn(examplesClasses) }
-
 dependencies {
     compile "io.netty:netty-codec-http:${netty_version}"
     compile "com.netflix.rxjava:rxjava-core:${rxjava_version}"
-    // we only support Groovy in the /src/examples/ code
-    examples 'org.codehaus.groovy:groovy-all:[2.1,)'
 
-    examplesRuntime 'com.netflix.rxjava:rxjava-groovy:[0.17,)'
     testCompile 'junit:junit:4.10'
 }
 
@@ -63,7 +37,6 @@ eclipse {
     classpath {
         // include 'provided' dependencies on the classpath
         plusConfigurations += configurations.provided
-        plusConfigurations += configurations.examples
 
         downloadSources = true
         downloadJavadoc = true
@@ -75,14 +48,7 @@ idea {
         // include 'provided' dependencies on the classpath
         scopes.PROVIDED.plus += configurations.provided
         scopes.PROVIDED.plus += configurations.provided
-        scopes.COMPILE.plus += configurations.examples
-        scopes.RUNTIME.plus += configurations.examplesRuntime
     }
-}
-
-
-tasks.compileExamplesGroovy {
-    classpath = classpath + files(compileGroovy.destinationDir) + (configurations.compile + configurations.examples)
 }
 
 jar {
