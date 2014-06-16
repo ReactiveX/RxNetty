@@ -23,8 +23,6 @@ import rx.Observable;
 import rx.Subscriber;
 import rx.subjects.PublishSubject;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 /**
  * An observable connection for connection oriented protocols.
  *
@@ -33,10 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
-    protected static final Observable<Void> CONNECTION_ALREADY_CLOSED =
-            Observable.error(new IllegalStateException("Connection is already closed."));
     private PublishSubject<I> inputSubject;
-    protected final AtomicBoolean closeIssued = new AtomicBoolean();
 
     public ObservableConnection(final ChannelHandlerContext ctx) {
         super(ctx);
@@ -48,29 +43,28 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         return inputSubject;
     }
 
-    public boolean isCloseIssued() {
-        return closeIssued.get();
-    }
 
     /**
      * Closes this connection. This method is idempotent, so it can be called multiple times without any side-effect on
      * the channel. <br/>
      * This will also cancel any pending writes on the underlying channel. <br/>
      *
-     * @return Observable signifying the close on the connection. Returns {@link Observable#error(Throwable)} if the
+     * @return Observable signifying the close on the connection. Returns {@link rx.Observable#error(Throwable)} if the
      * close is already issued (may not be completed)
      */
+    @Override
     public Observable<Void> close() {
-        if (closeIssued.compareAndSet(false, true)) {
-            PublishSubject<I> thisSubject = inputSubject;
-            cleanupConnection();
-            Observable<Void> toReturn = _closeChannel();
-            thisSubject.onCompleted(); // This is just to make sure we make the subject as completed after we finish
-                                       // closing the channel, results in more deterministic behavior for clients.
-            return toReturn;
-        } else {
-            return CONNECTION_ALREADY_CLOSED;
-        }
+        return super.close();
+    }
+
+    @Override
+    protected Observable<Void> _close() {
+        PublishSubject<I> thisSubject = inputSubject;
+        cleanupConnection();
+        Observable<Void> toReturn = _closeChannel();
+        thisSubject.onCompleted(); // This is just to make sure we make the subject as completed after we finish
+        // closing the channel, results in more deterministic behavior for clients.
+        return toReturn;
     }
 
     protected void cleanupConnection() {
