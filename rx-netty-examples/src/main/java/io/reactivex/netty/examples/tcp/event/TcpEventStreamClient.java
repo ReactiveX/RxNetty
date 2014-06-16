@@ -47,13 +47,7 @@ public final class TcpEventStreamClient {
                 return connection.getInput().map(new Func1<String, String>() {
                     @Override
                     public String call(String msg) {
-                        if (delay > 0) {
-                            try {
-                                Thread.sleep(delay);
-                            } catch (InterruptedException e) {
-                                e.printStackTrace();
-                            }
-                        }
+                        delayProcessing();
                         return msg.trim();
                     }
                 });
@@ -66,6 +60,16 @@ public final class TcpEventStreamClient {
             count++;
         }
         return count;
+    }
+
+    private void delayProcessing() {
+        if (delay > 0) {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     public static void main(String[] args) {

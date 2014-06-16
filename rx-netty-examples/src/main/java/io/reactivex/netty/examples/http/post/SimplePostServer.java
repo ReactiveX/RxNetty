@@ -57,7 +57,8 @@ public class SimplePostServer {
                 }).flatMap(new Func1<String, Observable<Void>>() {
                     @Override
                     public Observable<Void> call(String clientMessage) {
-                        return response.writeStringAndFlush(clientMessage.toUpperCase());
+                        response.writeString(clientMessage.toUpperCase());
+                        return response.close();
                     }
                 });
             }

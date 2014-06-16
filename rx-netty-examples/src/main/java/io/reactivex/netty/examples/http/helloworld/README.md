@@ -1,9 +1,25 @@
-Purpose
-=======
+Overview
+========
 
 This is the most simplistic example demonstrating how to execute HTTP GET request with rx-netty and how
 to read the response.
 
+Running
+=======
+
+To run the example execute:
+
+```
+$ cd RxNetty/rx-netty-examples
+$ ../gradlew runHelloWorldServer
+```
+
+and in another console:
+
+```
+$ cd RxNetty/rx-netty-examples
+$ ../gradlew runHelloWorldClient
+```
 
 HTTP client
 ===========
@@ -68,12 +84,8 @@ public HttpServer<ByteBuf, ByteBuf> createServer() {
         @Override
         public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
             printRequestHeader(request);
-            return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
-                @Override
-                public Observable<Void> call(ByteBuf byteBuf) {
-                    return response.writeStringAndFlush("Welcome!!");
-                }
-            });
+            response.writeString("Welcome!!");
+            return response.close();
         }
     }).pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>httpServerConfigurator()).build();
 

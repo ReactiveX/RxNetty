@@ -28,10 +28,8 @@ import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
-import rx.Notification;
 import rx.Observable;
 import rx.exceptions.OnErrorThrowable;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
 import java.util.ArrayList;
@@ -40,7 +38,7 @@ import java.util.List;
 /**
  * @author Tomasz Bak
  */
-public class LogsAggregator {
+public class LogAggregator {
 
     static final int DEFAULT_AG_PORT = 8091;
 
@@ -49,7 +47,7 @@ public class LogsAggregator {
     private int producerPortTo;
     HttpServer<ByteBuf, ServerSentEvent> server;
 
-    public LogsAggregator(int port, int producerPortFrom, int producerPortTo) {
+    public LogAggregator(int port, int producerPortFrom, int producerPortTo) {
         this.port = port;
         this.producerPortFrom = producerPortFrom;
         this.producerPortTo = producerPortTo;
@@ -108,7 +106,7 @@ public class LogsAggregator {
         }
         int producerPortFrom = Integer.valueOf(args[0]);
         int producerPortTo = Integer.valueOf(args[1]);
-        LogsAggregator aggregator = new LogsAggregator(DEFAULT_AG_PORT, producerPortFrom, producerPortTo);
+        LogAggregator aggregator = new LogAggregator(DEFAULT_AG_PORT, producerPortFrom, producerPortTo);
         aggregator.createAggregationServer().startAndWait();
         System.out.println("Aggregator service terminated");
     }

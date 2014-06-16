@@ -23,7 +23,6 @@ import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import rx.Observable;
-import rx.functions.Func1;
 
 import java.util.Map;
 
@@ -45,12 +44,8 @@ public final class HelloWorldServer {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 printRequestHeader(request);
-                return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
-                    @Override
-                    public Observable<Void> call(ByteBuf byteBuf) {
-                        return response.writeStringAndFlush("Welcome!!");
-                    }
-                });
+                response.writeString("Welcome!!");
+                return response.close();
             }
         }).pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>httpServerConfigurator()).build();
 

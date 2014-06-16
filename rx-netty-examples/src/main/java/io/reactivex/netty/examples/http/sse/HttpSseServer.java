@@ -60,14 +60,13 @@ public final class HttpSseServer {
 
     private Observable<Void> getIntervalObservable(final HttpServerResponse<ServerSentEvent> response) {
         return Observable.interval(interval, TimeUnit.MILLISECONDS)
-                .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
+                .flatMap(new Func1<Long, Observable<Void>>() {
                     @Override
-                    public Observable<Notification<Void>> call(Long interval) {
+                    public Observable<Void> call(Long interval) {
                         System.out.println("Writing SSE event for interval: " + interval);
-                        return response.writeAndFlush(new ServerSentEvent("1", "data: ", String.valueOf(
-                                interval))).materialize();
+                        return response.writeAndFlush(new ServerSentEvent("1", "data: ", String.valueOf(interval)));
                     }
-                })
+                }).materialize()
                 .takeWhile(new Func1<Notification<Void>, Boolean>() {
                     @Override
                     public Boolean call(Notification<Void> notification) {

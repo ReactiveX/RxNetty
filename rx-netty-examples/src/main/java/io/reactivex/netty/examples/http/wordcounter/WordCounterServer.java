@@ -22,12 +22,11 @@ import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import rx.Notification;
 import rx.Observable;
+import rx.Subscriber;
 import rx.functions.Func1;
 
 import java.nio.charset.Charset;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Tomasz Bak
@@ -44,33 +43,69 @@ public final class WordCounterServer {
 
     public HttpServer<ByteBuf, ByteBuf> createServer() {
         HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
-            public AtomicInteger counter = new AtomicInteger();
-
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-                return request.getContent().materialize()
-                        .flatMap(new Func1<Notification<ByteBuf>, Observable<Void>>() {
+                return request.getContent()
+                        .map(new Func1<ByteBuf, String>() {
                             @Override
-                            public Observable<Void> call(Notification<ByteBuf> notification) {
-                                if (notification.isOnCompleted()) {
-                                    return response.writeStringAndFlush(counter.toString());
-                                } else if (notification.isOnError()) {
-                                    return Observable.error(notification.getThrowable());
-                                } else {
-                                    countWords(notification.getValue());
-                                    return Observable.empty();
-                                }
+                            public String call(ByteBuf content) {
+                                return content.toString(Charset.defaultCharset());
                             }
-
-                            private void countWords(ByteBuf byteBuf) {
-                                String text = byteBuf.toString(Charset.defaultCharset());
-                                counter.addAndGet(text.split("\\s{1,}").length);
+                        })
+                        .lift(new WordSplitOperator())
+                        .count()
+                        .flatMap(new Func1<Integer, Observable<Void>>() {
+                            @Override
+                            public Observable<Void> call(Integer counter) {
+                                response.writeString(counter.toString());
+                                return response.close();
                             }
                         });
             }
         });
         System.out.println("Started word counter server...");
         return server;
+    }
+
+    static class WordSplitOperator implements Observable.Operator<String, String> {
+
+        private String lastFragment = "";
+
+        @Override
+        public Subscriber<? super String> call(final Subscriber<? super String> child) {
+            return new Subscriber<String>() {
+
+                @Override
+                public void onCompleted() {
+                    if (lastFragment.length() > 0) {
+                        child.onNext(lastFragment);
+                    }
+                    child.onCompleted();
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    child.onError(e);
+                }
+
+                @Override
+                public void onNext(String text) {
+                    if (text.length() == 0) {
+                        return;
+                    }
+                    String[] words = (lastFragment + text).split("[^\\w]{1,}");
+                    int take = words.length;
+                    if (Character.isAlphabetic(text.charAt(text.length() - 1))) {
+                        lastFragment = words[--take];
+                    } else {
+                        lastFragment = "";
+                    }
+                    for (int i = 0; i < take; i++) {
+                        child.onNext(words[i]);
+                    }
+                }
+            };
+        }
     }
 
     public static void main(final String[] args) {

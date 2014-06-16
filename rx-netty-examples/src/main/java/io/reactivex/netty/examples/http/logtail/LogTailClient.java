@@ -30,7 +30,7 @@ import rx.functions.Func1;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.reactivex.netty.examples.http.logtail.LogsAggregator.DEFAULT_AG_PORT;
+import static io.reactivex.netty.examples.http.logtail.LogAggregator.DEFAULT_AG_PORT;
 
 /**
  * @author Tomasz Bak

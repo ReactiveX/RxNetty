@@ -53,16 +53,13 @@ public class HttpChunkServer {
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 try {
                     final Reader fileReader = new BufferedReader(new FileReader(textFile));
-                    return createReaderObserver(response, fileReader).finallyDo(new Action0() {
-                        @Override
-                        public void call() {
-                            try {
-                                fileReader.close();
-                            } catch (IOException e) {
-                                // IGNORE
-                            }
-                        }
-                    });
+                    return createFileObservable(fileReader)
+                            .flatMap(new Func1<String, Observable<Void>>() {
+                                @Override
+                                public Observable<Void> call(String text) {
+                                    return response.writeStringAndFlush(text);
+                                }
+                            }).finallyDo(new ReaderCloseAction(fileReader));
                 } catch (IOException e) {
                     return Observable.error(e);
                 }
@@ -72,8 +69,8 @@ public class HttpChunkServer {
         return server;
     }
 
-    private Observable<Void> createReaderObserver(final HttpServerResponse<ByteBuf> response, final Reader reader) throws IOException {
-        Iterable<String> fileIterable = new Iterable<String>() {
+    private Observable<String> createFileObservable(final Reader reader) {
+        Iterable<String> iterable = new Iterable<String>() {
             private char[] charBuf = new char[16];
 
             private int lastCount = 0;
@@ -109,13 +106,27 @@ public class HttpChunkServer {
                 };
             }
         };
-        return Observable.from(fileIterable).flatMap(new Func1<String, Observable<Void>>() {
-            @Override
-            public Observable<Void> call(String text) {
-                return response.writeStringAndFlush(text);
-            }
-        });
+        return Observable.from(iterable);
     }
+
+    static class ReaderCloseAction implements Action0 {
+        private Reader fileReader;
+
+        ReaderCloseAction(Reader fileReader) {
+            this.fileReader = fileReader;
+        }
+
+        @Override
+        public void call() {
+            try {
+                fileReader.close();
+            } catch (IOException e) {
+                // IGNORE
+            }
+        }
+    }
+
+    ;
 
     public static void main(String[] args) {
         if (args.length < 1) {

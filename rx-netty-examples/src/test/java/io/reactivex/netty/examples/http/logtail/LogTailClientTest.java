@@ -28,7 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static io.reactivex.netty.examples.http.logtail.LogTailClient.DEFAULT_TAIL_SIZE;
-import static io.reactivex.netty.examples.http.logtail.LogsAggregator.DEFAULT_AG_PORT;
+import static io.reactivex.netty.examples.http.logtail.LogAggregator.DEFAULT_AG_PORT;
 
 /**
  * @author Tomasz Bak
@@ -57,7 +57,7 @@ public class LogTailClientTest {
     }
 
     private void startAggregator() {
-        aggregationServer = new LogsAggregator(DEFAULT_AG_PORT, PR_FROM_PORT, PR_TO_PORT).createAggregationServer();
+        aggregationServer = new LogAggregator(DEFAULT_AG_PORT, PR_FROM_PORT, PR_TO_PORT).createAggregationServer();
         aggregationServer.start();
     }
 

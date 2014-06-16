@@ -57,7 +57,7 @@ public class WordCounterClient {
         FileContentSource fileContentSource = new FileContentSource(new File(textFile));
         request.withRawContentSource(fileContentSource);
 
-        WordAction wAction = new WordAction();
+        WordCountAction wAction = new WordCountAction();
         client.submit(request).toBlocking().forEach(wAction);
 
         fileContentSource.close();
@@ -113,7 +113,7 @@ public class WordCounterClient {
         }
     }
 
-    static class WordAction implements Action1<HttpClientResponse<ByteBuf>> {
+    static class WordCountAction implements Action1<HttpClientResponse<ByteBuf>> {
         public volatile int wordCount;
 
         @Override
