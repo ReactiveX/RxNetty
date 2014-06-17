@@ -17,11 +17,14 @@ package io.reactivex.netty.client;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.reactivex.netty.channel.ObservableConnection;
+import rx.functions.Action0;
 
 public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
 
-    private ObservableConnection<I,O> connection;
+    private ObservableConnection<I, O> connection;
+    private Action0 connectionSetupAction;
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
@@ -36,6 +39,18 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
             connection.close();
         } else {
             connection = newConnection;
+        }
+    }
+
+    void setConnectionAction(Action0 connectionSetupAction) {
+        this.connectionSetupAction = connectionSetupAction;
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        super.userEventTriggered(ctx, evt);
+        if (null != connectionSetupAction && evt instanceof SslHandshakeCompletionEvent) {
+            connectionSetupAction.call();
         }
     }
 }

@@ -17,6 +17,8 @@ package io.reactivex.netty.server;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
@@ -47,12 +49,29 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if(null == ctx.channel().pipeline().get(SslHandler.class)) {
+            connection = connectionFactory.newConnection(ctx);
 
-        connection = connectionFactory.newConnection(ctx);
+            super.channelActive(ctx); // Called before connection handler call to finish the pipeline before the connection
+                                      // is handled.
 
-        super.channelActive(ctx); // Called before connection handler call to finish the pipeline before the connection
-                                  // is handled.
+            handleConnection();
+        } else {
+            super.channelActive(ctx);
+        }
+    }
 
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        super.userEventTriggered(ctx, evt);
+        if (evt instanceof SslHandshakeCompletionEvent) {
+            connection = connectionFactory.newConnection(ctx.pipeline().lastContext());
+            super.userEventTriggered(ctx, evt);
+            handleConnection();
+        }
+    }
+
+    private void handleConnection() {
         Observable<Void> handledObservable;
         try {
             handledObservable = connectionHandler.handle(connection);

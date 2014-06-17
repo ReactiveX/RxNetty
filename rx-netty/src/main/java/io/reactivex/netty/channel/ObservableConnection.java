@@ -36,7 +36,8 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     public ObservableConnection(final ChannelHandlerContext ctx) {
         super(ctx);
         inputSubject = PublishSubject.create();
-        ctx.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
+        ChannelHandlerContext firstContext = ctx.pipeline().firstContext();
+        firstContext.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
     }
 
     public Observable<I> getInput() {

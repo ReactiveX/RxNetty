@@ -25,6 +25,7 @@ import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClient;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 import io.reactivex.netty.protocol.http.client.ContentSource;
@@ -97,6 +98,14 @@ public final class RxNetty {
         return newTcpServerBuilder(port, connectionHandler).pipelineConfigurator(pipelineConfigurator).build();
     }
 
+    public static <I, O> RxServer<I, O> createSslInsecureTcpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
+                                                        ConnectionHandler<I, O> connectionHandler) {
+        return newTcpServerBuilder(port, connectionHandler)
+                .pipelineConfigurator((PipelineConfigurator<I, O>) PipelineConfigurators.sslInsecureServerConfigurator())
+                .appendPipelineConfigurator(pipelineConfigurator)
+                .build();
+    }
+
     public static <I, O> ClientBuilder<I, O> newTcpClientBuilder(String host, int port) {
         return new ClientBuilder<I, O>(host, port).enableWireLogging(LogLevel.DEBUG);
     }
@@ -105,13 +114,46 @@ public final class RxNetty {
         return RxNetty.<I, O>newTcpClientBuilder(host, port).pipelineConfigurator(configurator).build();
     }
 
+    public static <I, O> RxClient<I, O> createSslInsecureTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
+        return RxNetty.<I,O>newTcpClientBuilder(host, port)
+                .pipelineConfigurator((PipelineConfigurator<O, I>) PipelineConfigurators.sslInsecureClientConfigurator())
+                .appendPipelineConfigurator(configurator)
+                .build();
+    }
+
+    public static <I, O> RxClient<I, O> createSslTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
+        return RxNetty.<I,O>newTcpClientBuilder(host, port)
+                .pipelineConfigurator((PipelineConfigurator<O, I>) PipelineConfigurators.sslClientConfigurator())
+                .appendPipelineConfigurator(configurator)
+                .build();
+    }
+
     public static RxServer<ByteBuf, ByteBuf> createTcpServer(final int port,
                                                              ConnectionHandler<ByteBuf, ByteBuf> connectionHandler) {
         return new ServerBuilder<ByteBuf, ByteBuf>(port, connectionHandler).build();
     }
 
+    public static RxServer<ByteBuf, ByteBuf> createSslInsecureTcpServer(final int port,
+                                                                        ConnectionHandler<ByteBuf, ByteBuf> connectionHandler) {
+        return newTcpServerBuilder(port, connectionHandler)
+                .pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>sslInsecureServerConfigurator())
+                .build();
+    }
+
     public static RxClient<ByteBuf, ByteBuf> createTcpClient(String host, int port) {
         return RxNetty.<ByteBuf, ByteBuf>newTcpClientBuilder(host, port).build();
+    }
+
+    public static RxClient<ByteBuf, ByteBuf> createSslInsecureTcpClient(String host, int port) {
+        return RxNetty.<ByteBuf, ByteBuf>newTcpClientBuilder(host, port)
+                .pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>sslInsecureClientConfigurator())
+                .build();
+    }
+
+    public static RxClient<ByteBuf, ByteBuf> createSslTcpClient(String host, int port) {
+        return RxNetty.<ByteBuf, ByteBuf>newTcpClientBuilder(host, port)
+                .pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>sslClientConfigurator())
+                .build();
     }
 
     public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler) {
@@ -127,8 +169,26 @@ public final class RxNetty {
         return newHttpServerBuilder(port, requestHandler).build();
     }
 
+    public static HttpServer<ByteBuf, ByteBuf> createSslInsecureHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
+        return newHttpServerBuilder(port, requestHandler)
+                .appendPipelineConfigurator(PipelineConfigurators.<HttpServerRequest<ByteBuf>, HttpServerResponse<ByteBuf>>sslInsecureServerConfigurator())
+                .build();
+    }
+
     public static HttpClient<ByteBuf, ByteBuf> createHttpClient(String host, int port) {
         return RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder(host, port).build();
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> createSslInsecureHttpClient(String host, int port) {
+        return RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder(host, port)
+                .appendPipelineConfigurator(PipelineConfigurators.<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>>sslInsecureClientConfigurator())
+                .build();
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> createSslHttpClient(String host, int port) {
+        return RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder(host, port)
+                .appendPipelineConfigurator(PipelineConfigurators.<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>>sslClientConfigurator())
+                .build();
     }
 
     public static <I, O> HttpServer<I, O> createHttpServer(int port,
