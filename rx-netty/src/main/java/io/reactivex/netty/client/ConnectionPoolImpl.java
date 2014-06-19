@@ -44,7 +44,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     public static final PoolExhaustedException POOL_EXHAUSTED_EXCEPTION = new PoolExhaustedException("Rx Connection Pool exhausted.");
 
-    private final PoolStatsProvider statsProvider;
+    @SuppressWarnings("deprecation") private final PoolStatsProvider statsProvider;
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
     private final ClientChannelFactory<I, O> channelFactory;
     private final ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory;
@@ -67,11 +67,11 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
      */
     public ConnectionPoolImpl(RxClient.ServerInfo serverInfo, PoolConfig poolConfig,
                               PoolLimitDeterminationStrategy strategy, ScheduledExecutorService cleanupScheduler,
-                              PoolStatsProvider poolStatsProvider,
+                              @SuppressWarnings("deprecation") PoolStatsProvider poolStatsProvider,
                               ClientChannelFactory<I, O> channelFactory,
                               MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this(serverInfo, poolConfig, strategy, cleanupScheduler, poolStatsProvider,
-             new PooledConnectionFactory<I, O>(poolConfig), channelFactory, eventsSubject);
+             new PooledConnectionFactory<I, O>(poolConfig, eventsSubject), channelFactory, eventsSubject);
     }
 
     /**
@@ -85,7 +85,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
      */
     public ConnectionPoolImpl(RxClient.ServerInfo serverInfo, PoolConfig poolConfig,
                               PoolLimitDeterminationStrategy strategy, ScheduledExecutorService cleanupScheduler,
-                              PoolStatsProvider poolStatsProvider,
+                              @SuppressWarnings("deprecation") PoolStatsProvider poolStatsProvider,
                               ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory,
                               ClientChannelFactory<I, O> channelFactory,
                               MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
@@ -124,7 +124,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         return Observable.create(new Observable.OnSubscribe<ObservableConnection<I, O>>() {
             @Override
             public void call(final Subscriber<? super ObservableConnection<I, O>> subscriber) {
-                Clock clock = new Clock();
+                long startTimeMillis = Clock.newStartTimeMillis();
                 try {
                     metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_START);
                     PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
@@ -132,10 +132,10 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                     if (null != idleConnection) { // Found a usable connection
                         idleConnection.beforeReuse();
                         channelFactory.onNewConnection(idleConnection, subscriber);
-                        clock.stop();
-                        metricEventsSubject.onEvent(ClientMetricsEvent.POOLED_CONNECTION_REUSE, clock.getDurationInMillis());
-                        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS, clock.getDurationInMillis());
-                    } else if (limitDeterminationStrategy.acquireCreationPermit(clock.getStartTimeMillis(),
+                        long endTime = Clock.onEndMillis(startTimeMillis);
+                        metricEventsSubject.onEvent(ClientMetricsEvent.POOLED_CONNECTION_REUSE, endTime);
+                        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS, endTime);
+                    } else if (limitDeterminationStrategy.acquireCreationPermit(startTimeMillis,
                                                                                 TimeUnit.MILLISECONDS)) { // Check if it is allowed to create another connection.
                         /**
                          * Here we want to make sure that if the connection attempt failed, we should inform the strategy.
@@ -143,19 +143,20 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                          * ALWAYS use this new subscriber instead of the original subscriber to send any callbacks.
                          */
                         Subscriber<? super ObservableConnection<I, O>> newConnectionSubscriber =
-                                newConnectionSubscriber(subscriber, clock);
+                                newConnectionSubscriber(subscriber, startTimeMillis);
                         try {
                             channelFactory.connect(newConnectionSubscriber, serverInfo, connectionFactory); // Manages the callbacks to the subscriber
                         } catch (Throwable throwable) {
                             newConnectionSubscriber.onError(throwable);
                         }
                     } else { // Pool Exhausted
-                        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED, clock.stop(),
-                                                    POOL_EXHAUSTED_EXCEPTION);
+                        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
+                                                    Clock.onEndMillis(startTimeMillis), POOL_EXHAUSTED_EXCEPTION);
                         subscriber.onError(POOL_EXHAUSTED_EXCEPTION);
                     }
                 } catch (Throwable throwable) {
-                    metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED, clock.stop(), throwable);
+                    metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
+                                                Clock.onEndMillis(startTimeMillis), throwable);
                     subscriber.onError(throwable);
                 }
             }
@@ -172,21 +173,21 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             return Observable.error(new IllegalArgumentException("Returned a null connection to the pool."));
         }
 
-        Clock clock = new Clock();
+        long startTimeMillis = Clock.newStartTimeMillis();
 
         try {
             metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_START);
             if (isShutdown.get() || !connection.isUsable()) {
                 discardConnection(connection);
-                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, clock.stop());
+                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(startTimeMillis));
                 return Observable.empty();
             } else {
                 idleConnections.add(connection);
-                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, clock.stop());
+                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(startTimeMillis));
                 return Observable.empty();
             }
         } catch (Throwable throwable) {
-            metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_FAILED, clock.stop());
+            metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_FAILED, Clock.onEndMillis(startTimeMillis));
             return Observable.error(throwable);
         }
     }
@@ -216,6 +217,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     @Override
+    @Deprecated
     public PoolStats getStats() {
         return statsProvider.getStats();
     }
@@ -259,12 +261,12 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     private Subscriber<? super ObservableConnection<I, O>> newConnectionSubscriber(
-            final Subscriber<? super ObservableConnection<I, O>> subscriber, final Clock clock) {
+            final Subscriber<? super ObservableConnection<I, O>> subscriber, final long startTime) {
         return Subscribers.create(new Action1<ObservableConnection<I, O>>() {
                                       @Override
                                       public void call(ObservableConnection<I, O> connection) {
                                           metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS,
-                                                                      clock.stop());
+                                                                      Clock.onEndMillis(startTime));
                                           ((PooledConnection<I, O>) connection).setConnectionPool(
                                                   ConnectionPoolImpl.this);
                                           subscriber.onNext(connection);
@@ -274,7 +276,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                                       @Override
                                       public void call(Throwable throwable) {
                                           metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
-                                                                      clock.stop(), throwable);
+                                                                      Clock.onEndMillis(startTime), throwable);
                                           subscriber.onError(throwable);
                                       }
                                   }

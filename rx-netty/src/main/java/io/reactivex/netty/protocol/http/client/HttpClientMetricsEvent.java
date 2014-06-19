@@ -39,6 +39,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
         ResponseHeadersReceived(true, false, Void.class),
         ResponseContentReceived(true, false, Void.class),
         ResponseReceiveComplete(true, false, Void.class),
+        ResponseFailed(true, true, Void.class),
         ;
 
         private final boolean isTimed;
@@ -79,6 +80,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
     public static final HttpClientMetricsEvent<EventType> RESPONSE_HEADER_RECEIVED = from(EventType.ResponseHeadersReceived);
     public static final HttpClientMetricsEvent<EventType> RESPONSE_CONTENT_RECEIVED = from(EventType.ResponseContentReceived);
     public static final HttpClientMetricsEvent<EventType> RESPONSE_RECEIVE_COMPLETE = from(EventType.ResponseReceiveComplete);
+    public static final HttpClientMetricsEvent<EventType> RESPONSE_FAILED = from(EventType.ResponseFailed);
 
     public enum HttpEventType {
 

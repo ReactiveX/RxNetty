@@ -18,7 +18,9 @@ package io.reactivex.netty.servo.tcp;
 import com.netflix.servo.monitor.Counter;
 import com.netflix.servo.monitor.LongGauge;
 import com.netflix.servo.monitor.Timer;
+import io.reactivex.netty.metrics.ServerMetricEventsListener;
 import io.reactivex.netty.server.ServerMetricsEvent;
+import io.reactivex.netty.servo.RefCountingMonitor;
 
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +33,7 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
 /**
  * @author Nitesh Kant
  */
-public class TcpServerListener extends AbstractShareableListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> {
+public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMetricEventsListener<T> {
 
     private final LongGauge liveConnections;
     private final LongGauge inflightConnections;
@@ -47,9 +49,10 @@ public class TcpServerListener extends AbstractShareableListener<ServerMetricsEv
     private final Counter failedWrites;
     private final Counter failedFlushes;
     private final Timer flushTimes;
+    private final RefCountingMonitor refCounter;
 
     protected TcpServerListener(String monitorId) {
-        super(monitorId);
+        refCounter = new RefCountingMonitor(monitorId);
         liveConnections = newLongGauge("liveConnections");
         inflightConnections = newLongGauge("inflightConnections");
         failedConnections = newCounter("failedConnections");
@@ -67,53 +70,106 @@ public class TcpServerListener extends AbstractShareableListener<ServerMetricsEv
     }
 
     @Override
-    public void onEvent(ServerMetricsEvent<ServerMetricsEvent.EventType> event, long duration, TimeUnit timeUnit,
-                        Throwable throwable, Object value) {
-        switch (event.getType()) {
+    public void onEvent(T event, long duration, TimeUnit timeUnit, Throwable throwable, Object value) {
+        switch ((ServerMetricsEvent.EventType)event.getType()) {
             case NewClientConnected:
-                incrementLongGauge(liveConnections);
                 break;
             case ConnectionHandlingStart:
-                incrementLongGauge(inflightConnections);
                 break;
             case ConnectionHandlingSuccess:
-                decrementLongGauge(inflightConnections);
-                connectionProcessingTimes.record(duration, timeUnit);
                 break;
             case ConnectionHandlingFailed:
-                decrementLongGauge(inflightConnections);
-                failedConnections.increment();
                 break;
             case WriteStart:
-                incrementLongGauge(pendingWrites);
                 break;
             case WriteSuccess:
-                decrementLongGauge(pendingWrites);
-                bytesWritten.increment(((Number)value).longValue());
-                writeTimes.record(duration, timeUnit);
                 break;
             case WriteFailed:
-                decrementLongGauge(pendingWrites);
-                failedWrites.increment();
                 break;
             case FlushStart:
-                incrementLongGauge(pendingFlushes);
                 break;
             case FlushSuccess:
-                decrementLongGauge(pendingFlushes);
-                flushTimes.record(duration, timeUnit);
                 break;
             case FlushFailed:
-                decrementLongGauge(pendingFlushes);
-                failedFlushes.increment();
                 break;
             case BytesRead:
-                bytesRead.increment(((Number)value).longValue());
                 break;
         }
     }
 
-    public static TcpServerListener newListener(String monitorId) {
-        return new TcpServerListener(monitorId);
+    @Override
+    protected void onConnectionHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(inflightConnections);
+        failedConnections.increment();
+    }
+
+    @Override
+    protected void onConnectionHandlingSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(inflightConnections);
+        connectionProcessingTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onConnectionHandlingStart(long duration, TimeUnit timeUnit) {
+        incrementLongGauge(inflightConnections);
+    }
+
+    @Override
+    protected void onNewClientConnected() {
+        incrementLongGauge(liveConnections);
+    }
+
+    @Override
+    protected void onByteRead(long bytesRead) {
+        this.bytesRead.increment(bytesRead);
+    }
+
+    @Override
+    protected void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingFlushes);
+        failedFlushes.increment();
+    }
+
+    @Override
+    protected void onFlushSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(pendingFlushes);
+        flushTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onFlushStart() {
+        incrementLongGauge(pendingFlushes);
+    }
+
+    @Override
+    protected void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingWrites);
+        failedWrites.increment();
+    }
+
+    @Override
+    protected void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+        decrementLongGauge(pendingWrites);
+        this.bytesWritten.increment(bytesWritten);
+        writeTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onWriteStart() {
+        incrementLongGauge(pendingWrites);
+    }
+
+    public static TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> newListener(String monitorId) {
+        return new TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>>(monitorId);
+    }
+
+    @Override
+    public void onCompleted() {
+        refCounter.onCompleted();
+    }
+
+    @Override
+    public void onSubscribe() {
+        refCounter.onSubscribe();
     }
 }

@@ -21,8 +21,10 @@ import io.reactivex.netty.metrics.MetricEventsListener;
  * A provider for {@link PoolStats} for a pool which also listens for {@link ClientMetricsEvent}s
  * as that is the only way to update stats.
  *
+ * @deprecated Use {@link MetricEventsListener} to get the stats.
  * @author Nitesh Kant
  */
+@Deprecated
 public interface PoolStatsProvider extends MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> {
 
     PoolStats getStats();

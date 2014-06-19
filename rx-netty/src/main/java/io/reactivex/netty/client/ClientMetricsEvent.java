@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.client;
 
+import io.reactivex.netty.metrics.AbstractMetricsEvent;
+
 /**
  * @author Nitesh Kant
  */

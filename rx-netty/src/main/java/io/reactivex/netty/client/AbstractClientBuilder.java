@@ -61,6 +61,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
                                     ClientChannelFactory<O, I> factory) {
         eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory.useMetricEventsSubject(eventsSubject);
+        connectionFactory.useMetricEventsSubject(eventsSubject);
         this.bootstrap = bootstrap;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
         clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
@@ -146,6 +147,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    @Deprecated
     public B withPoolStatsProvider(PoolStatsProvider statsProvider) {
         getPoolBuilder(true).withPoolStatsProvider(statsProvider);
         return returnBuilder();

@@ -57,8 +57,8 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         serverStateRef = new AtomicReference<ServerState>(ServerState.Created);
         this.bootstrap = bootstrap;
         this.port = port;
-        connectionFactory = new UnpooledConnectionFactory<I, O>();
         eventsSubject = new MetricEventsSubject<ServerMetricsEvent<?>>();
+        connectionFactory = UnpooledConnectionFactory.from(eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
     }
 
     public void startAndWait() {

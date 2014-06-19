@@ -21,8 +21,10 @@ import org.junit.Test;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
+ * @deprecated Use {@link io.reactivex.netty.metrics.MetricEventsListener} to get the stats.
  * @author Nitesh Kant
  */
+@Deprecated
 public class CompositeStatsTest {
 
     @Test

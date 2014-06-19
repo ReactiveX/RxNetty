@@ -24,6 +24,11 @@ import java.util.concurrent.TimeUnit;
  * <h2>Thread Safety</h2>
  *
  * This class is <b>NOT</b> threadsafe.
+ * <h2>Memory overhead</h2>
+ *
+ * One of the major concerns in publishing metric events is the object allocation overhead and having a Clock instance
+ * can attribute to such overheads. This is the reason why this class also provides static convenience methods to mark
+ * start and end of times to reduce some boiler plate code.
  *
  * @author Nitesh Kant
  */
@@ -85,5 +90,28 @@ public class Clock {
 
     public boolean isRunning() {
         return -1 != durationMillis;
+    }
+
+    public static long newStartTimeMillis() {
+        return System.currentTimeMillis();
+    }
+
+    public static long newStartTime(TimeUnit timeUnit) {
+        if (TimeUnit.MILLISECONDS == timeUnit) {
+            return newStartTimeMillis();
+        }
+        return timeUnit.convert(newStartTimeMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    public static long onEnd(long startTime, TimeUnit timeUnit) {
+        if (TimeUnit.MILLISECONDS == timeUnit) {
+            return onEndMillis(startTime);
+        }
+        long startTimeMillis = TimeUnit.MILLISECONDS.convert(startTime, timeUnit);
+        return timeUnit.convert(onEndMillis(startTimeMillis), TimeUnit.MILLISECONDS);
+    }
+
+    public static long onEndMillis(long startTimeMillis) {
+        return System.currentTimeMillis() - startTimeMillis;
     }
 }

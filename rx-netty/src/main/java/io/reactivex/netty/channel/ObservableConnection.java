@@ -18,6 +18,8 @@ package io.reactivex.netty.channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
 import rx.Subscriber;
@@ -32,9 +34,15 @@ import rx.subjects.PublishSubject;
 public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
     private PublishSubject<I> inputSubject;
+    @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
+    private final ChannelMetricEventProvider metricEventProvider;
+    /* Guarded by closeIssued so that its only updated once*/ protected volatile long closeStartTimeMillis = -1;
 
-    public ObservableConnection(final ChannelHandlerContext ctx) {
+    public ObservableConnection(final ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
+                                ChannelMetricEventProvider metricEventProvider) {
         super(ctx);
+        this.eventsSubject = eventsSubject;
+        this.metricEventProvider = metricEventProvider;
         inputSubject = PublishSubject.create();
         ctx.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
     }
@@ -58,7 +66,10 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected Observable<Void> _close() {
+        closeStartTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
         PublishSubject<I> thisSubject = inputSubject;
         cleanupConnection();
         Observable<Void> toReturn = _closeChannel();
@@ -79,10 +90,15 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
             public void call(final Subscriber<? super Void> subscriber) {
                 closeFuture.addListener(new ChannelFutureListener() {
                     @Override
+                    @SuppressWarnings("unchecked")
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (future.isSuccess()) {
+                            eventsSubject.onEvent(metricEventProvider.getChannelCloseSuccessEvent(),
+                                                  Clock.onEndMillis(closeStartTimeMillis));
                             subscriber.onCompleted();
                         } else {
+                            eventsSubject.onEvent(metricEventProvider.getChannelCloseFailedEvent(),
+                                                  Clock.onEndMillis(closeStartTimeMillis), future.cause());
                             subscriber.onError(future.cause());
                         }
                     }

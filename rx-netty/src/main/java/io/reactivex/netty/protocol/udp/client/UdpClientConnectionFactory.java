@@ -17,7 +17,9 @@ package io.reactivex.netty.protocol.udp.client;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
+import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 
 import java.net.InetSocketAddress;
 
@@ -29,6 +31,7 @@ import java.net.InetSocketAddress;
 class UdpClientConnectionFactory<I, O> implements ClientConnectionFactory<I, O, UdpClientConnection<I, O>> {
 
     private final InetSocketAddress receiverAddress;
+    private MetricEventsSubject<?> eventsSubject;
 
     /**
      *
@@ -41,6 +44,12 @@ class UdpClientConnectionFactory<I, O> implements ClientConnectionFactory<I, O, 
 
     @Override
     public UdpClientConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return new UdpClientConnection<I, O>(ctx, receiverAddress);
+        return new UdpClientConnection<I, O>(ctx, receiverAddress, eventsSubject,
+                                             ClientChannelMetricEventProvider.INSTANCE);
+    }
+
+    @Override
+    public void useMetricEventsSubject(MetricEventsSubject<?> eventsSubject) {
+        this.eventsSubject = eventsSubject;
     }
 }

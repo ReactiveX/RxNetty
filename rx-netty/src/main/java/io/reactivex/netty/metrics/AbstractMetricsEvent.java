@@ -13,9 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.client;
-
-import io.reactivex.netty.metrics.MetricsEvent;
+package io.reactivex.netty.metrics;
 
 /**
  * @author Nitesh Kant

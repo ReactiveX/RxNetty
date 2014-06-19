@@ -13,34 +13,34 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.servo.tcp;
+package io.reactivex.netty.servo;
 
 import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.metrics.MetricsEvent;
-import io.reactivex.netty.servo.ServoUtils;
+import io.reactivex.netty.metrics.MetricEventsPublisher;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * A utility class that can be used to manage a monitored {@link MetricEventsListener} which is registered with multiple
+ * {@link MetricEventsPublisher}s.
+ *
  * @author Nitesh Kant
  */
-public abstract class AbstractShareableListener<E extends MetricsEvent<?>> implements MetricEventsListener<E> {
+public class RefCountingMonitor {
 
     protected final String monitorId;
     private final AtomicInteger subscriptionCount = new AtomicInteger();
 
-    protected AbstractShareableListener(String monitorId) {
+    public RefCountingMonitor(String monitorId) {
         this.monitorId = monitorId;
     }
 
-    @Override
     public void onCompleted() {
         if (subscriptionCount.decrementAndGet() == 0) {
             ServoUtils.unregisterObject(monitorId, this);
         }
     }
 
-    @Override
     public void onSubscribe() {
         if (subscriptionCount.incrementAndGet() == 0) {
             ServoUtils.registerObject(monitorId, this);

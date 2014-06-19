@@ -16,13 +16,17 @@
 package io.reactivex.netty.client;
 
 import io.netty.util.internal.chmv8.LongAdder;
+import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 
 import java.util.concurrent.TimeUnit;
 
 /**
+ *
+ * @deprecated Use {@link MetricEventsListener} to get the stats.
  * @author Nitesh Kant
  */
+@Deprecated
 public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.CloneablePoolStatsProvider {
 
     private final LongAdder idleConnections;

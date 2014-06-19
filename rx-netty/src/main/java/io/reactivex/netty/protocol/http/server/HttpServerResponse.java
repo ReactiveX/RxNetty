@@ -40,11 +40,11 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     private final AtomicBoolean headerWritten = new AtomicBoolean();
     private ChannelFuture headerWriteFuture;
 
-    public HttpServerResponse(ChannelHandlerContext ctx) {
+    protected HttpServerResponse(ChannelHandlerContext ctx) {
         this(ctx, HttpVersion.HTTP_1_1);
     }
 
-    public HttpServerResponse(ChannelHandlerContext ctx, HttpVersion httpVersion) {
+    protected HttpServerResponse(ChannelHandlerContext ctx, HttpVersion httpVersion) {
         this(ctx, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK));
     }
 

@@ -39,12 +39,13 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     protected final AtomicBoolean closeIssued = new AtomicBoolean();
     private final ChannelHandlerContext ctx;
     private final MultipleFutureListener unflushedWritesListener;
+    /* Guarded by closeIssued so that its only updated once*/ protected volatile long closeStartTime = -1;
 
-    public DefaultChannelWriter(ChannelHandlerContext context) {
-        if (null == context) {
+    protected DefaultChannelWriter(ChannelHandlerContext ctx) {
+        if (null == ctx) {
             throw new NullPointerException("Channel context can not be null.");
         }
-        ctx = context;
+        this.ctx = ctx;
         unflushedWritesListener = new MultipleFutureListener(ctx);
     }
 
@@ -119,6 +120,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
         return ctx;
     }
 
+    @SuppressWarnings("unchecked")
     protected ChannelFuture writeOnChannel(Object msg) {
         ChannelFuture writeFuture = getChannel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the tail of the pipeline.
         unflushedWritesListener.listen(writeFuture);
@@ -133,6 +135,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
         return closeIssued.get();
     }
 
+    @SuppressWarnings("unchecked")
     public Observable<Void> close() {
         if (closeIssued.compareAndSet(false, true)) {
             return _close();

@@ -32,17 +32,18 @@ public class ConnectionPoolBuilder<I, O> {
             Executors.newScheduledThreadPool(1, new RxDefaultThreadFactory("global-client-idle-conn-cleanup-scheduler"));
 
     private final RxClient.ServerInfo serverInfo;
-    private MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
     private ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory;
     private ClientChannelFactory<I, O> channelFactory; // Nullable
     private PoolLimitDeterminationStrategy limitDeterminationStrategy = new MaxConnectionsBasedStrategy();
     private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
     private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
-    private PoolStatsProvider statsProvider = new PoolStatsImpl();
+    @SuppressWarnings("deprecation") private PoolStatsProvider statsProvider = new PoolStatsImpl();
 
     public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
                                  MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
-        this(serverInfo, channelFactory, new PooledConnectionFactory<I, O>(PoolConfig.DEFAULT_CONFIG), eventsSubject);
+        this(serverInfo, channelFactory, new PooledConnectionFactory<I, O>(PoolConfig.DEFAULT_CONFIG, eventsSubject),
+             eventsSubject);
     }
 
     public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
@@ -88,7 +89,7 @@ public class ConnectionPoolBuilder<I, O> {
         return this;
     }
 
-    public ConnectionPoolBuilder<I, O> withPoolStatsProvider(PoolStatsProvider statsProvider) {
+    public ConnectionPoolBuilder<I, O> withPoolStatsProvider(@SuppressWarnings("deprecation") PoolStatsProvider statsProvider) {
         this.statsProvider = statsProvider;
         return this;
     }
@@ -146,6 +147,7 @@ public class ConnectionPoolBuilder<I, O> {
         return poolIdleCleanupScheduler;
     }
 
+    @SuppressWarnings("deprecation")
     public PoolStatsProvider getStatsProvider() {
         return statsProvider;
     }

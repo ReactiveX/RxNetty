@@ -183,6 +183,7 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     }
 
     @Override
+    @Deprecated
     public PoolStats getStats() {
         if (null == pool) {
             return null;

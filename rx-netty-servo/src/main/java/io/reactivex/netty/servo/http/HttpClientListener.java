@@ -18,7 +18,7 @@ package io.reactivex.netty.servo.http;
 import com.netflix.servo.monitor.Counter;
 import com.netflix.servo.monitor.LongGauge;
 import com.netflix.servo.monitor.Timer;
-import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.metrics.HttpClientMetricEventsListener;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.servo.tcp.TcpClientListener;
 
@@ -35,66 +35,183 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
  */
 public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent<?>> {
 
-    private final LongGauge requestBacklog;
-    private final LongGauge inflightRequests;
-    private final Counter processedRequests;
-    private final Counter requestWriteFailed;
-    private final Timer requestWriteTimes;
-    private final Timer responseReadTimes;
+    private final HttpClientMetricEventsListener delegate = new HttpClientMetricEventsListenerImpl();
 
     protected HttpClientListener(String monitorId) {
         super(monitorId);
-        requestBacklog = newLongGauge("inflightRequests");
-        inflightRequests = newLongGauge("inflightRequests");
-        requestWriteTimes = newTimer("requestWriteTimes");
-        responseReadTimes = newTimer("responseReadTimes");
-        processedRequests = newCounter("processedRequests");
-        requestWriteFailed = newCounter("requestWriteFailed");
     }
 
     @Override
     public void onEvent(HttpClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
                         Object value) {
-        if (event.getType() instanceof ClientMetricsEvent.EventType) {
-            super.onEvent(event, duration, timeUnit, throwable, value);
-        } else {
-            switch ((HttpClientMetricsEvent.EventType) event.getType()) {
-                case RequestSubmitted:
-                    incrementLongGauge(requestBacklog);
-                    incrementLongGauge(inflightRequests);
-                    break;
-                case RequestHeadersWriteStart:
-                    decrementLongGauge(requestBacklog);
-                    break;
-                case RequestHeadersWriteSuccess:
-                    break;
-                case RequestHeadersWriteFailed:
-                    requestWriteFailed.increment();
-                    break;
-                case RequestContentWriteStart:
-                    break;
-                case RequestContentWriteSuccess:
-                    break;
-                case RequestContentWriteFailed:
-                    requestWriteFailed.increment();
-                    break;
-                case RequestWriteComplete:
-                    requestWriteTimes.record(duration, timeUnit);
-                    break;
-                case ResponseHeadersReceived:
-                    break;
-                case ResponseContentReceived:
-                    break;
-                case ResponseReceiveComplete:
-                    decrementLongGauge(inflightRequests);
-                    processedRequests.increment();
-                    responseReadTimes.record(duration, timeUnit);
-                    break;
-            }
-        }
+        delegate.onEvent(event, duration, timeUnit, throwable, value);
     }
 
     public static HttpClientListener newHttpListener(String monitorId) {
         return new HttpClientListener(monitorId);
+    }
+
+    private class HttpClientMetricEventsListenerImpl extends HttpClientMetricEventsListener {
+
+        private final LongGauge requestBacklog;
+        private final LongGauge inflightRequests;
+        private final Counter processedRequests;
+        private final Counter requestWriteFailed;
+        private final Counter failedResponses;
+        private final Timer requestWriteTimes;
+        private final Timer responseReadTimes;
+
+        private HttpClientMetricEventsListenerImpl() {
+            requestBacklog = newLongGauge("requestBacklog");
+            inflightRequests = newLongGauge("inflightRequests");
+            requestWriteTimes = newTimer("requestWriteTimes");
+            responseReadTimes = newTimer("responseReadTimes");
+            processedRequests = newCounter("processedRequests");
+            requestWriteFailed = newCounter("requestWriteFailed");
+            failedResponses = newCounter("failedResponses");
+        }
+
+        @Override
+        protected void onResponseReceiveComplete(long duration, TimeUnit timeUnit) {
+            decrementLongGauge(inflightRequests);
+            processedRequests.increment();
+            responseReadTimes.record(duration, timeUnit);
+        }
+
+        @Override
+        protected void onResponseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            failedResponses.increment();
+        }
+
+        @Override
+        protected void onRequestWriteComplete(long duration, TimeUnit timeUnit) {
+            requestWriteTimes.record(duration, timeUnit);
+        }
+
+        @Override
+        protected void onRequestContentWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            requestWriteFailed.increment();
+        }
+
+        @Override
+        protected void onRequestHeadersWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            requestWriteFailed.increment();
+        }
+
+        @Override
+        protected void onRequestHeadersWriteStart(long duration, TimeUnit timeUnit) {
+            decrementLongGauge(requestBacklog);
+        }
+
+        @Override
+        protected void onRequestSubmitted() {
+            incrementLongGauge(requestBacklog);
+            incrementLongGauge(inflightRequests);
+        }
+
+        @Override
+        protected void onByteRead(long bytesRead) {
+            HttpClientListener.this.onByteRead(bytesRead);
+        }
+
+        @Override
+        protected void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            HttpClientListener.this.onFlushFailed(duration, timeUnit, throwable);
+        }
+
+        @Override
+        protected void onFlushSuccess(long duration, TimeUnit timeUnit) {
+            HttpClientListener.this.onFlushSuccess(duration, timeUnit);
+        }
+
+        @Override
+        protected void onFlushStart() {
+            HttpClientListener.this.onFlushStart();
+        }
+
+        @Override
+        protected void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            HttpClientListener.this.onWriteFailed(duration, timeUnit, throwable);
+        }
+
+        @Override
+        protected void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+            HttpClientListener.this.onWriteSuccess(duration, timeUnit, bytesWritten);
+        }
+
+        @Override
+        protected void onWriteStart() {
+            HttpClientListener.this.onWriteStart();
+        }
+
+        @Override
+        protected void onPoolReleaseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            HttpClientListener.this.onPoolReleaseFailed(duration, timeUnit, throwable);
+        }
+
+        @Override
+        protected void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
+            HttpClientListener.this.onPoolReleaseSuccess(duration, timeUnit);
+        }
+
+        @Override
+        protected void onPoolReleaseStart() {
+            HttpClientListener.this.onPoolReleaseStart();
+        }
+
+        @Override
+        protected void onPooledConnectionEviction() {
+            HttpClientListener.this.onPooledConnectionEviction();
+        }
+
+        @Override
+        protected void onPooledConnectionReuse(long duration, TimeUnit timeUnit) {
+            HttpClientListener.this.onPooledConnectionReuse(duration, timeUnit);
+        }
+
+        @Override
+        protected void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            HttpClientListener.this.onPoolAcquireFailed(duration, timeUnit, throwable);
+        }
+
+        @Override
+        protected void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
+            HttpClientListener.this.onPoolReleaseSuccess(duration, timeUnit);
+        }
+
+        @Override
+        protected void onPoolAcquireStart() {
+            HttpClientListener.this.onPoolAcquireStart();
+        }
+
+        @Override
+        protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            HttpClientListener.this.onConnectionCloseFailed(duration, timeUnit, throwable);
+        }
+
+        @Override
+        protected void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
+            HttpClientListener.this.onConnectionCloseSuccess(duration, timeUnit);
+        }
+
+        @Override
+        protected void onConnectionCloseStart() {
+            HttpClientListener.this.onConnectionCloseStart();
+        }
+
+        @Override
+        protected void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            HttpClientListener.this.onConnectFailed(duration, timeUnit, throwable);
+        }
+
+        @Override
+        protected void onConnectSuccess(long duration, TimeUnit timeUnit) {
+            HttpClientListener.this.onConnectSuccess(duration, timeUnit);
+        }
+
+        @Override
+        protected void onConnectStart() {
+            HttpClientListener.this.onConnectStart();
+        }
     }
 }

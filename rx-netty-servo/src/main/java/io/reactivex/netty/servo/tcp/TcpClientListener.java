@@ -19,6 +19,8 @@ import com.netflix.servo.monitor.Counter;
 import com.netflix.servo.monitor.LongGauge;
 import com.netflix.servo.monitor.Timer;
 import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.metrics.ClientMetricEventsListener;
+import io.reactivex.netty.servo.RefCountingMonitor;
 
 import java.util.concurrent.TimeUnit;
 
@@ -31,7 +33,7 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
 /**
  * @author Nitesh Kant
  */
-public class TcpClientListener<T extends ClientMetricsEvent<?>> extends AbstractShareableListener<T> {
+public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMetricEventsListener<T> {
 
     private final LongGauge liveConnections;
     private final Counter connectionCount;
@@ -62,9 +64,10 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends Abstract
     private final Counter failedWrites;
     private final Counter failedFlushes;
     private final Timer flushTimes;
+    private final RefCountingMonitor refCounter;
 
     protected TcpClientListener(String monitorId) {
-        super(monitorId);
+        refCounter = new RefCountingMonitor(monitorId);
         liveConnections = newLongGauge("liveConnections");
         connectionCount = newCounter("connectionCount");
         pendingConnects = newLongGauge("pendingConnects");
@@ -93,87 +96,133 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends Abstract
     }
 
     @Override
-    public void onEvent(T event, long duration, TimeUnit timeUnit, Throwable throwable, Object value) {
-        switch ((ClientMetricsEvent.EventType) event.getType()) {
-            case ConnectStart:
-                incrementLongGauge(pendingConnects);
-                break;
-            case ConnectSuccess:
-                decrementLongGauge(pendingConnects);
-                incrementLongGauge(liveConnections);
-                connectionCount.increment();
-                connectionTimes.record(duration, timeUnit);
-                break;
-            case ConnectFailed:
-                decrementLongGauge(pendingConnects);
-                failedConnects.increment();
-                break;
-            case ConnectionCloseStart:
-                incrementLongGauge(pendingConnectionClose);
-                break;
-            case ConnectionCloseSuccess:
-                decrementLongGauge(liveConnections);
-                decrementLongGauge(pendingConnectionClose);
-                break;
-            case ConnectionCloseFailed:
-                decrementLongGauge(pendingConnectionClose);
-                failedConnectionClose.increment();
-                break;
-            case PoolAcquireStart:
-                incrementLongGauge(pendingPoolAcquires);
-                break;
-            case PoolAcquireSuccess:
-                decrementLongGauge(pendingPoolAcquires);
-                poolAcquireTimes.record(duration, timeUnit);
-                break;
-            case PoolAcquireFailed:
-                decrementLongGauge(pendingPoolAcquires);
-                failedPoolAcquires.increment();
-                break;
-            case PooledConnectionReuse:
-                poolReuse.increment();
-                break;
-            case PooledConnectionEviction:
-                poolEvictions.increment();
-                break;
-            case PoolReleaseStart:
-                incrementLongGauge(pendingPoolReleases);
-                break;
-            case PoolReleaseSuccess:
-                decrementLongGauge(pendingPoolReleases);
-                poolReleaseTimes.record(duration, timeUnit);
-                break;
-            case PoolReleaseFailed:
-                decrementLongGauge(pendingPoolReleases);
-                failedPoolReleases.increment();
-                break;
-            case WriteStart:
-                incrementLongGauge(pendingWrites);
-                break;
-            case WriteSuccess:
-                decrementLongGauge(pendingWrites);
-                bytesWritten.increment(((Number)value).longValue());
-                writeTimes.record(duration, timeUnit);
-                break;
-            case WriteFailed:
-                decrementLongGauge(pendingWrites);
-                failedWrites.increment();
-                break;
-            case FlushStart:
-                incrementLongGauge(pendingFlushes);
-                break;
-            case FlushSuccess:
-                decrementLongGauge(pendingFlushes);
-                flushTimes.record(duration, timeUnit);
-                break;
-            case FlushFailed:
-                decrementLongGauge(pendingFlushes);
-                failedFlushes.increment();
-                break;
-            case BytesRead:
-                bytesRead.increment(((Number)value).longValue());
-                break;
-        }
+    protected void onByteRead(long bytesRead) {
+        this.bytesRead.increment(bytesRead);
+    }
+
+    @Override
+    protected void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingFlushes);
+        failedFlushes.increment();
+    }
+
+    @Override
+    protected void onFlushSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(pendingFlushes);
+        flushTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onFlushStart() {
+        incrementLongGauge(pendingFlushes);
+    }
+
+    @Override
+    protected void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingWrites);
+        failedWrites.increment();
+    }
+
+    @Override
+    protected void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+        decrementLongGauge(pendingWrites);
+        this.bytesWritten.increment(bytesWritten);
+        writeTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onWriteStart() {
+        incrementLongGauge(pendingWrites);
+    }
+
+    @Override
+    protected void onPoolReleaseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingPoolReleases);
+        failedPoolReleases.increment();
+    }
+
+    @Override
+    protected void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(pendingPoolReleases);
+        poolReleaseTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onPoolReleaseStart() {
+        incrementLongGauge(pendingPoolReleases);
+    }
+
+    @Override
+    protected void onPooledConnectionEviction() {
+        poolEvictions.increment();
+    }
+
+    @Override
+    protected void onPooledConnectionReuse(long duration, TimeUnit timeUnit) {
+        poolReuse.increment();
+    }
+
+    @Override
+    protected void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingPoolAcquires);
+        failedPoolAcquires.increment();
+    }
+
+    @Override
+    protected void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(pendingPoolAcquires);
+        poolAcquireTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onPoolAcquireStart() {
+        incrementLongGauge(pendingPoolAcquires);
+    }
+
+    @Override
+    protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingConnectionClose);
+        failedConnectionClose.increment();
+    }
+
+    @Override
+    protected void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(liveConnections);
+        decrementLongGauge(pendingConnectionClose);
+    }
+
+    @Override
+    protected void onConnectionCloseStart() {
+        incrementLongGauge(pendingConnectionClose);
+    }
+
+    @Override
+    protected void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(pendingConnects);
+        failedConnects.increment();
+    }
+
+    @Override
+    protected void onConnectSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(pendingConnects);
+        incrementLongGauge(liveConnections);
+        connectionCount.increment();
+        connectionTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onConnectStart() {
+        incrementLongGauge(pendingConnects);
+    }
+
+    @Override
+    public void onCompleted() {
+        refCounter.onCompleted();
+    }
+
+    @Override
+    public void onSubscribe() {
+        refCounter.onSubscribe();
     }
 
     public static TcpClientListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> newListener(String monitorId) {

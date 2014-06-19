@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.server;
 
-import io.reactivex.netty.client.AbstractMetricsEvent;
+import io.reactivex.netty.metrics.AbstractMetricsEvent;
 
 /**
  * @author Nitesh Kant
@@ -29,6 +29,9 @@ public class ServerMetricsEvent<T extends Enum> extends AbstractMetricsEvent<T> 
         ConnectionHandlingStart(true, false, Void.class),
         ConnectionHandlingSuccess(true, false, Void.class),
         ConnectionHandlingFailed(true, true, Void.class),
+        ConnectionCloseStart(false, false, Void.class),
+        ConnectionCloseSuccess(true, false, Void.class),
+        ConnectionCloseFailed(true, true, Void.class),
 
         /* Write events on underlying connection, this has no associated protocol, so it is raw bytes written. */
         WriteStart(false, false, Long.class),
@@ -72,6 +75,10 @@ public class ServerMetricsEvent<T extends Enum> extends AbstractMetricsEvent<T> 
     public static final ServerMetricsEvent<EventType> CONNECTION_HANDLING_START = from(EventType.ConnectionHandlingStart);
     public static final ServerMetricsEvent<EventType> CONNECTION_HANDLING_SUCCESS = from(EventType.ConnectionHandlingSuccess);
     public static final ServerMetricsEvent<EventType> CONNECTION_HANDLING_FAILED = from(EventType.ConnectionHandlingFailed);
+
+    public static final ServerMetricsEvent<EventType> CONNECTION_CLOSE_START = from(EventType.ConnectionCloseStart);
+    public static final ServerMetricsEvent<EventType> CONNECTION_CLOSE_SUCCESS = from(EventType.ConnectionCloseSuccess);
+    public static final ServerMetricsEvent<EventType> CONNECTION_CLOSE_FAILED = from(EventType.ConnectionCloseFailed);
 
     public static final ServerMetricsEvent<EventType> WRITE_START = from(EventType.WriteStart);
     public static final ServerMetricsEvent<EventType> WRITE_SUCCESS = from(EventType.WriteSuccess);

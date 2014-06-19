@@ -15,11 +15,15 @@
  */
 package io.reactivex.netty.client;
 
+import io.reactivex.netty.metrics.MetricEventsListener;
+
 /**
  * A contract for statistics maintained by the {@link ConnectionPool}
  *
+ * @deprecated Use the {@link MetricEventsListener}s to get the metric.
  * @author Nitesh Kant
  */
+@Deprecated
 public interface PoolStats {
 
     long getInUseCount();

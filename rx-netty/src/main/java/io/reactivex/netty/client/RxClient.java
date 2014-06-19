@@ -47,8 +47,11 @@ public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublish
      *
      * @return The {@link PoolStats} associated with this client. If the client does not have a {@link ConnectionPool}
      * then {@code null}
+     *
+     * @deprecated Use {@link io.reactivex.netty.metrics.MetricEventsListener} to get the stats.
      */
     @Override
+    @Deprecated
     PoolStats getStats();
 
     /**
