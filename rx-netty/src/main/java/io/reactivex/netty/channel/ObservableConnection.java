@@ -69,7 +69,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
     protected void cleanupConnection() {
         cancelPendingWrites(true);
-        ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
+        ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannelHandlerContext().pipeline());
     }
 
     protected Observable<Void> _closeChannel() {
