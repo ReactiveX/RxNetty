@@ -30,7 +30,9 @@ import org.junit.Test;
 import rx.Observable;
 import rx.functions.Func1;
 
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertTrue;
 
@@ -92,14 +94,15 @@ public class UnexpectedErrorsTest {
         assertTrue("Error handler not invoked.", errorHandler.invoked);
     }
 
-    private static void blockTillConnected(int serverPort) {
+    private static void blockTillConnected(int serverPort)
+            throws ExecutionException, InterruptedException, TimeoutException {
         RxNetty.createTcpClient("localhost", serverPort).connect().flatMap(
                 new Func1<ObservableConnection<ByteBuf, ByteBuf>, Observable<?>>() {
                     @Override
                     public Observable<Void> call(ObservableConnection<ByteBuf, ByteBuf> connection) {
                         return connection.close();
                     }
-                }).toBlocking().singleOrDefault(null);
+                }).toBlocking().toFuture().get(1, TimeUnit.MINUTES);
     }
 
 
