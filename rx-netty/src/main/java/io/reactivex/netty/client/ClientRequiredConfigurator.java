@@ -17,12 +17,17 @@ package io.reactivex.netty.client;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 
 /**
  * @author Nitesh Kant
  */
 public class ClientRequiredConfigurator<I, O> extends RxRequiredConfigurator<I, O> {
+
+    public ClientRequiredConfigurator(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        super(eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+    }
 
     @Override
     protected ChannelHandler newConnectionLifecycleHandler(ChannelPipeline pipeline) {

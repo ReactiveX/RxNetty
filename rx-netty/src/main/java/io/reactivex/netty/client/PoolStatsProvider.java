@@ -25,7 +25,7 @@ import io.reactivex.netty.metrics.MetricEventsListener;
  * @author Nitesh Kant
  */
 @Deprecated
-public interface PoolStatsProvider extends MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> {
+public interface PoolStatsProvider extends MetricEventsListener<ClientMetricsEvent<?>> {
 
     PoolStats getStats();
 }

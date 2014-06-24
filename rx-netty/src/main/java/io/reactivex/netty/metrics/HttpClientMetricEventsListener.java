@@ -40,7 +40,7 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
                     onRequestSubmitted();
                     break;
                 case RequestHeadersWriteStart:
-                    onRequestHeadersWriteStart(duration, timeUnit);
+                    onRequestHeadersWriteStart();
                     break;
                 case RequestHeadersWriteSuccess:
                     onRequestHeadersWriteSuccess(duration, timeUnit);
@@ -49,7 +49,7 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
                     onRequestHeadersWriteFailed(duration, timeUnit, throwable);
                     break;
                 case RequestContentWriteStart:
-                    onRequestContentWriteStart(duration, timeUnit);
+                    onRequestContentWriteStart();
                     break;
                 case RequestContentWriteSuccess:
                     onRequestContentWriteSuccess(duration, timeUnit);
@@ -90,13 +90,13 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
 
     @SuppressWarnings("unused") protected void onRequestContentWriteSuccess(long duration, TimeUnit timeUnit) {}
 
-    @SuppressWarnings("unused") protected void onRequestContentWriteStart(long duration, TimeUnit timeUnit) {}
+    @SuppressWarnings("unused") protected void onRequestContentWriteStart() {}
 
     @SuppressWarnings("unused") protected void onRequestHeadersWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 
     @SuppressWarnings("unused") protected void onRequestHeadersWriteSuccess(long duration, TimeUnit timeUnit) {}
 
-    @SuppressWarnings("unused") protected void onRequestHeadersWriteStart(long duration, TimeUnit timeUnit) {}
+    @SuppressWarnings("unused") protected void onRequestHeadersWriteStart() {}
 
     @SuppressWarnings("unused") protected void onRequestSubmitted() {}
     

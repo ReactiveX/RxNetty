@@ -27,17 +27,17 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
 
         RequestSubmitted(false, false, Void.class),
 
-        RequestHeadersWriteStart(true, false, Void.class),
+        RequestHeadersWriteStart(false, false, Void.class),
         RequestHeadersWriteSuccess(true, false, Void.class),
         RequestHeadersWriteFailed(true, true, Void.class),
-        RequestContentWriteStart(true, false, Void.class),
+        RequestContentWriteStart(false, false, Void.class),
         RequestContentWriteSuccess(true, false, Void.class),
         RequestContentWriteFailed(true, true, Void.class),
 
         RequestWriteComplete(true, false, Void.class),
 
-        ResponseHeadersReceived(true, false, Void.class),
-        ResponseContentReceived(true, false, Void.class),
+        ResponseHeadersReceived(false, false, Void.class),
+        ResponseContentReceived(false, false, Void.class),
         ResponseReceiveComplete(true, false, Void.class),
         ResponseFailed(true, true, Void.class),
         ;

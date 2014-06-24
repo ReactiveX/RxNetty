@@ -110,27 +110,29 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
     }
 
     @Override
-    public void onEvent(ClientMetricsEvent<ClientMetricsEvent.EventType> event, long duration, TimeUnit timeUnit,
-                        Throwable throwable, Object value) {
-        switch (event.getType()) {
-            case ConnectStart:
-                break;
-            case ConnectSuccess:
-                break;
-            case ConnectFailed:
-                onConnectFailed();
-                break;
-            case PooledConnectionReuse:
-                break;
-            case PooledConnectionEviction:
-                onConnectionEviction();
-                break;
-            case ConnectionCloseStart:
-                break;
-            case ConnectionCloseSuccess:
-                break;
-            case ConnectionCloseFailed:
-                break;
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+                        Object value) {
+        if (event.getType() instanceof ClientMetricsEvent.EventType) {
+            switch ((ClientMetricsEvent.EventType) event.getType()) {
+                case ConnectStart:
+                    break;
+                case ConnectSuccess:
+                    break;
+                case ConnectFailed:
+                    onConnectFailed();
+                    break;
+                case PooledConnectionReuse:
+                    break;
+                case PooledConnectionEviction:
+                    onConnectionEviction();
+                    break;
+                case ConnectionCloseStart:
+                    break;
+                case ConnectionCloseSuccess:
+                    break;
+                case ConnectionCloseFailed:
+                    break;
+            }
         }
     }
 

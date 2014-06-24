@@ -16,6 +16,9 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
@@ -31,15 +34,18 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
         ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>>{
 
     private final HttpClientRequest<I> request;
+    private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
-    RequestProcessingOperator(HttpClientRequest<I> request) {
+    RequestProcessingOperator(HttpClientRequest<I> request, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.request = request;
+        this.eventsSubject = eventsSubject;
     }
 
     @Override
     public Subscriber<? super ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> call(
             final Subscriber<? super HttpClientResponse<O>> child) {
-
+        final long startTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_SUBMITTED);
         final CompositeSubscription cs = new CompositeSubscription();
         child.add(cs);// Unsubscribe when the child unsubscribes.
 
@@ -88,12 +94,33 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                                                      }
                                                  }));
                                              }
-                                         }).subscribe(child)); //subscribe the child for response.
+                                         })
+                                         .doOnError(new Action1<Throwable>() {
+                                             @Override
+                                             public void call(Throwable throwable) {
+                                                 eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_FAILED,
+                                                                       Clock.onEndMillis(startTimeMillis), throwable);
+                                             }
+                                         })
+                                         .subscribe(child)); //subscribe the child for response.
 
-                        connection.writeAndFlush(request).doOnError(new Action1<Throwable>() {
+                        connection.writeAndFlush(request).subscribe(new Observer<Void>() {
                             @Override
-                            public void call(Throwable throwable) {
-                                child.onError(throwable);
+                            public void onCompleted() {
+                                // Failure in writes gets reported during write, this is for the entire request write
+                                // over event.
+                                eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_COMPLETE,
+                                                      Clock.onEndMillis(startTimeMillis));
+                            }
+
+                            @Override
+                            public void onError(Throwable e) {
+                                child.onError(e);
+                            }
+
+                            @Override
+                            public void onNext(Void aVoid) {
+                                // No op as nothing to do for a write onNext().
                             }
                         });
                     }

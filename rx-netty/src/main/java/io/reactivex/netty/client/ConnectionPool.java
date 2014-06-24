@@ -25,8 +25,7 @@ import rx.Observable;
  * @author Nitesh Kant
  */
 @SuppressWarnings("deprecation")
-public interface ConnectionPool<I, O> extends PoolInsightProvider,
-        MetricEventsPublisher<ClientMetricsEvent<ClientMetricsEvent.EventType>> {
+public interface ConnectionPool<I, O> extends PoolInsightProvider, MetricEventsPublisher<ClientMetricsEvent<?>> {
 
     Observable<ObservableConnection<I, O>> acquire();
 

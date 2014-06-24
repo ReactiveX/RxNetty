@@ -172,7 +172,8 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ServerRequiredConfigurator<I, O> requiredConfigurator =
-                        new ServerRequiredConfigurator<I, O>(connectionHandler, connectionFactory, errorHandler);
+                        new ServerRequiredConfigurator<I, O>(connectionHandler, connectionFactory, errorHandler,
+                                                             eventsSubject);
                 PipelineConfigurator<I, O> configurator;
                 if (null == pipelineConfigurator) {
                     configurator = requiredConfigurator;

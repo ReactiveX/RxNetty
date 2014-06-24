@@ -172,4 +172,52 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
     public void onSubscribe() {
         refCounter.onSubscribe();
     }
+
+    public long getLiveConnections() {
+        return liveConnections.getValue().longValue();
+    }
+
+    public long getInflightConnections() {
+        return inflightConnections.getValue().longValue();
+    }
+
+    public long getFailedConnections() {
+        return failedConnections.getValue().longValue();
+    }
+
+    public Timer getConnectionProcessingTimes() {
+        return connectionProcessingTimes;
+    }
+
+    public long getPendingWrites() {
+        return pendingWrites.getValue().longValue();
+    }
+
+    public long getPendingFlushes() {
+        return pendingFlushes.getValue().longValue();
+    }
+
+    public long getBytesWritten() {
+        return bytesWritten.getValue().longValue();
+    }
+
+    public Timer getWriteTimes() {
+        return writeTimes;
+    }
+
+    public long getBytesRead() {
+        return bytesRead.getValue().longValue();
+    }
+
+    public long getFailedWrites() {
+        return failedWrites.getValue().longValue();
+    }
+
+    public long getFailedFlushes() {
+        return failedFlushes.getValue().longValue();
+    }
+
+    public Timer getFlushTimes() {
+        return flushTimes;
+    }
 }

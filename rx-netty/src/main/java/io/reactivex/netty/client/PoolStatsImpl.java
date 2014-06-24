@@ -69,39 +69,41 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
     }
 
     @Override
-    public void onEvent(ClientMetricsEvent<ClientMetricsEvent.EventType> event, long duration, TimeUnit timeUnit,
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
                         Throwable throwable, Object value) {
-        switch (event.getType()) {
-            case ConnectSuccess:
-                onConnectionCreation();
-                break;
-            case ConnectFailed:
-                onConnectFailed();
-                break;
-            case PooledConnectionReuse:
-                onConnectionReuse();
-                break;
-            case PooledConnectionEviction:
-                onConnectionEviction();
-                break;
-            case PoolAcquireStart:
-                onAcquireAttempted();
-                break;
-            case PoolAcquireSuccess:
-                onAcquireSucceeded();
-                break;
-            case PoolAcquireFailed:
-                onAcquireFailed();
-                break;
-            case PoolReleaseStart:
-                onReleaseAttempted();
-                break;
-            case PoolReleaseSuccess:
-                onReleaseSucceeded();
-                break;
-            case PoolReleaseFailed:
-                onReleaseFailed();
-                break;
+        if (event.getType() instanceof ClientMetricsEvent.EventType) {
+            switch ((ClientMetricsEvent.EventType) event.getType()) {
+                case ConnectSuccess:
+                    onConnectionCreation();
+                    break;
+                case ConnectFailed:
+                    onConnectFailed();
+                    break;
+                case PooledConnectionReuse:
+                    onConnectionReuse();
+                    break;
+                case PooledConnectionEviction:
+                    onConnectionEviction();
+                    break;
+                case PoolAcquireStart:
+                    onAcquireAttempted();
+                    break;
+                case PoolAcquireSuccess:
+                    onAcquireSucceeded();
+                    break;
+                case PoolAcquireFailed:
+                    onAcquireFailed();
+                    break;
+                case PoolReleaseStart:
+                    onReleaseAttempted();
+                    break;
+                case PoolReleaseSuccess:
+                    onReleaseSucceeded();
+                    break;
+                case PoolReleaseFailed:
+                    onReleaseFailed();
+                    break;
+            }
         }
     }
 

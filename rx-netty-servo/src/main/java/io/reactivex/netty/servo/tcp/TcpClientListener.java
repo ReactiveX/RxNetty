@@ -225,6 +225,98 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
         refCounter.onSubscribe();
     }
 
+    public long getLiveConnections() {
+        return liveConnections.getNumber().get();
+    }
+
+    public long getConnectionCount() {
+        return connectionCount.getValue().longValue();
+    }
+
+    public long getPendingConnects() {
+        return pendingConnects.getNumber().get();
+    }
+
+    public long getFailedConnects() {
+        return failedConnects.getValue().longValue();
+    }
+
+    public Timer getConnectionTimes() {
+        return connectionTimes;
+    }
+
+    public long getPendingConnectionClose() {
+        return pendingConnectionClose.getNumber().get();
+    }
+
+    public long getFailedConnectionClose() {
+        return failedConnectionClose.getValue().longValue();
+    }
+
+    public long getPendingPoolAcquires() {
+        return pendingPoolAcquires.getNumber().get();
+    }
+
+    public long getFailedPoolAcquires() {
+        return failedPoolAcquires.getValue().longValue();
+    }
+
+    public Timer getPoolAcquireTimes() {
+        return poolAcquireTimes;
+    }
+
+    public long getPendingPoolReleases() {
+        return pendingPoolReleases.getNumber().get();
+    }
+
+    public long getFailedPoolReleases() {
+        return failedPoolReleases.getValue().longValue();
+    }
+
+    public Timer getPoolReleaseTimes() {
+        return poolReleaseTimes;
+    }
+
+    public long getPoolEvictions() {
+        return poolEvictions.getValue().longValue();
+    }
+
+    public long getPoolReuse() {
+        return poolReuse.getValue().longValue();
+    }
+
+    public long getPendingWrites() {
+        return pendingWrites.getNumber().get();
+    }
+
+    public long getPendingFlushes() {
+        return pendingFlushes.getNumber().get();
+    }
+
+    public long getBytesWritten() {
+        return bytesWritten.getValue().longValue();
+    }
+
+    public Timer getWriteTimes() {
+        return writeTimes;
+    }
+
+    public long getBytesRead() {
+        return bytesRead.getValue().longValue();
+    }
+
+    public long getFailedWrites() {
+        return failedWrites.getValue().longValue();
+    }
+
+    public long getFailedFlushes() {
+        return failedFlushes.getValue().longValue();
+    }
+
+    public Timer getFlushTimes() {
+        return flushTimes;
+    }
+
     public static TcpClientListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> newListener(String monitorId) {
         return new TcpClientListener<ClientMetricsEvent<ClientMetricsEvent.EventType>>(monitorId);
     }

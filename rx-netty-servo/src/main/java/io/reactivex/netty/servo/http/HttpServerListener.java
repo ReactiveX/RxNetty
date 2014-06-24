@@ -35,7 +35,7 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
  */
 public class HttpServerListener extends TcpServerListener<HttpServerMetricsEvent<?>> {
 
-    private final HttpServerMetricEventsListener delegate = new HttpServerMetricEventsListenerImpl();
+    private final HttpServerMetricEventsListenerImpl delegate = new HttpServerMetricEventsListenerImpl();
 
     protected HttpServerListener(String monitorId) {
         super(monitorId);
@@ -45,6 +45,34 @@ public class HttpServerListener extends TcpServerListener<HttpServerMetricsEvent
     public void onEvent(HttpServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
                         Object value) {
         delegate.onEvent(event, duration, timeUnit, throwable, value);
+    }
+
+    public long getRequestBacklog() {
+        return delegate.requestBacklog.getValue().longValue();
+    }
+
+    public long getInflightRequests() {
+        return delegate.inflightRequests.getValue().longValue();
+    }
+
+    public long getProcessedRequests() {
+        return delegate.processedRequests.getValue().longValue();
+    }
+
+    public long getFailedRequests() {
+        return delegate.failedRequests.getValue().longValue();
+    }
+
+    public long getResponseWriteFailed() {
+        return delegate.responseWriteFailed.getValue().longValue();
+    }
+
+    public Timer getResponseWriteTimes() {
+        return delegate.responseWriteTimes;
+    }
+
+    public Timer getRequestReadTimes() {
+        return delegate.requestReadTimes;
     }
 
     public static HttpServerListener newHttpListener(String monitorId) {
@@ -83,7 +111,12 @@ public class HttpServerListener extends TcpServerListener<HttpServerMetricsEvent
         }
 
         @Override
-        protected void onResponseWriteComplete(long duration, TimeUnit timeUnit) {
+        protected void onResponseContentWriteSuccess(long duration, TimeUnit timeUnit) {
+            responseWriteTimes.record(duration, timeUnit);
+        }
+
+        @Override
+        protected void onResponseHeadersWriteSuccess(long duration, TimeUnit timeUnit) {
             responseWriteTimes.record(duration, timeUnit);
         }
 

@@ -18,6 +18,8 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultHttpContent;
@@ -26,6 +28,9 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.server.ServerMetricsEvent;
 import rx.subjects.PublishSubject;
 
 /**
@@ -53,8 +58,10 @@ import rx.subjects.PublishSubject;
 public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
     @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
+    private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
-    public ServerRequestResponseConverter() {
+    public ServerRequestResponseConverter(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
+        this.eventsSubject = eventsSubject;
         contentSubject = PublishSubject.create();
     }
 
@@ -63,6 +70,8 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         Class<?> recievedMsgClass = msg.getClass();
 
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
+            eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HEADERS_RECEIVED);
+
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpServerRequest rxRequest = new HttpServerRequest((HttpRequest) msg, contentSubject);
             super.channelRead(ctx, rxRequest); // For FullHttpRequest, this assumes that after this call returns,
@@ -71,6 +80,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
         if (HttpContent.class.isAssignableFrom(recievedMsgClass)) {// This will be executed if the incoming message is a FullHttpRequest or only HttpContent.
             ByteBuf content = ((ByteBufHolder) msg).content();
+            eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_CONTENT_RECEIVED);
             invokeContentOnNext(content);
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
                 contentSubject.onCompleted();
@@ -84,17 +94,40 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
+        final long startTimeMillis = Clock.newStartTimeMillis();
+
         if (HttpServerResponse.class.isAssignableFrom(recievedMsgClass)) {
             @SuppressWarnings("rawtypes")
             HttpServerResponse rxResponse = (HttpServerResponse) msg;
+            eventsSubject.onEvent(HttpServerMetricsEvent.RESPONSE_HEADERS_WRITE_START);
+            addWriteCompleteEvents(promise, startTimeMillis, HttpServerMetricsEvent.RESPONSE_HEADERS_WRITE_SUCCESS,
+                                   HttpServerMetricsEvent.RESPONSE_HEADERS_WRITE_FAILED);
             super.write(ctx, rxResponse.getNettyResponse(), promise);
         } else if (ByteBuf.class.isAssignableFrom(recievedMsgClass)) {
+            eventsSubject.onEvent(HttpServerMetricsEvent.RESPONSE_CONTENT_WRITE_START);
+            addWriteCompleteEvents(promise, startTimeMillis, HttpServerMetricsEvent.RESPONSE_CONTENT_WRITE_SUCCESS,
+                                   HttpServerMetricsEvent.RESPONSE_CONTENT_WRITE_FAILED);
             HttpContent content = new DefaultHttpContent((ByteBuf) msg);
             super.write(ctx, content, promise);
         } else {
             super.write(ctx, msg, promise); // pass through, since we do not understand this message.
         }
 
+    }
+
+    private void addWriteCompleteEvents(ChannelPromise promise, final long startTimeMillis,
+                                        final HttpServerMetricsEvent<HttpServerMetricsEvent.EventType> successEvent,
+                                        final HttpServerMetricsEvent<HttpServerMetricsEvent.EventType> failureEvent) {
+        promise.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess()) {
+                    eventsSubject.onEvent(successEvent, Clock.onEndMillis(startTimeMillis));
+                } else {
+                    eventsSubject.onEvent(failureEvent, Clock.onEndMillis(startTimeMillis), future.cause());
+                }
+            }
+        });
     }
 
     @SuppressWarnings("unchecked")

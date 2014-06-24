@@ -91,7 +91,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
 
         enrichRequest(_request, httpClientConfig);
         Observable<HttpClientResponse<O>> toReturn =
-                connectionObservable.lift(new RequestProcessingOperator<I, O>(_request));
+                connectionObservable.lift(new RequestProcessingOperator<I, O>(_request, eventsSubject));
 
         if (followRedirect) {
             toReturn = toReturn.lift(new RedirectOperator<I, O>(_request, this, httpClientConfig));
@@ -102,10 +102,11 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
     @Override
     protected PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> adaptPipelineConfigurator(
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            ClientConfig clientConfig) {
+            ClientConfig clientConfig, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator =
-                new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator, new ClientRequiredConfigurator<I, O>());
-        return super.adaptPipelineConfigurator(configurator, clientConfig);
+                new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator,
+                                                                                               new ClientRequiredConfigurator<I, O>(eventsSubject));
+        return super.adaptPipelineConfigurator(configurator, clientConfig, eventsSubject);
     }
 
     protected boolean shouldFollowRedirectForRequest(HttpClientConfig config, HttpClientRequest<I> request) {

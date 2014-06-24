@@ -77,7 +77,7 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     }
 
     @Override
-    public void onEvent(ClientMetricsEvent<ClientMetricsEvent.EventType> event, long duration, TimeUnit timeUnit,
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
                         Throwable throwable, Object value) {
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             strategy.onEvent(event, duration, timeUnit, throwable, value);

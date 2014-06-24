@@ -34,15 +34,15 @@ public class ServerMetricsEvent<T extends Enum> extends AbstractMetricsEvent<T> 
         ConnectionCloseFailed(true, true, Void.class),
 
         /* Write events on underlying connection, this has no associated protocol, so it is raw bytes written. */
-        WriteStart(false, false, Long.class),
-        WriteSuccess(true, false, Void.class),
-        WriteFailed(true, true, Void.class),
+        WriteStart(false, false, Integer.class),
+        WriteSuccess(true, false, Integer.class),
+        WriteFailed(true, true, Integer.class),
         FlushStart(false, false, Void.class),
         FlushSuccess(true, false, Void.class),
         FlushFailed(true, true, Void.class),
 
         /* Read events on the connection, this has no associated protocol, so it depicts raw bytes read. */
-        BytesRead(false, false, Long.class)
+        BytesRead(false, false, Integer.class)
         ;
 
         private final boolean isTimed;

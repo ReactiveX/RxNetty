@@ -81,7 +81,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         this.connectionFactory = connectionFactory;
         this.channelFactory = channelFactory;
         this.pipelineConfigurator = pipelineConfigurator;
-        final PipelineConfigurator<O, I> configurator = adaptPipelineConfigurator(pipelineConfigurator, clientConfig);
+        final PipelineConfigurator<O, I> configurator = adaptPipelineConfigurator(pipelineConfigurator, clientConfig,
+                                                                                  eventsSubject);
         this.clientBootstrap.handler(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(Channel ch) throws Exception {
@@ -115,7 +116,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
         this.pipelineConfigurator = pipelineConfigurator;
-        final PipelineConfigurator<O, I> configurator = adaptPipelineConfigurator(pipelineConfigurator, clientConfig);
+        final PipelineConfigurator<O, I> configurator = adaptPipelineConfigurator(pipelineConfigurator, clientConfig,
+                                                                                  eventsSubject);
         this.clientBootstrap.handler(new ChannelInitializer<Channel>() {
             @Override
             public void initChannel(Channel ch) throws Exception {
@@ -197,8 +199,9 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
     }
 
     protected PipelineConfigurator<O, I> adaptPipelineConfigurator(PipelineConfigurator<O, I> pipelineConfigurator,
-                                                                   ClientConfig clientConfig) {
-        return PipelineConfigurators.createClientConfigurator(pipelineConfigurator, clientConfig);
+                                                                   ClientConfig clientConfig,
+                                                                   MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        return PipelineConfigurators.createClientConfigurator(pipelineConfigurator, clientConfig, eventsSubject);
     }
 
     @Override

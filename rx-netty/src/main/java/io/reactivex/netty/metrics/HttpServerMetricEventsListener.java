@@ -43,16 +43,16 @@ public abstract class HttpServerMetricEventsListener extends ServerMetricEventsL
                     onRequestHandlingStart(duration, timeUnit);
                     break;
                 case RequestHeadersReceived:
-                    onRequestHeadersReceived(duration, timeUnit);
+                    onRequestHeadersReceived();
                     break;
                 case RequestContentReceived:
-                    onRequestContentReceived(duration, timeUnit);
+                    onRequestContentReceived();
                     break;
                 case RequestReceiveComplete:
                     onRequestReceiveComplete(duration, timeUnit);
                     break;
                 case ResponseHeadersWriteStart:
-                    onResponseHeadersWriteStart(duration, timeUnit);
+                    onResponseHeadersWriteStart();
                     break;
                 case ResponseHeadersWriteSuccess:
                     onResponseHeadersWriteSuccess(duration, timeUnit);
@@ -61,16 +61,13 @@ public abstract class HttpServerMetricEventsListener extends ServerMetricEventsL
                     onResponseHeadersWriteFailed(duration, timeUnit, throwable);
                     break;
                 case ResponseContentWriteStart:
-                    onResponseContentWriteStart(duration, timeUnit);
+                    onResponseContentWriteStart();
                     break;
                 case ResponseContentWriteSuccess:
                     onResponseContentWriteSuccess(duration, timeUnit);
                     break;
                 case ResponseContentWriteFailed:
                     onResponseContentWriteFailed(duration, timeUnit, throwable);
-                    break;
-                case ResponseWriteComplete:
-                    onResponseWriteComplete(duration, timeUnit);
                     break;
                 case RequestHandlingSuccess:
                     onRequestHandlingSuccess(duration, timeUnit);
@@ -86,25 +83,23 @@ public abstract class HttpServerMetricEventsListener extends ServerMetricEventsL
 
     @SuppressWarnings("unused")protected void onRequestHandlingSuccess(long duration, TimeUnit timeUnit) {}
 
-    @SuppressWarnings("unused")protected void onResponseWriteComplete(long duration, TimeUnit timeUnit) {}
-
     @SuppressWarnings("unused")protected void onResponseContentWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 
     @SuppressWarnings("unused")protected void onResponseContentWriteSuccess(long duration, TimeUnit timeUnit) {}
 
-    @SuppressWarnings("unused")protected void onResponseContentWriteStart(long duration, TimeUnit timeUnit) {}
+    @SuppressWarnings("unused")protected void onResponseContentWriteStart() {}
 
     @SuppressWarnings("unused")protected void onResponseHeadersWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 
     @SuppressWarnings("unused")protected void onResponseHeadersWriteSuccess(long duration, TimeUnit timeUnit) {}
 
-    @SuppressWarnings("unused")protected void onResponseHeadersWriteStart(long duration, TimeUnit timeUnit) {}
+    @SuppressWarnings("unused")protected void onResponseHeadersWriteStart() {}
 
     @SuppressWarnings("unused")protected void onRequestReceiveComplete(long duration, TimeUnit timeUnit) {}
 
-    @SuppressWarnings("unused")protected void onRequestContentReceived(long duration, TimeUnit timeUnit) {}
+    @SuppressWarnings("unused")protected void onRequestContentReceived() {}
 
-    @SuppressWarnings("unused")protected void onRequestHeadersReceived(long duration, TimeUnit timeUnit) {}
+    @SuppressWarnings("unused")protected void onRequestHeadersReceived() {}
 
     @SuppressWarnings("unused")protected void onRequestHandlingStart(long duration, TimeUnit timeUnit) { }
 

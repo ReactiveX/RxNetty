@@ -24,18 +24,17 @@ import java.util.Map;
  */
 public class ListenerInvocationException extends RuntimeException {
 
-    @SuppressWarnings("rawtypes")
-    private Map<MetricEventsListener, Throwable> exceptions;
+    private Map<MetricEventsListener<?>, Throwable> exceptions;
 
     private static final long serialVersionUID = -4381062024201397997L;
 
     @SuppressWarnings("rawtypes")
     protected ListenerInvocationException() {
-        super("Metric event listener invocation failed. See");
-        exceptions = new HashMap<MetricEventsListener, Throwable>();
+        super("Metric event listener invocation failed. See attached exceptions for details.");
+        exceptions = new HashMap<MetricEventsListener<?>, Throwable>();
     }
 
-    protected void addException(@SuppressWarnings("rawtypes")MetricEventsListener listener, Throwable error) {
+    protected void addException(MetricEventsListener<?> listener, Throwable error) {
         exceptions.put(listener, error);
     }
 
@@ -43,8 +42,7 @@ public class ListenerInvocationException extends RuntimeException {
         exceptions = Collections.unmodifiableMap(exceptions);
     }
 
-    @SuppressWarnings("rawtypes")
-    public Map<MetricEventsListener, Throwable> getExceptions() {
+    public Map<MetricEventsListener<?>, Throwable> getExceptions() {
         return exceptions;
     }
 }

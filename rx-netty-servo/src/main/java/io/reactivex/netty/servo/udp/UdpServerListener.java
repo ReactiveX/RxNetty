@@ -38,7 +38,7 @@ public class UdpServerListener extends TcpServerListener<UdpServerMetricsEvent<?
         }
     }
 
-    public static UdpServerListener newHttpListener(String monitorId) {
+    public static UdpServerListener newUdpListener(String monitorId) {
         return new UdpServerListener(monitorId);
     }
 }

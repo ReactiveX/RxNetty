@@ -29,18 +29,16 @@ public class HttpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T
 
         RequestHandlingStart(true, false, Void.class),
 
-        RequestHeadersReceived(true, false, Void.class),
-        RequestContentReceived(true, false, Void.class),
+        RequestHeadersReceived(false, false, Void.class),
+        RequestContentReceived(false, false, Void.class),
         RequestReceiveComplete(true, false, Void.class),
 
-        ResponseHeadersWriteStart(true, false, Void.class),
+        ResponseHeadersWriteStart(false, false, Void.class),
         ResponseHeadersWriteSuccess(true, false, Void.class),
         ResponseHeadersWriteFailed(true, true, Void.class),
-        ResponseContentWriteStart(true, false, Void.class),
+        ResponseContentWriteStart(false, false, Void.class),
         ResponseContentWriteSuccess(true, false, Void.class),
         ResponseContentWriteFailed(true, true, Void.class),
-
-        ResponseWriteComplete(true, false, Void.class),
 
         RequestHandlingSuccess(true, false, Void.class),
         RequestHandlingFailed(true, true, Void.class),
@@ -84,7 +82,6 @@ public class HttpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T
     public static final HttpServerMetricsEvent<EventType> RESPONSE_CONTENT_WRITE_START = from(EventType.ResponseContentWriteStart);
     public static final HttpServerMetricsEvent<EventType> RESPONSE_CONTENT_WRITE_SUCCESS = from(EventType.ResponseContentWriteSuccess);
     public static final HttpServerMetricsEvent<EventType> RESPONSE_CONTENT_WRITE_FAILED = from(EventType.ResponseContentWriteFailed);
-    public static final HttpServerMetricsEvent<EventType> RESPONSE_WRITE_COMPLETE = from(EventType.ResponseWriteComplete);
 
     public static final HttpServerMetricsEvent<EventType> REQUEST_HANDLING_SUCCESS = from(EventType.RequestHandlingSuccess);
     public static final HttpServerMetricsEvent<EventType> REQUEST_HANDLING_FAILED = from(EventType.RequestHandlingFailed);

@@ -17,20 +17,19 @@ package io.reactivex.netty.servo;
 
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.RxClient;
-import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.http.server.HttpServer;
-import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.protocol.udp.client.UdpClient;
-import io.reactivex.netty.protocol.udp.client.UdpClientMetricsEvent;
 import io.reactivex.netty.protocol.udp.server.UdpServer;
-import io.reactivex.netty.protocol.udp.server.UdpServerMetricsEvent;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerMetricsEvent;
+import io.reactivex.netty.servo.http.HttpClientListener;
+import io.reactivex.netty.servo.http.HttpServerListener;
 import io.reactivex.netty.servo.tcp.TcpClientListener;
 import io.reactivex.netty.servo.tcp.TcpServerListener;
+import io.reactivex.netty.servo.udp.UdpClientListener;
+import io.reactivex.netty.servo.udp.UdpServerListener;
 
 /**
  * @author Nitesh Kant
@@ -50,35 +49,32 @@ public class ServoEventsListenerFactory implements MetricEventsListenerFactory {
     }
 
     @Override
-    public MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> forTcpClient(@SuppressWarnings("rawtypes") RxClient client) {
+    public TcpClientListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> forTcpClient(@SuppressWarnings("rawtypes") RxClient client) {
         return TcpClientListener.newListener(clientMetricNamePrefix + client.name());
     }
 
     @Override
-    public MetricEventsListener<HttpClientMetricsEvent<?>> forHttpClient(@SuppressWarnings("rawtypes") HttpClient client) {
-        return null;
+    public HttpClientListener forHttpClient(@SuppressWarnings("rawtypes") HttpClient client) {
+        return HttpClientListener.newHttpListener(clientMetricNamePrefix + client.name());
     }
 
     @Override
-    public MetricEventsListener<UdpClientMetricsEvent<?>> forUdpClient(@SuppressWarnings("rawtypes") UdpClient client) {
-        // TODO: Auto-generated method stub
-        return null;
+    public UdpClientListener forUdpClient(@SuppressWarnings("rawtypes") UdpClient client) {
+        return UdpClientListener.newUdpListener(clientMetricNamePrefix + client.name());
     }
 
     @Override
-    public MetricEventsListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> forTcpServer( @SuppressWarnings("rawtypes") RxServer server) {
+    public TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> forTcpServer( @SuppressWarnings("rawtypes") RxServer server) {
         return TcpServerListener.newListener(serverMetricNamePrefix + server.getServerPort());
     }
 
     @Override
-    public MetricEventsListener<HttpServerMetricsEvent<?>> forHttpServer(@SuppressWarnings("rawtypes") HttpServer server) {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpServerListener forHttpServer(@SuppressWarnings("rawtypes") HttpServer server) {
+        return HttpServerListener.newHttpListener(serverMetricNamePrefix + server.getServerPort());
     }
 
     @Override
-    public MetricEventsListener<UdpServerMetricsEvent<?>> forUdpServer(@SuppressWarnings("rawtypes") UdpServer server) {
-        // TODO: Auto-generated method stub
-        return null;
+    public UdpServerListener forUdpServer(@SuppressWarnings("rawtypes") UdpServer server) {
+        return UdpServerListener.newUdpListener(serverMetricNamePrefix + server.getServerPort());
     }
 }

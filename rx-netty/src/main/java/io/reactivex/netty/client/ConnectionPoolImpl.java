@@ -284,8 +284,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     @Override
-    public Subscription subscribe(
-            MetricEventsListener<? extends ClientMetricsEvent<ClientMetricsEvent.EventType>> listener) {
+    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
         return metricEventsSubject.subscribe(listener);
     }
 
@@ -310,8 +309,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     @SuppressWarnings("deprecation")
-    private static class StateChangeObservableBridge
-            implements MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> {
+    private static class StateChangeObservableBridge implements MetricEventsListener<ClientMetricsEvent<?>> {
 
         private final PublishSubject<PoolStateChangeEvent> stateChangeObservable;
 
@@ -320,48 +318,50 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         }
 
         @Override
-        public void onEvent(ClientMetricsEvent<ClientMetricsEvent.EventType> event, long duration, TimeUnit timeUnit,
+        public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
                             Throwable throwable, Object value) {
-            switch (event.getType()) {
-                case ConnectStart:
-                    // Nothing to do.
-                    break;
-                case ConnectSuccess:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.NewConnectionCreated);
-                    break;
-                case ConnectFailed:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.ConnectFailed);
-                    break;
-                case ConnectionCloseStart:
-                    break;
-                case ConnectionCloseSuccess:
-                    break;
-                case ConnectionCloseFailed:
-                    break;
-                case PoolAcquireStart:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireAttempted);
-                    break;
-                case PoolAcquireSuccess:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
-                    break;
-                case PooledConnectionReuse:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionReuse);
-                    break;
-                case PooledConnectionEviction:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionEviction);
-                    break;
-                case PoolAcquireFailed:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireFailed);
-                    break;
-                case PoolReleaseStart:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseAttempted);
-                    break;
-                case PoolReleaseSuccess:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseSucceeded);
-                    break;
-                case PoolReleaseFailed:
-                    stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseFailed);
-                    break;
+            if (event.getType() instanceof ClientMetricsEvent.EventType) {
+                switch ((ClientMetricsEvent.EventType)event.getType()) {
+                    case ConnectStart:
+                        // Nothing to do.
+                        break;
+                    case ConnectSuccess:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.NewConnectionCreated);
+                        break;
+                    case ConnectFailed:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.ConnectFailed);
+                        break;
+                    case ConnectionCloseStart:
+                        break;
+                    case ConnectionCloseSuccess:
+                        break;
+                    case ConnectionCloseFailed:
+                        break;
+                    case PoolAcquireStart:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireAttempted);
+                        break;
+                    case PoolAcquireSuccess:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
+                        break;
+                    case PooledConnectionReuse:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionReuse);
+                        break;
+                    case PooledConnectionEviction:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionEviction);
+                        break;
+                    case PoolAcquireFailed:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireFailed);
+                        break;
+                    case PoolReleaseStart:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseAttempted);
+                        break;
+                    case PoolReleaseSuccess:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseSucceeded);
+                        break;
+                    case PoolReleaseFailed:
+                        stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseFailed);
+                        break;
+                }
             }
         }
 

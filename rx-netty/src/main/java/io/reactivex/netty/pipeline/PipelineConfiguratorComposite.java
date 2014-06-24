@@ -17,6 +17,10 @@ package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelPipeline;
 
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+
 /**
  * A composable implementation of {@link PipelineConfigurator} to compose a pipeline configuration out of multiple
  * {@link PipelineConfigurator} implementations. <br/>
@@ -51,5 +55,15 @@ public class PipelineConfiguratorComposite<I, O> implements PipelineConfigurator
                 configurator.configureNewPipeline(pipeline);
             }
         }
+    }
+
+    /**
+     * Returns an unmodifiable list of the constituent configurators in this composite.
+     *
+     * @return An unmodifiable list of the constituent configurators in this composite.
+     */
+    @SuppressWarnings("rawtypes")
+    public List<PipelineConfigurator> getConstituentConfigurators() {
+        return Collections.unmodifiableList(Arrays.asList(configurators));
     }
 }

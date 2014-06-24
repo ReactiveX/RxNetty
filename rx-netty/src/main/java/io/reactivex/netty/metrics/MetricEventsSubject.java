@@ -57,6 +57,10 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
         throwIfErrorOccured(exception);
     }
 
+    public void onEvent(E event, long durationInMillis, Throwable throwable, Object value) {
+        onEvent(event, durationInMillis, TimeUnit.MILLISECONDS, throwable, value);
+    }
+
     public void onEvent(E event) {
         onEvent(event, NO_DURATION, NO_TIME_UNIT, NO_ERROR, NO_VALUE);
     }
@@ -83,6 +87,10 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
 
     public void onEvent(E event, long durationInMillis, Object value) {
         onEvent(event, durationInMillis, TimeUnit.MILLISECONDS, NO_ERROR, value);
+    }
+
+    public void onEvent(E event, Object value) {
+        onEvent(event, NO_DURATION, NO_TIME_UNIT, NO_ERROR, value);
     }
 
     @Override

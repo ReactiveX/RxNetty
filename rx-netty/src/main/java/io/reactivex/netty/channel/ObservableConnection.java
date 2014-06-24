@@ -40,7 +40,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
     public ObservableConnection(final ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
                                 ChannelMetricEventProvider metricEventProvider) {
-        super(ctx);
+        super(ctx, eventsSubject, metricEventProvider);
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
         inputSubject = PublishSubject.create();
@@ -85,20 +85,35 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
     protected Observable<Void> _closeChannel() {
         final ChannelFuture closeFuture = getChannelHandlerContext().close();
+
+        /**
+         * This listener if added inside the returned Observable onSubscribe() function, would mean that the
+         * metric events will only be fired if someone subscribed to the close() Observable. However, we need them to
+         * fire independent of someone subscribing.
+         */
+        closeFuture.addListener(new ChannelFutureListener() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess()) {
+                    eventsSubject.onEvent(metricEventProvider.getChannelCloseSuccessEvent(),
+                                          Clock.onEndMillis(closeStartTimeMillis));
+                } else {
+                    eventsSubject.onEvent(metricEventProvider.getChannelCloseFailedEvent(),
+                                          Clock.onEndMillis(closeStartTimeMillis), future.cause());
+                }
+            }
+        });
+
         return Observable.create(new Observable.OnSubscribe<Void>() {
             @Override
             public void call(final Subscriber<? super Void> subscriber) {
                 closeFuture.addListener(new ChannelFutureListener() {
                     @Override
-                    @SuppressWarnings("unchecked")
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (future.isSuccess()) {
-                            eventsSubject.onEvent(metricEventProvider.getChannelCloseSuccessEvent(),
-                                                  Clock.onEndMillis(closeStartTimeMillis));
                             subscriber.onCompleted();
                         } else {
-                            eventsSubject.onEvent(metricEventProvider.getChannelCloseFailedEvent(),
-                                                  Clock.onEndMillis(closeStartTimeMillis), future.cause());
                             subscriber.onError(future.cause());
                         }
                     }

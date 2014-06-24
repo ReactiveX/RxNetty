@@ -26,8 +26,7 @@ import java.util.concurrent.TimeUnit;
  * @author Nitesh Kant
  */
 @SuppressWarnings("deprecation")
-public interface PoolLimitDeterminationStrategy
-        extends MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>>,
+public interface PoolLimitDeterminationStrategy extends MetricEventsListener<ClientMetricsEvent<?>>,
         Observer<PoolInsightProvider.PoolStateChangeEvent> {
 
     /**

@@ -35,7 +35,7 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
  */
 public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent<?>> {
 
-    private final HttpClientMetricEventsListener delegate = new HttpClientMetricEventsListenerImpl();
+    private final HttpClientMetricEventsListenerImpl delegate = new HttpClientMetricEventsListenerImpl();
 
     protected HttpClientListener(String monitorId) {
         super(monitorId);
@@ -49,6 +49,34 @@ public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent
 
     public static HttpClientListener newHttpListener(String monitorId) {
         return new HttpClientListener(monitorId);
+    }
+
+    public long getRequestBacklog() {
+        return delegate.requestBacklog.getNumber().get();
+    }
+
+    public long getInflightRequests() {
+        return delegate.inflightRequests.getNumber().get();
+    }
+
+    public long getProcessedRequests() {
+        return delegate.processedRequests.getValue().longValue();
+    }
+
+    public long getRequestWriteFailed() {
+        return delegate.requestWriteFailed.getValue().longValue();
+    }
+
+    public long getFailedResponses() {
+        return delegate.failedResponses.getValue().longValue();
+    }
+
+    public Timer getRequestWriteTimes() {
+        return delegate.requestWriteTimes;
+    }
+
+    public Timer getResponseReadTimes() {
+        return delegate.responseReadTimes;
     }
 
     private class HttpClientMetricEventsListenerImpl extends HttpClientMetricEventsListener {
@@ -99,7 +127,7 @@ public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent
         }
 
         @Override
-        protected void onRequestHeadersWriteStart(long duration, TimeUnit timeUnit) {
+        protected void onRequestHeadersWriteStart() {
             decrementLongGauge(requestBacklog);
         }
 

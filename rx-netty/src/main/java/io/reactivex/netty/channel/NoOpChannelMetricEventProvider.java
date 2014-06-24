@@ -23,7 +23,7 @@ import rx.subscriptions.Subscriptions;
 
 /**
  * An implementation of {@link ChannelMetricEventProvider} that does not do anything. It is imperative that this
- * provider is always used with {@link NoOpChannelMetricEventProvider.NoOpMetricEventsSubject} to make sure that none
+ * provider is always used with {@link NoOpMetricEventsSubject} to make sure that none
  * of the events generated ever reach the listeners. Failure to do so will result in runtime type mismatched for the
  * listeners.
  *
@@ -85,13 +85,12 @@ public class NoOpChannelMetricEventProvider extends ChannelMetricEventProvider {
         return NO_OP_EVENT;
     }
 
-    @SuppressWarnings("rawtypes")
-    private static class NoOpMetricsEvent implements MetricsEvent<Enum> {
+    private static class NoOpMetricsEvent implements MetricsEvent<Enum<NoOpMetricsEvent.NoOp>> {
 
-        private enum NoOp {None}
+        public enum NoOp {None}
 
         @Override
-        public Enum getType() {
+        public NoOp getType() {
             return NoOp.None;
         }
 

@@ -26,6 +26,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.NoOpChannelHandlerContext;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import org.junit.Assert;
 import org.junit.Test;
 import rx.subjects.PublishSubject;
@@ -62,8 +63,9 @@ public class CookieTest {
     @Test
     public void testSetCookie() throws Exception {
         DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
-        HttpServerResponse<ByteBuf> response = new HttpServerResponse<ByteBuf>(new NoOpChannelHandlerContext(),
-                                                                   nettyResponse);
+        HttpServerResponse<ByteBuf> response =
+                new HttpServerResponse<ByteBuf>(new NoOpChannelHandlerContext(), nettyResponse,
+                                                new MetricEventsSubject<HttpServerMetricsEvent<?>>());
         String cookieName = "name";
         String cookieValue = "value";
         response.addCookie(new DefaultCookie(cookieName, cookieValue));
