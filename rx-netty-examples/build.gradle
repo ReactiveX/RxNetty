@@ -19,7 +19,6 @@ targetCompatibility = JavaVersion.VERSION_1_6
 
 dependencies {
     compile project(':rx-netty')
-    compile "org.slf4j:slf4j-log4j12:${slf4j_version}"
     testCompile 'junit:junit:4.10'
 }
 
@@ -39,21 +38,6 @@ task runHelloWorldServer (dependsOn: [classes], type: JavaExec) {
     description = "Run Hello World server"
 
     main = "io.reactivex.netty.examples.http.helloworld.HelloWorldServer"
-    classpath = sourceSets.main.runtimeClasspath
-}
-
-task runSslHelloWorldClient (dependsOn: [classes], type: JavaExec) {
-    group = "Examples"
-    description = "Run SSL Hello World client"
-
-    main = "io.reactivex.netty.examples.http.ssl.SslHelloWorldClient"
-    classpath = sourceSets.main.runtimeClasspath
-}
-task runSslHelloWorldServer (dependsOn: [classes], type: JavaExec) {
-    group = "Examples"
-    description = "Run SSL Hello World server"
-
-    main = "io.reactivex.netty.examples.http.ssl.SslHelloWorldServer"
     classpath = sourceSets.main.runtimeClasspath
 }
 
@@ -171,21 +155,6 @@ task runTcpEchoServer (dependsOn: [classes], type: JavaExec) {
     description = "Run TCP echo server"
 
     main = "io.reactivex.netty.examples.tcp.echo.TcpEchoServer"
-    classpath = sourceSets.main.runtimeClasspath
-}
-
-task runSslTcpEchoClient (dependsOn: [classes], type: JavaExec) {
-    group = "Examples"
-    description = "Run SSL TCP echo client"
-
-    main = "io.reactivex.netty.examples.tcp.ssl.SslTcpEchoClient"
-    classpath = sourceSets.main.runtimeClasspath
-}
-task runSslTcpEchoServer (dependsOn: [classes], type: JavaExec) {
-    group = "Examples"
-    description = "Run SSL TCP echo server"
-
-    main = "io.reactivex.netty.examples.tcp.ssl.SslTcpEchoServer"
     classpath = sourceSets.main.runtimeClasspath
 }
 
