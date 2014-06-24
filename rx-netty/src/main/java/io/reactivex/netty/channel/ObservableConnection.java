@@ -66,12 +66,9 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     protected Observable<Void> _close() {
-        closeStartTimeMillis = Clock.newStartTimeMillis();
-        eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
         PublishSubject<I> thisSubject = inputSubject;
-        cleanupConnection();
+        cleanupConnection(); // Cleanup is required irrespective of close underlying connection (pooled connection)
         Observable<Void> toReturn = _closeChannel();
         thisSubject.onCompleted(); // This is just to make sure we make the subject as completed after we finish
         // closing the channel, results in more deterministic behavior for clients.
@@ -83,7 +80,10 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
     }
 
+    @SuppressWarnings("unchecked")
     protected Observable<Void> _closeChannel() {
+        closeStartTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
         final ChannelFuture closeFuture = getChannelHandlerContext().close();
 
         /**

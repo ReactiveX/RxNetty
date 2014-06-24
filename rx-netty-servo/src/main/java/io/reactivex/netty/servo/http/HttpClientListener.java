@@ -108,6 +108,8 @@ public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent
 
         @Override
         protected void onResponseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            decrementLongGauge(inflightRequests);
+            processedRequests.increment();
             failedResponses.increment();
         }
 

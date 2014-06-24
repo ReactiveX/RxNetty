@@ -156,6 +156,10 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         return port;
     }
 
+    public MetricEventsSubject<ServerMetricsEvent<?>> getEventsSubject() {
+        return eventsSubject;
+    }
+
     @Override
     public Subscription subscribe(MetricEventsListener<? extends ServerMetricsEvent<?>> listener) {
         return eventsSubject.subscribe(listener);

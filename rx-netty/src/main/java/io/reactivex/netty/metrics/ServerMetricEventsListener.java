@@ -43,6 +43,15 @@ public abstract class ServerMetricEventsListener<T extends ServerMetricsEvent<?>
             case ConnectionHandlingFailed:
                 onConnectionHandlingFailed(duration, timeUnit, throwable);
                 break;
+            case ConnectionCloseStart:
+                onConnectionCloseStart();
+                break;
+            case ConnectionCloseSuccess:
+                onConnectionCloseSuccess(duration, timeUnit);
+                break;
+            case ConnectionCloseFailed:
+                onConnectionCloseFailed(duration, timeUnit, throwable);
+                break;
             case WriteStart:
                 onWriteStart();
                 break;
@@ -72,6 +81,12 @@ public abstract class ServerMetricEventsListener<T extends ServerMetricsEvent<?>
     @SuppressWarnings("unused") protected void onConnectionHandlingSuccess(long duration, TimeUnit timeUnit) {}
 
     @SuppressWarnings("unused") protected void onConnectionHandlingStart(long duration, TimeUnit timeUnit) { }
+
+    protected void onConnectionCloseStart() { }
+
+    @SuppressWarnings("unused") protected void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) { }
+
+    @SuppressWarnings("unused") protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) { }
 
     protected void onNewClientConnected() { }
 

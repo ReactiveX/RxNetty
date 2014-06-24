@@ -52,8 +52,10 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
     private final Counter failedPoolReleases;
     private final Timer poolReleaseTimes;
 
+    private final Counter poolAcquires;
     private final Counter poolEvictions;
     private final Counter poolReuse;
+    private final Counter poolReleases;
 
     private final LongGauge pendingWrites;
     private final LongGauge pendingFlushes;
@@ -81,8 +83,10 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
         pendingPoolReleases = newLongGauge("pendingPoolReleases");
         poolReleaseTimes = newTimer("poolReleaseTimes");
         failedPoolReleases = newCounter("failedPoolReleases");
+        poolAcquires = newCounter("poolAcquires");
         poolEvictions = newCounter("poolEvictions");
         poolReuse = newCounter("poolReuse");
+        poolReleases = newCounter("poolReleases");
 
         pendingWrites = newLongGauge("pendingWrites");
         pendingFlushes = newLongGauge("pendingFlushes");
@@ -138,12 +142,14 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
     @Override
     protected void onPoolReleaseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         decrementLongGauge(pendingPoolReleases);
+        poolReleases.increment();
         failedPoolReleases.increment();
     }
 
     @Override
     protected void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
         decrementLongGauge(pendingPoolReleases);
+        poolReleases.increment();
         poolReleaseTimes.record(duration, timeUnit);
     }
 
@@ -165,12 +171,14 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
     @Override
     protected void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         decrementLongGauge(pendingPoolAcquires);
+        poolAcquires.increment();
         failedPoolAcquires.increment();
     }
 
     @Override
     protected void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
         decrementLongGauge(pendingPoolAcquires);
+        poolAcquires.increment();
         poolAcquireTimes.record(duration, timeUnit);
     }
 
@@ -181,6 +189,7 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
 
     @Override
     protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(liveConnections); // Even though the close failed, the connection isn't live.
         decrementLongGauge(pendingConnectionClose);
         failedConnectionClose.increment();
     }
@@ -315,6 +324,14 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
 
     public Timer getFlushTimes() {
         return flushTimes;
+    }
+
+    public long getPoolAcquires() {
+        return poolAcquires.getValue().longValue();
+    }
+
+    public long getPoolReleases() {
+        return poolReleases.getValue().longValue();
     }
 
     public static TcpClientListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> newListener(String monitorId) {

@@ -37,17 +37,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEventsPublisher<E>, MetricEventsListener<E> {
 
-    private final CopyOnWriteArrayList<MetricEventsListener<? extends E>> listeners;
+    private final CopyOnWriteArrayList<SafeListener<? extends E>> listeners;
 
     public MetricEventsSubject() {
-        listeners = new CopyOnWriteArrayList<MetricEventsListener<? extends E>>();
+        listeners = new CopyOnWriteArrayList<SafeListener<? extends E>>();
     }
 
     @Override
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void onEvent(E event, long duration, TimeUnit timeUnit, Throwable throwable, Object value) {
         ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
+        for (SafeListener listener : listeners) {
             try {
                 listener.onEvent(event, duration, timeUnit, throwable, value);
             } catch (Throwable e) {
@@ -97,7 +97,7 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void onCompleted() {
         ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
+        for (SafeListener listener : listeners) {
             try {
                 listener.onCompleted();
             } catch (Throwable e) {
@@ -111,7 +111,7 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
     @SuppressWarnings({"rawtypes", "unchecked"})
     public void onSubscribe() {
         ListenerInvocationException exception = null;
-        for (MetricEventsListener listener : listeners) {
+        for (SafeListener listener : listeners) {
             try {
                 listener.onSubscribe();
             } catch (Throwable e) {
@@ -135,17 +135,18 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
     }
 
     protected ListenerInvocationException handleListenerError(ListenerInvocationException exception,
-                                                              MetricEventsListener<? extends E> listener, Throwable e) {
+                                                              SafeListener<? extends E> listener, Throwable e) {
         Exceptions.throwIfFatal(e);
         if (null == exception) {
             exception = new ListenerInvocationException();
         }
-        exception.addException(listener, e);
+        exception.addException(listener.delegate, e);
         return exception;
     }
 
     protected void throwIfErrorOccured(ListenerInvocationException exception) {
         if (null != exception) {
+            exception.finish();
             throw exception;
         }
     }

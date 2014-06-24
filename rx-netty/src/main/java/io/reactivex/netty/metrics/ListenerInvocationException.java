@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.metrics;
 
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -25,13 +27,15 @@ import java.util.Map;
 public class ListenerInvocationException extends RuntimeException {
 
     private Map<MetricEventsListener<?>, Throwable> exceptions;
+    private String message;
 
     private static final long serialVersionUID = -4381062024201397997L;
 
     @SuppressWarnings("rawtypes")
     protected ListenerInvocationException() {
-        super("Metric event listener invocation failed. See attached exceptions for details.");
+        super("Metric event listener invocation failed.");
         exceptions = new HashMap<MetricEventsListener<?>, Throwable>();
+        message = super.getMessage();
     }
 
     protected void addException(MetricEventsListener<?> listener, Throwable error) {
@@ -40,9 +44,24 @@ public class ListenerInvocationException extends RuntimeException {
 
     protected void finish() {
         exceptions = Collections.unmodifiableMap(exceptions);
+        StringBuilder msgBuilder = new StringBuilder(getMessage()).append(". Errors: \n");
+        for (Map.Entry<MetricEventsListener<?>, Throwable> exceptionEntry : exceptions.entrySet()) {
+            msgBuilder.append("Listener: ");
+            msgBuilder.append(exceptionEntry.getKey().getClass().getSimpleName());
+            msgBuilder.append("\n Error:");
+            ByteArrayOutputStream stackTraceStream = new ByteArrayOutputStream();
+            exceptionEntry.getValue().printStackTrace(new PrintStream(stackTraceStream));
+            msgBuilder.append(stackTraceStream.toString());
+        }
+        message = msgBuilder.toString();
     }
 
     public Map<MetricEventsListener<?>, Throwable> getExceptions() {
         return exceptions;
+    }
+
+    @Override
+    public String getMessage() {
+        return message;
     }
 }

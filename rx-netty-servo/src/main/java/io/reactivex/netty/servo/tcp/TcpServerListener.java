@@ -39,6 +39,9 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
     private final LongGauge inflightConnections;
     private final Counter failedConnections;
     private final Timer connectionProcessingTimes;
+    private final LongGauge pendingConnectionClose;
+    private final Counter failedConnectionClose;
+    private final Timer connectionCloseTimes;
 
     private final LongGauge pendingWrites;
     private final LongGauge pendingFlushes;
@@ -55,8 +58,11 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
         refCounter = new RefCountingMonitor(monitorId);
         liveConnections = newLongGauge("liveConnections");
         inflightConnections = newLongGauge("inflightConnections");
+        pendingConnectionClose = newLongGauge("pendingConnectionClose");
+        failedConnectionClose = newCounter("failedConnectionClose");
         failedConnections = newCounter("failedConnections");
         connectionProcessingTimes = newTimer("connectionProcessingTimes");
+        connectionCloseTimes = newTimer("connectionCloseTimes");
 
         pendingWrites = newLongGauge("pendingWrites");
         pendingFlushes = newLongGauge("pendingFlushes");
@@ -67,34 +73,6 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
         failedWrites = newCounter("failedWrites");
         failedFlushes = newCounter("failedFlushes");
         flushTimes = newTimer("flushTimes");
-    }
-
-    @Override
-    public void onEvent(T event, long duration, TimeUnit timeUnit, Throwable throwable, Object value) {
-        switch ((ServerMetricsEvent.EventType)event.getType()) {
-            case NewClientConnected:
-                break;
-            case ConnectionHandlingStart:
-                break;
-            case ConnectionHandlingSuccess:
-                break;
-            case ConnectionHandlingFailed:
-                break;
-            case WriteStart:
-                break;
-            case WriteSuccess:
-                break;
-            case WriteFailed:
-                break;
-            case FlushStart:
-                break;
-            case FlushSuccess:
-                break;
-            case FlushFailed:
-                break;
-            case BytesRead:
-                break;
-        }
     }
 
     @Override
@@ -112,6 +90,26 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
     @Override
     protected void onConnectionHandlingStart(long duration, TimeUnit timeUnit) {
         incrementLongGauge(inflightConnections);
+    }
+
+    @Override
+    protected void onConnectionCloseStart() {
+        incrementLongGauge(pendingConnectionClose);
+    }
+
+    @Override
+    protected void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
+        decrementLongGauge(liveConnections);
+        decrementLongGauge(pendingConnectionClose);
+        connectionCloseTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        decrementLongGauge(liveConnections);
+        decrementLongGauge(pendingConnectionClose);
+        connectionCloseTimes.record(duration, timeUnit);
+        failedConnectionClose.increment();
     }
 
     @Override
@@ -159,10 +157,6 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
         incrementLongGauge(pendingWrites);
     }
 
-    public static TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> newListener(String monitorId) {
-        return new TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>>(monitorId);
-    }
-
     @Override
     public void onCompleted() {
         refCounter.onCompleted();
@@ -171,6 +165,10 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
     @Override
     public void onSubscribe() {
         refCounter.onSubscribe();
+    }
+
+    public static TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> newListener(String monitorId) {
+        return new TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>>(monitorId);
     }
 
     public long getLiveConnections() {

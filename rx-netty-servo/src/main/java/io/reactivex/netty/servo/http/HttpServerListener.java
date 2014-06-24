@@ -102,11 +102,13 @@ public class HttpServerListener extends TcpServerListener<HttpServerMetricsEvent
         @Override
         protected void onRequestHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
             processedRequests.increment();
+            decrementLongGauge(inflightRequests);
             failedRequests.increment();
         }
 
         @Override
         protected void onRequestHandlingSuccess(long duration, TimeUnit timeUnit) {
+            decrementLongGauge(inflightRequests);
             processedRequests.increment();
         }
 
