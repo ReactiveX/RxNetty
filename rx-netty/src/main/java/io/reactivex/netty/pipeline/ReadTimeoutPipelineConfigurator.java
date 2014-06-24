@@ -23,7 +23,12 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.timeout.ReadTimeoutHandler;
+import io.netty.util.concurrent.EventExecutor;
+import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -44,6 +49,8 @@ import java.util.concurrent.TimeUnit;
 @ChannelHandler.Sharable
 public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Object, Object> {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReadTimeoutPipelineConfigurator.class);
+
     public static final String READ_TIMEOUT_HANDLER_NAME = "readtimeout-handler";
     public static final String READ_TIMEOUT_LIFECYCLE_MANAGER_HANDLER_NAME = "readtimeout-handler-lifecycle-manager";
     private final long timeout;
@@ -59,9 +66,44 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
         pipeline.addFirst(READ_TIMEOUT_LIFECYCLE_MANAGER_HANDLER_NAME, new ReadTimeoutHandlerLifecycleManager());
     }
 
-    public static void removeTimeoutHandler(ChannelPipeline pipeline) {
-        if (pipeline.get(READ_TIMEOUT_HANDLER_NAME) != null) {
-            pipeline.remove(READ_TIMEOUT_HANDLER_NAME);
+    public static void disableReadTimeout(ChannelPipeline pipeline) {
+
+        /**
+         * Since, ChannelPipeline.remove() is blocking when not called from the associated eventloop, we do not remove
+         * the handler. Instead we decativate the handler (invoked by the associated eventloop) here so that it does not
+         * generate any more timeouts.
+         * The handler is activated on next write to this pipeline.
+         *
+         * See issue: https://github.com/Netflix/RxNetty/issues/145
+         */
+        final ChannelHandler timeoutHandler = pipeline.get(READ_TIMEOUT_HANDLER_NAME);
+        if (timeoutHandler != null) {
+            final ChannelHandlerContext handlerContext = pipeline.context(timeoutHandler);
+            EventExecutor executor = handlerContext.executor();
+
+            // Since, we are calling the handler directly, we need to make sure, it is in the owner eventloop, else it
+            // can get concurrent callbacks.
+            if (executor.inEventLoop()) {
+                disableHandler(timeoutHandler, handlerContext);
+            } else {
+                executor.submit(new Callable<Object>() {
+
+                    @Override
+                    public Object call() throws Exception {
+                        disableHandler(timeoutHandler, handlerContext);
+                        return null;
+                    }
+                });
+            }
+        }
+    }
+
+    private static void disableHandler(ChannelHandler timeoutHandler, ChannelHandlerContext handlerContext) {
+        try {
+            timeoutHandler.handlerRemoved(handlerContext);
+        } catch (Exception e) {
+            logger.error("Failed to remove readtimeout handler. This connection will be discarded.", e);
+            handlerContext.channel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true);
         }
     }
 
@@ -74,8 +116,13 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
             promise.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    if (null == ctx.pipeline().get(READ_TIMEOUT_HANDLER_NAME)) {
+                    ChannelHandler timeoutHandler = ctx.pipeline().get(READ_TIMEOUT_HANDLER_NAME);
+                    if (null == timeoutHandler) {
                         ctx.pipeline().addFirst(READ_TIMEOUT_HANDLER_NAME, new ReadTimeoutHandler(timeout, timeUnit));
+                    } else {
+                        // This will always be invoked from the eventloop as it is a future listener callback.
+                        ChannelHandlerContext handlerContext = ctx.pipeline().context(timeoutHandler);
+                        timeoutHandler.handlerAdded(handlerContext);
                     }
                 }
             });
