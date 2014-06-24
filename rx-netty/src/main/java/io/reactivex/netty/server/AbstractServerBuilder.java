@@ -26,6 +26,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 
 /**
  * @author Nitesh Kant
@@ -40,6 +41,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
     protected final ConnectionHandler<I, O> connectionHandler;
     protected final int port;
     protected LogLevel wireLogginLevel;
+    private SSLEngineFactory sslEngineFactory;
 
     protected AbstractServerBuilder(int port, T bootstrap, ConnectionHandler<I, O> connectionHandler) {
         if (null == connectionHandler) {
@@ -77,6 +79,11 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
     public B appendPipelineConfigurator(PipelineConfigurator<I, O> additionalConfigurator) {
         return pipelineConfigurator(PipelineConfigurators.composeConfigurators(pipelineConfigurator,
                                                                                additionalConfigurator));
+    }
+
+    public B withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        this.sslEngineFactory = sslEngineFactory;
+        return returnBuilder();
     }
 
     /**
@@ -131,6 +138,9 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         if (null != wireLogginLevel) {
             pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
                                                                                    wireLogginLevel);
+        }
+        if(null != sslEngineFactory) {
+            appendPipelineConfigurator(PipelineConfigurators.<I, O>sslConfigurator(sslEngineFactory));
         }
         return createServer();
     }

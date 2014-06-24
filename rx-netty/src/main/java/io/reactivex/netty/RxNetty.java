@@ -139,7 +139,7 @@ public final class RxNetty {
 
     public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
                                                            PipelineConfigurator<HttpClientResponse<O>,
-                                                                                HttpClientRequest<I>> configurator) {
+                                                           HttpClientRequest<I>> configurator) {
         return RxNetty.<I, O>newHttpClientBuilder(host, port).pipelineConfigurator(configurator).build();
     }
 

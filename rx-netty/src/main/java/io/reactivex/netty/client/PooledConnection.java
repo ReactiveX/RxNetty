@@ -126,7 +126,7 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
         PublishSubject<I> newInputSubject = PublishSubject.create();
         updateInputSubject(newInputSubject);
         ConnectionReuseEvent reuseEvent = new ConnectionReuseEvent(newInputSubject);
-        getChannelHandlerContext().fireUserEventTriggered(reuseEvent);
+        getChannelHandlerContext().pipeline().fireUserEventTriggered(reuseEvent);
     }
 
     /*Visible for testing*/ void setLastReturnToPoolTimeMillis(long lastReturnToPoolTimeMillis) {
