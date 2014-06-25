@@ -10,12 +10,14 @@ Examples Catalog
 Protocol | Example / Test | Description
 ---------|---------|------------
 HTTP | [Hello World](src/main/java/io/reactivex/netty/examples/http/helloworld/README.md)            | Simple HTTP GET client/server implementation.
+HTTP | [SSL Hello World](src/main/java/io/reactivex/netty/examples/ssl/README.md)                    | Hello World version with SSL connection.
 HTTP | [Simple POST](src/main/java/io/reactivex/netty/examples/http/post/README.md)                  | Simple HTTP POST client/server implementation.
 HTTP | [Chunked GET](src/main/java/io/reactivex/netty/examples/http/chunk/README.md)                 | An example of how to handle large, chunked reply that is not pre-aggregated by the default pipline configurator.
 HTTP | [Server Side Events](src/main/java/io/reactivex/netty/examples/http/sse/README.md)            | This examples demonstrates how to implement server side event stream, and how to handle it on the client side.
 HTTP | [Log tail](src/main/java/io/reactivex/netty/examples/http/logtail/README.md)                  | A more sophisticated server side event example, with multiple event sources and an intermediary aggregating separate data streams.
 HTTP | [Word Counter](src/main/java/io/reactivex/netty/examples/http/wordcounter/README.md)          | More complex HTTP POST example demonstrating how to use ContentSource framework  to upload a file onto the server.
 TCP  | [Echo Server](src/main/java/io/reactivex/netty/examples/tcp/echo/README.md)                   | A simple echo client.
+TCP  | [SSL Echo Server](src/main/java/io/reactivex/netty/examples/tcp/ssl/README.md)                | A simple echo client with SSL connection.
 TCP  | [TCP Server Side Event Stream](src/main/java/io/reactivex/netty/examples/tcp/event/README.md) | TCP server side event stream example, with configurable client side processing delay.
 TCP  | [Interval](src/main/java/io/reactivex/netty/examples/tcp/interval/README.md)                  | A bit more sophisticated event stream example, with explicit subscribe/unsubscribe control mechanism.
 UDP  | [Hello World](src/main/java/io/reactivex/netty/examples/udp/README.md)                        | UDP version of a simple request - reply client/server implementation.

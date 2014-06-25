@@ -23,6 +23,8 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ClientRequiredConfigurator;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.pipeline.ssl.SslPipelineConfigurator;
 import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
@@ -87,6 +89,10 @@ public final class PipelineConfigurators {
 
     public static <I> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<ServerSentEvent>> sseServerConfigurator() {
         return new SseOverHttpServerPipelineConfigurator<I>();
+    }
+
+    public static <I, O> PipelineConfigurator<I, O> sslConfigurator(SSLEngineFactory sslEngineFactory) {
+        return new SslPipelineConfigurator<I, O>(sslEngineFactory);
     }
 
     /**

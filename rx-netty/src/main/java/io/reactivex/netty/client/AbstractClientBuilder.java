@@ -30,6 +30,7 @@ import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -55,6 +56,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected LogLevel wireLogginLevel;
     protected MetricEventsListenerFactory eventListenersFactory;
     protected MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    private SSLEngineFactory sslEngineFactory;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port,
                                     ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
@@ -214,6 +216,11 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        this.sslEngineFactory = sslEngineFactory;
+        return returnBuilder();
+    }
+
     public Bootstrap getBootstrap() {
         return bootstrap;
     }
@@ -248,6 +255,9 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         if (null != wireLogginLevel) {
             pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
                                                                                    wireLogginLevel);
+        }
+        if(null != sslEngineFactory) {
+            appendPipelineConfigurator(PipelineConfigurators.<O,I>sslConfigurator(sslEngineFactory));
         }
         C client = createClient();
         if (null != eventListenersFactory) {

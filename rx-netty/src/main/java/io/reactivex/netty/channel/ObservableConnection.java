@@ -44,7 +44,8 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
         inputSubject = PublishSubject.create();
-        ctx.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
+        ChannelHandlerContext firstContext = ctx.pipeline().firstContext();
+        firstContext.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
     }
 
     public Observable<I> getInput() {
@@ -77,7 +78,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
     protected void cleanupConnection() {
         cancelPendingWrites(true);
-        ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
+        ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannelHandlerContext().pipeline());
     }
 
     @SuppressWarnings("unchecked")

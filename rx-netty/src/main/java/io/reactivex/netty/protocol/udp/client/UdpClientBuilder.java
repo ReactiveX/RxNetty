@@ -24,6 +24,7 @@ import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClientImpl;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 
 import java.net.InetSocketAddress;
 
@@ -48,6 +49,11 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
     protected RxClient<I, O> createClient() {
         return new UdpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
                                    channelFactory, eventsSubject);
+    }
+
+    @Override
+    public UdpClientBuilder<I, O> withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        throw new IllegalArgumentException("SSL protocol is not applicable to UDP ");
     }
 
     @Override

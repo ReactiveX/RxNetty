@@ -16,11 +16,10 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPipeline;
+import io.netty.channel.*;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -34,10 +33,9 @@ import rx.subscriptions.Subscriptions;
  *
  * @param <I> The type of the object that is read from the channel created by this factory.
  * @param <O> The type of objects that are written to the channel created by this factory.
- *
  * @author Nitesh Kant
  */
-public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O> {
+public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O> {
 
     protected final Bootstrap clientBootstrap;
     private MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
@@ -63,7 +61,7 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
             @Override
             public void call() {
                 if (!connectFuture.isDone()) {
-                    connectFuture.cancel( true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
+                    connectFuture.cancel(true); // Unsubscribe here means, no more connection is required. A close on connection is explicit.
                 }
             }
         }));
@@ -78,15 +76,27 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I,O>
                 } else {
                     eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
                     ChannelPipeline pipeline = future.channel().pipeline();
-                    ChannelHandlerContext ctx = pipeline.firstContext();
-                    ObservableConnection<I, O> newConnection = connectionFactory.newConnection(ctx);
+                    ChannelHandlerContext ctx = pipeline.lastContext(); // The connection uses the context for write which should always start from the tail.
+                    final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(ctx);
                     ChannelHandler lifecycleHandler = pipeline.get(RxRequiredConfigurator.CONN_LIFECYCLE_HANDLER_NAME);
-                    if (null != lifecycleHandler) {
+                    if (null == lifecycleHandler) {
+                        onNewConnection(newConnection, subscriber);
+                    } else {
                         @SuppressWarnings("unchecked")
                         ConnectionLifecycleHandler<I, O> handler = (ConnectionLifecycleHandler<I, O>) lifecycleHandler;
-                        handler.setConnection(newConnection);
+                        SslHandler sslHandler = pipeline.get(SslHandler.class);
+                        if (null == sslHandler) {
+                            handler.setConnection(newConnection);
+                            onNewConnection(newConnection, subscriber);
+                        } else {
+                            sslHandler.handshakeFuture().addListener(new GenericFutureListener<Future<? super Channel>>() {
+                                @Override
+                                public void operationComplete(Future<? super Channel> future) throws Exception {
+                                    onNewConnection(newConnection, subscriber);
+                                }
+                            });
+                        }
                     }
-                    onNewConnection(newConnection, subscriber);
                 }
             }
         });
