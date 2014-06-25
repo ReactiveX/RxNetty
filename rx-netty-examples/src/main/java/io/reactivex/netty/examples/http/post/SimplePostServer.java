@@ -34,7 +34,7 @@ import java.nio.charset.Charset;
 public class SimplePostServer {
     static final int DEFAULT_PORT = 8102;
 
-    private int port;
+    private final int port;
 
     public SimplePostServer(int port) {
         this.port = port;

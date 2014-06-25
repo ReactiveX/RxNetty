@@ -22,6 +22,8 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 public class RxServer<I, O> extends AbstractServer<I, O, ServerBootstrap, ServerChannel, RxServer<I, O>> {
 
+    protected final PipelineConfigurator<I, O> pipelineConfigurator;
+
     public RxServer(ServerBootstrap bootstrap, int port, final ConnectionHandler<I, O> connectionHandler) {
         this(bootstrap, port, null, connectionHandler);
     }
@@ -29,6 +31,7 @@ public class RxServer<I, O> extends AbstractServer<I, O, ServerBootstrap, Server
     public RxServer(ServerBootstrap bootstrap, int port, final PipelineConfigurator<I, O> pipelineConfigurator,
                     final ConnectionHandler<I, O> connectionHandler) {
         super(bootstrap, port);
+        this.pipelineConfigurator = pipelineConfigurator;
         bootstrap.childHandler(newChannelInitializer(pipelineConfigurator, connectionHandler));
     }
 }

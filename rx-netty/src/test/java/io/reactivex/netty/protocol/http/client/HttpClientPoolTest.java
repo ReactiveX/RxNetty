@@ -284,7 +284,7 @@ public class HttpClientPoolTest {
                         .enableWireLogging(LogLevel.DEBUG)
                         .pipelineConfigurator(configurator).build();
         stateChangeListener = new TrackableStateChangeListener();
-        client.poolStateChangeObservable().subscribe(stateChangeListener);
+        client.subscribe(stateChangeListener);
         return client;
     }
 }

@@ -19,8 +19,10 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ClientRequiredConfigurator;
 import io.reactivex.netty.client.RxClient;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.pipeline.ssl.SslPipelineConfigurator;
 import io.reactivex.netty.protocol.http.HttpObjectAggregationConfigurator;
@@ -169,16 +171,23 @@ public final class PipelineConfigurators {
 
     public static <I, O> PipelineConfigurator<I, O> createClientConfigurator(
             PipelineConfigurator<I, O> pipelineConfigurator, RxClient.ClientConfig clientConfig) {
+        return createClientConfigurator(pipelineConfigurator, clientConfig, new MetricEventsSubject<ClientMetricsEvent<?>>());
+    }
+
+    public static <I, O> PipelineConfigurator<I, O> createClientConfigurator(PipelineConfigurator<I, O> pipelineConfigurator,
+                                                                             RxClient.ClientConfig clientConfig,
+                                                                             MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
 
         PipelineConfigurator<I, O> clientRequiredConfigurator;
 
         if (clientConfig.isReadTimeoutSet()) {
             ReadTimeoutPipelineConfigurator readTimeoutConfigurator =
                     new ReadTimeoutPipelineConfigurator(clientConfig.getReadTimeoutInMillis(), TimeUnit.MILLISECONDS);
-            clientRequiredConfigurator = new PipelineConfiguratorComposite<I, O>(new ClientRequiredConfigurator<I, O>(),
-                                                                                 readTimeoutConfigurator);
+            clientRequiredConfigurator =
+                    new PipelineConfiguratorComposite<I, O>(new ClientRequiredConfigurator<I, O>(eventsSubject),
+                                                            readTimeoutConfigurator);
         } else {
-            clientRequiredConfigurator = new ClientRequiredConfigurator<I, O>();
+            clientRequiredConfigurator = new ClientRequiredConfigurator<I, O>(eventsSubject);
         }
 
         if (null != pipelineConfigurator) {

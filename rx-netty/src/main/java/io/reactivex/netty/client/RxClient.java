@@ -16,6 +16,7 @@
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsPublisher;
 import rx.Observable;
 
 import java.util.concurrent.TimeUnit;
@@ -26,7 +27,8 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
-public interface RxClient<I, O> extends PoolInsightProvider {
+@SuppressWarnings("deprecation")
+public interface RxClient<I, O> extends PoolInsightProvider, MetricEventsPublisher<ClientMetricsEvent<?>> {
 
     /**
      * Creates exactly one new connection for every subscription to the returned observable.
@@ -45,9 +47,19 @@ public interface RxClient<I, O> extends PoolInsightProvider {
      *
      * @return The {@link PoolStats} associated with this client. If the client does not have a {@link ConnectionPool}
      * then {@code null}
+     *
+     * @deprecated Use {@link io.reactivex.netty.metrics.MetricEventsListener} to get the stats.
      */
     @Override
+    @Deprecated
     PoolStats getStats();
+
+    /**
+     * A unique name for this client.
+     *
+     * @return A unique name for this client.
+     */
+    String name();
 
     /**
      * A configuration to be used for this client.

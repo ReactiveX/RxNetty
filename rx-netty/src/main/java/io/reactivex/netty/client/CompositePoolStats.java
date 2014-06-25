@@ -15,14 +15,18 @@
  */
 package io.reactivex.netty.client;
 
+import io.reactivex.netty.metrics.MetricEventsListener;
+
 import java.util.Collections;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * A composite of {@link PoolStats} that provides a sum for all metrics of the contained {@link PoolStats}
  *
+ * @deprecated Use {@link MetricEventsListener} to get the stats.
  * @author Nitesh Kant
  */
+@Deprecated
 public class CompositePoolStats implements PoolStats {
 
     private final ConcurrentLinkedQueue<PoolStats> stats = new ConcurrentLinkedQueue<PoolStats>();

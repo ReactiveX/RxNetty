@@ -16,8 +16,11 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.server.ConnectionBasedServerBuilder;
+import io.reactivex.netty.server.RxServer;
 
 /**
  * A convenience builder to create instances of {@link HttpServer}
@@ -57,5 +60,11 @@ public class HttpServerBuilder<I, O>
     protected HttpServer<I, O> createServer() {
         return new HttpServer<I, O>(serverBootstrap, port, pipelineConfigurator,
                                     (HttpConnectionHandler<I, O>) connectionHandler);
+    }
+
+    @Override
+    protected MetricEventsListener<HttpServerMetricsEvent<?>>
+    newMetricsListener(MetricEventsListenerFactory factory, RxServer<HttpServerRequest<I>, HttpServerResponse<O>> server) {
+        return factory.forHttpServer((HttpServer<I, O>) server);
     }
 }

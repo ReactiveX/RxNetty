@@ -15,16 +15,39 @@
  */
 package io.reactivex.netty.client;
 
+import io.reactivex.netty.metrics.MetricEventsListener;
 import rx.Observer;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * A strategy to delegate the decision pertaining to {@link ConnectionPool} size limits.
  *
  * @author Nitesh Kant
  */
-public interface PoolLimitDeterminationStrategy extends Observer<PoolInsightProvider.PoolStateChangeEvent> {
+@SuppressWarnings("deprecation")
+public interface PoolLimitDeterminationStrategy extends MetricEventsListener<ClientMetricsEvent<?>>,
+        Observer<PoolInsightProvider.PoolStateChangeEvent> {
 
+    /**
+     * Attempts to acquire a creation permit.
+     *
+     * @deprecated Use {@link #acquireCreationPermit(long, java.util.concurrent.TimeUnit)} instead.
+     *
+     * @return {@code true} if the permit was acquired, {@code false} otherwise.
+     */
+    @Deprecated
     boolean acquireCreationPermit();
+
+    /**
+     * Attempts to acquire a creation permit.
+     *
+     * @param acquireStartTime The start time for the acquire process in milliseconds since epoch.
+     * @param timeUnit The timeunit for the acquire start time.
+     *
+     * @return {@code true} if the permit was acquired, {@code false} otherwise.
+     */
+    boolean acquireCreationPermit(long acquireStartTime, TimeUnit timeUnit);
 
     int getAvailablePermits();
 }

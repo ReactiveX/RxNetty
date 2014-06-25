@@ -33,6 +33,9 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.ServerCookieEncoder;
 import io.reactivex.netty.channel.DefaultChannelWriter;
+import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.server.ServerChannelMetricEventProvider;
+import io.reactivex.netty.server.ServerMetricsEvent;
 import rx.Observable;
 
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -48,16 +51,19 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     private volatile boolean fullResponseWritten;
     private ChannelFuture headerWriteFuture;
 
-    public HttpServerResponse(ChannelHandlerContext ctx) {
-        this(ctx, HttpVersion.HTTP_1_1);
+    protected HttpServerResponse(ChannelHandlerContext ctx,
+                                 MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
+        this(ctx, HttpVersion.HTTP_1_1, eventsSubject);
     }
 
-    public HttpServerResponse(ChannelHandlerContext ctx, HttpVersion httpVersion) {
-        this(ctx, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK));
+    protected HttpServerResponse(ChannelHandlerContext ctx, HttpVersion httpVersion,
+                                 MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
+        this(ctx, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK), eventsSubject);
     }
 
-    /*Visible for testing */ HttpServerResponse(ChannelHandlerContext ctx, HttpResponse nettyResponse) {
-        super(ctx);
+    /*Visible for testing */ HttpServerResponse(ChannelHandlerContext ctx, HttpResponse nettyResponse,
+                                                MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
+        super(ctx, eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
         this.nettyResponse = nettyResponse;
         headers = new HttpResponseHeaders(nettyResponse);
     }

@@ -17,7 +17,10 @@ package io.reactivex.netty.client;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.channel.ChannelMetricEventProvider;
+import io.reactivex.netty.channel.NoOpChannelMetricEventProvider;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,7 +54,18 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
     }
 
     public PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis) {
-        super(ctx);
+        this(ctx, maxIdleTimeMillis, NoOpChannelMetricEventProvider.NoOpMetricEventsSubject.INSTANCE,
+             NoOpChannelMetricEventProvider.INSTANCE);
+    }
+
+    public PooledConnection(ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
+                            ChannelMetricEventProvider metricEventProvider) {
+        this(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), eventsSubject, metricEventProvider);
+    }
+
+    public PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis, MetricEventsSubject<?> eventsSubject,
+                            ChannelMetricEventProvider metricEventProvider) {
+        super(ctx, eventsSubject, metricEventProvider);
         lastReturnToPoolTimeMillis = System.currentTimeMillis();
         this.maxIdleTimeMillis = maxIdleTimeMillis;
     }

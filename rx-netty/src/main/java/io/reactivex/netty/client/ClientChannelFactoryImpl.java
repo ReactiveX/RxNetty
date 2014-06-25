@@ -16,11 +16,18 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.*;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 import rx.Subscriber;
 import rx.functions.Action0;
@@ -36,15 +43,23 @@ import rx.subscriptions.Subscriptions;
 public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O> {
 
     protected final Bootstrap clientBootstrap;
+    private MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+
+    public ClientChannelFactoryImpl(Bootstrap clientBootstrap, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this.clientBootstrap = clientBootstrap;
+        this.eventsSubject = eventsSubject;
+    }
 
     public ClientChannelFactoryImpl(Bootstrap clientBootstrap) {
-        this.clientBootstrap = clientBootstrap;
+        this(clientBootstrap, new MetricEventsSubject<ClientMetricsEvent<?>>());
     }
 
     @Override
     public ChannelFuture connect(final Subscriber<? super ObservableConnection<I, O>> subscriber,
                                  RxClient.ServerInfo serverInfo,
-                                 final ClientConnectionFactory<I, O, ? extends ObservableConnection<I, O>> connectionFactory) {
+                                 final ClientConnectionFactory<I, O,? extends ObservableConnection<I, O>> connectionFactory) {
+        final long startTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_START);
         final ChannelFuture connectFuture = clientBootstrap.connect(serverInfo.getHost(), serverInfo.getPort());
 
         subscriber.add(Subscriptions.create(new Action0() {
@@ -60,8 +75,11 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (!future.isSuccess()) {
+                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(startTimeMillis),
+                                          future.cause());
                     subscriber.onError(future.cause());
                 } else {
+                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
                     ChannelPipeline pipeline = future.channel().pipeline();
                     ChannelHandlerContext ctx = pipeline.lastContext(); // The connection uses the context for write which should always start from the tail.
                     final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(ctx);
@@ -95,5 +113,10 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
                                 Subscriber<? super ObservableConnection<I, O>> subscriber) {
         subscriber.onNext(newConnection);
         subscriber.onCompleted(); // The observer is no longer looking for any more connections.
+    }
+
+    @Override
+    public void useMetricEventsSubject(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this.eventsSubject = eventsSubject;
     }
 }

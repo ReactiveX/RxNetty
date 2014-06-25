@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.http.ssl;
 
 import io.netty.buffer.ByteBuf;
@@ -24,9 +25,6 @@ import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import rx.Observable;
 
-import javax.net.ssl.SSLException;
-import java.security.cert.CertificateException;
-
 /**
  * @author Tomasz Bak
  */
@@ -34,13 +32,13 @@ public final class SslHelloWorldServer {
 
     static final int DEFAULT_PORT = 8105;
 
-    private int port;
+    private final int port;
 
-    public SslHelloWorldServer(int port) throws CertificateException {
+    public SslHelloWorldServer(int port) {
         this.port = port;
     }
 
-    public HttpServer<ByteBuf, ByteBuf> createServer() throws CertificateException, SSLException {
+    public HttpServer<ByteBuf, ByteBuf> createServer() {
         HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {

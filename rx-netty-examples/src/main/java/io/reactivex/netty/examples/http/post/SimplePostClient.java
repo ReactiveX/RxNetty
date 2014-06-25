@@ -40,7 +40,7 @@ public class SimplePostClient {
 
     static final String MESSAGE = "Hello there!!!";
 
-    private int port;
+    private final int port;
 
     public SimplePostClient(int port) {
         this.port = port;

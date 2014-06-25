@@ -16,6 +16,7 @@
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsPublisher;
 import rx.Observable;
 
 /**
@@ -23,7 +24,8 @@ import rx.Observable;
  *
  * @author Nitesh Kant
  */
-public interface ConnectionPool<I, O> extends PoolInsightProvider {
+@SuppressWarnings("deprecation")
+public interface ConnectionPool<I, O> extends PoolInsightProvider, MetricEventsPublisher<ClientMetricsEvent<?>> {
 
     Observable<ObservableConnection<I, O>> acquire();
 

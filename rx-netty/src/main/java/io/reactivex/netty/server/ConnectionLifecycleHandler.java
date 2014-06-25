@@ -22,6 +22,8 @@ import io.netty.handler.ssl.SslHandshakeCompletionEvent;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -30,12 +32,16 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     private final ConnectionHandler<I, O> connectionHandler;
     private final ErrorHandler errorHandler;
     private final ObservableConnectionFactory<I, O> connectionFactory;
+    private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
     private ObservableConnection<I,O> connection;
 
-    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler, ObservableConnectionFactory<I, O> connectionFactory,
-                                      ErrorHandler errorHandler) {
+    public ConnectionLifecycleHandler(ConnectionHandler<I, O> connectionHandler,
+                                      ObservableConnectionFactory<I, O> connectionFactory,
+                                      ErrorHandler errorHandler,
+                                      MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
         this.connectionHandler = connectionHandler;
         this.connectionFactory = connectionFactory;
+        this.eventsSubject = eventsSubject;
         this.errorHandler = null == errorHandler ? new DefaultErrorHandler() : errorHandler;
     }
 
@@ -50,12 +56,14 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         if(null == ctx.channel().pipeline().get(SslHandler.class)) {
+            final long startTimeMillis = Clock.newStartTimeMillis();
             connection = connectionFactory.newConnection(ctx);
+            eventsSubject.onEvent(ServerMetricsEvent.NEW_CLIENT_CONNECTED);
 
             super.channelActive(ctx); // Called before connection handler call to finish the pipeline before the connection
-                                      // is handled.
+            // is handled.
 
-            handleConnection();
+            handleConnection(startTimeMillis);
         } else {
             super.channelActive(ctx);
         }
@@ -65,14 +73,16 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         super.userEventTriggered(ctx, evt);
         if (evt instanceof SslHandshakeCompletionEvent) {
+            final long startTimeMillis = Clock.newStartTimeMillis();
             connection = connectionFactory.newConnection(ctx.pipeline().lastContext());
-            handleConnection();
+            handleConnection(startTimeMillis);
         }
     }
 
-    private void handleConnection() {
+    private void handleConnection(final long startTimeMillis) {
         Observable<Void> handledObservable;
         try {
+            eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_START, Clock.onEndMillis(startTimeMillis));
             handledObservable = connectionHandler.handle(connection);
         } catch (Throwable throwable) {
             handledObservable = Observable.error(throwable);
@@ -85,12 +95,16 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
         handledObservable.subscribe(new Subscriber<Void>() {
             @Override
             public void onCompleted() {
+                eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_SUCCESS,
+                                      Clock.onEndMillis(startTimeMillis));
                 connection.close();
             }
 
             @Override
             public void onError(Throwable e) {
                 invokeErrorHandler(e);
+                eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_FAILED,
+                                      Clock.onEndMillis(startTimeMillis), e);
                 connection.close();
             }
 

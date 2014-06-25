@@ -21,8 +21,11 @@ import io.reactivex.netty.client.AbstractClientBuilder;
 import io.reactivex.netty.client.ClientChannelFactory;
 import io.reactivex.netty.client.ClientChannelFactoryImpl;
 import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.UnpooledClientConnectionFactory;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 
 /**
@@ -64,9 +67,21 @@ public class HttpClientBuilder<I, O>
     @Override
     protected HttpClient<I, O> createClient() {
         if (null == poolBuilder) {
-            return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory,
-                                            connectionFactory);
+            return new HttpClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator,
+                                            clientConfig, channelFactory, connectionFactory, eventsSubject);
         }
-        return new HttpClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+        return new HttpClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
+                                        poolBuilder, eventsSubject);
+    }
+
+    @Override
+    protected String generatedNamePrefix() {
+        return "HttpClient-";
+    }
+
+    @Override
+    protected MetricEventsListener<? extends ClientMetricsEvent<?>>
+    newMetricsListener(MetricEventsListenerFactory factory, HttpClient<I, O> client) {
+        return factory.forHttpClient(client);
     }
 }

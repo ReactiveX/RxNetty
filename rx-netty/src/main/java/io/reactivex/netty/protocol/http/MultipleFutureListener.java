@@ -17,10 +17,9 @@ package io.reactivex.netty.protocol.http;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import rx.Observable;
-import rx.subjects.PublishSubject;
+import rx.Subscriber;
 
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -31,26 +30,31 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class MultipleFutureListener implements ChannelFutureListener {
 
-    private final ChannelPromise finalPromise;
-
+    private final ChannelPromise completionPromise;
+    private final Observable<Void> completionObservable;
     private final AtomicInteger listeningToCount = new AtomicInteger();
     private final ConcurrentLinkedQueue<ChannelFuture> pendingFutures = new ConcurrentLinkedQueue<ChannelFuture>();
-    private final PublishSubject<ChannelFuture> lastCompletedFuture; // This never completes or throw an error.
-    private final ChannelFuture futureWhenNoPendingFutures;
 
-    public MultipleFutureListener(ChannelPromise finalPromise) {
-        if (null == finalPromise) {
+    public MultipleFutureListener(final ChannelPromise completionPromise) {
+        if (null == completionPromise) {
             throw new NullPointerException("Promise can not be null.");
         }
-        this.finalPromise = finalPromise;
-        lastCompletedFuture = PublishSubject.create();
-        futureWhenNoPendingFutures = finalPromise.channel().newPromise().setSuccess();
-    }
-
-    public MultipleFutureListener(ChannelHandlerContext ctx) {
-        finalPromise = null;
-        lastCompletedFuture = PublishSubject.create();
-        futureWhenNoPendingFutures = ctx.newPromise();
+        this.completionPromise = completionPromise;
+        completionObservable = Observable.create(new Observable.OnSubscribe<Void>() {
+            @Override
+            public void call(final Subscriber<? super Void> subscriber) {
+                MultipleFutureListener.this.completionPromise.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        if (future.isSuccess()) {
+                            subscriber.onCompleted();
+                        } else {
+                            subscriber.onError(future.cause());
+                        }
+                    }
+                });
+            }
+        });
     }
 
     public void listen(ChannelFuture future) {
@@ -59,12 +63,8 @@ public class MultipleFutureListener implements ChannelFutureListener {
         future.addListener(this);
     }
 
-    public Observable<ChannelFuture> listenForNextCompletion() {
-        if (listeningToCount.get() > 0) {
-            return lastCompletedFuture;
-        } else {
-            return Observable.<ChannelFuture>from(futureWhenNoPendingFutures);
-        }
+    public Observable<Void> asObservable() {
+        return completionObservable;
     }
 
     public void cancelPendingFutures(boolean mayInterruptIfRunning) {
@@ -79,18 +79,15 @@ public class MultipleFutureListener implements ChannelFutureListener {
     public void operationComplete(ChannelFuture future) throws Exception {
         pendingFutures.remove(future);
         int nowListeningTo = listeningToCount.decrementAndGet();
+        /**
+         * If any one of the future fails, we fail the subscribers.
+         * If all complete (listen count == 0) we complete the subscribers.
+         */
         if (!future.isSuccess()) {
-            if (null != finalPromise) {
-                cancelPendingFutures(true);
-                finalPromise.tryFailure(future.cause());
-            } else {
-                lastCompletedFuture.onError(future.cause());
-            }
-        } else if (nowListeningTo <= 0) {
-            if (null != finalPromise) {
-                finalPromise.trySuccess(null);
-            }
-            lastCompletedFuture.onNext(future);
+            cancelPendingFutures(true);
+            completionPromise.tryFailure(future.cause());
+        } else if (nowListeningTo == 0) {
+            completionPromise.trySuccess(null);
         }
     }
 }

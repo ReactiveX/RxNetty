@@ -16,6 +16,7 @@
 package io.reactivex.netty.channel;
 
 import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 
 /**
  * A factory to create {@link ObservableConnection}s
@@ -24,8 +25,27 @@ import io.netty.channel.ChannelHandlerContext;
  */
 public class UnpooledConnectionFactory<I, O> implements ObservableConnectionFactory<I, O> {
 
+    private final ChannelMetricEventProvider metricEventProvider;
+    @SuppressWarnings("rawtypes") private MetricEventsSubject eventsSubject;
+
+    public UnpooledConnectionFactory(ChannelMetricEventProvider metricEventProvider) {
+        this.metricEventProvider = metricEventProvider;
+    }
+
     @Override
     public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return new ObservableConnection<I, O>(ctx);
+        return new ObservableConnection<I, O>(ctx, eventsSubject, metricEventProvider);
+    }
+
+    @Override
+    public void useMetricEventsSubject(MetricEventsSubject<?> eventsSubject) {
+        this.eventsSubject = eventsSubject;
+    }
+
+    public static <I, O> UnpooledConnectionFactory<I, O> from(MetricEventsSubject<?> eventsSubject,
+                                                              ChannelMetricEventProvider metricEventProvider) {
+        UnpooledConnectionFactory<I, O> factory = new UnpooledConnectionFactory<I, O>(metricEventProvider);
+        factory.useMetricEventsSubject(eventsSubject);
+        return factory;
     }
 }

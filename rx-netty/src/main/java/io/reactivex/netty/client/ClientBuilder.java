@@ -17,6 +17,8 @@ package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 
 /**
  * A builder to build an instance of {@link RxClientImpl}
@@ -49,10 +51,22 @@ public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilde
     @Override
     protected RxClient<I, O> createClient() {
         if (null == poolBuilder) {
-            return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory,
-                                          connectionFactory);
+            return new RxClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
+                                          channelFactory, connectionFactory, eventsSubject);
         } else {
-            return new RxClientImpl<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+            return new RxClientImpl<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
+                                          poolBuilder, eventsSubject);
         }
+    }
+
+    @Override
+    protected String generatedNamePrefix() {
+        return "TcpClient-";
+    }
+
+    @Override
+    protected MetricEventsListener<? extends ClientMetricsEvent<ClientMetricsEvent.EventType>>
+    newMetricsListener(MetricEventsListenerFactory factory, RxClient<I, O> client) {
+        return factory.forTcpClient(client);
     }
 }

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.tcp.interval;
 
 import io.netty.buffer.ByteBuf;
@@ -32,8 +33,8 @@ import static io.reactivex.netty.examples.tcp.interval.TcpIntervalServer.DEFAULT
  */
 public final class TcpIntervalClientTakeN {
 
-    private int port;
-    private int noOfMsg;
+    private final int port;
+    private final int noOfMsg;
 
     public TcpIntervalClientTakeN(int port, int noOfMsg) {
         this.port = port;

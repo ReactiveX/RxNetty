@@ -21,11 +21,14 @@ import io.reactivex.netty.client.AbstractClientBuilder;
 import io.reactivex.netty.client.ClientChannelFactory;
 import io.reactivex.netty.client.ClientChannelFactoryImpl;
 import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.PoolStatsProvider;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.UnpooledClientConnectionFactory;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 
 /**
@@ -103,11 +106,23 @@ public class CompositeHttpClientBuilder<I, O>
     @Override
     protected CompositeHttpClient<I, O> createClient() {
         if (null == poolBuilder) {
-            return new CompositeHttpClient<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig,
-                                                 channelFactory, connectionFactory);
+            return new CompositeHttpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator,
+                                                 clientConfig, channelFactory, connectionFactory, eventsSubject);
         } else {
-            return new CompositeHttpClient<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, poolBuilder);
+            return new CompositeHttpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator,
+                                                 clientConfig, poolBuilder, eventsSubject);
         }
+    }
+
+    @Override
+    protected String generatedNamePrefix() {
+        return "HttpClient-";
+    }
+
+    @Override
+    protected MetricEventsListener<? extends ClientMetricsEvent<?>>
+    newMetricsListener(MetricEventsListenerFactory factory, CompositeHttpClient<I, O> client) {
+        return factory.forHttpClient(client);
     }
 
     public interface CloneablePoolLimitDeterminationStrategy extends PoolLimitDeterminationStrategy {

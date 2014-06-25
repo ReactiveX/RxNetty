@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.http.sse;
 
 import io.netty.buffer.ByteBuf;
@@ -37,8 +38,8 @@ public final class HttpSseServer {
     static final int DEFAULT_PORT = 8096;
     static final int DEFAULT_INTERVAL = 1000;
 
-    private int port;
-    private int interval;
+    private final int port;
+    private final int interval;
 
     public HttpSseServer(int port, int interval) {
         this.port = port;

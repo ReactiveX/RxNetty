@@ -16,12 +16,14 @@
 package io.reactivex.netty.client;
 
 import io.netty.util.internal.chmv8.LongAdder;
-import rx.Observer;
+import io.reactivex.netty.metrics.MetricEventsListener;
+
+import java.util.concurrent.TimeUnit;
 
 /**
 * @author Nitesh Kant
 */
-public class TrackableStateChangeListener implements Observer<PoolInsightProvider.PoolStateChangeEvent> {
+public class TrackableStateChangeListener implements MetricEventsListener<ClientMetricsEvent<?>> {
 
     private final LongAdder creationCount = new LongAdder();
     private final LongAdder failedCount = new LongAdder();
@@ -115,48 +117,51 @@ public class TrackableStateChangeListener implements Observer<PoolInsightProvide
     }
 
     @Override
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
+                        Throwable throwable, Object value) {
+        if (event.getType() instanceof ClientMetricsEvent.EventType) {
+            switch ((ClientMetricsEvent.EventType) event.getType()) {
+                case ConnectSuccess:
+                    onConnectionCreation();
+                    break;
+                case ConnectFailed:
+                    onConnectFailed();
+                    break;
+                case PooledConnectionReuse:
+                    onConnectionReuse();
+                    break;
+                case PooledConnectionEviction:
+                    onConnectionEviction();
+                    break;
+                case PoolAcquireStart:
+                    onAcquireAttempted();
+                    break;
+                case PoolAcquireSuccess:
+                    onAcquireSucceeded();
+                    break;
+                case PoolAcquireFailed:
+                    onAcquireFailed();
+                    break;
+                case PoolReleaseStart:
+                    onReleaseAttempted();
+                    break;
+                case PoolReleaseSuccess:
+                    onReleaseSucceeded();
+                    break;
+                case PoolReleaseFailed:
+                    onReleaseFailed();
+                    break;
+            }
+        }
+    }
+
+    @Override
     public void onCompleted() {
         // No op
     }
 
     @Override
-    public void onError(Throwable e) {
-        // No op
-    }
-
-    @Override
-    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
-        switch (stateChangeEvent) {
-            case NewConnectionCreated:
-                onConnectionCreation();
-                break;
-            case ConnectFailed:
-                onConnectFailed();
-                break;
-            case OnConnectionReuse:
-                onConnectionReuse();
-                break;
-            case OnConnectionEviction:
-                onConnectionEviction();
-                break;
-            case onAcquireAttempted:
-                onAcquireAttempted();
-                break;
-            case onAcquireSucceeded:
-                onAcquireSucceeded();
-                break;
-            case onAcquireFailed:
-                onAcquireFailed();
-                break;
-            case onReleaseAttempted:
-                onReleaseAttempted();
-                break;
-            case onReleaseSucceeded:
-                onReleaseSucceeded();
-                break;
-            case onReleaseFailed:
-                onReleaseFailed();
-                break;
-        }
+    public void onSubscribe() {
+        // No op.
     }
 }

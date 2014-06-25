@@ -41,7 +41,7 @@ public class LogProducer {
     public LogProducer(int port, int interval) {
         this.port = port;
         this.interval = interval;
-        this.source = "localhost:" + port;
+        source = "localhost:" + port;
     }
 
     public HttpServer<ByteBuf, ServerSentEvent> createServer() {
