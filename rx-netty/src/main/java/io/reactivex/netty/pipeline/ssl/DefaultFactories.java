@@ -23,14 +23,14 @@ public final class DefaultFactories {
     }
 
     public static SSLEngineFactory fromSSLContext(SSLContext sslContext) {
-        return new FromSSLContext(sslContext);
+        return new SSLContextBasedFactory(sslContext);
     }
 
-    public static class FromSSLContext implements SSLEngineFactory {
+    public static class SSLContextBasedFactory implements SSLEngineFactory {
 
         private final SSLContext sslContext;
 
-        public FromSSLContext(SSLContext sslContext) {
+        public SSLContextBasedFactory(SSLContext sslContext) {
             this.sslContext = sslContext;
         }
 
