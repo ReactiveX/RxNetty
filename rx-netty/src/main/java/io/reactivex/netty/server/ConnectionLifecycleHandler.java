@@ -19,11 +19,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
-import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -56,14 +52,14 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         if(null == ctx.channel().pipeline().get(SslHandler.class)) {
-            connection = connectionFactory.newConnection(ctx);
             final long startTimeMillis = Clock.newStartTimeMillis();
+            connection = connectionFactory.newConnection(ctx);
             eventsSubject.onEvent(ServerMetricsEvent.NEW_CLIENT_CONNECTED);
 
             super.channelActive(ctx); // Called before connection handler call to finish the pipeline before the connection
             // is handled.
 
-            handleConnection();
+            handleConnection(startTimeMillis);
         } else {
             super.channelActive(ctx);
         }
@@ -73,12 +69,13 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         super.userEventTriggered(ctx, evt);
         if (evt instanceof SslHandshakeCompletionEvent) {
+            final long startTimeMillis = Clock.newStartTimeMillis();
             connection = connectionFactory.newConnection(ctx.pipeline().lastContext());
-            handleConnection();
+            handleConnection(startTimeMillis);
         }
     }
 
-    private void handleConnection() {
+    private void handleConnection(final long startTimeMillis) {
         Observable<Void> handledObservable;
         try {
             eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_START, Clock.onEndMillis(startTimeMillis));
