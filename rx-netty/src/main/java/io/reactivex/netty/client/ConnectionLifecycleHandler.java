@@ -21,7 +21,7 @@ import io.reactivex.netty.channel.ObservableConnection;
 
 public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapter {
 
-    private ObservableConnection<I,O> connection;
+    private ObservableConnection<I, O> connection;
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {

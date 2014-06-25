@@ -27,6 +27,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
 
@@ -46,6 +47,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
     protected LogLevel wireLogginLevel;
+    private SSLEngineFactory sslEngineFactory;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port,
                                     ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
@@ -190,6 +192,11 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        this.sslEngineFactory = sslEngineFactory;
+        return returnBuilder();
+    }
+
     public Bootstrap getBootstrap() {
         return bootstrap;
     }
@@ -220,6 +227,9 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         if (null != wireLogginLevel) {
             pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
                                                                                    wireLogginLevel);
+        }
+        if(null != sslEngineFactory) {
+            appendPipelineConfigurator(PipelineConfigurators.<O,I>sslConfigurator(sslEngineFactory));
         }
         return createClient();
     }
