@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.tcp.ssl;
 
 import io.reactivex.netty.RxNetty;
@@ -35,7 +36,7 @@ import static io.reactivex.netty.examples.tcp.ssl.SslTcpEchoServer.*;
  */
 public class SslTcpEchoClient {
 
-    private int port;
+    private final int port;
 
     public SslTcpEchoClient(int port) {
         this.port = port;

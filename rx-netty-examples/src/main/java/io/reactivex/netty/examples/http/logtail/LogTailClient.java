@@ -39,7 +39,7 @@ public class LogTailClient {
 
     static final int DEFAULT_TAIL_SIZE = 25;
 
-    private int port;
+    private final int port;
     private final int tailSize;
 
     public LogTailClient(int port, int tailSize) {

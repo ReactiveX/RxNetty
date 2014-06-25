@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.tcp.interval;
 
 import io.reactivex.netty.RxNetty;
@@ -34,8 +35,8 @@ public final class TcpIntervalServer {
 
     static final int DEFAULT_PORT = 8101;
 
-    private int port;
-    private int interval;
+    private final int port;
+    private final int interval;
 
     public TcpIntervalServer(int port, int interval) {
         this.port = port;

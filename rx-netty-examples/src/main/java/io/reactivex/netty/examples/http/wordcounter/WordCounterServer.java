@@ -27,6 +27,7 @@ import rx.Subscriber;
 import rx.functions.Func1;
 
 import java.nio.charset.Charset;
+import java.util.regex.Pattern;
 
 /**
  * @author Tomasz Bak
@@ -35,7 +36,7 @@ public final class WordCounterServer {
 
     static final int DEFAULT_PORT = 8097;
 
-    private int port;
+    private final int port;
 
     public WordCounterServer(int port) {
         this.port = port;
@@ -69,6 +70,7 @@ public final class WordCounterServer {
 
     static class WordSplitOperator implements Observable.Operator<String, String> {
 
+        private static final Pattern WORD_BOUNDARIES = Pattern.compile("[^\\w]{1,}");
         private String lastFragment = "";
 
         @Override
@@ -77,7 +79,7 @@ public final class WordCounterServer {
 
                 @Override
                 public void onCompleted() {
-                    if (lastFragment.length() > 0) {
+                    if (!lastFragment.isEmpty()) {
                         child.onNext(lastFragment);
                     }
                     child.onCompleted();
@@ -90,10 +92,10 @@ public final class WordCounterServer {
 
                 @Override
                 public void onNext(String text) {
-                    if (text.length() == 0) {
+                    if (text.isEmpty()) {
                         return;
                     }
-                    String[] words = (lastFragment + text).split("[^\\w]{1,}");
+                    String[] words = WORD_BOUNDARIES.split(lastFragment + text);
                     int take = words.length;
                     if (Character.isLetter(text.charAt(text.length() - 1))) {
                         lastFragment = words[--take];

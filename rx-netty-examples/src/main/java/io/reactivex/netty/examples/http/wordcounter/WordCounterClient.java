@@ -40,7 +40,7 @@ import static io.reactivex.netty.examples.http.wordcounter.WordCounterServer.DEF
 public class WordCounterClient {
 
     private final int port;
-    private String textFile;
+    private final String textFile;
 
     public WordCounterClient(int port, String textFile) {
         this.port = port;
@@ -72,8 +72,8 @@ public class WordCounterClient {
         private String nextLine;
 
         FileContentSource(File file) throws IOException {
-            this.fStream = new LineNumberReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(file))));
-            this.opened = true;
+            fStream = new LineNumberReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(file))));
+            opened = true;
         }
 
         void close() {
@@ -100,7 +100,7 @@ public class WordCounterClient {
         @Override
         public String next() {
             if (hasNext()) {
-                String response = nextLine + " ";
+                String response = nextLine + ' ';
                 nextLine = null;
                 return response;
             }

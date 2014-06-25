@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
@@ -79,7 +80,9 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
         this.serverInfo = serverInfo;
         this.clientBootstrap = clientBootstrap;
         this.connectionFactory = connectionFactory;
+        this.connectionFactory.useMetricEventsSubject(eventsSubject);
         this.channelFactory = channelFactory;
+        this.channelFactory.useMetricEventsSubject(eventsSubject);
         this.pipelineConfigurator = pipelineConfigurator;
         final PipelineConfigurator<O, I> configurator = adaptPipelineConfigurator(pipelineConfigurator, clientConfig,
                                                                                   eventsSubject);

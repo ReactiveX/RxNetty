@@ -39,8 +39,8 @@ import java.util.NoSuchElementException;
 public class HttpChunkServer {
     static final int DEFAULT_PORT = 8103;
 
-    private int port;
-    private String textFile;
+    private final int port;
+    private final String textFile;
 
     public HttpChunkServer(int port, String textFile) {
         this.port = port;
@@ -69,11 +69,11 @@ public class HttpChunkServer {
         return server;
     }
 
-    private Observable<String> createFileObservable(final Reader reader) {
+    private static Observable<String> createFileObservable(final Reader reader) {
         Iterable<String> iterable = new Iterable<String>() {
-            private char[] charBuf = new char[16];
+            private final char[] charBuf = new char[16];
 
-            private int lastCount = 0;
+            private int lastCount;
 
             @Override
             public Iterator<String> iterator() {
@@ -82,7 +82,7 @@ public class HttpChunkServer {
                     @Override
                     public boolean hasNext() {
                         try {
-                            return (lastCount > 0) || (lastCount = reader.read(charBuf)) > 0;
+                            return lastCount > 0 || (lastCount = reader.read(charBuf)) > 0;
                         } catch (IOException e) {
                             lastCount = 0;
                             return false;
@@ -110,7 +110,7 @@ public class HttpChunkServer {
     }
 
     static class ReaderCloseAction implements Action0 {
-        private Reader fileReader;
+        private final Reader fileReader;
 
         ReaderCloseAction(Reader fileReader) {
             this.fileReader = fileReader;
@@ -125,8 +125,6 @@ public class HttpChunkServer {
             }
         }
     }
-
-    ;
 
     public static void main(String[] args) {
         if (args.length < 1) {

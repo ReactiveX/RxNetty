@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.udp;
 
 import io.netty.channel.socket.DatagramPacket;
@@ -30,7 +31,7 @@ import static io.reactivex.netty.examples.udp.HelloUdpServer.DEFAULT_PORT;
  */
 public final class HelloUdpClient {
 
-    private int port;
+    private final int port;
 
     public HelloUdpClient(int port) {
         this.port = port;

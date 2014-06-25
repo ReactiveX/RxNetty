@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.http.sse;
 
 import io.netty.buffer.ByteBuf;
@@ -37,8 +38,8 @@ import static io.reactivex.netty.examples.http.sse.HttpSseServer.DEFAULT_PORT;
 public final class HttpSseClient {
     static final int DEFAULT_NO_OF_EVENTS = 100;
 
-    private int port;
-    private int noOfEvents;
+    private final int port;
+    private final int noOfEvents;
 
     public HttpSseClient(int port, int noOfEvents) {
         this.port = port;
@@ -67,7 +68,7 @@ public final class HttpSseClient {
         return events;
     }
 
-    private void printResponseHeader(HttpClientResponse<ServerSentEvent> response) {
+    private static void printResponseHeader(HttpClientResponse<ServerSentEvent> response) {
         System.out.println("New response received.");
         System.out.println("========================");
         System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()

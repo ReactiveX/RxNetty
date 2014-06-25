@@ -16,22 +16,26 @@
 
 package io.reactivex.netty.examples.http.logtail;
 
+import java.util.regex.Pattern;
+
 /**
  * @author Tomasz Bak
  */
 public class LogEvent {
 
 
-    public static enum LogLevel {
+    private static final Pattern COMMA = Pattern.compile(",");
+
+    public enum LogLevel {
         ERROR,
         INFO,
-        DEBUG;
+        DEBUG
     }
 
-    private long timeStamp;
-    private String source;
-    private LogLevel level;
-    private String message;
+    private final long timeStamp;
+    private final String source;
+    private final LogLevel level;
+    private final String message;
 
     public LogEvent(long timeStamp, String source, LogLevel level, String message) {
         this.timeStamp = timeStamp;
@@ -57,7 +61,7 @@ public class LogEvent {
     }
 
     public String toCSV() {
-        return timeStamp + "," + source + "," + level.name() + "," + message;
+        return timeStamp + "," + source + ',' + level.name() + ',' + message;
     }
 
     @Override
@@ -71,7 +75,7 @@ public class LogEvent {
     }
 
     public static LogEvent fromCSV(String csvLine) {
-        String[] parts = csvLine.trim().split(",");
+        String[] parts = COMMA.split(csvLine.trim());
         return new LogEvent(Long.valueOf(parts[0]), parts[1], LogLevel.valueOf(parts[2]), parts[3]);
     }
 

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.tcp.echo;
 
 import io.reactivex.netty.RxNetty;
@@ -30,7 +31,7 @@ public final class TcpEchoServer {
 
     static final int DEFAULT_PORT = 8099;
 
-    private int port;
+    private final int port;
 
     public TcpEchoServer(int port) {
         this.port = port;

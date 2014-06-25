@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.tcp.event;
 
 import io.reactivex.netty.RxNetty;
@@ -34,7 +35,7 @@ public final class TcpEventStreamServer {
 
     static final int DEFAULT_PORT = 8100;
 
-    private int port;
+    private final int port;
 
     public TcpEventStreamServer(int port) {
         this.port = port;
@@ -52,7 +53,7 @@ public final class TcpEventStreamServer {
         return server;
     }
 
-    private Observable<Void> startEventStream(final ObservableConnection<String, String> connection) {
+    private static Observable<Void> startEventStream(final ObservableConnection<String, String> connection) {
         return Observable.interval(10, TimeUnit.MILLISECONDS)
                 .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
                     @Override

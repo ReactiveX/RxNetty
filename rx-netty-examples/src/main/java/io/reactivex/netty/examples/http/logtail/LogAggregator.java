@@ -43,8 +43,8 @@ public class LogAggregator {
     static final int DEFAULT_AG_PORT = 8091;
 
     private final int port;
-    private int producerPortFrom;
-    private int producerPortTo;
+    private final int producerPortFrom;
+    private final int producerPortTo;
     HttpServer<ByteBuf, ServerSentEvent> server;
 
     public LogAggregator(int port, int producerPortFrom, int producerPortTo) {
@@ -66,7 +66,7 @@ public class LogAggregator {
                                 ServerSentEvent data = new ServerSentEvent(sse.getEventId(), "data", sse.getEventData());
                                 return response.writeAndFlush(data);
                             }
-                        }).onErrorFlatMap(new Func1<OnErrorThrowable, Observable<? extends Void>>() {
+                        }).onErrorFlatMap(new Func1<OnErrorThrowable, Observable<Void>>() {
                             @Override
                             public Observable<Void> call(OnErrorThrowable onErrorThrowable) {
                                 response.setStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR);
@@ -87,7 +87,7 @@ public class LogAggregator {
         return Observable.merge(oList);
     }
 
-    private Observable<ServerSentEvent> connectToLogProducer(int port) {
+    private static Observable<ServerSentEvent> connectToLogProducer(int port) {
         HttpClient<ByteBuf, ServerSentEvent> client =
                 RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
 

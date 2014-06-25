@@ -29,6 +29,7 @@ import rx.functions.Func1;
 import rx.functions.Func2;
 
 import java.nio.charset.Charset;
+import java.util.regex.Pattern;
 
 import static io.reactivex.netty.examples.http.chunk.HttpChunkServer.DEFAULT_PORT;
 
@@ -36,14 +37,16 @@ import static io.reactivex.netty.examples.http.chunk.HttpChunkServer.DEFAULT_POR
  * @author Tomasz Bak
  */
 public class HttpChunkClient {
-    private int port;
+
+    private final int port;
 
     public HttpChunkClient(int port) {
         this.port = port;
     }
 
     public int filterWords(final String word) {
-        PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> configurator = new HttpClientPipelineConfigurator();
+        PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> configurator =
+                new HttpClientPipelineConfigurator<ByteBuf, ByteBuf>();
 
         HttpClient<ByteBuf, ByteBuf> client =
                 RxNetty.createHttpClient("localhost", port, configurator);
@@ -78,6 +81,7 @@ public class HttpChunkClient {
 
     static class WordSplitOperator implements Observable.Operator<String, String> {
 
+        private static final Pattern WORD_BOUNDARY_PATTERN = Pattern.compile("[^\\w]{1,}");
         private String lastFragment = "";
 
         @Override
@@ -86,7 +90,7 @@ public class HttpChunkClient {
 
                 @Override
                 public void onCompleted() {
-                    if (lastFragment.length() > 0) {
+                    if (!lastFragment.isEmpty()) {
                         child.onNext(lastFragment);
                     }
                     child.onCompleted();
@@ -99,10 +103,10 @@ public class HttpChunkClient {
 
                 @Override
                 public void onNext(String text) {
-                    if (text.length() == 0) {
+                    if (text.isEmpty()) {
                         return;
                     }
-                    String[] words = (lastFragment + text).split("[^\\w]{1,}");
+                    String[] words = WORD_BOUNDARY_PATTERN.split(lastFragment + text);
                     int take = words.length;
                     if (Character.isLetter(text.charAt(text.length() - 1))) {
                         lastFragment = words[--take];

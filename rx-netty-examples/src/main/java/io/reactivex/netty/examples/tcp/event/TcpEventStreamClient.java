@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.tcp.event;
 
 import io.reactivex.netty.RxNetty;
@@ -28,9 +29,9 @@ import static io.reactivex.netty.examples.tcp.event.TcpEventStreamServer.DEFAULT
  */
 public final class TcpEventStreamClient {
 
-    private int port;
-    private int delay;
-    private int noOfEvents;
+    private final int port;
+    private final int delay;
+    private final int noOfEvents;
 
     public TcpEventStreamClient(int port, int delay, int noOfEvents) {
         this.port = port;
