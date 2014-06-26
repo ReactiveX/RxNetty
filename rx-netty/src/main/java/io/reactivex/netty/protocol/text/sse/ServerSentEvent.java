@@ -21,12 +21,12 @@ package io.reactivex.netty.protocol.text.sse;
 public class ServerSentEvent {
 
     private final String eventId;
-    private final String eventName;
+    private final String eventType;
     private final String eventData;
 
-    public ServerSentEvent(String eventId, String eventName, String eventData) {
+    public ServerSentEvent(String eventId, String eventType, String eventData) {
         this.eventId = eventId;
-        this.eventName = eventName;
+        this.eventType = eventType;
         this.eventData = eventData;
     }
 
@@ -34,8 +34,8 @@ public class ServerSentEvent {
         return eventId;
     }
 
-    public String getEventName() {
-        return eventName;
+    public String getEventType() {
+        return eventType;
     }
 
     public String getEventData() {
@@ -45,9 +45,9 @@ public class ServerSentEvent {
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("Message{");
-        sb.append("eventData='").append(eventData).append('\'');
         sb.append(", eventId='").append(eventId).append('\'');
-        sb.append(", eventName='").append(eventName).append('\'');
+        sb.append(", eventType='").append(eventType).append('\'');
+        sb.append("eventData='").append(eventData).append('\'');
         sb.append('}');
         return sb.toString();
     }

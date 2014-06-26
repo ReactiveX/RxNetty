@@ -40,30 +40,28 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
     }
 
     private static class MessageBuffer {
-        public static final String DEFAULT_EVENT_NAME = "message";
-
-        private final StringBuilder eventName = new StringBuilder();
+        private boolean eventTypePresent;
+        private final StringBuilder eventType = new StringBuilder();
         private final StringBuilder eventData = new StringBuilder();
+        private boolean eventIdPresent;
         private final StringBuilder eventId = new StringBuilder();
 
-        public MessageBuffer() {
+        private MessageBuffer() {
             reset();
         }
 
-        public MessageBuffer setEventName(String eventName) {
-            this.eventName.setLength(0);
-            this.eventName.append(eventName);
+        public MessageBuffer setEventType(String eventType) {
+            this.eventType.setLength(0);
+            this.eventType.append(eventType);
+            eventTypePresent = true;
 
             return this;
         }
 
-        public MessageBuffer setEventData(String eventData) {
-            this.eventData.setLength(0);
-
-            return appendEventData(eventData);
-        }
-
         public MessageBuffer appendEventData(String eventData) {
+            if(this.eventData.length() > 0) {
+                this.eventData.append('\n');
+            }
             this.eventData.append(eventData);
 
             return this;
@@ -72,14 +70,15 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
         public MessageBuffer setEventId(String id) {
             eventId.setLength(0);
             eventId.append(id);
+            eventIdPresent = true;
 
             return this;
         }
 
         public ServerSentEvent toMessage() {
             ServerSentEvent message = new ServerSentEvent(
-                    eventId.toString(),
-                    eventName.toString(),
+                    eventIdPresent ? eventId.toString() : null,
+                    eventTypePresent ? eventType.toString() : null,
                     eventData.toString()
                     );
 
@@ -89,13 +88,11 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
         }
 
         public void reset() {
+            eventIdPresent = false;
             eventId.setLength(0);
-
-            eventName.setLength(0);
-            eventName.append(DEFAULT_EVENT_NAME);
-
+            eventTypePresent = false;
+            eventType.setLength(0);
             eventData.setLength(0);
-
         }
     }
 
@@ -117,11 +114,11 @@ public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDeco
             String type = line.substring(0, colonIndex).trim();
             if ("data".equals(type)) {
                 eventStarted = true;
-                eventBuffer.appendEventData(line.substring(colonIndex + 1));
+                eventBuffer.appendEventData(line.substring(colonIndex + 1).trim());
             }
 
             if ("event".equals(type)) {
-                eventBuffer.setEventName(line.substring(colonIndex + 1).trim());
+                eventBuffer.setEventType(line.substring(colonIndex + 1).trim());
             }
 
             if ("id".equals(type)) {

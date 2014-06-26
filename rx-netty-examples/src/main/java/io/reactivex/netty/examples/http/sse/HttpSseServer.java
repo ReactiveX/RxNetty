@@ -65,7 +65,7 @@ public final class HttpSseServer {
                     @Override
                     public Observable<Void> call(Long interval) {
                         System.out.println("Writing SSE event for interval: " + interval);
-                        return response.writeAndFlush(new ServerSentEvent("1", "data: ", String.valueOf(interval)));
+                        return response.writeAndFlush(new ServerSentEvent(String.valueOf(interval), "notification", "hello " + interval));
                     }
                 }).materialize()
                 .takeWhile(new Func1<Notification<Void>, Boolean>() {
