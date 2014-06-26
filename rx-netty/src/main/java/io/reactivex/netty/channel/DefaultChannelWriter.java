@@ -20,27 +20,44 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ByteTransformer;
 import io.reactivex.netty.serialization.ContentTransformer;
 import io.reactivex.netty.serialization.StringTransformer;
 import rx.Observable;
-import rx.functions.Func1;
+import rx.functions.Action0;
+import rx.functions.Action1;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author Nitesh Kant
  */
 public class DefaultChannelWriter<O> implements ChannelWriter<O> {
 
+    protected static final Observable<Void> CONNECTION_ALREADY_CLOSED =
+            Observable.error(new IllegalStateException("Connection is already closed."));
+    protected final AtomicBoolean closeIssued = new AtomicBoolean();
     private final ChannelHandlerContext ctx;
-    private final MultipleFutureListener unflushedWritesListener;
+    /**
+     * A listener for all pending writes before a flush.
+     */
+    private final AtomicReference<MultipleFutureListener> unflushedWritesListener;
+    @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
+    private final ChannelMetricEventProvider metricEventProvider;
 
-    public DefaultChannelWriter(ChannelHandlerContext context) {
-        if (null == context) {
+    protected DefaultChannelWriter(ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
+                                   ChannelMetricEventProvider metricEventProvider) {
+        this.eventsSubject = eventsSubject;
+        this.metricEventProvider = metricEventProvider;
+        if (null == ctx) {
             throw new NullPointerException("Channel context can not be null.");
         }
-        ctx = context;
-        unflushedWritesListener = new MultipleFutureListener(ctx);
+        this.ctx = ctx;
+        unflushedWritesListener = new AtomicReference<MultipleFutureListener>(new MultipleFutureListener(ctx.newPromise()));
     }
 
     @Override
@@ -89,20 +106,38 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public Observable<Void> flush() {
+        final long startTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(metricEventProvider.getFlushStartEvent());
+        MultipleFutureListener existingListener = unflushedWritesListener.getAndSet(new MultipleFutureListener(
+                ctx.newPromise()));
+        /**
+         * Do flush() after getting the last listener so that we do not wait for a write which is not flushed.
+         * If we do it before getting the existingListener then the write that happens after the flush() from the user
+         * will be contained in the retrieved listener and hence we will wait till the next flush() finish.
+         */
         ctx.flush();
-        return unflushedWritesListener.listenForNextCompletion().take(1).flatMap(
-                new Func1<ChannelFuture, Observable<Void>>() {
-                    @Override
-                    public Observable<Void> call(ChannelFuture future) {
-                        return Observable.empty();
-                    }
-                });
+        return existingListener.asObservable()
+                               .doOnCompleted(new Action0() {
+                                   @Override
+                                   public void call() {
+                                       eventsSubject.onEvent(metricEventProvider.getFlushSuccessEvent(),
+                                                             Clock.onEndMillis(startTimeMillis));
+                                   }
+                               })
+                               .doOnError(new Action1<Throwable>() {
+                                   @Override
+                                   public void call(Throwable throwable) {
+                                       eventsSubject.onEvent(metricEventProvider.getFlushSuccessEvent(),
+                                                             Clock.onEndMillis(startTimeMillis), throwable);
+                                   }
+                               });
     }
 
     @Override
     public void cancelPendingWrites(boolean mayInterruptIfRunning) {
-        unflushedWritesListener.cancelPendingFutures(mayInterruptIfRunning);
+        unflushedWritesListener.get().cancelPendingFutures(mayInterruptIfRunning);
     }
 
     @Override
@@ -114,13 +149,31 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
         return ctx;
     }
 
+    @SuppressWarnings("unchecked")
     protected ChannelFuture writeOnChannel(Object msg) {
         ChannelFuture writeFuture = getChannel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the tail of the pipeline.
-        unflushedWritesListener.listen(writeFuture);
+        unflushedWritesListener.get().listen(writeFuture);
         return writeFuture;
     }
 
     protected Channel getChannel() {
         return ctx.channel();
+    }
+
+    public boolean isCloseIssued() {
+        return closeIssued.get();
+    }
+
+    @SuppressWarnings("unchecked")
+    public Observable<Void> close() {
+        if (closeIssued.compareAndSet(false, true)) {
+            return _close();
+        } else {
+            return CONNECTION_ALREADY_CLOSED;
+        }
+    }
+
+    protected Observable<Void> _close() {
+        return Observable.empty();
     }
 }

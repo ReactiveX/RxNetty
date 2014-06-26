@@ -18,12 +18,12 @@ package io.reactivex.netty.channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
 import rx.Observable;
 import rx.Subscriber;
 import rx.subjects.PublishSubject;
-
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An observable connection for connection oriented protocols.
@@ -33,53 +33,79 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
-    protected static final Observable<Void> CONNECTION_ALREADY_CLOSED =
-            Observable.error(new IllegalStateException("Connection is already closed."));
     private PublishSubject<I> inputSubject;
-    protected final AtomicBoolean closeIssued = new AtomicBoolean();
+    @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
+    private final ChannelMetricEventProvider metricEventProvider;
+    /* Guarded by closeIssued so that its only updated once*/ protected volatile long closeStartTimeMillis = -1;
 
-    public ObservableConnection(final ChannelHandlerContext ctx) {
-        super(ctx);
+    public ObservableConnection(final ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
+                                ChannelMetricEventProvider metricEventProvider) {
+        super(ctx, eventsSubject, metricEventProvider);
+        this.eventsSubject = eventsSubject;
+        this.metricEventProvider = metricEventProvider;
         inputSubject = PublishSubject.create();
-        ctx.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
+        ChannelHandlerContext firstContext = ctx.pipeline().firstContext();
+        firstContext.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
     }
 
     public Observable<I> getInput() {
         return inputSubject;
     }
 
-    public boolean isCloseIssued() {
-        return closeIssued.get();
-    }
 
     /**
      * Closes this connection. This method is idempotent, so it can be called multiple times without any side-effect on
      * the channel. <br/>
      * This will also cancel any pending writes on the underlying channel. <br/>
      *
-     * @return Observable signifying the close on the connection. Returns {@link Observable#error(Throwable)} if the
+     * @return Observable signifying the close on the connection. Returns {@link rx.Observable#error(Throwable)} if the
      * close is already issued (may not be completed)
      */
+    @Override
     public Observable<Void> close() {
-        if (closeIssued.compareAndSet(false, true)) {
-            PublishSubject<I> thisSubject = inputSubject;
-            cleanupConnection();
-            Observable<Void> toReturn = _closeChannel();
-            thisSubject.onCompleted(); // This is just to make sure we make the subject as completed after we finish
-                                       // closing the channel, results in more deterministic behavior for clients.
-            return toReturn;
-        } else {
-            return CONNECTION_ALREADY_CLOSED;
-        }
+        return super.close();
+    }
+
+    @Override
+    protected Observable<Void> _close() {
+        PublishSubject<I> thisSubject = inputSubject;
+        cleanupConnection(); // Cleanup is required irrespective of close underlying connection (pooled connection)
+        Observable<Void> toReturn = _closeChannel();
+        thisSubject.onCompleted(); // This is just to make sure we make the subject as completed after we finish
+        // closing the channel, results in more deterministic behavior for clients.
+        return toReturn;
     }
 
     protected void cleanupConnection() {
         cancelPendingWrites(true);
-        ReadTimeoutPipelineConfigurator.removeTimeoutHandler(getChannelHandlerContext().pipeline());
+        ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannelHandlerContext().pipeline());
     }
 
+    @SuppressWarnings("unchecked")
     protected Observable<Void> _closeChannel() {
+        closeStartTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
         final ChannelFuture closeFuture = getChannelHandlerContext().close();
+
+        /**
+         * This listener if added inside the returned Observable onSubscribe() function, would mean that the
+         * metric events will only be fired if someone subscribed to the close() Observable. However, we need them to
+         * fire independent of someone subscribing.
+         */
+        closeFuture.addListener(new ChannelFutureListener() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess()) {
+                    eventsSubject.onEvent(metricEventProvider.getChannelCloseSuccessEvent(),
+                                          Clock.onEndMillis(closeStartTimeMillis));
+                } else {
+                    eventsSubject.onEvent(metricEventProvider.getChannelCloseFailedEvent(),
+                                          Clock.onEndMillis(closeStartTimeMillis), future.cause());
+                }
+            }
+        });
+
         return Observable.create(new Observable.OnSubscribe<Void>() {
             @Override
             public void call(final Subscriber<? super Void> subscriber) {

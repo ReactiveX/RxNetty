@@ -18,16 +18,26 @@ package io.reactivex.netty.client;
 import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 
 /**
  * @author Nitesh Kant
  */
 public class UnpooledClientConnectionFactory<I, O> implements ClientConnectionFactory<I, O, ObservableConnection<I, O>> {
 
-    private final UnpooledConnectionFactory<I, O> delegate = new UnpooledConnectionFactory<I, O>();
+    private final UnpooledConnectionFactory<I, O> delegate;
+
+    public UnpooledClientConnectionFactory() {
+        delegate = new UnpooledConnectionFactory<I, O>(ClientChannelMetricEventProvider.INSTANCE);
+    }
 
     @Override
     public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
         return delegate.newConnection(ctx);
+    }
+
+    @Override
+    public void useMetricEventsSubject(MetricEventsSubject<?> eventsSubject) {
+        delegate.useMetricEventsSubject(eventsSubject);
     }
 }

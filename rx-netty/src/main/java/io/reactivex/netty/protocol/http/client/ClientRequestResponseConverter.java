@@ -18,6 +18,8 @@ package io.reactivex.netty.protocol.http.client;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
@@ -29,7 +31,10 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionReuseEvent;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
 import io.reactivex.netty.serialization.ContentTransformer;
 import rx.subjects.PublishSubject;
@@ -66,10 +71,13 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
      */
     public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR = AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
     public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
+    private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
     @SuppressWarnings("rawtypes") private PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
+    private long responseReceiveStartTimeMillis; // Reset every time we receive a header.
 
-    public ClientRequestResponseConverter() {
+    public ClientRequestResponseConverter(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this.eventsSubject = eventsSubject;
         contentSubject = PublishSubject.create();
     }
 
@@ -87,6 +95,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         @SuppressWarnings("rawtypes") final PublishSubject subjectToUse = contentSubject;
 
         if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
+            responseReceiveStartTimeMillis = Clock.newStartTimeMillis();
+            eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_HEADER_RECEIVED);
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpResponse response = (HttpResponse) msg;
 
@@ -105,11 +115,14 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         }
 
         if (HttpContent.class.isAssignableFrom(recievedMsgClass)) {// This will be executed if the incoming message is a FullHttpResponse or only HttpContent.
+            eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_CONTENT_RECEIVED);
             ByteBuf content = ((ByteBufHolder) msg).content();
             if (content.isReadable()) {
                 invokeContentOnNext(content);
             }
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
+                eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
+                                      Clock.onEndMillis(responseReceiveStartTimeMillis));
                 subjectToUse.onCompleted();
             }
         } else if(!HttpResponse.class.isAssignableFrom(recievedMsgClass)){
@@ -128,7 +141,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
                 }
-                allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
+                writeHttpHeaders(ctx, rxRequest, allWritesListener);
                 ContentSource<?> contentSource;
                 if (rxRequest.hasRawContentSource()) {
                     contentSource = rxRequest.getRawContentSource();
@@ -139,24 +152,24 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                         ContentTransformer transformer = rawContentSource.getTransformer();
                         @SuppressWarnings("unchecked")
                         ByteBuf byteBuf = transformer.transform(rawContentSource.next(), ctx.alloc());
-                        allWritesListener.listen(ctx.write(byteBuf));
+                        writeContent(ctx, allWritesListener, byteBuf);
                     }
                 } else {
                     contentSource = rxRequest.getContentSource();
                     while (contentSource.hasNext()) {
-                        allWritesListener.listen(ctx.write(contentSource.next()));
+                        writeContent(ctx, allWritesListener, contentSource.next());
                     }
                 }
             } else {
                 if (!rxRequest.getHeaders().isContentLengthSet() && rxRequest.getMethod() != HttpMethod.GET) {
                     rxRequest.getHeaders().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
                 }
-                allWritesListener.listen(ctx.write(rxRequest.getNettyRequest()));
+                writeHttpHeaders(ctx, rxRequest, allWritesListener);
             }
 
             // In order for netty's codec to understand that HTTP request writing is over, we always have to write the
             // LastHttpContent irrespective of whether it is chunked or not.
-            allWritesListener.listen(ctx.write(new DefaultLastHttpContent()));
+            writeContent(ctx, allWritesListener, new DefaultLastHttpContent());
         } else {
             ctx.write(msg, promise); // pass through, since we do not understand this message.
         }
@@ -177,6 +190,41 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         } catch (ClassCastException e) {
             contentSubject.onError(e);
         }
+    }
+
+    private void writeHttpHeaders(ChannelHandlerContext ctx, HttpClientRequest<?> rxRequest,
+                                  MultipleFutureListener allWritesListener) {
+        final long startTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_HEADERS_WRITE_START);
+        ChannelFuture writeFuture = ctx.write(rxRequest.getNettyRequest());
+        addWriteCompleteEvents(writeFuture, startTimeMillis, HttpClientMetricsEvent.REQUEST_HEADERS_WRITE_SUCCESS,
+                               HttpClientMetricsEvent.REQUEST_HEADERS_WRITE_FAILED);
+        allWritesListener.listen(writeFuture);
+    }
+
+    private void writeContent(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener, Object msg) {
+        eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_START);
+        final long startTimeMillis = Clock.newStartTimeMillis();
+        ChannelFuture writeFuture = ctx.write(msg);
+        addWriteCompleteEvents(writeFuture, startTimeMillis, HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_SUCCESS,
+                               HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_FAILED);
+        allWritesListener.listen(writeFuture);
+    }
+
+
+    private void addWriteCompleteEvents(ChannelFuture future, final long startTimeMillis,
+                                        final HttpClientMetricsEvent<HttpClientMetricsEvent.EventType> successEvent,
+                                        final HttpClientMetricsEvent<HttpClientMetricsEvent.EventType> failureEvent) {
+        future.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess()) {
+                    eventsSubject.onEvent(successEvent, Clock.onEndMillis(startTimeMillis));
+                } else {
+                    eventsSubject.onEvent(failureEvent, Clock.onEndMillis(startTimeMillis), future.cause());
+                }
+            }
+        });
     }
 
 }

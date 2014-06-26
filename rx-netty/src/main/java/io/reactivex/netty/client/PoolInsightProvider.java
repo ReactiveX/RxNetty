@@ -21,8 +21,11 @@ import rx.Observable;
  * An interface providing insights into the connection pool. This essentially separates read from write operations of a
  * {@link ConnectionPool}
  *
+ * @deprecated Use {@link io.reactivex.netty.metrics.MetricEventsPublisher} instead.
+ *
  * @author Nitesh Kant
  */
+@Deprecated
 public interface PoolInsightProvider {
 
     /**
@@ -35,6 +38,10 @@ public interface PoolInsightProvider {
 
     PoolStats getStats();
 
+    /**
+     * @deprecated Use {@link io.reactivex.netty.metrics.MetricsEvent} instead.
+     */
+    @Deprecated
     enum PoolStateChangeEvent {
         NewConnectionCreated,
         ConnectFailed,

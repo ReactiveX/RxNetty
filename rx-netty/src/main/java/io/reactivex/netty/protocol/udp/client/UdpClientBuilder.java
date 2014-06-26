@@ -18,9 +18,13 @@ package io.reactivex.netty.protocol.udp.client;
 import io.netty.bootstrap.Bootstrap;
 import io.reactivex.netty.client.AbstractClientBuilder;
 import io.reactivex.netty.client.ClientChannelFactoryImpl;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClientImpl;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 
 import java.net.InetSocketAddress;
 
@@ -43,7 +47,13 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
 
     @Override
     protected RxClient<I, O> createClient() {
-        return new UdpClient<I, O>(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory);
+        return new UdpClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
+                                   channelFactory, eventsSubject);
+    }
+
+    @Override
+    public UdpClientBuilder<I, O> withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        throw new IllegalArgumentException("SSL protocol is not applicable to UDP ");
     }
 
     @Override
@@ -58,5 +68,16 @@ public class UdpClientBuilder<I, O> extends AbstractClientBuilder<I,O, UdpClient
         }
 
         return builder;
+    }
+
+    @Override
+    protected String generatedNamePrefix() {
+        return "UdpClient-";
+    }
+
+    @Override
+    protected MetricEventsListener<? extends ClientMetricsEvent<?>>
+    newMetricsListener(MetricEventsListenerFactory factory, RxClient<I, O> client) {
+        return factory.forUdpClient((UdpClient<I, O>) client);
     }
 }

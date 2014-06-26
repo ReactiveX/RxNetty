@@ -17,6 +17,7 @@ package io.reactivex.netty.client;
 
 import io.netty.channel.ChannelFuture;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Subscriber;
 
 /**
@@ -33,4 +34,6 @@ public interface ClientChannelFactory<I, O> {
 
     void onNewConnection(ObservableConnection<I, O> newConnection,
                          Subscriber<? super ObservableConnection<I, O>> subscriber);
+
+    void useMetricEventsSubject(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject);
 }

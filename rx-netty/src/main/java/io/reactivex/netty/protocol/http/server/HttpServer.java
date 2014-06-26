@@ -21,6 +21,8 @@ import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.server.ErrorHandler;
 import io.reactivex.netty.server.RxServer;
 
+import java.util.List;
+
 /**
  * @author Nitesh Kant
  */
@@ -38,6 +40,22 @@ public class HttpServer<I, O> extends RxServer<HttpServerRequest<I>, HttpServerR
                PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
                HttpConnectionHandler<I, O> connectionHandler) {
         super(bootstrap, port, addRequiredConfigurator(pipelineConfigurator), connectionHandler);
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        List<PipelineConfigurator> constituentConfigurators =
+                ((PipelineConfiguratorComposite) this.pipelineConfigurator).getConstituentConfigurators();
+        boolean updatedSubject = false;
+        for (@SuppressWarnings("rawtypes") PipelineConfigurator configurator : constituentConfigurators) {
+            if (configurator instanceof ServerRequiredConfigurator) {
+                updatedSubject = true;
+                @SuppressWarnings("unchecked")
+                ServerRequiredConfigurator<I, O> requiredConfigurator = (ServerRequiredConfigurator<I, O>) configurator;
+                requiredConfigurator.useMetricEventsSubject(eventsSubject);
+            }
+        }
+        if (!updatedSubject) {
+            throw new IllegalStateException("No server required configurator added.");
+        }
+        connectionHandler.useMetricEventsSubject(eventsSubject);
         this.connectionHandler = connectionHandler;
     }
 

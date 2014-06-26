@@ -18,7 +18,10 @@ package io.reactivex.netty.protocol.udp.client;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.socket.DatagramPacket;
+import io.reactivex.netty.channel.ChannelMetricEventProvider;
+import io.reactivex.netty.channel.NoOpChannelMetricEventProvider;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 
 import java.net.InetSocketAddress;
@@ -35,7 +38,13 @@ public class UdpClientConnection<I, O> extends ObservableConnection<I, O> {
     private final InetSocketAddress receiverAddress;
 
     public UdpClientConnection(ChannelHandlerContext ctx, InetSocketAddress receiverAddress) {
-        super(ctx);
+        this(ctx, receiverAddress, NoOpChannelMetricEventProvider.NoOpMetricEventsSubject.INSTANCE,
+             NoOpChannelMetricEventProvider.INSTANCE);
+    }
+
+    public UdpClientConnection(ChannelHandlerContext ctx, InetSocketAddress receiverAddress,
+                               MetricEventsSubject<?> eventsSubject, ChannelMetricEventProvider metricEventProvider) {
+        super(ctx, eventsSubject, metricEventProvider);
         this.receiverAddress = receiverAddress;
     }
 

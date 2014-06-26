@@ -19,6 +19,7 @@ import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -48,7 +49,13 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
     }
 
     @Override
+    @Deprecated
     public boolean acquireCreationPermit() {
+        return acquireCreationPermit(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    @Override
+    public boolean acquireCreationPermit(long acquireStartTime, TimeUnit timeUnit) {
         /**
          * As opposed to limitEnforcer.incrementAndGet() we follow this model as this does not change the limitEnforcer
          * value unless there are enough permits.
@@ -89,9 +96,55 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
         return maxConnections.get() - limitEnforcer.get();
     }
 
+    private void onConnectFailed() {
+        limitEnforcer.decrementAndGet();
+    }
+
+    private void onConnectionEviction() {
+        limitEnforcer.decrementAndGet();
+    }
+
+    @Override
+    public CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy copy() {
+        return new MaxConnectionsBasedStrategy(originalMaxConnLimit);
+    }
+
+    @Override
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+                        Object value) {
+        if (event.getType() instanceof ClientMetricsEvent.EventType) {
+            switch ((ClientMetricsEvent.EventType) event.getType()) {
+                case ConnectStart:
+                    break;
+                case ConnectSuccess:
+                    break;
+                case ConnectFailed:
+                    onConnectFailed();
+                    break;
+                case PooledConnectionReuse:
+                    break;
+                case PooledConnectionEviction:
+                    onConnectionEviction();
+                    break;
+                case ConnectionCloseStart:
+                    break;
+                case ConnectionCloseSuccess:
+                    break;
+                case ConnectionCloseFailed:
+                    break;
+            }
+        }
+    }
+
     @Override
     public void onCompleted() {
-        // No op.
+        // No Op.
+    }
+
+    @Override
+    public void onSubscribe() {
+        // No Op.
+
     }
 
     @Override
@@ -100,6 +153,7 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
     }
 
     @Override
+    @Deprecated
     public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
         switch (stateChangeEvent) {
             case NewConnectionCreated:
@@ -125,18 +179,5 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
             case onReleaseFailed:
                 break;
         }
-    }
-
-    private void onConnectFailed() {
-        limitEnforcer.decrementAndGet();
-    }
-
-    private void onConnectionEviction() {
-        limitEnforcer.decrementAndGet();
-    }
-
-    @Override
-    public CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy copy() {
-        return new MaxConnectionsBasedStrategy(originalMaxConnLimit);
     }
 }

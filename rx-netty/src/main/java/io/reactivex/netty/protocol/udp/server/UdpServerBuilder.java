@@ -20,6 +20,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.server.AbstractServerBuilder;
 
 /**
@@ -48,11 +51,22 @@ public class UdpServerBuilder<I, O> extends AbstractServerBuilder<I, O, Bootstra
     }
 
     @Override
+    public UdpServerBuilder<I, O> withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        throw new IllegalArgumentException("SSL protocol is not applicable to UDP ");
+    }
+
+    @Override
     protected UdpServer<I, O> createServer() {
         if (null != pipelineConfigurator) {
             return new UdpServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
         } else {
             return new UdpServer<I, O>(serverBootstrap, port, connectionHandler);
         }
+    }
+
+    @Override
+    protected MetricEventsListener<UdpServerMetricsEvent<?>>
+    newMetricsListener(MetricEventsListenerFactory factory, UdpServer<I, O> server) {
+        return factory.forUdpServer(server);
     }
 }

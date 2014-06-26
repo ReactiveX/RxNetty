@@ -25,10 +25,15 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Nitesh Kant
@@ -36,6 +41,9 @@ import java.util.concurrent.ScheduledExecutorService;
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
 
+    private static final AtomicInteger clientUniqueNameCounter = new AtomicInteger();
+
+    private String name;
     protected final RxClientImpl.ServerInfo serverInfo;
     protected final Bootstrap bootstrap;
     protected final ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory;
@@ -46,10 +54,16 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     protected EventLoopGroup eventLoopGroup;
     protected RxClient.ClientConfig clientConfig;
     protected LogLevel wireLogginLevel;
+    protected MetricEventsListenerFactory eventListenersFactory;
+    protected MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    private SSLEngineFactory sslEngineFactory;
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port,
                                     ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
                                     ClientChannelFactory<O, I> factory) {
+        eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
+        factory.useMetricEventsSubject(eventsSubject);
+        connectionFactory.useMetricEventsSubject(eventsSubject);
         this.bootstrap = bootstrap;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
         clientConfig = RxClient.ClientConfig.Builder.newDefaultConfig();
@@ -60,6 +74,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     }
 
     protected AbstractClientBuilder(Bootstrap bootstrap, String host, int port, ConnectionPoolBuilder<O, I> poolBuilder) {
+        eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         this.bootstrap = bootstrap;
         this.poolBuilder = poolBuilder;
         serverInfo = new RxClientImpl.ServerInfo(host, port);
@@ -134,6 +149,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    @Deprecated
     public B withPoolStatsProvider(PoolStatsProvider statsProvider) {
         getPoolBuilder(true).withPoolStatsProvider(statsProvider);
         return returnBuilder();
@@ -179,6 +195,16 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withName(String name) {
+        this.name = name;
+        return returnBuilder();
+    }
+
+    public B withMetricEventsListenerFactory(MetricEventsListenerFactory eventListenersFactory) {
+        this.eventListenersFactory = eventListenersFactory;
+        return returnBuilder();
+    }
+
     /**
      * Overrides all the connection pool settings done previous to this call and disables connection pooling for this
      * client, unless enabled again after this call returns.
@@ -190,12 +216,21 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        this.sslEngineFactory = sslEngineFactory;
+        return returnBuilder();
+    }
+
     public Bootstrap getBootstrap() {
         return bootstrap;
     }
 
     public RxClientImpl.ServerInfo getServerInfo() {
         return serverInfo;
+    }
+
+    public MetricEventsSubject<ClientMetricsEvent<?>> getEventsSubject() {
+        return eventsSubject;
     }
 
     public C build() {
@@ -221,7 +256,16 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
             pipelineConfigurator = PipelineConfigurators.appendLoggingConfigurator(pipelineConfigurator,
                                                                                    wireLogginLevel);
         }
-        return createClient();
+        if(null != sslEngineFactory) {
+            appendPipelineConfigurator(PipelineConfigurators.<O,I>sslConfigurator(sslEngineFactory));
+        }
+        C client = createClient();
+        if (null != eventListenersFactory) {
+            MetricEventsListener<? extends ClientMetricsEvent<?>> listener =
+                    newMetricsListener(eventListenersFactory, client);
+            client.subscribe(listener);
+        }
+        return client;
     }
 
     protected abstract C createClient();
@@ -239,8 +283,24 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
              * This works well as someone who wants to override the connection factory should either start with a
              * pool builder or don't choose a pooled connection later.
              */
-            poolBuilder = new ConnectionPoolBuilder<O, I>(serverInfo, channelFactory); // Overrides the connection factory
+            poolBuilder = new ConnectionPoolBuilder<O, I>(serverInfo, channelFactory, eventsSubject); // Overrides the connection factory
         }
         return poolBuilder;
     }
+
+    protected String getOrCreateName() {
+        if (null != name) {
+            return name;
+        }
+
+        name = generatedNamePrefix() + clientUniqueNameCounter.incrementAndGet();
+        return name;
+    }
+
+    protected String generatedNamePrefix() {
+        return "RxClient-";
+    }
+
+    protected abstract MetricEventsListener<? extends ClientMetricsEvent<? extends Enum>>
+    newMetricsListener(MetricEventsListenerFactory factory, C client);
 }

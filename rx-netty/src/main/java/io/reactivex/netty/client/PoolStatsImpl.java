@@ -16,16 +16,18 @@
 package io.reactivex.netty.client;
 
 import io.netty.util.internal.chmv8.LongAdder;
+import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.util.concurrent.TimeUnit;
 
 /**
+ *
+ * @deprecated Use {@link MetricEventsListener} to get the stats.
  * @author Nitesh Kant
  */
+@Deprecated
 public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.CloneablePoolStatsProvider {
-
-    private static final Logger logger = LoggerFactory.getLogger(PoolStatsImpl.class);
 
     private final LongAdder idleConnections;
     private final LongAdder inUseConnections;
@@ -67,49 +69,53 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
     }
 
     @Override
-    public void onCompleted() {
-        // No op.
-    }
-
-    @Override
-    public void onError(Throwable e) {
-        logger.error("Connection pool emitted an error for state change events.", e);
-    }
-
-    @Override
-    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
-        switch (stateChangeEvent) {
-            case NewConnectionCreated:
-                onConnectionCreation();
-                break;
-            case ConnectFailed:
-                onConnectFailed();
-                break;
-            case OnConnectionReuse:
-                onConnectionReuse();
-                break;
-            case OnConnectionEviction:
-                onConnectionEviction();
-                break;
-            case onAcquireAttempted:
-                onAcquireAttempted();
-                break;
-            case onAcquireSucceeded:
-                onAcquireSucceeded();
-                break;
-            case onAcquireFailed:
-                onAcquireFailed();
-                break;
-            case onReleaseAttempted:
-                onReleaseAttempted();
-                break;
-            case onReleaseSucceeded:
-                onReleaseSucceeded();
-                break;
-            case onReleaseFailed:
-                onReleaseFailed();
-                break;
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
+                        Throwable throwable, Object value) {
+        if (event.getType() instanceof ClientMetricsEvent.EventType) {
+            switch ((ClientMetricsEvent.EventType) event.getType()) {
+                case ConnectSuccess:
+                    onConnectionCreation();
+                    break;
+                case ConnectFailed:
+                    onConnectFailed();
+                    break;
+                case PooledConnectionReuse:
+                    onConnectionReuse();
+                    break;
+                case PooledConnectionEviction:
+                    onConnectionEviction();
+                    break;
+                case PoolAcquireStart:
+                    onAcquireAttempted();
+                    break;
+                case PoolAcquireSuccess:
+                    onAcquireSucceeded();
+                    break;
+                case PoolAcquireFailed:
+                    onAcquireFailed();
+                    break;
+                case PoolReleaseStart:
+                    onReleaseAttempted();
+                    break;
+                case PoolReleaseSuccess:
+                    onReleaseSucceeded();
+                    break;
+                case PoolReleaseFailed:
+                    onReleaseFailed();
+                    break;
+            }
         }
+    }
+
+    @Override
+    public void onCompleted() {
+        // No Op.
+    }
+
+    @Override
+    public void onSubscribe() {
+        // No op.
+
     }
 
     @Override

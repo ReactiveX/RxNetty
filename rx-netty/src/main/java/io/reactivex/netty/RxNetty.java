@@ -24,6 +24,7 @@ import io.reactivex.netty.channel.RxEventLoopProvider;
 import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
+import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClient;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
@@ -55,18 +56,29 @@ public final class RxNetty {
     private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider();
     private static final CompositeHttpClient<ByteBuf, ByteBuf> globalClient =
             new CompositeHttpClientBuilder<ByteBuf, ByteBuf>().withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
+    private static MetricEventsListenerFactory metricEventsListenerFactory;
 
     private RxNetty() {
     }
 
     public static <I, O> UdpServerBuilder<I, O> newUdpServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
-        return new UdpServerBuilder<I, O>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
+        UdpServerBuilder<I, O> builder = new UdpServerBuilder<I, O>(port, connectionHandler)
+                .enableWireLogging(LogLevel.DEBUG);
+        if (null != metricEventsListenerFactory) {
+            builder.withMetricEventsListenerFactory(metricEventsListenerFactory);
+        }
+        return builder;
     }
 
     public static <I, O> UdpClientBuilder<I, O> newUdpClientBuilder(String host, int port) {
-        return new UdpClientBuilder<I, O>(host, port).channel(NioDatagramChannel.class)
-                                                     .enableWireLogging(LogLevel.DEBUG)
-                                                     .eventloop(getRxEventLoopProvider().globalClientEventLoop());
+        UdpClientBuilder<I, O> builder =
+                new UdpClientBuilder<I, O>(host, port).channel(NioDatagramChannel.class)
+                                                      .enableWireLogging(LogLevel.DEBUG)
+                                                      .eventloop(getRxEventLoopProvider().globalClientEventLoop());
+        if (null != metricEventsListenerFactory) {
+            builder.withMetricEventsListenerFactory(metricEventsListenerFactory);
+        }
+        return builder;
     }
 
     public static <I, O> UdpServer<I, O> createUdpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
@@ -89,7 +101,12 @@ public final class RxNetty {
     }
 
     public static <I, O> ServerBuilder<I, O> newTcpServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
-        return new ServerBuilder<I, O>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
+        ServerBuilder<I, O> builder =
+                new ServerBuilder<I, O>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
+        if (null != metricEventsListenerFactory) {
+            builder.withMetricEventsListenerFactory(metricEventsListenerFactory);
+        }
+        return builder;
     }
 
     public static <I, O> RxServer<I, O> createTcpServer(final int port, PipelineConfigurator<I, O> pipelineConfigurator,
@@ -98,7 +115,11 @@ public final class RxNetty {
     }
 
     public static <I, O> ClientBuilder<I, O> newTcpClientBuilder(String host, int port) {
-        return new ClientBuilder<I, O>(host, port).enableWireLogging(LogLevel.DEBUG);
+        ClientBuilder<I, O> builder = new ClientBuilder<I, O>(host, port).enableWireLogging(LogLevel.DEBUG);
+        if (null != metricEventsListenerFactory) {
+            builder.withMetricEventsListenerFactory(metricEventsListenerFactory);
+        }
+        return builder;
     }
 
     public static <I, O> RxClient<I, O> createTcpClient(String host, int port, PipelineConfigurator<O, I> configurator) {
@@ -115,12 +136,22 @@ public final class RxNetty {
     }
 
     public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler) {
-        return new HttpServerBuilder<I, O>(port, requestHandler).enableWireLogging(LogLevel.DEBUG);
+        HttpServerBuilder<I, O> builder =
+                new HttpServerBuilder<I, O>(port, requestHandler).enableWireLogging(LogLevel.DEBUG);
+        if (null != metricEventsListenerFactory) {
+            builder.withMetricEventsListenerFactory(metricEventsListenerFactory);
+        }
+        return builder;
     }
 
     public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port) {
-        return new HttpClientBuilder<I, O>(host, port).withMaxConnections(DEFAULT_MAX_CONNECTIONS)
-                                                      .enableWireLogging(LogLevel.DEBUG);
+        HttpClientBuilder<I, O> builder =
+                new HttpClientBuilder<I, O>(host, port).withMaxConnections(DEFAULT_MAX_CONNECTIONS)
+                                                       .enableWireLogging(LogLevel.DEBUG);
+        if (null != metricEventsListenerFactory) {
+            builder.withMetricEventsListenerFactory(metricEventsListenerFactory);
+        }
+        return builder;
     }
 
     public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
@@ -139,7 +170,7 @@ public final class RxNetty {
 
     public static <I, O> HttpClient<I, O> createHttpClient(String host, int port,
                                                            PipelineConfigurator<HttpClientResponse<O>,
-                                                                                HttpClientRequest<I>> configurator) {
+                                                           HttpClientRequest<I>> configurator) {
         return RxNetty.<I, O>newHttpClientBuilder(host, port).pipelineConfigurator(configurator).build();
     }
 
@@ -199,6 +230,10 @@ public final class RxNetty {
         RxEventLoopProvider oldProvider = rxEventLoopProvider;
         rxEventLoopProvider = provider;
         return oldProvider;
+    }
+
+    public static void useMetricListenersFactory(MetricEventsListenerFactory factory) {
+        metricEventsListenerFactory = factory;
     }
 
     public static RxEventLoopProvider getRxEventLoopProvider() {

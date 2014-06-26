@@ -18,8 +18,10 @@ package io.reactivex.netty.protocol.udp.client;
 import io.netty.bootstrap.Bootstrap;
 import io.reactivex.netty.client.ClientChannelFactory;
 import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.RxClientImpl;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 import java.net.InetSocketAddress;
@@ -31,15 +33,21 @@ import java.net.InetSocketAddress;
  */
 public class UdpClient<I, O> extends RxClientImpl<I, O> {
 
-    public UdpClient(ServerInfo serverInfo, Bootstrap bootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
-                     ClientConfig clientConfig, ClientChannelFactory<O, I> clientChannelFactory) {
-        this(serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory,
-             new UdpClientConnectionFactory<O, I>(new InetSocketAddress(serverInfo.getHost(), serverInfo.getPort())));
+    public UdpClient(String name, ServerInfo serverInfo, Bootstrap bootstrap,
+                     PipelineConfigurator<O, I> pipelineConfigurator,
+                     ClientConfig clientConfig, ClientChannelFactory<O, I> clientChannelFactory,
+                     MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this(name, serverInfo, bootstrap, pipelineConfigurator, clientConfig, clientChannelFactory,
+             new UdpClientConnectionFactory<O, I>(new InetSocketAddress(serverInfo.getHost(), serverInfo.getPort())),
+             eventsSubject);
     }
 
-    public UdpClient(ServerInfo serverInfo, Bootstrap bootstrap, PipelineConfigurator<O, I> pipelineConfigurator,
+    public UdpClient(String name, ServerInfo serverInfo, Bootstrap bootstrap,
+                     PipelineConfigurator<O, I> pipelineConfigurator,
                      ClientConfig clientConfig, ClientChannelFactory<O, I> channelFactory,
-                     ClientConnectionFactory<O, I, UdpClientConnection<O, I>> connectionFactory) {
-        super(serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory);
+                     ClientConnectionFactory<O, I, UdpClientConnection<O, I>> connectionFactory,
+                     MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        super(name, serverInfo, bootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory,
+              eventsSubject);
     }
 }

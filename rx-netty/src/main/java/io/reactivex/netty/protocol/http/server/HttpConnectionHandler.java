@@ -19,7 +19,10 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
+import rx.Observer;
 import rx.functions.Action0;
 import rx.functions.Func1;
 
@@ -32,6 +35,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
 
     private final RequestHandler<I, O> requestHandler;
     private final boolean send10ResponseFor10Request;
+    @SuppressWarnings("rawtypes")private MetricEventsSubject eventsSubject;
 
     public HttpConnectionHandler(RequestHandler<I, O> requestHandler) {
         this(requestHandler, false);
@@ -46,12 +50,37 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
         this.responseGenerator = responseGenerator;
     }
 
+    void useMetricEventsSubject(MetricEventsSubject<?> eventsSubject) {
+        this.eventsSubject = eventsSubject;
+    }
+
     @Override
     public Observable<Void> handle(final ObservableConnection<HttpServerRequest<I>, HttpServerResponse<O>> newConnection) {
 
         return newConnection.getInput().flatMap(new Func1<HttpServerRequest<I>, Observable<Void>>() {
             @Override
+            @SuppressWarnings("unchecked")
             public Observable<Void> call(HttpServerRequest<I> newRequest) {
+                final long startTimeMillis = Clock.newStartTimeMillis();
+                eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
+                newRequest.getContent().subscribe(new Observer<I>() {
+                    // There is no guarantee that the RequestHandler will subscribe to the content, but we want this
+                    // metric anyways, so we subscribe to the content here.
+                    @Override
+                    public void onCompleted() {
+                        eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE,
+                                              Clock.onEndMillis(startTimeMillis));
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                    }
+
+                    @Override
+                    public void onNext(I i) {
+                    }
+                });
+
                 final HttpServerResponse<O> response = new HttpServerResponse<O>(
                         newConnection.getChannelHandlerContext(),
                         /*
@@ -60,7 +89,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                          *
                          * unless overriden explicitly.
                          */
-                        send10ResponseFor10Request ? newRequest.getHttpVersion() : HttpVersion.HTTP_1_1);
+                        send10ResponseFor10Request ? newRequest.getHttpVersion() : HttpVersion.HTTP_1_1, eventsSubject);
                 if (newRequest.getHeaders().isKeepAlive()) {
                     // Add keep alive header as per:
                     // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
@@ -71,6 +100,8 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                 Observable<Void> toReturn;
 
                 try {
+                    eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
+                                          Clock.onEndMillis(startTimeMillis));
                     toReturn = requestHandler.handle(newRequest, response);
                     if (null == toReturn) {
                         toReturn = Observable.empty();
@@ -80,9 +111,18 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                 }
 
                 return toReturn
+                        .doOnCompleted(new Action0() {
+                            @Override
+                            public void call() {
+                                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
+                                                      Clock.onEndMillis(startTimeMillis));
+                            }
+                        })
                         .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
                             @Override
                             public Observable<Void> call(Throwable throwable) {
+                                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
+                                                      Clock.onEndMillis(startTimeMillis), throwable);
                                 if (!response.isHeaderWritten()) {
                                     responseGenerator.updateResponse(response, throwable);
                                 }

@@ -19,6 +19,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
 import rx.Observable;
@@ -37,16 +38,20 @@ public class ServerRequiredConfigurator<I, O> extends RxRequiredConfigurator<I,O
     private final ConnectionHandler<I, O> connectionHandler;
     private final ObservableConnectionFactory<I, O> connectionFactory;
     private final ErrorHandler errorHandler;
+    private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
     public ServerRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler,
-                                      ObservableConnectionFactory<I, O> connectionFactory, ErrorHandler errorHandler) {
+                                      ObservableConnectionFactory<I, O> connectionFactory, ErrorHandler errorHandler,
+                                      MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
+        super(eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
         this.connectionHandler = connectionHandler;
         this.connectionFactory = connectionFactory;
         this.errorHandler = errorHandler;
+        this.eventsSubject = eventsSubject;
     }
 
     @Override
     protected ChannelHandler newConnectionLifecycleHandler(ChannelPipeline pipeline) {
-        return new ConnectionLifecycleHandler<I, O>(connectionHandler, connectionFactory, errorHandler);
+        return new ConnectionLifecycleHandler<I, O>(connectionHandler, connectionFactory, errorHandler, eventsSubject);
     }
 }

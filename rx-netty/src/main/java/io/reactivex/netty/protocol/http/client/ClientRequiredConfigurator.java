@@ -16,6 +16,8 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.channel.ChannelPipeline;
+import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 /**
@@ -27,12 +29,18 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  */
 class ClientRequiredConfigurator<I, O> implements PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> {
 
+    private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+
+    public ClientRequiredConfigurator(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this.eventsSubject = eventsSubject;
+    }
+
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
         ClientRequestResponseConverter converter = pipeline.get(ClientRequestResponseConverter.class);
         if (null == converter) {
             pipeline.addLast(HttpClientPipelineConfigurator.REQUEST_RESPONSE_CONVERTER_HANDLER_NAME,
-                             new ClientRequestResponseConverter());
+                             new ClientRequestResponseConverter(eventsSubject));
         }
     }
 }

@@ -70,7 +70,7 @@ public class HttpClientTest {
     public static void init() {
         HttpServerBuilder<ByteBuf, ByteBuf> builder
             = new HttpServerBuilder<ByteBuf, ByteBuf>(new ServerBootstrap().group(new NioEventLoopGroup(10, new RxServerThreadFactory())), port, new RequestProcessor());
-        server = builder.enableWireLogging(LogLevel.DEBUG).build();
+        server = builder.enableWireLogging(LogLevel.ERROR).build();
         server.start();
         port = server.getServerPort(); // Using ephemeral ports
         System.out.println("Mock server using ephemeral port; " + port);
