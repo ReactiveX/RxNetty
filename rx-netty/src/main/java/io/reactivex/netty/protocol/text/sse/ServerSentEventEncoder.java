@@ -40,9 +40,7 @@ public class ServerSentEventEncoder extends MessageToMessageEncoder<ServerSentEv
             eventBuilder.append("event: ").append(serverSentEvent.getEventType()).append('\n');
         }
         if (serverSentEvent.getEventData() != null) {
-            for (String dataLine : PATTERN_NEW_LINE.split(serverSentEvent.getEventData())) {
-                eventBuilder.append("data: ").append(dataLine).append('\n');
-            }
+            appendData(serverSentEvent, eventBuilder);
         }
         if (serverSentEvent.getEventId() != null) {
             eventBuilder.append("id: ").append(serverSentEvent.getEventId()).append('\n');
@@ -50,5 +48,15 @@ public class ServerSentEventEncoder extends MessageToMessageEncoder<ServerSentEv
         eventBuilder.append('\n');
         String data = eventBuilder.toString();
         out.add(ctx.alloc().buffer(data.length()).writeBytes(data.getBytes()));
+    }
+
+    private void appendData(ServerSentEvent serverSentEvent, StringBuilder eventBuilder) {
+        if (serverSentEvent.isSplitMode()) {
+            for (String dataLine : PATTERN_NEW_LINE.split(serverSentEvent.getEventData())) {
+                eventBuilder.append("data: ").append(dataLine).append('\n');
+            }
+        } else {
+            eventBuilder.append("data: ").append(serverSentEvent.getEventData()).append('\n');
+        }
     }
 }

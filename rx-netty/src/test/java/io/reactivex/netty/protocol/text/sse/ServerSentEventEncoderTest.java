@@ -52,6 +52,14 @@ public class ServerSentEventEncoderTest {
     }
 
     @Test
+    public void testNoSplitMode() throws Exception {
+        doTest(
+                new ServerSentEvent("1", "add", "first line\nsecond line\nthird line", false),
+                "event: add\ndata: first line\nsecond line\nthird line\nid: 1\n\n"
+        );
+    }
+
+    @Test
     public void testEventWithNoIdEncode() throws Exception {
         doTest(
                 new ServerSentEvent(null, "add", "test data"),
