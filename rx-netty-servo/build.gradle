@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+
+
 apply plugin: 'osgi'
 
 sourceCompatibility = JavaVersion.VERSION_1_6
@@ -21,7 +23,7 @@ targetCompatibility = JavaVersion.VERSION_1_6
 
 dependencies {
     compile project(':rx-netty')
-    compile 'com.netflix.servo:servo-core:0.7.4'
+    compile 'com.netflix.servo:servo-core:0.7.5'
     testCompile 'junit:junit:4.10'
 }
 

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.bootstrap.Bootstrap;
@@ -25,10 +26,12 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPool;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
 import io.reactivex.netty.client.RxClientImpl;
+import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import rx.Observable;
+import rx.functions.Action0;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
@@ -70,7 +73,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
                                                        final Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable,
                                                        final ClientConfig config) {
-
+        final long startTimeMillis = Clock.newStartTimeMillis();
         HttpClientConfig httpClientConfig;
         if (config instanceof HttpClientConfig) {
             httpClientConfig = (HttpClientConfig) config;
@@ -96,7 +99,13 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         if (followRedirect) {
             toReturn = toReturn.lift(new RedirectOperator<I, O>(_request, this, httpClientConfig));
         }
-        return toReturn;
+        return toReturn.finallyDo(new Action0() {
+            @Override
+            public void call() {
+                eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_PROCESSING_COMPLETE,
+                                      Clock.onEndMillis(startTimeMillis));
+            }
+        });
     }
 
     @Override

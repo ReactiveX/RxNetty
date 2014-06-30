@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.metrics;
 
 import io.netty.buffer.ByteBuf;
@@ -146,6 +147,7 @@ public class RxMetricEventsTest {
         testHttpClientEventFired(clientListener, HttpClientMetricsEvent.EventType.ResponseHeadersReceived, 1);
         testHttpClientEventFired(clientListener, HttpClientMetricsEvent.EventType.ResponseContentReceived, 1);
         testHttpClientEventFired(clientListener, HttpClientMetricsEvent.EventType.ResponseReceiveComplete, 1);
+        testHttpClientEventFired(clientListener, HttpClientMetricsEvent.EventType.RequestProcessingComplete, 1);
     }
 
     private static void testHttpClientEventFired(TestableClientMetricsEventListener listener,
