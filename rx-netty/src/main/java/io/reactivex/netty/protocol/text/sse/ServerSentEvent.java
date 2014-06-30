@@ -21,33 +21,50 @@ package io.reactivex.netty.protocol.text.sse;
 public class ServerSentEvent {
 
     private final String eventId;
-    private final String eventName;
+    private final String eventType;
     private final String eventData;
+    private final boolean splitMode;
 
-    public ServerSentEvent(String eventId, String eventName, String eventData) {
+    public ServerSentEvent(String eventId, String eventType, String eventData) {
+        this(eventId, eventType, eventData, true);
+    }
+    public ServerSentEvent(String eventId, String eventType, String eventData, boolean splitMode) {
         this.eventId = eventId;
-        this.eventName = eventName;
+        this.eventType = eventType;
         this.eventData = eventData;
+        this.splitMode = splitMode;
     }
 
     public String getEventId() {
         return eventId;
     }
 
-    public String getEventName() {
-        return eventName;
+    public String getEventType() {
+        return eventType;
     }
 
     public String getEventData() {
         return eventData;
     }
 
+    /**
+     * By default split mode is enabled, which means that event data string will be split and encoded
+     * into multiple data lines if it contains new line characters. It is required for correct data
+     * re-assembly on the other side (see http://www.whatwg.org/specs/web-apps/current-work/multipage/comms.html#event-stream-interpretation).
+     * To improve performance, for data that never include new line characters, the split mode can be turned off.
+     * In such case the data string will not be scanned, but will be serialized as is.
+     */
+    public boolean isSplitMode() {
+        return splitMode;
+    }
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder("Message{");
-        sb.append("eventData='").append(eventData).append('\'');
         sb.append(", eventId='").append(eventId).append('\'');
-        sb.append(", eventName='").append(eventName).append('\'');
+        sb.append(", eventType='").append(eventType).append('\'');
+        sb.append("eventData='").append(eventData).append('\'');
+        sb.append("splitMode='").append(splitMode).append('\'');
         sb.append('}');
         return sb.toString();
     }

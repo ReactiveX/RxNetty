@@ -61,7 +61,7 @@ public final class HttpSseClient {
 
         List<ServerSentEvent> events = new ArrayList<ServerSentEvent>();
         for (ServerSentEvent event : eventIterable) {
-            System.out.println(event.getEventName() + ':' + event.getEventData());
+            System.out.println(event);
             events.add(event);
         }
 
