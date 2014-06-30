@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.Cookie;
@@ -21,7 +22,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import rx.Observable;
-import rx.subjects.PublishSubject;
+import rx.subjects.Subject;
 
 import java.util.List;
 import java.util.Map;
@@ -34,13 +35,13 @@ public class HttpServerRequest<T> {
 
     private final HttpRequest nettyRequest;
     private final HttpRequestHeaders headers;
-    private final PublishSubject<T> contentSubject;
+    private final Subject<T, T> contentSubject;
     private final HttpMethod method;
     private final HttpVersion protocolVersion;
     private final UriInfoHolder uriInfoHolder;
     private final CookiesHolder cookiesHolder;
 
-    public HttpServerRequest(HttpRequest nettyRequest, PublishSubject<T> contentSubject) {
+    public HttpServerRequest(HttpRequest nettyRequest, Subject<T, T> contentSubject) {
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(this.nettyRequest);
         method = this.nettyRequest.getMethod();

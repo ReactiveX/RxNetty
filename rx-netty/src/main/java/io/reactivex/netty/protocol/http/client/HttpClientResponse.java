@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.handler.codec.http.Cookie;
@@ -23,7 +24,7 @@ import io.reactivex.netty.protocol.http.CookiesHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
-import rx.subjects.PublishSubject;
+import rx.subjects.Subject;
 
 import java.util.Map;
 import java.util.Set;
@@ -47,13 +48,13 @@ public class HttpClientResponse<T> {
     public static final String KEEP_ALIVE_TIMEOUT_HEADER_ATTR = "timeout";
 
     private final HttpResponse nettyResponse;
-    private final PublishSubject<T> contentSubject;
+    private final Subject<T, T> contentSubject;
     private final HttpResponseHeaders responseHeaders;
     private final HttpVersion httpVersion;
     private final HttpResponseStatus status;
     private final CookiesHolder cookiesHolder;
 
-    public HttpClientResponse(HttpResponse nettyResponse, PublishSubject<T> contentSubject) {
+    public HttpClientResponse(HttpResponse nettyResponse, Subject<T, T> contentSubject) {
         this.nettyResponse = nettyResponse;
         this.contentSubject = contentSubject;
         httpVersion = this.nettyResponse.getProtocolVersion();
