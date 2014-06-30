@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.servo.tcp;
 
 import com.netflix.servo.monitor.Counter;
@@ -159,12 +160,12 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
 
     @Override
     public void onCompleted() {
-        refCounter.onCompleted();
+        refCounter.onCompleted(this);
     }
 
     @Override
     public void onSubscribe() {
-        refCounter.onSubscribe();
+        refCounter.onSubscribe(this);
     }
 
     public static TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> newListener(String monitorId) {

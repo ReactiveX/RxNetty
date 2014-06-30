@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.servo.http;
 
 import com.netflix.servo.monitor.Counter;
@@ -88,6 +89,7 @@ public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent
         private final Counter failedResponses;
         private final Timer requestWriteTimes;
         private final Timer responseReadTimes;
+        private final Timer requestProcessingTimes;
 
         private HttpClientMetricEventsListenerImpl() {
             requestBacklog = newLongGauge("requestBacklog");
@@ -97,6 +99,12 @@ public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent
             processedRequests = newCounter("processedRequests");
             requestWriteFailed = newCounter("requestWriteFailed");
             failedResponses = newCounter("failedResponses");
+            requestProcessingTimes = newTimer("requestProcessingTimes");
+        }
+
+        @Override
+        protected void onRequestProcessingComplete(long duration, TimeUnit timeUnit) {
+            requestProcessingTimes.record(duration, timeUnit);
         }
 
         @Override

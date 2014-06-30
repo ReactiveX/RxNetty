@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.reactivex.netty.client.ClientMetricsEvent;
@@ -40,6 +41,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
         ResponseContentReceived(false, false, Void.class),
         ResponseReceiveComplete(true, false, Void.class),
         ResponseFailed(true, true, Void.class),
+        RequestProcessingComplete(true, false, Void.class),
         ;
 
         private final boolean isTimed;
@@ -81,6 +83,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
     public static final HttpClientMetricsEvent<EventType> RESPONSE_CONTENT_RECEIVED = from(EventType.ResponseContentReceived);
     public static final HttpClientMetricsEvent<EventType> RESPONSE_RECEIVE_COMPLETE = from(EventType.ResponseReceiveComplete);
     public static final HttpClientMetricsEvent<EventType> RESPONSE_FAILED = from(EventType.ResponseFailed);
+    public static final HttpClientMetricsEvent<EventType> REQUEST_PROCESSING_COMPLETE = from(EventType.RequestProcessingComplete);
 
     public enum HttpEventType {
 

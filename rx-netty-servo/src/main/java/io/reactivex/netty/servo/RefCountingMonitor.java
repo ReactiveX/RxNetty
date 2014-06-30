@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.servo;
 
 import io.reactivex.netty.metrics.MetricEventsListener;
@@ -35,15 +36,15 @@ public class RefCountingMonitor {
         this.monitorId = monitorId;
     }
 
-    public void onCompleted() {
+    public void onCompleted(Object monitor) {
         if (subscriptionCount.decrementAndGet() == 0) {
-            ServoUtils.unregisterObject(monitorId, this);
+            ServoUtils.unregisterObject(monitorId, monitor);
         }
     }
 
-    public void onSubscribe() {
+    public void onSubscribe(Object monitor) {
         if (subscriptionCount.incrementAndGet() == 0) {
-            ServoUtils.registerObject(monitorId, this);
+            ServoUtils.registerObject(monitorId, monitor);
         }
     }
 }

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.metrics;
 
 import io.reactivex.netty.client.ClientMetricsEvent;
@@ -72,6 +73,9 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
                 case ResponseFailed:
                     onResponseFailed(duration, timeUnit, throwable);
                     break;
+                case RequestProcessingComplete:
+                    onRequestProcessingComplete(duration, timeUnit);
+                    break;
             }
         }
     }
@@ -99,5 +103,6 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
     @SuppressWarnings("unused") protected void onRequestHeadersWriteStart() {}
 
     @SuppressWarnings("unused") protected void onRequestSubmitted() {}
-    
+
+    @SuppressWarnings("unused") protected void onRequestProcessingComplete(long duration, TimeUnit timeUnit) {}
 }
