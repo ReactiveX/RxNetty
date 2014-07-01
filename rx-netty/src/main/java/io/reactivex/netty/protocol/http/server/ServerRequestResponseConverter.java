@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
@@ -57,17 +58,17 @@ import rx.subjects.PublishSubject;
  */
 public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
-    @SuppressWarnings("rawtypes") private final PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
     public ServerRequestResponseConverter(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
-        contentSubject = PublishSubject.create();
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
+
+        @SuppressWarnings("rawtypes") PublishSubject contentSubject = PublishSubject.create();
 
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HEADERS_RECEIVED);
@@ -81,12 +82,12 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpContent.class.isAssignableFrom(recievedMsgClass)) {// This will be executed if the incoming message is a FullHttpRequest or only HttpContent.
             ByteBuf content = ((ByteBufHolder) msg).content();
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_CONTENT_RECEIVED);
-            invokeContentOnNext(content);
+            invokeContentOnNext(content, contentSubject);
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
                 contentSubject.onCompleted();
             }
         } else {
-            invokeContentOnNext(msg);
+            invokeContentOnNext(msg, contentSubject);
         }
     }
 
@@ -130,8 +131,8 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         });
     }
 
-    @SuppressWarnings("unchecked")
-    private void invokeContentOnNext(Object nextObject) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void invokeContentOnNext(Object nextObject, PublishSubject contentSubject) {
         try {
             contentSubject.onNext(nextObject);
         } catch (ClassCastException e) {
