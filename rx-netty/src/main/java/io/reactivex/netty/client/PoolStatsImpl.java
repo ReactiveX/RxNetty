@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
-import io.netty.util.internal.chmv8.LongAdder;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  *
@@ -29,18 +30,18 @@ import java.util.concurrent.TimeUnit;
 @Deprecated
 public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.CloneablePoolStatsProvider {
 
-    private final LongAdder idleConnections;
-    private final LongAdder inUseConnections;
-    private final LongAdder totalConnections;
-    private final LongAdder pendingAcquires;
-    private final LongAdder pendingReleases;
+    private final AtomicLong idleConnections; // LongAdder backport is not distributed with netty anymore. So moving to AtomicLong temporarily before we remove this class.
+    private final AtomicLong inUseConnections;
+    private final AtomicLong totalConnections;
+    private final AtomicLong pendingAcquires;
+    private final AtomicLong pendingReleases;
 
     public PoolStatsImpl() {
-        idleConnections = new LongAdder();
-        inUseConnections = new LongAdder();
-        totalConnections = new LongAdder();
-        pendingAcquires = new LongAdder();
-        pendingReleases = new LongAdder();
+        idleConnections = new AtomicLong();
+        inUseConnections = new AtomicLong();
+        totalConnections = new AtomicLong();
+        pendingAcquires = new AtomicLong();
+        pendingReleases = new AtomicLong();
     }
 
     @Override
@@ -124,7 +125,7 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
     }
 
     private void onConnectionCreation() {
-        totalConnections.increment();
+        totalConnections.incrementAndGet();
     }
 
     private void onConnectFailed() {
@@ -132,39 +133,39 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
     }
 
     private void onConnectionReuse() {
-        idleConnections.decrement();
+        idleConnections.decrementAndGet();
     }
 
     private void onConnectionEviction() {
-        idleConnections.decrement();
-        totalConnections.decrement();
+        idleConnections.decrementAndGet();
+        totalConnections.decrementAndGet();
     }
 
     private void onAcquireAttempted() {
-        pendingAcquires.increment();
+        pendingAcquires.incrementAndGet();
     }
 
     private void onAcquireSucceeded() {
-        inUseConnections.increment();
-        pendingAcquires.decrement();
+        inUseConnections.incrementAndGet();
+        pendingAcquires.decrementAndGet();
     }
 
     private void onAcquireFailed() {
-        pendingAcquires.decrement();
+        pendingAcquires.decrementAndGet();
     }
 
     private void onReleaseAttempted() {
-        pendingReleases.increment();
+        pendingReleases.incrementAndGet();
     }
 
     private void onReleaseSucceeded() {
-        idleConnections.increment();
-        inUseConnections.decrement();
-        pendingReleases.decrement();
+        idleConnections.incrementAndGet();
+        inUseConnections.decrementAndGet();
+        pendingReleases.decrementAndGet();
     }
 
     private void onReleaseFailed() {
-        pendingReleases.decrement();
+        pendingReleases.decrementAndGet();
     }
 
     @Override

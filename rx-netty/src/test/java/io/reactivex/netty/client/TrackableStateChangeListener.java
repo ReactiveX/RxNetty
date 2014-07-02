@@ -13,67 +13,68 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
-import io.netty.util.internal.chmv8.LongAdder;
 import io.reactivex.netty.metrics.MetricEventsListener;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
 * @author Nitesh Kant
 */
 public class TrackableStateChangeListener implements MetricEventsListener<ClientMetricsEvent<?>> {
 
-    private final LongAdder creationCount = new LongAdder();
-    private final LongAdder failedCount = new LongAdder();
-    private final LongAdder reuseCount = new LongAdder();
-    private final LongAdder evictionCount = new LongAdder();
-    private final LongAdder acquireAttemptedCount = new LongAdder();
-    private final LongAdder acquireSucceededCount = new LongAdder();
-    private final LongAdder acquireFailedCount = new LongAdder();
-    private final LongAdder releaseAttemptedCount = new LongAdder();
-    private final LongAdder releaseSucceededCount = new LongAdder();
-    private final LongAdder releaseFailedCount = new LongAdder();
+    private final AtomicLong creationCount = new AtomicLong();
+    private final AtomicLong failedCount = new AtomicLong();
+    private final AtomicLong reuseCount = new AtomicLong();
+    private final AtomicLong evictionCount = new AtomicLong();
+    private final AtomicLong acquireAttemptedCount = new AtomicLong();
+    private final AtomicLong acquireSucceededCount = new AtomicLong();
+    private final AtomicLong acquireFailedCount = new AtomicLong();
+    private final AtomicLong releaseAttemptedCount = new AtomicLong();
+    private final AtomicLong releaseSucceededCount = new AtomicLong();
+    private final AtomicLong releaseFailedCount = new AtomicLong();
 
     public void onConnectionCreation() {
-        creationCount.increment();
+        creationCount.incrementAndGet();
     }
 
     public void onConnectFailed() {
-        failedCount.increment();
+        failedCount.incrementAndGet();
     }
 
     public void onConnectionReuse() {
-        reuseCount.increment();
+        reuseCount.incrementAndGet();
     }
 
     public void onConnectionEviction() {
-        evictionCount.increment();
+        evictionCount.incrementAndGet();
     }
 
     public void onAcquireAttempted() {
-        acquireAttemptedCount.increment();
+        acquireAttemptedCount.incrementAndGet();
     }
 
     public void onAcquireSucceeded() {
-        acquireSucceededCount.increment();
+        acquireSucceededCount.incrementAndGet();
     }
 
     public void onAcquireFailed() {
-        acquireFailedCount.increment();
+        acquireFailedCount.incrementAndGet();
     }
 
     public void onReleaseAttempted() {
-        releaseAttemptedCount.increment();
+        releaseAttemptedCount.incrementAndGet();
     }
 
     public void onReleaseSucceeded() {
-        releaseSucceededCount.increment();
+        releaseSucceededCount.incrementAndGet();
     }
 
     public void onReleaseFailed() {
-        releaseFailedCount.increment();
+        releaseFailedCount.incrementAndGet();
     }
 
     public long getAcquireAttemptedCount() {
