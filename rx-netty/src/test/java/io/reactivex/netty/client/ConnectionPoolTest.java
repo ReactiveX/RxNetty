@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
@@ -64,7 +65,7 @@ public class ConnectionPoolTest {
     private MaxConnectionsBasedStrategy strategy;
     private RxServer<String,String> server;
     private final ChannelCloseListener channelCloseListener = new ChannelCloseListener();
-    private PoolStats stats;
+    @SuppressWarnings("deprecation") private PoolStats stats;
     private ConnectionHandlerImpl serverConnHandler;
     private PipelineConfigurator<String,String> pipelineConfigurator;
     private String testId;
@@ -72,6 +73,7 @@ public class ConnectionPoolTest {
     private PoolConfig poolConfig;
 
     @Before
+    @SuppressWarnings("deprecation")
     public void setUp() throws Exception {
         testId = name.getMethodName();
         long currentTime = System.currentTimeMillis();
@@ -136,6 +138,7 @@ public class ConnectionPoolTest {
 
     @Test
     public void testAcquireRelease() throws Exception {
+        serverConnHandler.closeNewConnectionsOnReceive(false);
         ObservableConnection<String, String> conn = acquireAndTestStats();
         conn.close();
         waitForClose();
@@ -144,6 +147,7 @@ public class ConnectionPoolTest {
 
     @Test
     public void testReleaseAfterClose() throws Exception {
+        serverConnHandler.closeNewConnectionsOnReceive(false);
         ObservableConnection<String, String> conn = acquireAndTestStats();
         waitForClose();
         conn.close();
@@ -247,8 +251,10 @@ public class ConnectionPoolTest {
         assertAllConnectionsReturned();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testConnectFail() throws Exception {
+        serverConnHandler.closeNewConnectionsOnReceive(false);
         RxClient.ServerInfo unavailableServer = new RxClient.ServerInfo("trampledunderfoot", 999);
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
@@ -345,6 +351,7 @@ public class ConnectionPoolTest {
         assertAllConnectionsReturned();
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testIdleCleanupThread() throws Exception {
         serverConnHandler.closeNewConnectionsOnReceive(false);
