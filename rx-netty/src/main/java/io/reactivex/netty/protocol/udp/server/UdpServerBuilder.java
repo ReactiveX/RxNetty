@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.udp.server;
 
 import io.netty.bootstrap.Bootstrap;
@@ -24,6 +25,7 @@ import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.server.AbstractServerBuilder;
+import io.reactivex.netty.server.ServerMetricsEvent;
 
 /**
  * @author Nitesh Kant
@@ -65,7 +67,7 @@ public class UdpServerBuilder<I, O> extends AbstractServerBuilder<I, O, Bootstra
     }
 
     @Override
-    protected MetricEventsListener<UdpServerMetricsEvent<?>>
+    protected MetricEventsListener<ServerMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, UdpServer<I, O> server) {
         return factory.forUdpServer(server);
     }

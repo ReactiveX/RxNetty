@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.http.sse;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import org.junit.After;
@@ -31,7 +32,7 @@ import static io.reactivex.netty.examples.http.sse.HttpSseServer.DEFAULT_PORT;
 /**
  * @author Tomasz Bak
  */
-public class HttpSseTest {
+public class HttpSseTest extends ExamplesEnvironment {
     private static final int INTERVAL = 100;
     private static final int NO_OF_EVENTS = 10;
 

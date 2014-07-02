@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.http.chunk;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -28,7 +29,7 @@ import static io.reactivex.netty.examples.http.chunk.HttpChunkServer.DEFAULT_POR
 /**
  * @author Tomasz Bak
  */
-public class HttpChunkTest {
+public class HttpChunkTest extends ExamplesEnvironment {
 
     public static final String FILTERED_WORD = "count";
     public static final int WORD_COUNT = 16;

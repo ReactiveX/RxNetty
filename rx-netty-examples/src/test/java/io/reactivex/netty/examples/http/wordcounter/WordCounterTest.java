@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.http.wordcounter;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -28,7 +29,7 @@ import static io.reactivex.netty.examples.http.wordcounter.WordCounterServer.DEF
 /**
  * @author Tomasz Bak
  */
-public class WordCounterTest {
+public class WordCounterTest extends ExamplesEnvironment {
 
     private static final String TEXT_FILE = WordCounterTest.class.getClassLoader().getResource("document.txt").getFile();
     private static final int EXPECTED_N_OF_WORDS = 64;

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -21,6 +22,7 @@ import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.server.ConnectionBasedServerBuilder;
 import io.reactivex.netty.server.RxServer;
+import io.reactivex.netty.server.ServerMetricsEvent;
 
 /**
  * A convenience builder to create instances of {@link HttpServer}
@@ -63,7 +65,7 @@ public class HttpServerBuilder<I, O>
     }
 
     @Override
-    protected MetricEventsListener<HttpServerMetricsEvent<?>>
+    protected MetricEventsListener<ServerMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, RxServer<HttpServerRequest<I>, HttpServerResponse<O>> server) {
         return factory.forHttpServer((HttpServer<I, O>) server);
     }

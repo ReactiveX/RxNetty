@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.udp;
 
 import io.netty.channel.socket.DatagramPacket;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.udp.server.UdpServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -28,7 +29,7 @@ import static io.reactivex.netty.examples.udp.HelloUdpServer.DEFAULT_PORT;
 /**
  * @author Tomasz Bak
  */
-public class HelloUdpTest {
+public class HelloUdpTest extends ExamplesEnvironment {
 
     private UdpServer<DatagramPacket, DatagramPacket> server;
 

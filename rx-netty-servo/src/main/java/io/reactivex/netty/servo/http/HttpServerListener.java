@@ -13,13 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.servo.http;
 
 import com.netflix.servo.monitor.Counter;
 import com.netflix.servo.monitor.LongGauge;
 import com.netflix.servo.monitor.Timer;
 import io.reactivex.netty.metrics.HttpServerMetricEventsListener;
-import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
+import io.reactivex.netty.server.ServerMetricsEvent;
 import io.reactivex.netty.servo.tcp.TcpServerListener;
 
 import java.util.concurrent.TimeUnit;
@@ -33,7 +34,7 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
 /**
  * @author Nitesh Kant
  */
-public class HttpServerListener extends TcpServerListener<HttpServerMetricsEvent<?>> {
+public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>> {
 
     private final HttpServerMetricEventsListenerImpl delegate = new HttpServerMetricEventsListenerImpl();
 
@@ -42,7 +43,7 @@ public class HttpServerListener extends TcpServerListener<HttpServerMetricsEvent
     }
 
     @Override
-    public void onEvent(HttpServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+    public void onEvent(ServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
                         Object value) {
         delegate.onEvent(event, duration, timeUnit, throwable, value);
     }
