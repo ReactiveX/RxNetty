@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.metrics;
 
 import io.reactivex.netty.client.ClientMetricsEvent;
@@ -39,14 +40,14 @@ public interface MetricEventsListenerFactory {
     MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> forTcpClient(
             @SuppressWarnings("rawtypes") RxClient client);
 
-    MetricEventsListener<HttpClientMetricsEvent<?>> forHttpClient(@SuppressWarnings("rawtypes")HttpClient client);
+    MetricEventsListener<ClientMetricsEvent<?>> forHttpClient(@SuppressWarnings("rawtypes")HttpClient client);
 
     MetricEventsListener<UdpClientMetricsEvent<?>> forUdpClient(@SuppressWarnings("rawtypes")UdpClient client);
 
     MetricEventsListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> forTcpServer(
             @SuppressWarnings("rawtypes") RxServer server);
 
-    MetricEventsListener<HttpServerMetricsEvent<?>> forHttpServer(@SuppressWarnings("rawtypes")HttpServer server);
+    MetricEventsListener<ServerMetricsEvent<?>> forHttpServer(@SuppressWarnings("rawtypes")HttpServer server);
 
     MetricEventsListener<UdpServerMetricsEvent<?>> forUdpServer(@SuppressWarnings("rawtypes")UdpServer server);
 }

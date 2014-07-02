@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.servo.http;
 
 import io.netty.buffer.ByteBuf;
@@ -92,6 +93,11 @@ public class HttpMetricsTest {
         eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_SUBMITTED);
         Assert.assertEquals("Unexpected request backlog.", 1, listener.getRequestBacklog());
 
+        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_START);
+        Assert.assertEquals("Invalid pending connect count.", 1, listener.getPendingConnects());
+        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, 1, TimeUnit.MILLISECONDS);
+        Assert.assertEquals("Invalid pending connect count after connect success.", 0, listener.getPendingConnects());
+
         eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_HEADERS_WRITE_START);
         Assert.assertEquals("Unexpected request backlog.", 0, listener.getRequestBacklog());
         Assert.assertEquals("Unexpected inflight requests.", 1, listener.getInflightRequests());
@@ -118,6 +124,8 @@ public class HttpMetricsTest {
 
     private static void doRequestStart(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
                                        HttpServerListener listener) {
+        eventsSubject.onEvent(ServerMetricsEvent.NEW_CLIENT_CONNECTED);
+        Assert.assertEquals("Unexpected live connections.", 1, listener.getLiveConnections());
         eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
         Assert.assertEquals("Unexpected request backlog.", 1, listener.getRequestBacklog());
         eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START, 1, TimeUnit.MILLISECONDS);

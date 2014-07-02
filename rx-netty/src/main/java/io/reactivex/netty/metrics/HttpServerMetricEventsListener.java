@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.metrics;
 
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
@@ -27,10 +28,10 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
-public abstract class HttpServerMetricEventsListener extends ServerMetricEventsListener<HttpServerMetricsEvent<?>> {
+public abstract class HttpServerMetricEventsListener extends ServerMetricEventsListener<ServerMetricsEvent<?>> {
 
     @Override
-    public void onEvent(HttpServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+    public void onEvent(ServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
                         Object value) {
         if (event.getType() instanceof ServerMetricsEvent.EventType) {
             super.onEvent(event, duration, timeUnit, throwable, value);

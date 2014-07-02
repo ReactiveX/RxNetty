@@ -28,10 +28,10 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
-public abstract class HttpClientMetricEventsListener extends ClientMetricEventsListener<HttpClientMetricsEvent<?>> {
+public abstract class HttpClientMetricEventsListener extends ClientMetricEventsListener<ClientMetricsEvent<?>> {
 
     @Override
-    public void onEvent(HttpClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
                         Object value) {
         if (event.getType() instanceof ClientMetricsEvent.EventType) {
             super.onEvent(event, duration, timeUnit, throwable, value);

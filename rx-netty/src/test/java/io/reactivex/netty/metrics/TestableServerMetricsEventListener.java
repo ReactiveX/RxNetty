@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.metrics;
 
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
@@ -26,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Nitesh Kant
  */
-public class TestableServerMetricsEventListener extends ServerMetricEventsListener<ServerMetricsEvent<?>> {
+public class TestableServerMetricsEventListener extends HttpServerMetricEventsListener {
 
     private final EnumMap<ServerMetricsEvent.EventType, Integer> eventTypeVsInvocations;
     private final EnumMap<ServerMetricsEvent.EventType, List<String>> eventTypeVsInvalidInvocations;

@@ -19,8 +19,8 @@ package io.reactivex.netty.servo.http;
 import com.netflix.servo.monitor.Counter;
 import com.netflix.servo.monitor.LongGauge;
 import com.netflix.servo.monitor.Timer;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.metrics.HttpClientMetricEventsListener;
-import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.servo.tcp.TcpClientListener;
 
 import java.util.concurrent.TimeUnit;
@@ -34,7 +34,7 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
 /**
  * @author Nitesh Kant
  */
-public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent<?>> {
+public class HttpClientListener extends TcpClientListener<ClientMetricsEvent<?>> {
 
     private final HttpClientMetricEventsListenerImpl delegate = new HttpClientMetricEventsListenerImpl();
 
@@ -43,7 +43,7 @@ public class HttpClientListener extends TcpClientListener<HttpClientMetricsEvent
     }
 
     @Override
-    public void onEvent(HttpClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
                         Object value) {
         delegate.onEvent(event, duration, timeUnit, throwable, value);
     }
