@@ -123,7 +123,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                             requestHandlingResult = Observable.error(throwable);
                         }
 
-                        requestHandlingResult.subscribe(new Observer<Void>() {
+                        requestHandlingResult.subscribe(new Subscriber<Void>() {
                             @Override
                             public void onCompleted() {
                                 eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
