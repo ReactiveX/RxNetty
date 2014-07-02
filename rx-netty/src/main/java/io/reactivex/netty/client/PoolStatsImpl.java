@@ -30,7 +30,7 @@ import java.util.concurrent.atomic.AtomicLong;
 @Deprecated
 public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.CloneablePoolStatsProvider {
 
-    private final AtomicLong idleConnections;
+    private final AtomicLong idleConnections; // LongAdder backport is not distributed with netty anymore. So moving to AtomicLong temporarily before we remove this class.
     private final AtomicLong inUseConnections;
     private final AtomicLong totalConnections;
     private final AtomicLong pendingAcquires;
