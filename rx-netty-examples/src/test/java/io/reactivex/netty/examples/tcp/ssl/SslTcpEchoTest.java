@@ -13,8 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.tcp.ssl;
 
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -29,8 +31,9 @@ import static io.reactivex.netty.examples.tcp.ssl.SslTcpEchoServer.DEFAULT_PORT;
 /**
  * @author Tomasz Bak
  */
-public class SslTcpEchoTest {
-    private RxServer server;
+public class SslTcpEchoTest extends ExamplesEnvironment {
+
+    private RxServer<String, String> server;
 
     @Before
     public void setupServer() {

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.http.ssl;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -29,7 +31,7 @@ import static io.reactivex.netty.examples.http.ssl.SslHelloWorldServer.DEFAULT_P
 /**
  * @author Tomasz Bak
  */
-public class SslHelloWorldTest {
+public class SslHelloWorldTest extends ExamplesEnvironment {
 
 
     private HttpServer<ByteBuf, ByteBuf> server;

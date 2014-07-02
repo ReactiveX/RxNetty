@@ -63,6 +63,7 @@ public class HttpMetricsTest {
         server.subscribe(listener);
 
         doRequestStart(eventsSubject, listener);
+        Assert.assertEquals("Unexpected live connections.", 1, listener.getLiveConnections());
 
         eventsSubject.onEvent(HttpServerMetricsEvent.RESPONSE_HEADERS_WRITE_START);
         eventsSubject.onEvent(HttpServerMetricsEvent.RESPONSE_HEADERS_WRITE_SUCCESS, 1, TimeUnit.MILLISECONDS);
@@ -72,6 +73,7 @@ public class HttpMetricsTest {
         Assert.assertEquals("Unexpected processed requests.", 1, listener.getProcessedRequests());
 
         doRequestStart(eventsSubject, listener);
+        Assert.assertEquals("Unexpected live connections.", 2, listener.getLiveConnections());
 
         eventsSubject.onEvent(HttpServerMetricsEvent.RESPONSE_HEADERS_WRITE_START);
         eventsSubject.onEvent(HttpServerMetricsEvent.RESPONSE_HEADERS_WRITE_SUCCESS, 1, TimeUnit.MILLISECONDS);
@@ -125,7 +127,6 @@ public class HttpMetricsTest {
     private static void doRequestStart(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
                                        HttpServerListener listener) {
         eventsSubject.onEvent(ServerMetricsEvent.NEW_CLIENT_CONNECTED);
-        Assert.assertEquals("Unexpected live connections.", 1, listener.getLiveConnections());
         eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
         Assert.assertEquals("Unexpected request backlog.", 1, listener.getRequestBacklog());
         eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START, 1, TimeUnit.MILLISECONDS);

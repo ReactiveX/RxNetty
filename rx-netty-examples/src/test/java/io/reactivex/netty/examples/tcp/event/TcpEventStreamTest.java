@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.examples.tcp.event;
 
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -27,7 +28,7 @@ import static io.reactivex.netty.examples.tcp.event.TcpEventStreamServer.DEFAULT
 /**
  * @author Tomasz Bak
  */
-public class TcpEventStreamTest {
+public class TcpEventStreamTest extends ExamplesEnvironment {
     private static final int NO_DELAY = 0;
     private static final int NO_OF_EVENTS = 20;
 

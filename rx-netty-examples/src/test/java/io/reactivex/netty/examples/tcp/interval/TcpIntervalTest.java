@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.examples.tcp.interval;
 
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -27,7 +28,7 @@ import static io.reactivex.netty.examples.tcp.interval.TcpIntervalServer.DEFAULT
 /**
  * @author Tomasz Bak
  */
-public class TcpIntervalTest {
+public class TcpIntervalTest extends ExamplesEnvironment {
     private static final int NO_OF_MSG = 3;
     private static final int INTERVAL = 100;
 

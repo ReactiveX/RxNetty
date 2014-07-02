@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.servo.udp;
 
-import io.reactivex.netty.protocol.udp.server.UdpServerMetricsEvent;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import io.reactivex.netty.servo.tcp.TcpServerListener;
 
@@ -24,14 +24,14 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Nitesh Kant
  */
-public class UdpServerListener extends TcpServerListener<UdpServerMetricsEvent<?>> {
+public class UdpServerListener extends TcpServerListener<ServerMetricsEvent<?>> {
 
     protected UdpServerListener(String monitorId) {
         super(monitorId);
     }
 
     @Override
-    public void onEvent(UdpServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+    public void onEvent(ServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
                         Object value) {
         if (event.getType() instanceof ServerMetricsEvent.EventType) {
             super.onEvent(event, duration, timeUnit, throwable, value);

@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.examples.tcp.echo;
 
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -29,8 +30,9 @@ import static io.reactivex.netty.examples.tcp.echo.TcpEchoServer.DEFAULT_PORT;
 /**
  * @author Tomasz Bak
  */
-public class TcpEchoTest {
-    private RxServer server;
+public class TcpEchoTest extends ExamplesEnvironment {
+
+    private RxServer<String, String> server;
 
     @Before
     public void setupServer() {

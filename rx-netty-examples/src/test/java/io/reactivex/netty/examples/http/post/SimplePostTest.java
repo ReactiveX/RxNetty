@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.http.post;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import org.junit.After;
 import org.junit.Assert;
@@ -29,7 +30,7 @@ import static io.reactivex.netty.examples.http.post.SimplePostServer.DEFAULT_POR
 /**
  * @author Tomasz Bak
  */
-public class SimplePostTest {
+public class SimplePostTest extends ExamplesEnvironment {
 
     private HttpServer<ByteBuf, ByteBuf> server;
 
