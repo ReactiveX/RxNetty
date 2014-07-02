@@ -19,11 +19,15 @@ import io.netty.handler.codec.http.QueryStringDecoder;
 
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * @author Nitesh Kant
  */
 public class UriInfoHolder {
+
+    private static final Pattern RELATIVE_URI_RE = Pattern.compile("(http://[^/]*|https://[^/]*|)(.*)");
 
     private final String uri;
     private final String queryString;
@@ -37,7 +41,8 @@ public class UriInfoHolder {
         } else {
             queryString = "";
         }
-        decoder = new QueryStringDecoder(uri);
+        Matcher uriMatcher = RELATIVE_URI_RE.matcher(uri);
+        decoder = new QueryStringDecoder(uriMatcher.matches() ? uriMatcher.group(2) : uri);
     }
 
     public String getRawUriString() {
