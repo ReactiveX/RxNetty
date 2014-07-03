@@ -138,7 +138,7 @@ public class ConnectionPoolTest {
 
     @Test
     public void testAcquireRelease() throws Exception {
-        serverConnHandler.closeNewConnectionsOnReceive(false);
+        serverConnHandler.closeNewConnectionsOnReceive(true);
         ObservableConnection<String, String> conn = acquireAndTestStats();
         conn.close();
         waitForClose();
@@ -147,7 +147,7 @@ public class ConnectionPoolTest {
 
     @Test
     public void testReleaseAfterClose() throws Exception {
-        serverConnHandler.closeNewConnectionsOnReceive(false);
+        serverConnHandler.closeNewConnectionsOnReceive(true);
         ObservableConnection<String, String> conn = acquireAndTestStats();
         waitForClose();
         conn.close();

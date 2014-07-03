@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
@@ -53,7 +54,9 @@ import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.DEFAULT_MAX_
 
 public final class RxNetty {
 
-    private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider();
+    private static volatile RxEventLoopProvider rxEventLoopProvider =
+            new SingleNioLoopProvider(1, Runtime.getRuntime().availableProcessors());
+
     private static final CompositeHttpClient<ByteBuf, ByteBuf> globalClient =
             new CompositeHttpClientBuilder<ByteBuf, ByteBuf>().withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
     private static MetricEventsListenerFactory metricEventsListenerFactory;

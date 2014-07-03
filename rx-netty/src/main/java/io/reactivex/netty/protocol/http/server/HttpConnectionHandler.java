@@ -104,9 +104,14 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                          */
                         send10ResponseFor10Request ? newRequest.getHttpVersion() : HttpVersion.HTTP_1_1, eventsSubject);
                         if (newRequest.getHeaders().isKeepAlive()) {
-                            // Add keep alive header as per:
-                            // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
-                            response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                            if (!newRequest.getHttpVersion().isKeepAliveDefault()) {
+                                // Avoid sending keep-alive header if keep alive is default. Issue: https://github.com/Netflix/RxNetty/issues/167
+                                // This optimizes data transferred on the wire.
+
+                                // Add keep alive header as per:
+                                // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
+                                response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                            }
                         } else {
                             response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
                         }

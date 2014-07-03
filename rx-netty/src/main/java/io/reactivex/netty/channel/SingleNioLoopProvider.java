@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.channel;
 
 import io.netty.channel.EventLoopGroup;
@@ -31,13 +32,20 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class SingleNioLoopProvider implements RxEventLoopProvider {
 
     private final SharedNioEventLoopGroup eventLoop;
+    private final SharedNioEventLoopGroup parentEventLoop;
 
     public SingleNioLoopProvider() {
-        eventLoop = new SharedNioEventLoopGroup();
+        this(Runtime.getRuntime().availableProcessors());
     }
 
     public SingleNioLoopProvider(int threadCount) {
         eventLoop = new SharedNioEventLoopGroup(threadCount);
+        parentEventLoop = eventLoop;
+    }
+
+    public SingleNioLoopProvider(int parentEventLoopCount, int childEventLoopCount) {
+        eventLoop = new SharedNioEventLoopGroup(childEventLoopCount);
+        parentEventLoop = new SharedNioEventLoopGroup(parentEventLoopCount);
     }
 
     @Override
@@ -50,6 +58,11 @@ public class SingleNioLoopProvider implements RxEventLoopProvider {
     public EventLoopGroup globalServerEventLoop() {
         eventLoop.retain();
         return eventLoop;
+    }
+
+    @Override
+    public EventLoopGroup globalServerParentEventLoop() {
+        return parentEventLoop;
     }
 
     public static class SharedNioEventLoopGroup extends NioEventLoopGroup {
