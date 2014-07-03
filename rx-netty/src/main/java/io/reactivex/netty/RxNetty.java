@@ -25,6 +25,7 @@ import io.reactivex.netty.channel.RxEventLoopProvider;
 import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.client.ClientBuilder;
 import io.reactivex.netty.client.RxClient;
+import io.reactivex.netty.client.RxClient.ServerInfo;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClient;
@@ -177,6 +178,19 @@ public final class RxNetty {
         return RxNetty.<I, O>newHttpClientBuilder(host, port).pipelineConfigurator(configurator).build();
     }
 
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpRequest(String host, int port, HttpClientRequest<ByteBuf> request) {
+        RxClient.ServerInfo serverInfo = new ServerInfo(host, port);
+        return globalClient.submit(serverInfo, request);
+    }
+
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpRequest(String host, int port,
+                                                                            HttpClientRequest<ByteBuf> request,
+                                                                            HttpClient.HttpClientConfig config) {
+        RxClient.ServerInfo serverInfo = new ServerInfo(host, port);
+        return globalClient.submit(serverInfo, request, config);
+    }
+
+    @Deprecated
     public static Observable<HttpClientResponse<ByteBuf>> createHttpRequest(HttpClientRequest<ByteBuf> request) {
         RxClient.ServerInfo serverInfo;
         try {
@@ -187,6 +201,7 @@ public final class RxNetty {
         return globalClient.submit(serverInfo, request);
     }
 
+    @Deprecated
     public static Observable<HttpClientResponse<ByteBuf>> createHttpRequest(HttpClientRequest<ByteBuf> request,
                                                                              HttpClient.HttpClientConfig config) {
         RxClient.ServerInfo serverInfo;
@@ -199,27 +214,57 @@ public final class RxNetty {
     }
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpGet(String uri) {
-        return createHttpRequest(HttpClientRequest.createGet(uri));
+        UriWrapper wrapper = new UriWrapper(uri);
+        if (wrapper.getSyntaxError() != null) {
+            return Observable.error(wrapper.getSyntaxError());
+        }
+        return createHttpRequest(wrapper.getServerInfo().getHost(), wrapper.getServerInfo().getPort(),
+                HttpClientRequest.createGet(wrapper.getRelativeUri()));
     }
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, ContentSource<ByteBuf> content) {
-        return createHttpRequest(HttpClientRequest.createPost(uri).withContentSource(content));
+        UriWrapper wrapper = new UriWrapper(uri);
+        if (wrapper.getSyntaxError() != null) {
+            return Observable.error(wrapper.getSyntaxError());
+        }
+        return createHttpRequest(wrapper.getServerInfo().getHost(), wrapper.getServerInfo().getPort(),
+                HttpClientRequest.createPost(wrapper.getRelativeUri()).withContentSource(content));
     }
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, ContentSource<ByteBuf> content) {
-        return createHttpRequest(HttpClientRequest.createPut(uri).withContentSource(content));
+        UriWrapper wrapper = new UriWrapper(uri);
+        if (wrapper.getSyntaxError() != null) {
+            return Observable.error(wrapper.getSyntaxError());
+        }
+        return createHttpRequest(wrapper.getServerInfo().getHost(), wrapper.getServerInfo().getPort(),
+                HttpClientRequest.createPut(wrapper.getRelativeUri()).withContentSource(content));
     }
 
     public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, RawContentSource<T> content) {
-        return createHttpRequest(HttpClientRequest.createPost(uri).withRawContentSource(content));
+        UriWrapper wrapper = new UriWrapper(uri);
+        if (wrapper.getSyntaxError() != null) {
+            return Observable.error(wrapper.getSyntaxError());
+        }
+        return createHttpRequest(wrapper.getServerInfo().getHost(), wrapper.getServerInfo().getPort(),
+                HttpClientRequest.createPost(wrapper.getRelativeUri()).withRawContentSource(content));
     }
 
     public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, RawContentSource<T> content) {
-        return createHttpRequest(HttpClientRequest.createPut(uri).withRawContentSource(content));
+        UriWrapper wrapper = new UriWrapper(uri);
+        if (wrapper.getSyntaxError() != null) {
+            return Observable.error(wrapper.getSyntaxError());
+        }
+        return createHttpRequest(wrapper.getServerInfo().getHost(), wrapper.getServerInfo().getPort(),
+                HttpClientRequest.createPut(wrapper.getRelativeUri()).withRawContentSource(content));
     }
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpDelete(String uri) {
-        return createHttpRequest(HttpClientRequest.createDelete(uri));
+        UriWrapper wrapper = new UriWrapper(uri);
+        if (wrapper.getSyntaxError() != null) {
+            return Observable.error(wrapper.getSyntaxError());
+        }
+        return createHttpRequest(wrapper.getServerInfo().getHost(), wrapper.getServerInfo().getPort(),
+                HttpClientRequest.createDelete(wrapper.getRelativeUri()));
     }
 
     /**
@@ -262,5 +307,64 @@ public final class RxNetty {
             return new RxClient.ServerInfo(host, port);
         }
         return globalClient.getDefaultServer();
+    }
+
+    private static class UriWrapper {
+        private URISyntaxException syntaxError;
+        private ServerInfo serverInfo;
+        private String relativeUri;
+
+        UriWrapper(String uriString) {
+            URI uri;
+            try {
+                uri = new URI(uriString);
+            } catch (URISyntaxException e) {
+                syntaxError = e;
+                return;
+            }
+
+            String host = uri.getHost();
+            if(host != null) {
+                int port = uri.getPort();
+                if (port < 0) {
+                    String scheme = uri.getScheme();
+                    if (null != scheme) {
+                        if ("http".equals(scheme)) {
+                            port = 80;
+                        } else if ("https".equals(scheme)) {
+                            port = 443;
+                        }
+                    }
+                }
+                serverInfo = port < 0 ? new ServerInfo(host) : new ServerInfo(host, port);
+                relativeUri = fromAbsoluteUri(uri, uriString);
+            } else {
+                serverInfo = globalClient.getDefaultServer();
+                relativeUri = uriString;
+            }
+        }
+
+        public URISyntaxException getSyntaxError() {
+            return syntaxError;
+        }
+
+        public ServerInfo getServerInfo() {
+            return serverInfo;
+        }
+
+        public String getRelativeUri() {
+            return relativeUri;
+        }
+
+        private static String fromAbsoluteUri(URI uri, String original) {
+            StringBuilder sb = new StringBuilder(original.length());
+            if(uri.getPath() != null) {
+                sb.append(uri.getPath());
+            }
+            if(uri.getRawQuery() != null) {
+                sb.append('?').append(uri.getRawQuery());
+            }
+            return sb.toString();
+        }
     }
 }
