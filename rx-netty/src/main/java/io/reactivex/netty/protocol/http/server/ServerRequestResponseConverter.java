@@ -29,6 +29,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.server.ServerMetricsEvent;
@@ -137,6 +138,8 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
             contentSubject.onNext(nextObject);
         } catch (ClassCastException e) {
             contentSubject.onError(e);
+        } finally {
+            ReferenceCountUtil.release(nextObject);
         }
     }
 }

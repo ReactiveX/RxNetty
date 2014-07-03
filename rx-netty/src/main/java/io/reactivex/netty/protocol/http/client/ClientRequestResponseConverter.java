@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
@@ -31,6 +32,7 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
+import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionReuseEvent;
 import io.reactivex.netty.metrics.Clock;
@@ -189,6 +191,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             contentSubject.onNext(nextObject);
         } catch (ClassCastException e) {
             contentSubject.onError(e);
+        } finally {
+            ReferenceCountUtil.release(nextObject);
         }
     }
 
