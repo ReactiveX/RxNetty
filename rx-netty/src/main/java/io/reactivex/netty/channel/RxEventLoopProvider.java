@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.channel;
 
 import io.netty.channel.EventLoopGroup;
@@ -44,4 +45,14 @@ public interface RxEventLoopProvider {
      * @return The {@link EventLoopGroup} to be used for all servers.
      */
     EventLoopGroup globalServerEventLoop();
+
+    /**
+     * The {@link EventLoopGroup} to be used by all {@link RxServer} instances as a parent eventloop group
+     * (First argument to this method: {@link io.netty.bootstrap.ServerBootstrap#group(EventLoopGroup, EventLoopGroup)}),
+     * if it is not explicitly provided using {@link ServerBuilder#eventLoop(EventLoopGroup)} or
+     * {@link ServerBuilder#eventLoops(EventLoopGroup, EventLoopGroup)}.
+     *
+     * @return The {@link EventLoopGroup} to be used for all servers.
+     */
+    EventLoopGroup globalServerParentEventLoop();
 }

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.HttpHeaders;
@@ -23,8 +24,7 @@ import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Observer;
-import rx.functions.Action0;
-import rx.functions.Func1;
+import rx.Subscriber;
 
 /**
 * @author Nitesh Kant
@@ -57,32 +57,45 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
     @Override
     public Observable<Void> handle(final ObservableConnection<HttpServerRequest<I>, HttpServerResponse<O>> newConnection) {
 
-        return newConnection.getInput().flatMap(new Func1<HttpServerRequest<I>, Observable<Void>>() {
+        return newConnection.getInput().lift(new Observable.Operator<Void, HttpServerRequest<I>>() {
             @Override
-            @SuppressWarnings("unchecked")
-            public Observable<Void> call(HttpServerRequest<I> newRequest) {
-                final long startTimeMillis = Clock.newStartTimeMillis();
-                eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
-                newRequest.getContent().subscribe(new Observer<I>() {
-                    // There is no guarantee that the RequestHandler will subscribe to the content, but we want this
-                    // metric anyways, so we subscribe to the content here.
+            public Subscriber<? super HttpServerRequest<I>> call(final Subscriber<? super Void> child) {
+                return new Subscriber<HttpServerRequest<I>>() {
                     @Override
                     public void onCompleted() {
-                        eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE,
-                                              Clock.onEndMillis(startTimeMillis));
+                        child.onCompleted();
                     }
 
                     @Override
                     public void onError(Throwable e) {
+                        child.onError(e);
                     }
 
+                    @SuppressWarnings("unchecked")
                     @Override
-                    public void onNext(I i) {
-                    }
-                });
+                    public void onNext(HttpServerRequest<I> newRequest) {
+                        final long startTimeMillis = Clock.newStartTimeMillis();
+                        eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
+                        newRequest.getContent().subscribe(new Observer<I>() {
+                            // There is no guarantee that the RequestHandler will subscribe to the content, but we want this
+                            // metric anyways, so we subscribe to the content here.
+                            @Override
+                            public void onCompleted() {
+                                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE,
+                                                      Clock.onEndMillis(startTimeMillis));
+                            }
 
-                final HttpServerResponse<O> response = new HttpServerResponse<O>(
-                        newConnection.getChannelHandlerContext(),
+                            @Override
+                            public void onError(Throwable e) {
+                            }
+
+                            @Override
+                            public void onNext(I i) {
+                            }
+                        });
+
+                        final HttpServerResponse<O> response = new HttpServerResponse<O>(
+                                newConnection.getChannelHandlerContext(),
                         /*
                          * Server should send the highest version it is compatible with.
                          * http://tools.ietf.org/html/rfc2145#section-2.3
@@ -90,51 +103,56 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                          * unless overriden explicitly.
                          */
                         send10ResponseFor10Request ? newRequest.getHttpVersion() : HttpVersion.HTTP_1_1, eventsSubject);
-                if (newRequest.getHeaders().isKeepAlive()) {
-                    // Add keep alive header as per:
-                    // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
-                    response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-                } else {
-                    response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
-                }
-                Observable<Void> toReturn;
+                        if (newRequest.getHeaders().isKeepAlive()) {
+                            if (!newRequest.getHttpVersion().isKeepAliveDefault()) {
+                                // Avoid sending keep-alive header if keep alive is default. Issue: https://github.com/Netflix/RxNetty/issues/167
+                                // This optimizes data transferred on the wire.
 
-                try {
-                    eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
-                                          Clock.onEndMillis(startTimeMillis));
-                    toReturn = requestHandler.handle(newRequest, response);
-                    if (null == toReturn) {
-                        toReturn = Observable.empty();
-                    }
-                } catch (Throwable throwable) {
-                    toReturn = Observable.error(throwable);
-                }
+                                // Add keep alive header as per:
+                                // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
+                                response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                            }
+                        } else {
+                            response.getHeaders().set(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
+                        }
+                        Observable<Void> requestHandlingResult;
 
-                return toReturn
-                        .doOnCompleted(new Action0() {
+                        try {
+                            eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
+                                                  Clock.onEndMillis(startTimeMillis));
+                            requestHandlingResult = requestHandler.handle(newRequest, response);
+                            if (null == requestHandlingResult) {
+                                requestHandlingResult = Observable.empty();
+                            }
+                        } catch (Throwable throwable) {
+                            requestHandlingResult = Observable.error(throwable);
+                        }
+
+                        requestHandlingResult.subscribe(new Subscriber<Void>() {
                             @Override
-                            public void call() {
+                            public void onCompleted() {
                                 eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
                                                       Clock.onEndMillis(startTimeMillis));
+                                response.close();
                             }
-                        })
-                        .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
+
                             @Override
-                            public Observable<Void> call(Throwable throwable) {
+                            public void onError(Throwable throwable) {
                                 eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
                                                       Clock.onEndMillis(startTimeMillis), throwable);
                                 if (!response.isHeaderWritten()) {
                                     responseGenerator.updateResponse(response, throwable);
                                 }
-                                return Observable.empty();
-                            }
-                        })
-                        .finallyDo(new Action0() {
-                            @Override
-                            public void call() {
                                 response.close();
                             }
+
+                            @Override
+                            public void onNext(Void aVoid) {
+                                // Not significant.
+                            }
                         });
+                    }
+                };
             }
         });
     }

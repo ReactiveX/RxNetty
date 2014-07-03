@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.AbstractBootstrap;
@@ -128,13 +129,13 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
             serverChannelClass = defaultServerChannelClass();
             EventLoopGroup acceptorGroup = serverBootstrap.group();
             if (null == acceptorGroup) {
-                serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerEventLoop());
+                configureDefaultEventloopGroup();
             }
         }
 
         if (null == serverBootstrap.group()) {
             if (defaultServerChannelClass() == serverChannelClass) {
-                serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerEventLoop());
+                configureDefaultEventloopGroup();
             } else {
                 // Fail fast for defaults we do not support.
                 throw new IllegalStateException("Specified a channel class but not the event loop group.");
@@ -156,6 +157,10 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
             server.subscribe(listener);
         }
         return server;
+    }
+
+    protected void configureDefaultEventloopGroup() {
+        serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerEventLoop());
     }
 
     protected abstract Class<? extends C> defaultServerChannelClass();

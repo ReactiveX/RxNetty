@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -21,6 +22,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 
 /**
@@ -52,6 +54,12 @@ public abstract class ConnectionBasedServerBuilder<I, O, B extends ConnectionBas
     @Override
     protected Class<? extends ServerChannel> defaultServerChannelClass() {
         return NioServerSocketChannel.class;
+    }
+
+    @Override
+    protected void configureDefaultEventloopGroup() {
+        serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerParentEventLoop(),
+                              RxNetty.getRxEventLoopProvider().globalServerEventLoop());
     }
 
     @Override
