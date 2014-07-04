@@ -1,6 +1,22 @@
 # RxNetty Releases #
 
 
+### Version 0.3.7 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=2&state=closed)
+
+* [Issue 98] (https://github.com/Netflix/RxNetty/issues/98) Added pluggable metrics infrastructure with rx-netty-servo implementation.
+* [Issue 106] (https://github.com/Netflix/RxNetty/issues/106) Added TLS support for TCP & HTTP (HTTPS)
+* [Issue 115] (https://github.com/Netflix/RxNetty/issues/115) ByteBuf leak fixed for both HTTP client and server.
+* [Issue 141] (https://github.com/Netflix/RxNetty/issues/141) ServerSentEventEncoder modified to match the specifications and the decoder.
+* [Issue 158] (https://github.com/Netflix/RxNetty/issues/158) HttpClientResponse and HttpServerRequest modified to take Subject instead of PublishSubject in the constructors.
+* [Issue 160] (https://github.com/Netflix/RxNetty/issues/160) ServerRequestResponseConverter was using the same content subject for all requests on a channel.
+* [Issue 164] (https://github.com/Netflix/RxNetty/issues/164) Removed flatmap() usage from HttpConnectionHandler for performance reasons.
+* [Issue 166] (https://github.com/Netflix/RxNetty/issues/166) RxServer modified to optionally use a separate acceptor eventloop group.
+* [Issue 167] (https://github.com/Netflix/RxNetty/issues/167) Not sending "Connection: keep-alive" header for HTTP 1.1 requests.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.7%22)
+
 ### Version 0.3.6 ###
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=2&state=closed)

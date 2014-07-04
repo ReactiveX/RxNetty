@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.contexts;
 
 import io.netty.buffer.ByteBuf;
@@ -110,17 +111,19 @@ public final class RxContexts {
         return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider,
                                                                                                       correlator))
                       .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(),
-                                                                                    correlator));
+                                                                                    correlator,
+                                                                                    builder.getEventsSubject()));
     }
     
     public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port,
             RequestIdProvider provider, RequestCorrelator correlator, 
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpConfigurator) {
         HttpClientBuilder<I, O> builder = RxNetty.newHttpClientBuilder(host, port);
-        return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider,
-                correlator, httpConfigurator))
-                .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(),
-                        correlator));
+        return builder.pipelineConfigurator(ContextPipelineConfigurators.httpClientConfigurator(provider,
+                                                                                                correlator,
+                                                                                                httpConfigurator))
+                .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(), correlator,
+                                                                              builder.getEventsSubject()));
     }
 
 
