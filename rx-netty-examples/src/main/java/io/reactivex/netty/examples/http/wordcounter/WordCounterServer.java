@@ -45,23 +45,24 @@ public final class WordCounterServer {
     public HttpServer<ByteBuf, ByteBuf> createServer() {
         HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
-            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
+                                           final HttpServerResponse<ByteBuf> response) {
                 return request.getContent()
-                        .map(new Func1<ByteBuf, String>() {
-                            @Override
-                            public String call(ByteBuf content) {
-                                return content.toString(Charset.defaultCharset());
-                            }
-                        })
-                        .lift(new WordSplitOperator())
-                        .count()
-                        .flatMap(new Func1<Integer, Observable<Void>>() {
-                            @Override
-                            public Observable<Void> call(Integer counter) {
-                                response.writeString(counter.toString());
-                                return response.close();
-                            }
-                        });
+                              .map(new Func1<ByteBuf, String>() {
+                                  @Override
+                                  public String call(ByteBuf content) {
+                                      return content.toString(Charset.defaultCharset());
+                                  }
+                              })
+                              .lift(new WordSplitOperator())
+                              .count()
+                              .flatMap(new Func1<Integer, Observable<Void>>() {
+                                  @Override
+                                  public Observable<Void> call(Integer counter) {
+                                      response.writeString(counter.toString());
+                                      return response.close();
+                                  }
+                              });
             }
         });
         System.out.println("Started word counter server...");

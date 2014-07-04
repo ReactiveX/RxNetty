@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.serialization;
+
+package io.reactivex.netty.channel;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -21,9 +22,13 @@ import io.netty.buffer.ByteBufAllocator;
 import java.nio.charset.Charset;
 
 /**
+ * An implementation of {@link ContentTransformer} to convert a {@link String} to {@link ByteBuf}
+ *
  * @author Nitesh Kant
  */
 public class StringTransformer implements ContentTransformer<String> {
+
+    public static final StringTransformer DEFAULT_INSTANCE = new StringTransformer();
 
     private final Charset charset;
 
@@ -36,8 +41,8 @@ public class StringTransformer implements ContentTransformer<String> {
     }
 
     @Override
-    public ByteBuf transform(String toTransform, ByteBufAllocator byteBufAllocator) {
+    public ByteBuf call(String toTransform, ByteBufAllocator allocator) {
         byte[] contentAsBytes = toTransform.getBytes(charset);
-        return byteBufAllocator.buffer(contentAsBytes.length).writeBytes(contentAsBytes);
+        return allocator.buffer(contentAsBytes.length).writeBytes(contentAsBytes);
     }
 }

@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.channel;
 
 import io.netty.buffer.ByteBuf;
@@ -23,9 +24,6 @@ import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
-import io.reactivex.netty.serialization.ByteTransformer;
-import io.reactivex.netty.serialization.ContentTransformer;
-import io.reactivex.netty.serialization.StringTransformer;
 import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Action1;
@@ -79,7 +77,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
 
     @Override
     public <R> void write(R msg, ContentTransformer<R> transformer) {
-        ByteBuf contentBytes = transformer.transform(msg, getAllocator());
+        ByteBuf contentBytes = transformer.call(msg, getAllocator());
         writeOnChannel(contentBytes);
     }
 

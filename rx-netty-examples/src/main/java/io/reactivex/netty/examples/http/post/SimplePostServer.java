@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.http.post;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -41,7 +42,7 @@ public class SimplePostServer {
     }
 
     public HttpServer<ByteBuf, ByteBuf> createServer() {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(port, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 return request.getContent().map(new Func1<ByteBuf, String>() {
@@ -62,7 +63,7 @@ public class SimplePostServer {
                     }
                 });
             }
-        });
+        }).enableWireLogging(LogLevel.ERROR).build();
         System.out.println("Simple POST server started...");
         return server;
     }

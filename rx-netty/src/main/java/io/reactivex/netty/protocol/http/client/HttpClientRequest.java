@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultHttpRequest;
@@ -23,43 +25,54 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
-import io.reactivex.netty.serialization.ByteTransformer;
-import io.reactivex.netty.serialization.ContentTransformer;
+import io.reactivex.netty.channel.ByteTransformer;
+import io.reactivex.netty.channel.ContentTransformer;
+import rx.Observable;
+import rx.functions.Func1;
 
 import java.nio.charset.Charset;
-
-import static io.reactivex.netty.protocol.http.client.RawContentSource.SingletonRawSource;
 
 /**
  * @author Nitesh Kant
  */
 public class HttpClientRequest<T> {
 
-    static class SimpleContentSourceFactory<T, R extends ContentSource<T>> implements ContentSourceFactory<T, R> {
-
-        private final R source;
-        
-        SimpleContentSourceFactory(R source) {
-            this.source = source;    
-        }
-        @Override
-        public R newContentSource() {
-            return source;
-        }
-    }
-
     private final HttpRequest nettyRequest;
     private final HttpRequestHeaders headers;
-    protected ContentSourceFactory<T, ContentSource<T>> contentFactory;
-    protected ContentSourceFactory<?, RawContentSource<?>> rawContentFactory;
-    protected boolean userPassedInFactory;
+    private Observable<T> contentSource;
+    private Observable<ByteBuf> rawContentSource;
     private String absoluteUri;
 
-    /*Visible for testing*/ HttpClientRequest(HttpRequest nettyRequest) {
+    HttpClientRequest(HttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(nettyRequest);
-        contentFactory = null;
-        rawContentFactory = null;
+    }
+
+    /**
+     * Does a shallow copy of the passed request instance.
+     *
+     * @param shallowCopySource Request to make a shallow copy from.
+     */
+    HttpClientRequest(HttpClientRequest<T> shallowCopySource) {
+        nettyRequest = shallowCopySource.nettyRequest;
+        headers = new HttpRequestHeaders(nettyRequest);
+        contentSource = shallowCopySource.contentSource;
+        rawContentSource = shallowCopySource.rawContentSource;
+        absoluteUri = shallowCopySource.absoluteUri;
+    }
+
+    /**
+     * Does a shallow copy of the passed request instance with a new netty request.
+     *
+     * @param nettyRequest New netty request for this request.
+     * @param shallowCopySource Request to make a shallow copy from.
+     */
+    HttpClientRequest(HttpRequest nettyRequest, HttpClientRequest<T> shallowCopySource) {
+        this.nettyRequest = nettyRequest;
+        headers = new HttpRequestHeaders(nettyRequest);
+        contentSource = shallowCopySource.contentSource;
+        rawContentSource = shallowCopySource.rawContentSource;
+        absoluteUri = shallowCopySource.absoluteUri;
     }
 
     public static HttpClientRequest<ByteBuf> createGet(String uri) {
@@ -97,37 +110,28 @@ public class HttpClientRequest<T> {
         return withHeader(HttpHeaders.Names.COOKIE, cookieHeader);
     }
 
-    public HttpClientRequest<T> withContentSource(ContentSource<T> contentSource) {
-        setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(contentSource));
-        return this;
-    }
-    
-    public HttpClientRequest<T> withContentFactory(ContentSourceFactory<T, ContentSource<T>> contentFactory) {
-        userPassedInFactory = true;
-        setContentFactory(contentFactory);
-        return this;
-    }
-    
-    public HttpClientRequest<T> withRawContentFactory(ContentSourceFactory<?, RawContentSource<?>> rawContentFactory) {
-        userPassedInFactory = true;
-        setRawContentFactory(rawContentFactory);
+    public HttpClientRequest<T> withContentSource(Observable<T> contentSource) {
+        this.contentSource = contentSource;
         return this;
     }
 
-    
-    @SuppressWarnings({ "unchecked", "rawtypes" })
-    public HttpClientRequest<T> withRawContentSource(final RawContentSource<?> rawContentSource) {
-        setRawContentFactory(new SimpleContentSourceFactory(rawContentSource));
+    public <S> HttpClientRequest<T> withRawContentSource(final Observable<S> rawContentSource,
+                                                         final ContentTransformer<S> transformer) {
+        this.rawContentSource = rawContentSource.map(new Func1<S, ByteBuf>() {
+            @Override
+            public ByteBuf call(S rawContent) {
+                return transformer.call(rawContent, PooledByteBufAllocator.DEFAULT);
+            }
+        });
         return this;
     }
     
-    public <S> HttpClientRequest<T> withRawContent(S content, ContentTransformer<S> transformer) {
-        return withRawContentSource(new SingletonRawSource<S>(content, transformer));
+    public <S> HttpClientRequest<T> withRawContent(S content, final ContentTransformer<S> transformer) {
+        return withRawContentSource(Observable.just(content), transformer);
     }
 
     public HttpClientRequest<T> withContent(T content) {
-        setContentFactory(new SimpleContentSourceFactory<T, ContentSource<T>>(new ContentSource.SingletonSource<T>(
-                content)));
+        withContentSource(Observable.just(content));
         return this;
     }
 
@@ -135,10 +139,9 @@ public class HttpClientRequest<T> {
         return withContent(content.getBytes(Charset.defaultCharset()));
     }
 
-    @SuppressWarnings({ "rawtypes", "unchecked" })
     public HttpClientRequest<T> withContent(byte[] content) {
         headers.set(HttpHeaders.Names.CONTENT_LENGTH, content.length);
-        setRawContentFactory(new SimpleContentSourceFactory(new SingletonRawSource<byte[]>(content, new ByteTransformer())));
+        withRawContentSource(Observable.just(content), ByteTransformer.DEFAULT_INSTANCE);
         return this;
     }
 
@@ -162,36 +165,29 @@ public class HttpClientRequest<T> {
         return null != absoluteUri ? absoluteUri : getUri();
     }
 
-    private void setRawContentFactory(ContentSourceFactory<?, RawContentSource<?>> rawContentFactory) {
-        // raw content factory and content factory is mutually exclusive
-        this.rawContentFactory = rawContentFactory;
-        contentFactory = null;
-    }
-    
-    private void setContentFactory(ContentSourceFactory<T, ContentSource<T>> contentFactory) {
-        // raw content factory and content factory is mutually exclusive
-        this.contentFactory = contentFactory;
-        rawContentFactory = null;
-    }
-
     HttpRequest getNettyRequest() {
         return nettyRequest;
     }
 
-    boolean hasRawContentSource() {
-        return rawContentFactory != null;
+    enum ContentSourceType { Raw, Typed, Absent }
+
+    ContentSourceType getContentSourceType() {
+        return null == contentSource
+               ? null == rawContentSource ? ContentSourceType.Absent : ContentSourceType.Raw
+               : ContentSourceType.Typed;
     }
-    
-    boolean hasContentSource() {
-        return rawContentFactory != null || contentFactory != null;
+
+    Observable<T> getContentSource() {
+        return contentSource;
     }
-    
-    ContentSource<T> getContentSource() {
-        return contentFactory.newContentSource();
+
+    Observable<ByteBuf> getRawContentSource() {
+        return rawContentSource;
     }
-    
-    RawContentSource<?> getRawContentSource() {
-        return rawContentFactory.newContentSource();
+
+    void removeContent() {
+        contentSource = null;
+        rawContentSource = null;
     }
 
     /*Set by HttpClient*/void setDynamicUriParts(String host, int port, boolean secure) {

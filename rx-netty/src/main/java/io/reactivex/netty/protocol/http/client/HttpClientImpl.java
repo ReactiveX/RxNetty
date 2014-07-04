@@ -82,22 +82,12 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         }
         boolean followRedirect = shouldFollowRedirectForRequest(httpClientConfig, request);
 
-        final HttpClientRequest<I> _request;
-
-        if (followRedirect && !(request instanceof RepeatableContentHttpRequest)) {
-            // need to make sure content source
-            // is repeatable when we resubmit the request to the redirected host
-            _request = new RepeatableContentHttpRequest<I>(request);
-        } else {
-            _request = request;
-        }
-
-        enrichRequest(_request, httpClientConfig);
+        enrichRequest(request, httpClientConfig);
         Observable<HttpClientResponse<O>> toReturn =
-                connectionObservable.lift(new RequestProcessingOperator<I, O>(_request, eventsSubject));
+                connectionObservable.lift(new RequestProcessingOperator<I, O>(request, eventsSubject));
 
         if (followRedirect) {
-            toReturn = toReturn.lift(new RedirectOperator<I, O>(_request, this, httpClientConfig));
+            toReturn = toReturn.lift(new RedirectOperator<I, O>(request, this, httpClientConfig));
         }
         return toReturn.finallyDo(new Action0() {
             @Override
@@ -114,7 +104,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
             ClientConfig clientConfig, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator =
                 new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator,
-                                                                                               new ClientRequiredConfigurator<I, O>(eventsSubject));
+                                                     new ClientRequiredConfigurator<I, O>(eventsSubject));
         return super.adaptPipelineConfigurator(configurator, clientConfig, eventsSubject);
     }
 

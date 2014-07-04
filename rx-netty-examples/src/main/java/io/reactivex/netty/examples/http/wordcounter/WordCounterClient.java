@@ -19,17 +19,24 @@ package io.reactivex.netty.examples.http.wordcounter;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpMethod;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.channel.StringTransformer;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.RawContentSource;
-import io.reactivex.netty.serialization.ContentTransformer;
-import io.reactivex.netty.serialization.StringTransformer;
+import rx.Observable;
+import rx.Subscriber;
+import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.subscriptions.Subscriptions;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.LineNumberReader;
 import java.nio.charset.Charset;
 
 import static io.reactivex.netty.examples.http.wordcounter.WordCounterServer.DEFAULT_PORT;
@@ -48,68 +55,52 @@ public class WordCounterClient {
     }
 
     public int countWords() throws IOException {
-        PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<String>> pipelineConfigurator
+        PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> pipelineConfigurator
                 = PipelineConfigurators.httpClientConfigurator();
 
-        HttpClient<String, ByteBuf> client = RxNetty.createHttpClient("localhost", port, pipelineConfigurator);
-        HttpClientRequest<String> request = HttpClientRequest.create(HttpMethod.POST, "test/post");
+        HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port, pipelineConfigurator);
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.create(HttpMethod.POST, "test/post");
 
         FileContentSource fileContentSource = new FileContentSource(new File(textFile));
-        request.withRawContentSource(fileContentSource);
+        request.withRawContentSource(fileContentSource, StringTransformer.DEFAULT_INSTANCE);
 
         WordCountAction wAction = new WordCountAction();
         client.submit(request).toBlocking().forEach(wAction);
 
-        fileContentSource.close();
-
         return wAction.wordCount;
     }
 
-    static class FileContentSource implements RawContentSource<String> {
+    static class FileContentSource extends Observable<String> {
 
-        private final LineNumberReader fStream;
-        private boolean opened;
-        private String nextLine;
+        FileContentSource(final File file) {
+            super(new OnSubscribe<String>() {
 
-        FileContentSource(File file) throws IOException {
-            fStream = new LineNumberReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(file))));
-            opened = true;
-        }
+                @Override
+                public void call(Subscriber<? super String> subscriber) {
+                    try {
+                        String nextLine;
+                        final LineNumberReader reader =
+                                new LineNumberReader(new InputStreamReader(new BufferedInputStream(new FileInputStream(file))));
+                        subscriber.add(Subscriptions.create(new Action0() {
+                            @Override
+                            public void call() {
+                                try {
+                                    reader.close();
+                                } catch (IOException e) {
+                                    e.printStackTrace();
+                                }
+                            }
+                        }));
+                        while ((nextLine = reader.readLine()) != null) {
+                            subscriber.onNext(nextLine);
+                        }
 
-        void close() {
-            if (fStream != null) {
-                try {
-                    fStream.close();
-                } catch (IOException e) {
-                    // IGNORE
+                        subscriber.onCompleted();
+                    } catch (Throwable throwable) {
+                        subscriber.onError(throwable);
+                    }
                 }
-            }
-        }
-
-        @Override
-        public boolean hasNext() {
-            try {
-                return opened && (nextLine != null || (nextLine = fStream.readLine()) != null);
-            } catch (IOException e) {
-                e.printStackTrace();
-                opened = false;
-                return false;
-            }
-        }
-
-        @Override
-        public String next() {
-            if (hasNext()) {
-                String response = nextLine + ' ';
-                nextLine = null;
-                return response;
-            }
-            return null;
-        }
-
-        @Override
-        public ContentTransformer<String> getTransformer() {
-            return new StringTransformer();
+            });
         }
     }
 

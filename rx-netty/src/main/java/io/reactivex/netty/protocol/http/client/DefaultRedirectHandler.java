@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.handler.codec.http.HttpHeaders;
@@ -134,17 +135,13 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
         HttpRequest nettyRequest = original.getNettyRequest();
         nettyRequest.setUri(getNettyRequestUri(redirectLocation));
 
+        HttpClientRequest<I> newRequest = new HttpClientRequest<I>(nettyRequest, original);
+
         if (redirectStatus == 303) {
             // according to HTTP spec, 303 mandates the change of request type to GET
             nettyRequest.setMethod(HttpMethod.GET);
-        }
-
-        HttpClientRequest<I> newRequest = new HttpClientRequest<I>(nettyRequest);
-
-        if (redirectStatus != 303) {
-            // if status code is 303, we can just leave the content factory to be null
-            newRequest.contentFactory = original.contentFactory;
-            newRequest.rawContentFactory = original.rawContentFactory;
+            // If it is a get, then the content is not to be sent.
+            newRequest.removeContent();
         }
         return newRequest;
     }

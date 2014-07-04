@@ -13,19 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.http.client;
+
+package io.reactivex.netty.channel;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import rx.functions.Func2;
 
 /**
- * A {@link ContentSource} factory where its {@link ContentSourceFactory#newContentSource()}
- * method should always return a new {@link ContentSource} that starts from the 
- * beginning.
+ * A contract to transform a java object to {@link ByteBuf} to be used for writing the object on netty's channel.
  *
- * @author awang
- *
- * @param <T>
+ * @author Nitesh Kant
  */
-public interface ContentSourceFactory<T, R extends ContentSource<T>> {
-
-    R newContentSource();
+public interface ContentTransformer<S> extends Func2<S, ByteBufAllocator, ByteBuf> {
 
 }

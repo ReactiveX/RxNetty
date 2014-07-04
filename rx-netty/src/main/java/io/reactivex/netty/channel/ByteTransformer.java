@@ -13,18 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.serialization;
+
+package io.reactivex.netty.channel;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 
 /**
+ * A simple implementation of {@link ContentTransformer} to convert a byte array to {@link ByteBuf}
+ *
  * @author Nitesh Kant
  */
 public class ByteTransformer implements ContentTransformer<byte[]> {
 
+    public static final ByteTransformer DEFAULT_INSTANCE = new ByteTransformer();
+
     @Override
-    public ByteBuf transform(byte[] toTransform, ByteBufAllocator byteBufAllocator) {
-        return byteBufAllocator.buffer(toTransform.length).writeBytes(toTransform);
+    public ByteBuf call(byte[] toTransform, ByteBufAllocator allocator) {
+        return allocator.buffer(toTransform.length).writeBytes(toTransform);
     }
 }
