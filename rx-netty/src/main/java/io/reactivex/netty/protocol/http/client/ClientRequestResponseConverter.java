@@ -38,7 +38,8 @@ import io.reactivex.netty.client.ConnectionReuseEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.MultipleFutureListener;
-import io.reactivex.netty.serialization.ContentTransformer;
+import rx.Observable;
+import rx.Subscriber;
 import rx.subjects.PublishSubject;
 
 /**
@@ -139,39 +140,42 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpClientRequest.class.isAssignableFrom(recievedMsgClass)) {
             HttpClientRequest<?> rxRequest = (HttpClientRequest<?>) msg;
             MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
-            if (rxRequest.hasContentSource()) {
+
+            Observable<?> contentSource = null;
+
+            switch (rxRequest.getContentSourceType()) {
+                case Raw:
+                    if (!rxRequest.getHeaders().isContentLengthSet()) {
+                        rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
+                    }
+                    contentSource = rxRequest.getRawContentSource();
+                    break;
+                case Typed:
+                    if (!rxRequest.getHeaders().isContentLengthSet()) {
+                        rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
+                    }
+                    contentSource = rxRequest.getContentSource();
+                    break;
+                case Absent:
+                    if (!rxRequest.getHeaders().isContentLengthSet() && rxRequest.getMethod() != HttpMethod.GET) {
+                        rxRequest.getHeaders().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
+                    }
+                    break;
+            }
+
+            writeHttpHeaders(ctx, rxRequest, allWritesListener); // In all cases, write headers first.
+
+            if (null != contentSource) { // If content present then write Last Content after all content is written.
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
                 }
-                writeHttpHeaders(ctx, rxRequest, allWritesListener);
-                ContentSource<?> contentSource;
-                if (rxRequest.hasRawContentSource()) {
-                    contentSource = rxRequest.getRawContentSource();
-                    @SuppressWarnings("rawtypes")
-                    RawContentSource<?> rawContentSource = (RawContentSource) contentSource;
-                    while (rawContentSource.hasNext()) {
-                        @SuppressWarnings("rawtypes")
-                        ContentTransformer transformer = rawContentSource.getTransformer();
-                        @SuppressWarnings("unchecked")
-                        ByteBuf byteBuf = transformer.transform(rawContentSource.next(), ctx.alloc());
-                        writeContent(ctx, allWritesListener, byteBuf);
-                    }
-                } else {
-                    contentSource = rxRequest.getContentSource();
-                    while (contentSource.hasNext()) {
-                        writeContent(ctx, allWritesListener, contentSource.next());
-                    }
-                }
-            } else {
-                if (!rxRequest.getHeaders().isContentLengthSet() && rxRequest.getMethod() != HttpMethod.GET) {
-                    rxRequest.getHeaders().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
-                }
-                writeHttpHeaders(ctx, rxRequest, allWritesListener);
+                writeContent(ctx, allWritesListener, contentSource, promise);
+            } else { // If no content then write Last Content immediately.
+                // In order for netty's codec to understand that HTTP request writing is over, we always have to write the
+                // LastHttpContent irrespective of whether it is chunked or not.
+                writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent());
             }
 
-            // In order for netty's codec to understand that HTTP request writing is over, we always have to write the
-            // LastHttpContent irrespective of whether it is chunked or not.
-            writeContent(ctx, allWritesListener, new DefaultLastHttpContent());
         } else {
             ctx.write(msg, promise); // pass through, since we do not understand this message.
         }
@@ -206,10 +210,36 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         allWritesListener.listen(writeFuture);
     }
 
-    private void writeContent(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener, Object msg) {
+    private void writeContent(final ChannelHandlerContext ctx, final MultipleFutureListener allWritesListener,
+                              final Observable<?> contentSource, final ChannelPromise promise) {
+        contentSource.subscribe(new Subscriber<Object>() {
+            @Override
+            public void onCompleted() {
+                writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent());
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                allWritesListener.cancelPendingFutures(true); // If fetching from content source failed, we should
+                                                              // cancel pending writes and fail the write. The state of
+                                                              // the connection is left to the writer to decide. Ideally
+                                                              // it should be closed because what was written is
+                                                              // non-deterministic
+                promise.tryFailure(e);
+            }
+
+            @Override
+            public void onNext(Object chunk) {
+                writeAContentChunk(ctx, allWritesListener, chunk);
+            }
+        });
+    }
+
+    private void writeAContentChunk(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener,
+                                    Object chunk) {
         eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_START);
         final long startTimeMillis = Clock.newStartTimeMillis();
-        ChannelFuture writeFuture = ctx.write(msg);
+        ChannelFuture writeFuture = ctx.write(chunk);
         addWriteCompleteEvents(writeFuture, startTimeMillis, HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_SUCCESS,
                                HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_FAILED);
         allWritesListener.listen(writeFuture);

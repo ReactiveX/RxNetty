@@ -13,20 +13,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.protocol.http.client.ContentSource;
+import io.reactivex.netty.channel.StringTransformer;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.RawContentSource;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import io.reactivex.netty.serialization.ContentTransformer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -95,31 +93,30 @@ public class RxNettyHttpShorthandsTest {
 
     @Test
     public void testPost() throws Exception {
-        ContentSource.SingletonSource<ByteBuf> content = new ContentSource.SingletonSource<ByteBuf>(
-                Unpooled.buffer().writeBytes("Hello!".getBytes()));
         HttpClientResponse<ByteBuf> response =
-                RxNetty.createHttpPost("http://localhost:" + mockServer.getServerPort() + '/', content)
-                       .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
+                RxNetty.createHttpPost("http://localhost:" + mockServer.getServerPort() + '/',
+                                       Observable.just(Unpooled.buffer().writeBytes("Hello!".getBytes())))
+                                                 .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "POST", response.getHeaders().get(METHOD_HEADER));
-        Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
+        Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(
+                CONTENT_RECEIEVED_HEADER));
     }
 
     @Test
     public void testPut() throws Exception {
-        ContentSource.SingletonSource<ByteBuf> content = new ContentSource.SingletonSource<ByteBuf>(
-                Unpooled.buffer().writeBytes("Hello!".getBytes()));
         HttpClientResponse<ByteBuf> response =
-                RxNetty.createHttpPut("http://localhost:" + mockServer.getServerPort() + '/', content)
-                       .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
+                RxNetty.createHttpPut("http://localhost:" + mockServer.getServerPort() + '/',
+                                      Observable.just(Unpooled.buffer().writeBytes("Hello!".getBytes())))
+                       .toBlocking() .toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "PUT", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
     }
 
     @Test
     public void testPostRawContent() throws Exception {
-        RawContentSource<String> content = getRawContentSource();
         HttpClientResponse<ByteBuf> response =
-                RxNetty.createHttpPost("http://localhost:" + mockServer.getServerPort() + '/', content)
+                RxNetty.createHttpPost("http://localhost:" + mockServer.getServerPort() + '/',
+                                       Observable.just("Hello"), StringTransformer.DEFAULT_INSTANCE)
                        .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "POST", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
@@ -127,20 +124,11 @@ public class RxNettyHttpShorthandsTest {
 
     @Test
     public void testPutRawContent() throws Exception {
-        RawContentSource<String> content = getRawContentSource();
         HttpClientResponse<ByteBuf> response =
-                RxNetty.createHttpPut("http://localhost:" + mockServer.getServerPort() + '/', content)
+                RxNetty.createHttpPut("http://localhost:" + mockServer.getServerPort() + '/', Observable.just("Hello"),
+                                      StringTransformer.DEFAULT_INSTANCE)
                        .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "PUT", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
-    }
-
-    private static RawContentSource<String> getRawContentSource() {
-        return new RawContentSource.SingletonRawSource<String>("Hello!", new ContentTransformer<String>() {
-            @Override
-            public ByteBuf transform(String toTransform, ByteBufAllocator byteBufAllocator) {
-                return byteBufAllocator.buffer().writeBytes(toTransform.getBytes());
-            }
-        });
     }
 }

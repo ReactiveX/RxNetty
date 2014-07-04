@@ -21,6 +21,7 @@ import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ContentTransformer;
 import io.reactivex.netty.channel.RxEventLoopProvider;
 import io.reactivex.netty.channel.SingleNioLoopProvider;
 import io.reactivex.netty.client.ClientBuilder;
@@ -29,12 +30,10 @@ import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClient;
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
-import io.reactivex.netty.protocol.http.client.ContentSource;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientBuilder;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.RawContentSource;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -202,20 +201,22 @@ public final class RxNetty {
         return createHttpRequest(HttpClientRequest.createGet(uri));
     }
 
-    public static Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, ContentSource<ByteBuf> content) {
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, Observable<ByteBuf> content) {
         return createHttpRequest(HttpClientRequest.createPost(uri).withContentSource(content));
     }
 
-    public static Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, ContentSource<ByteBuf> content) {
+    public static Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, Observable<ByteBuf> content) {
         return createHttpRequest(HttpClientRequest.createPut(uri).withContentSource(content));
     }
 
-    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, RawContentSource<T> content) {
-        return createHttpRequest(HttpClientRequest.createPost(uri).withRawContentSource(content));
+    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPost(String uri, Observable<T> content,
+                                                                             ContentTransformer<T> transformer) {
+        return createHttpRequest(HttpClientRequest.createPost(uri).withRawContentSource(content, transformer));
     }
 
-    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, RawContentSource<T> content) {
-        return createHttpRequest(HttpClientRequest.createPut(uri).withRawContentSource(content));
+    public static <T> Observable<HttpClientResponse<ByteBuf>> createHttpPut(String uri, Observable<T> content,
+                                                                            ContentTransformer<T> transformer) {
+        return createHttpRequest(HttpClientRequest.createPut(uri).withRawContentSource(content, transformer));
     }
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpDelete(String uri) {

@@ -18,14 +18,14 @@ package io.reactivex.netty.examples.http.post;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.channel.StringTransformer;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.RawContentSource;
-import io.reactivex.netty.serialization.StringTransformer;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -50,10 +50,12 @@ public class SimplePostClient {
         PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<String>> pipelineConfigurator
                 = PipelineConfigurators.httpClientConfigurator();
 
-        HttpClient<String, ByteBuf> client = RxNetty.createHttpClient("localhost", port, pipelineConfigurator);
+        HttpClient<String, ByteBuf> client = RxNetty.<String, ByteBuf>newHttpClientBuilder("localhost", port)
+                                                    .pipelineConfigurator(pipelineConfigurator)
+                                                    .enableWireLogging(LogLevel.ERROR).build();
 
         HttpClientRequest<String> request = HttpClientRequest.create(HttpMethod.POST, "test/post");
-        request.withRawContentSource(new RawContentSource.SingletonRawSource<String>(MESSAGE, new StringTransformer()));
+        request.withRawContentSource(Observable.just(MESSAGE), StringTransformer.DEFAULT_INSTANCE);
 
         String result = client.submit(request).flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
             @Override
