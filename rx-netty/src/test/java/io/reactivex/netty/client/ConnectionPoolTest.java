@@ -61,11 +61,11 @@ public class ConnectionPoolTest {
     private ConnectionPoolImpl<String, String> pool;
     private RxClient.ServerInfo serverInfo;
     private Bootstrap clientBootstrap;
-    private TrackableStateChangeListener stateChangeListener;
+    private TrackableMetricEventsListener metricEventsListener;
     private MaxConnectionsBasedStrategy strategy;
     private RxServer<String,String> server;
     private final ChannelCloseListener channelCloseListener = new ChannelCloseListener();
-    @SuppressWarnings("deprecation") private PoolStats stats;
+    private PoolStats stats;
     private ConnectionHandlerImpl serverConnHandler;
     private PipelineConfigurator<String,String> pipelineConfigurator;
     private String testId;
@@ -73,7 +73,6 @@ public class ConnectionPoolTest {
     private PoolConfig poolConfig;
 
     @Before
-    @SuppressWarnings("deprecation")
     public void setUp() throws Exception {
         testId = name.getMethodName();
         long currentTime = System.currentTimeMillis();
@@ -82,7 +81,7 @@ public class ConnectionPoolTest {
         server = RxNetty.createTcpServer(0, PipelineConfigurators.textOnlyConfigurator(),
                                          serverConnHandler).start();
         serverInfo = new RxClient.ServerInfo("localhost", server.getServerPort());
-        stateChangeListener = new TrackableStateChangeListener();
+        metricEventsListener = new TrackableMetricEventsListener();
         strategy = new MaxConnectionsBasedStrategy(1);
         clientBootstrap = new Bootstrap().group(new NioEventLoopGroup(4))
                                          .channel(NioSocketChannel.class);
@@ -108,10 +107,10 @@ public class ConnectionPoolTest {
         poolConfig = new PoolConfig(MAX_IDLE_TIME_MILLIS);
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
-        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, new PoolStatsImpl(),
-                                                      factory, eventsSubject);
-        pool.subscribe(stateChangeListener);
-        stats = pool.getStats();
+        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, factory, eventsSubject);
+        pool.subscribe(metricEventsListener);
+        stats = new PoolStats();
+        pool.subscribe(stats);
     }
 
     @After
@@ -163,7 +162,7 @@ public class ConnectionPoolTest {
 
         ObservableConnection<String, String> reusedConn = acquireAndTestStats();
 
-        Assert.assertEquals("Connection reuse callback not received.", 1, stateChangeListener.getReuseCount());
+        Assert.assertEquals("Connection reuse callback not received.", 1, metricEventsListener.getReuseCount());
         Assert.assertEquals("Connection not reused.", connection, reusedConn);
 
         serverConnHandler.closeAllClientConnections();
@@ -194,7 +193,7 @@ public class ConnectionPoolTest {
         Assert.assertEquals("Unexpected pool idle count.", 0, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count.", 1, stats.getInUseCount());
         Assert.assertEquals("Unexpected pool total connections count.", 1, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected eviction count post close.", 0, stateChangeListener.getEvictionCount()); // Since it wasn't idle, there isn't an eviction.
+        Assert.assertEquals("Unexpected eviction count post close.", 0, metricEventsListener.getEvictionCount()); // Since it wasn't idle, there isn't an eviction.
     }
 
     @Test
@@ -207,14 +206,14 @@ public class ConnectionPoolTest {
         Assert.assertEquals("Unexpected pool idle count.", 1, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count.", 0, stats.getInUseCount());
         Assert.assertEquals("Unexpected pool total connections count.", 1, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected eviction count post close.", 0, stateChangeListener.getEvictionCount());
+        Assert.assertEquals("Unexpected eviction count post close.", 0, metricEventsListener.getEvictionCount());
 
         pool.discard(connection);
 
         Assert.assertEquals("Unexpected pool idle count post discard.", 0, stats.getIdleCount());
         Assert.assertEquals("Unexpected pool in-use count post discard.", 0, stats.getInUseCount());
         Assert.assertEquals("Unexpected pool total connections count post discard.", 0, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected eviction count post discard.", 1, stateChangeListener.getEvictionCount());
+        Assert.assertEquals("Unexpected eviction count post discard.", 1, metricEventsListener.getEvictionCount());
 
         assertAllConnectionsReturned();
     }
@@ -251,7 +250,6 @@ public class ConnectionPoolTest {
         assertAllConnectionsReturned();
     }
 
-    @SuppressWarnings("deprecation")
     @Test
     public void testConnectFail() throws Exception {
         serverConnHandler.closeNewConnectionsOnReceive(false);
@@ -259,9 +257,9 @@ public class ConnectionPoolTest {
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
 
-        pool = new ConnectionPoolImpl<String, String>(unavailableServer, poolConfig, strategy, null,
-                                                      new PoolStatsImpl(), factory, eventsSubject);
-        pool.subscribe(stateChangeListener);
+        pool = new ConnectionPoolImpl<String, String>(unavailableServer, poolConfig, strategy, null, factory,
+                                                      eventsSubject);
+        pool.subscribe(metricEventsListener);
 
         try {
             pool.acquire().toBlocking().last();
@@ -271,7 +269,7 @@ public class ConnectionPoolTest {
             Assert.assertEquals("Unexpected idle connections count.", 0, stats.getIdleCount());
             Assert.assertEquals("Unexpected in-use connections count.", 0, stats.getInUseCount());
             Assert.assertEquals("Unexpected total connections count.", 0, stats.getTotalConnectionCount());
-            Assert.assertEquals("Did not receive a connect failed callback.", 1, stateChangeListener.getFailedCount());
+            Assert.assertEquals("Did not receive a connect failed callback.", 1, metricEventsListener.getFailedCount());
         }
     }
 
@@ -282,43 +280,43 @@ public class ConnectionPoolTest {
 
         PooledConnection<String, String> conn =
                 (PooledConnection<String, String>) pool.acquire().toBlocking().last();
-        Assert.assertEquals("Unexpected acquire attempted count.", 1, stateChangeListener.getAcquireAttemptedCount());
-        Assert.assertEquals("Unexpected acquire succeeded count.", 1, stateChangeListener.getAcquireSucceededCount());
-        Assert.assertEquals("Unexpected acquire failed count.", 0, stateChangeListener.getAcquireFailedCount());
-        Assert.assertEquals("Unexpected create connection count.", 1, stateChangeListener.getCreationCount());
+        Assert.assertEquals("Unexpected acquire attempted count.", 1, metricEventsListener.getAcquireAttemptedCount());
+        Assert.assertEquals("Unexpected acquire succeeded count.", 1, metricEventsListener.getAcquireSucceededCount());
+        Assert.assertEquals("Unexpected acquire failed count.", 0, metricEventsListener.getAcquireFailedCount());
+        Assert.assertEquals("Unexpected create connection count.", 1, metricEventsListener.getCreationCount());
 
         conn.close();
 
-        Assert.assertEquals("Unexpected release attempted count.", 1, stateChangeListener.getReleaseAttemptedCount());
-        Assert.assertEquals("Unexpected release succeeded count.", 1, stateChangeListener.getReleaseSucceededCount());
-        Assert.assertEquals("Unexpected release failed count.", 0, stateChangeListener.getReleaseFailedCount());
-        Assert.assertEquals("Unexpected create connection count.", 1, stateChangeListener.getCreationCount());
+        Assert.assertEquals("Unexpected release attempted count.", 1, metricEventsListener.getReleaseAttemptedCount());
+        Assert.assertEquals("Unexpected release succeeded count.", 1, metricEventsListener.getReleaseSucceededCount());
+        Assert.assertEquals("Unexpected release failed count.", 0, metricEventsListener.getReleaseFailedCount());
+        Assert.assertEquals("Unexpected create connection count.", 1, metricEventsListener.getCreationCount());
 
         PooledConnection<String, String> reusedConn =
                 (PooledConnection<String, String>) pool.acquire().toBlocking().last();
 
         Assert.assertEquals("Reused connection not same as original.", conn, reusedConn);
 
-        Assert.assertEquals("Unexpected acquire attempted count.", 2, stateChangeListener.getAcquireAttemptedCount());
-        Assert.assertEquals("Unexpected acquire succeeded count.", 2, stateChangeListener.getAcquireSucceededCount());
-        Assert.assertEquals("Unexpected acquire failed count.", 0, stateChangeListener.getAcquireFailedCount());
-        Assert.assertEquals("Unexpected create connection count.", 1, stateChangeListener.getCreationCount());
-        Assert.assertEquals("Unexpected connection reuse count.", 1, stateChangeListener.getReuseCount());
+        Assert.assertEquals("Unexpected acquire attempted count.", 2, metricEventsListener.getAcquireAttemptedCount());
+        Assert.assertEquals("Unexpected acquire succeeded count.", 2, metricEventsListener.getAcquireSucceededCount());
+        Assert.assertEquals("Unexpected acquire failed count.", 0, metricEventsListener.getAcquireFailedCount());
+        Assert.assertEquals("Unexpected create connection count.", 1, metricEventsListener.getCreationCount());
+        Assert.assertEquals("Unexpected connection reuse count.", 1, metricEventsListener.getReuseCount());
 
         reusedConn.close();
 
-        Assert.assertEquals("Unexpected release attempted count.", 2, stateChangeListener.getReleaseAttemptedCount());
-        Assert.assertEquals("Unexpected release succeeded count.", 2, stateChangeListener.getReleaseSucceededCount());
-        Assert.assertEquals("Unexpected release failed count.", 0, stateChangeListener.getReleaseFailedCount());
-        Assert.assertEquals("Unexpected create connection count.", 1, stateChangeListener.getCreationCount());
+        Assert.assertEquals("Unexpected release attempted count.", 2, metricEventsListener.getReleaseAttemptedCount());
+        Assert.assertEquals("Unexpected release succeeded count.", 2, metricEventsListener.getReleaseSucceededCount());
+        Assert.assertEquals("Unexpected release failed count.", 0, metricEventsListener.getReleaseFailedCount());
+        Assert.assertEquals("Unexpected create connection count.", 1, metricEventsListener.getCreationCount());
 
         pool.discard(reusedConn);
 
-        Assert.assertEquals("Unexpected release attempted count.", 2, stateChangeListener.getReleaseAttemptedCount());
-        Assert.assertEquals("Unexpected release succeeded count.", 2, stateChangeListener.getReleaseSucceededCount());
-        Assert.assertEquals("Unexpected release failed count.", 0, stateChangeListener.getReleaseFailedCount());
-        Assert.assertEquals("Unexpected create connection count.", 1, stateChangeListener.getCreationCount());
-        Assert.assertEquals("Unexpected evict connection count.", 1, stateChangeListener.getEvictionCount());
+        Assert.assertEquals("Unexpected release attempted count.", 2, metricEventsListener.getReleaseAttemptedCount());
+        Assert.assertEquals("Unexpected release succeeded count.", 2, metricEventsListener.getReleaseSucceededCount());
+        Assert.assertEquals("Unexpected release failed count.", 0, metricEventsListener.getReleaseFailedCount());
+        Assert.assertEquals("Unexpected create connection count.", 1, metricEventsListener.getCreationCount());
+        Assert.assertEquals("Unexpected evict connection count.", 1, metricEventsListener.getEvictionCount());
 
     }
 
@@ -351,7 +349,6 @@ public class ConnectionPoolTest {
         assertAllConnectionsReturned();
     }
 
-    @SuppressWarnings("deprecation")
     @Test
     public void testIdleCleanupThread() throws Exception {
         serverConnHandler.closeNewConnectionsOnReceive(false);
@@ -359,10 +356,10 @@ public class ConnectionPoolTest {
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory.useMetricEventsSubject(eventsSubject);
         pool = new ConnectionPoolImpl<String, String>(serverInfo, PoolConfig.DEFAULT_CONFIG, strategy,
-                                                      Executors.newScheduledThreadPool(1),
-                                                      new PoolStatsImpl(), factory, eventsSubject);
+                                                      Executors.newScheduledThreadPool(1), factory, eventsSubject);
 
-        stats = pool.getStats();
+        stats = new PoolStats();
+        pool.subscribe(stats);
 
         ObservableConnection<String, String> connection = acquireAndTestStats();
         connection.close();

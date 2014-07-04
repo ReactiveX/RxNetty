@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.ObservableConnection;
@@ -24,8 +25,7 @@ import rx.Observable;
  *
  * @author Nitesh Kant
  */
-@SuppressWarnings("deprecation")
-public interface ConnectionPool<I, O> extends PoolInsightProvider, MetricEventsPublisher<ClientMetricsEvent<?>> {
+public interface ConnectionPool<I, O> extends MetricEventsPublisher<ClientMetricsEvent<?>> {
 
     Observable<ObservableConnection<I, O>> acquire();
 

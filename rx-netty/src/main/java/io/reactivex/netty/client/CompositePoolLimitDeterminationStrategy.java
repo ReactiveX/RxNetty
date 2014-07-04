@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import java.util.concurrent.TimeUnit;
@@ -34,12 +35,6 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
             }
         }
         this.strategies = strategies;
-    }
-
-    @Override
-    @Deprecated
-    public boolean acquireCreationPermit() {
-        return acquireCreationPermit(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -95,21 +90,6 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     public void onSubscribe() {
         for (PoolLimitDeterminationStrategy strategy : strategies) {
             strategy.onCompleted();
-        }
-    }
-
-    @Override
-    public void onError(Throwable e) {
-        for (PoolLimitDeterminationStrategy strategy : strategies) {
-            strategy.onError(e);
-        }
-    }
-
-    @Override
-    @Deprecated
-    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
-        for (PoolLimitDeterminationStrategy strategy : strategies) {
-            strategy.onNext(stateChangeEvent);
         }
     }
 }

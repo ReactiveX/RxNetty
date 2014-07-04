@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.metrics.MetricEventsListener;
-import rx.Observer;
 
 import java.util.concurrent.TimeUnit;
 
@@ -25,19 +25,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
-@SuppressWarnings("deprecation")
-public interface PoolLimitDeterminationStrategy extends MetricEventsListener<ClientMetricsEvent<?>>,
-        Observer<PoolInsightProvider.PoolStateChangeEvent> {
-
-    /**
-     * Attempts to acquire a creation permit.
-     *
-     * @deprecated Use {@link #acquireCreationPermit(long, java.util.concurrent.TimeUnit)} instead.
-     *
-     * @return {@code true} if the permit was acquired, {@code false} otherwise.
-     */
-    @Deprecated
-    boolean acquireCreationPermit();
+public interface PoolLimitDeterminationStrategy extends MetricEventsListener<ClientMetricsEvent<?>> {
 
     /**
      * Attempts to acquire a creation permit.

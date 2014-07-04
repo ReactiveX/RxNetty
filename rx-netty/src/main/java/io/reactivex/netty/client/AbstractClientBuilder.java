@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
@@ -146,12 +147,6 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
 
     public B withNoIdleConnectionCleanup() {
         getPoolBuilder(true).withNoIdleConnectionCleanup();
-        return returnBuilder();
-    }
-
-    @Deprecated
-    public B withPoolStatsProvider(PoolStatsProvider statsProvider) {
-        getPoolBuilder(true).withPoolStatsProvider(statsProvider);
         return returnBuilder();
     }
 

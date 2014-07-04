@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.bootstrap.Bootstrap;
@@ -21,7 +22,6 @@ import io.reactivex.netty.client.ClientChannelFactory;
 import io.reactivex.netty.client.ClientConnectionFactory;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
-import io.reactivex.netty.client.PoolStats;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -106,23 +106,6 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
         }
     }
 
-    public PoolStats getStats(ServerInfo server) {
-        HttpClient<I, O> client = httpClients.get(server);
-        if (null == client) {
-            throw new IllegalArgumentException("Invalid server: " + server.getHost() + ':' + server.getPort());
-        }
-        return client.getStats();
-    }
-
-    @Deprecated
-    public Observable<PoolStateChangeEvent> poolStateChangeObservable(ServerInfo server) {
-        HttpClient<I, O> client = httpClients.get(server);
-        if (null == client) {
-            throw new IllegalArgumentException("Invalid server: " + server.getHost() + ':' + server.getPort());
-        }
-        return client.poolStateChangeObservable();
-    }
-
     public Subscription subscribe(ServerInfo server, MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
         HttpClient<I, O> client = httpClients.get(server);
         if (null == client) {
@@ -150,9 +133,7 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
         ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> toReturn = poolBuilder.copy(serverInfo);
         toReturn.withConnectionPoolLimitStrategy(
                 ((CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy) poolBuilder
-                        .getLimitDeterminationStrategy()).copy())
-                .withPoolStatsProvider(
-                        ((CompositeHttpClientBuilder.CloneablePoolStatsProvider) poolBuilder.getStatsProvider()).copy());
+                        .getLimitDeterminationStrategy()).copy());
         return toReturn;
     }
 }

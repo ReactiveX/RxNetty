@@ -17,26 +17,22 @@
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- *
- * @deprecated Use {@link MetricEventsListener} to get the stats.
  * @author Nitesh Kant
  */
-@Deprecated
-public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.CloneablePoolStatsProvider {
+public class PoolStats implements MetricEventsListener<ClientMetricsEvent<?>> {
 
-    private final AtomicLong idleConnections; // LongAdder backport is not distributed with netty anymore. So moving to AtomicLong temporarily before we remove this class.
+    private final AtomicLong idleConnections;
     private final AtomicLong inUseConnections;
     private final AtomicLong totalConnections;
     private final AtomicLong pendingAcquires;
     private final AtomicLong pendingReleases;
 
-    public PoolStatsImpl() {
+    public PoolStats() {
         idleConnections = new AtomicLong();
         inUseConnections = new AtomicLong();
         totalConnections = new AtomicLong();
@@ -44,27 +40,22 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
         pendingReleases = new AtomicLong();
     }
 
-    @Override
     public long getIdleCount() {
         return idleConnections.longValue();
     }
 
-    @Override
     public long getInUseCount() {
         return inUseConnections.longValue();
     }
 
-    @Override
     public long getTotalConnectionCount() {
         return totalConnections.longValue();
     }
 
-    @Override
     public long getPendingAcquireRequestCount() {
         return pendingAcquires.longValue();
     }
 
-    @Override
     public long getPendingReleaseRequestCount() {
         return pendingReleases.longValue();
     }
@@ -110,18 +101,11 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
 
     @Override
     public void onCompleted() {
-        // No Op.
+
     }
 
     @Override
     public void onSubscribe() {
-        // No op.
-
-    }
-
-    @Override
-    public PoolStats getStats() {
-        return this;
     }
 
     private void onConnectionCreation() {
@@ -166,10 +150,5 @@ public class PoolStatsImpl implements PoolStats, CompositeHttpClientBuilder.Clon
 
     private void onReleaseFailed() {
         pendingReleases.decrementAndGet();
-    }
-
-    @Override
-    public CompositeHttpClientBuilder.CloneablePoolStatsProvider copy() {
-        return new PoolStatsImpl();
     }
 }

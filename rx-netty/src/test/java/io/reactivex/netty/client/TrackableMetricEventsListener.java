@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
 * @author Nitesh Kant
 */
-public class TrackableStateChangeListener implements MetricEventsListener<ClientMetricsEvent<?>> {
+public class TrackableMetricEventsListener implements MetricEventsListener<ClientMetricsEvent<?>> {
 
     private final AtomicLong creationCount = new AtomicLong();
     private final AtomicLong failedCount = new AtomicLong();

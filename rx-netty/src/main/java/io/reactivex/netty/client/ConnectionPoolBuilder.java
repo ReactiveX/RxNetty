@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.RxDefaultThreadFactory;
@@ -38,7 +39,6 @@ public class ConnectionPoolBuilder<I, O> {
     private PoolLimitDeterminationStrategy limitDeterminationStrategy = new MaxConnectionsBasedStrategy();
     private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
     private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
-    @SuppressWarnings("deprecation") private PoolStatsProvider statsProvider = new PoolStatsImpl();
 
     public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
                                  MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
@@ -89,11 +89,6 @@ public class ConnectionPoolBuilder<I, O> {
         return this;
     }
 
-    public ConnectionPoolBuilder<I, O> withPoolStatsProvider(@SuppressWarnings("deprecation") PoolStatsProvider statsProvider) {
-        this.statsProvider = statsProvider;
-        return this;
-    }
-
     public ConnectionPoolBuilder<I, O> withChannelFactory(ClientChannelFactory<I, O> factory) {
         channelFactory = factory;
         return this;
@@ -121,14 +116,13 @@ public class ConnectionPoolBuilder<I, O> {
         PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
 
         return new ConnectionPoolImpl<I, O>(serverInfo, poolConfig, limitDeterminationStrategy, poolIdleCleanupScheduler,
-                                            statsProvider, connectionFactory, channelFactory, eventsSubject);
+                                            connectionFactory, channelFactory, eventsSubject);
     }
 
     public ConnectionPoolBuilder<I, O> copy(RxClient.ServerInfo serverInfo) {
         ConnectionPoolBuilder<I, O> copy = new ConnectionPoolBuilder<I, O>(serverInfo, channelFactory, connectionFactory,
                                                                            eventsSubject);
         copy.withIdleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis)
-            .withPoolStatsProvider(statsProvider)
             .withPoolIdleCleanupScheduler(poolIdleCleanupScheduler)
             .withConnectionPoolLimitStrategy(limitDeterminationStrategy);
 
@@ -145,10 +139,5 @@ public class ConnectionPoolBuilder<I, O> {
 
     public ScheduledExecutorService getPoolIdleCleanupScheduler() {
         return poolIdleCleanupScheduler;
-    }
-
-    @SuppressWarnings("deprecation")
-    public PoolStatsProvider getStatsProvider() {
-        return statsProvider;
     }
 }
