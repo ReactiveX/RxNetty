@@ -119,10 +119,11 @@ public final class RxContexts {
             RequestIdProvider provider, RequestCorrelator correlator, 
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpConfigurator) {
         HttpClientBuilder<I, O> builder = RxNetty.newHttpClientBuilder(host, port);
-        return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider,
-                correlator, httpConfigurator))
-                .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(),
-                        correlator));
+        return builder.pipelineConfigurator(ContextPipelineConfigurators.httpClientConfigurator(provider,
+                                                                                                correlator,
+                                                                                                httpConfigurator))
+                .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(), correlator,
+                                                                              builder.getEventsSubject()));
     }
 
 
