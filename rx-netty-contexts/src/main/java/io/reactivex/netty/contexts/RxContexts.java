@@ -56,6 +56,12 @@ public final class RxContexts {
     }
 
     public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler,
+            RequestCorrelator correlator, PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> configurator) {
+        HttpRequestIdProvider provider = new HttpRequestIdProvider(defaultRequestIdContextKeyName, correlator);
+        return newHttpServerBuilder(port, requestHandler, provider, correlator, configurator);
+    }
+
+    public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler,
                                                                       String requestIdHeaderName,
                                                                       RequestCorrelator correlator) {
         HttpRequestIdProvider provider = new HttpRequestIdProvider(requestIdHeaderName, correlator);
@@ -67,6 +73,13 @@ public final class RxContexts {
         HttpRequestIdProvider provider = new HttpRequestIdProvider(defaultRequestIdContextKeyName, correlator);
         return newHttpClientBuilder(host, port, provider, correlator);
     }
+    
+    public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port,
+            RequestCorrelator correlator, PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpConfigurator) {
+        HttpRequestIdProvider provider = new HttpRequestIdProvider(defaultRequestIdContextKeyName, correlator);
+        return newHttpClientBuilder(host, port, provider, correlator, httpConfigurator);
+    }
+
 
     public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port, String requestIdHeaderName,
                                                                       RequestCorrelator correlator) {
@@ -76,10 +89,19 @@ public final class RxContexts {
 
     public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler,
                                                                       RequestIdProvider provider,
-                                                                      RequestCorrelator correlator) {
+                                                                      RequestCorrelator correlator, 
+                                                                      PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> configurator) {
         return RxNetty.newHttpServerBuilder(port, requestHandler)
                       .pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpServerConfigurator(provider,
-                                                                                                      correlator));
+                                                                                                      correlator, configurator));
+    }
+
+    public static <I, O> HttpServerBuilder<I, O> newHttpServerBuilder(int port, RequestHandler<I, O> requestHandler,
+            RequestIdProvider provider,
+            RequestCorrelator correlator) {
+        return RxNetty.newHttpServerBuilder(port, requestHandler)
+                .pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpServerConfigurator(provider,
+                        correlator));
     }
 
     public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port,
@@ -92,6 +114,17 @@ public final class RxContexts {
                                                                                     correlator,
                                                                                     builder.getEventsSubject()));
     }
+    
+    public static <I, O> HttpClientBuilder<I, O> newHttpClientBuilder(String host, int port,
+            RequestIdProvider provider, RequestCorrelator correlator, 
+            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpConfigurator) {
+        HttpClientBuilder<I, O> builder = RxNetty.newHttpClientBuilder(host, port);
+        return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider,
+                correlator, httpConfigurator))
+                .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(),
+                        correlator));
+    }
+
 
     public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
         return newHttpServerBuilder(port, requestHandler, defaultRequestIdContextKeyName,

@@ -121,8 +121,8 @@ public class HttpClientRequest<T> {
         return this;
     }
     
-    public HttpClientRequest<T> withRawContent(T content, ContentTransformer<T> transformer) {
-        return withRawContentSource(new SingletonRawSource<T>(content, transformer));
+    public <S> HttpClientRequest<T> withRawContent(S content, ContentTransformer<S> transformer) {
+        return withRawContentSource(new SingletonRawSource<S>(content, transformer));
     }
 
     public HttpClientRequest<T> withContent(T content) {
