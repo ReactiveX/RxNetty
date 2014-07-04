@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.ObservableConnection;
@@ -26,7 +27,6 @@ import rx.Subscriber;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.observers.Subscribers;
-import rx.subjects.PublishSubject;
 
 import java.util.Iterator;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -44,13 +44,11 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     public static final PoolExhaustedException POOL_EXHAUSTED_EXCEPTION = new PoolExhaustedException("Rx Connection Pool exhausted.");
 
-    @SuppressWarnings("deprecation") private final PoolStatsProvider statsProvider;
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
     private final ClientChannelFactory<I, O> channelFactory;
     private final ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
     private final MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject;
-    private final StateChangeObservableBridge stateChangeObservableBridge;
     private final RxClient.ServerInfo serverInfo;
     private final PoolConfig poolConfig;
     private final ScheduledExecutorService cleanupScheduler;
@@ -67,17 +65,15 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
      */
     public ConnectionPoolImpl(RxClient.ServerInfo serverInfo, PoolConfig poolConfig,
                               PoolLimitDeterminationStrategy strategy, ScheduledExecutorService cleanupScheduler,
-                              @SuppressWarnings("deprecation") PoolStatsProvider poolStatsProvider,
                               ClientChannelFactory<I, O> channelFactory,
                               MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
-        this(serverInfo, poolConfig, strategy, cleanupScheduler, poolStatsProvider,
+        this(serverInfo, poolConfig, strategy, cleanupScheduler,
              new PooledConnectionFactory<I, O>(poolConfig, eventsSubject), channelFactory, eventsSubject);
     }
 
     /**
      * Creates a new connection pool instance.
-     *
-     * @param serverInfo Server to which this pool connects.
+     *  @param serverInfo Server to which this pool connects.
      * @param poolConfig The pool configuration.
      * @param strategy Pool limit determination strategy. This can be {@code null}
      * @param cleanupScheduler Pool idle cleanup scheduler. This can be {@code null} which means there will be
@@ -85,7 +81,6 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
      */
     public ConnectionPoolImpl(RxClient.ServerInfo serverInfo, PoolConfig poolConfig,
                               PoolLimitDeterminationStrategy strategy, ScheduledExecutorService cleanupScheduler,
-                              @SuppressWarnings("deprecation") PoolStatsProvider poolStatsProvider,
                               ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory,
                               ClientChannelFactory<I, O> channelFactory,
                               MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
@@ -106,10 +101,6 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         }
 
         limitDeterminationStrategy = null == strategy ? new MaxConnectionsBasedStrategy() : strategy;
-        stateChangeObservableBridge = new StateChangeObservableBridge();
-        metricEventsSubject.subscribe(stateChangeObservableBridge);
-        statsProvider = poolStatsProvider;
-        metricEventsSubject.subscribe(statsProvider);
         metricEventsSubject.subscribe(limitDeterminationStrategy);
         idleConnections = new ConcurrentLinkedQueue<PooledConnection<I, O>>();
     }
@@ -145,7 +136,8 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                         Subscriber<? super ObservableConnection<I, O>> newConnectionSubscriber =
                                 newConnectionSubscriber(subscriber, startTimeMillis);
                         try {
-                            channelFactory.connect(newConnectionSubscriber, serverInfo, connectionFactory); // Manages the callbacks to the subscriber
+                            channelFactory.connect(newConnectionSubscriber, serverInfo,
+                                                   connectionFactory); // Manages the callbacks to the subscriber
                         } catch (Throwable throwable) {
                             newConnectionSubscriber.onError(throwable);
                         }
@@ -211,18 +203,6 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     @Override
-    @Deprecated
-    public Observable<PoolStateChangeEvent> poolStateChangeObservable() {
-        return stateChangeObservableBridge.stateChangeObservable;
-    }
-
-    @Override
-    @Deprecated
-    public PoolStats getStats() {
-        return statsProvider.getStats();
-    }
-
-    @Override
     public void shutdown() {
         if (!isShutdown.compareAndSet(false, true)) {
             return;
@@ -270,7 +250,8 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                                           ((PooledConnection<I, O>) connection).setConnectionPool(
                                                   ConnectionPoolImpl.this);
                                           subscriber.onNext(connection);
-                                          subscriber.onCompleted(); // This subscriber is for "A" connection, so it should be completed.
+                                          subscriber
+                                                  .onCompleted(); // This subscriber is for "A" connection, so it should be completed.
                                       }
                                   }, new Action1<Throwable>() {
                                       @Override
@@ -305,74 +286,6 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
             } catch (Exception e) {
                 logger.error("Exception in the idle connection cleanup task. This does NOT stop the next schedule of the task. ", e);
             }
-        }
-    }
-
-    @SuppressWarnings("deprecation")
-    private static class StateChangeObservableBridge implements MetricEventsListener<ClientMetricsEvent<?>> {
-
-        private final PublishSubject<PoolStateChangeEvent> stateChangeObservable;
-
-        private StateChangeObservableBridge() {
-            stateChangeObservable = PublishSubject.create();
-        }
-
-        @Override
-        public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
-                            Throwable throwable, Object value) {
-            if (event.getType() instanceof ClientMetricsEvent.EventType) {
-                switch ((ClientMetricsEvent.EventType)event.getType()) {
-                    case ConnectStart:
-                        // Nothing to do.
-                        break;
-                    case ConnectSuccess:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.NewConnectionCreated);
-                        break;
-                    case ConnectFailed:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.ConnectFailed);
-                        break;
-                    case ConnectionCloseStart:
-                        break;
-                    case ConnectionCloseSuccess:
-                        break;
-                    case ConnectionCloseFailed:
-                        break;
-                    case PoolAcquireStart:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireAttempted);
-                        break;
-                    case PoolAcquireSuccess:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireSucceeded);
-                        break;
-                    case PooledConnectionReuse:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionReuse);
-                        break;
-                    case PooledConnectionEviction:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.OnConnectionEviction);
-                        break;
-                    case PoolAcquireFailed:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.onAcquireFailed);
-                        break;
-                    case PoolReleaseStart:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseAttempted);
-                        break;
-                    case PoolReleaseSuccess:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseSucceeded);
-                        break;
-                    case PoolReleaseFailed:
-                        stateChangeObservable.onNext(PoolStateChangeEvent.onReleaseFailed);
-                        break;
-                }
-            }
-        }
-
-        @Override
-        public void onCompleted() {
-            stateChangeObservable.onCompleted();
-        }
-
-        @Override
-        public void onSubscribe() {
-            // No Op.
         }
     }
 }

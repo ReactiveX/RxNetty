@@ -87,7 +87,7 @@ public class SingleNioLoopProvider implements RxEventLoopProvider {
         }
 
         @Override
-        @SuppressWarnings("deprecation")
+        @Deprecated
         public void shutdown() {
             if (0 == release()) {
                 super.shutdown();

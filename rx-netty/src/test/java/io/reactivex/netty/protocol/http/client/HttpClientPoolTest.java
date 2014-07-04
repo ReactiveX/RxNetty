@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
@@ -23,7 +24,7 @@ import io.reactivex.netty.ChannelCloseListener;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolStats;
-import io.reactivex.netty.client.TrackableStateChangeListener;
+import io.reactivex.netty.client.TrackableMetricEventsListener;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
@@ -54,7 +55,8 @@ public class HttpClientPoolTest {
 
     private final ChannelCloseListener channelCloseListener = new ChannelCloseListener();
     private HttpClientImpl<ByteBuf,ByteBuf> client;
-    private TrackableStateChangeListener stateChangeListener;
+    private TrackableMetricEventsListener stateChangeListener;
+    private PoolStats stats;
 
     @BeforeClass
     public static void init() throws Exception {
@@ -81,8 +83,6 @@ public class HttpClientPoolTest {
 
         client = newHttpClient(2, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), null);
 
-        PoolStats stats = client.getConnectionPool().getStats();
-
         HttpClientResponse<ByteBuf> response = submitAndWaitForCompletion(client, HttpClientRequest.createGet("/"), null
         );
 
@@ -97,7 +97,6 @@ public class HttpClientPoolTest {
 
         client = newHttpClient(2, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), null);
 
-        final PoolStats stats = client.getConnectionPool().getStats();
         final long[] idleCountOnComplete = {0};
         final long[] inUseCountOnComplete = {0};
         final long[] totalCountOnComplete = {0};
@@ -130,7 +129,6 @@ public class HttpClientPoolTest {
     public void testReadtimeoutCloseConnection() throws Exception {
         HttpClient.HttpClientConfig conf = new HttpClient.HttpClientConfig.Builder().readTimeout(1, TimeUnit.SECONDS).build();
         client = newHttpClient(1, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), conf);
-        final PoolStats stats = client.getConnectionPool().getStats();
         try {
             submitAndWaitForCompletion(client, HttpClientRequest.createGet("test/timeout?timeout=60000"), null);
             throw new AssertionError("Expected read timeout error.");
@@ -146,8 +144,6 @@ public class HttpClientPoolTest {
     @Test
     public void testCloseOnKeepAliveTimeout() throws Exception {
         client = newHttpClient(2, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), null);
-
-        PoolStats stats = client.getConnectionPool().getStats();
 
         HttpClientResponse<ByteBuf> response = submitAndWaitForCompletion(client,
                                                                           HttpClientRequest.createGet("test/keepAliveTimeout"),
@@ -174,7 +170,6 @@ public class HttpClientPoolTest {
     @Test
     public void testReuseWithContent() throws Exception {
         client = newHttpClient(1, 1000000, null);
-        PoolStats stats = client.getConnectionPool().getStats();
 
         List<String> content = submitAndConsumeContent(client, HttpClientRequest.createGet("/"));
         Assert.assertEquals("Unexpected content fragments count.", 1, content.size());
@@ -283,8 +278,10 @@ public class HttpClientPoolTest {
                         .config(clientConfig)
                         .enableWireLogging(LogLevel.DEBUG)
                         .pipelineConfigurator(configurator).build();
-        stateChangeListener = new TrackableStateChangeListener();
+        stateChangeListener = new TrackableMetricEventsListener();
         client.subscribe(stateChangeListener);
+        stats = new PoolStats();
+        client.subscribe(stats);
         return client;
     }
 }

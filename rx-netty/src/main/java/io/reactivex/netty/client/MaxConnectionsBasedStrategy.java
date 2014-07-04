@@ -13,11 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,8 +28,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Nitesh Kant
  */
 public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy {
-
-    private static final Logger logger = LoggerFactory.getLogger(MaxConnectionsBasedStrategy.class);
 
     public static final int DEFAULT_MAX_CONNECTIONS = 1000;
 
@@ -46,12 +43,6 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
         this.maxConnections = new AtomicInteger(maxConnections);
         limitEnforcer = new AtomicInteger();
         originalMaxConnLimit = maxConnections;
-    }
-
-    @Override
-    @Deprecated
-    public boolean acquireCreationPermit() {
-        return acquireCreationPermit(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -145,39 +136,5 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
     public void onSubscribe() {
         // No Op.
 
-    }
-
-    @Override
-    public void onError(Throwable e) {
-        logger.error("Connection pool emitted an error for state change events.", e);
-    }
-
-    @Override
-    @Deprecated
-    public void onNext(PoolInsightProvider.PoolStateChangeEvent stateChangeEvent) {
-        switch (stateChangeEvent) {
-            case NewConnectionCreated:
-                break;
-            case ConnectFailed:
-                onConnectFailed();
-                break;
-            case OnConnectionReuse:
-                break;
-            case OnConnectionEviction:
-                onConnectionEviction();
-                break;
-            case onAcquireAttempted:
-                break;
-            case onAcquireSucceeded:
-                break;
-            case onAcquireFailed:
-                break;
-            case onReleaseAttempted:
-                break;
-            case onReleaseSucceeded:
-                break;
-            case onReleaseFailed:
-                break;
-        }
     }
 }
