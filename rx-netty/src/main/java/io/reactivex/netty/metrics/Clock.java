@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.metrics;
 
 import java.util.concurrent.TimeUnit;
@@ -34,9 +35,23 @@ import java.util.concurrent.TimeUnit;
  */
 public class Clock {
 
+    /**
+     * The value returned by all static methods in this class, viz.,
+     * <ul>
+     <li>{@link #newStartTime(TimeUnit)}</li>
+     <li>{@link #newStartTimeMillis()}</li>
+     <li>{@link #onEndMillis(long)}</li>
+     <li>{@link #onEnd(long, TimeUnit)}</li>
+     </ul>
+     * after calling {@link #disableSystemTimeCalls()}
+     */
+    public static final long SYSTEM_TIME_DISABLED_TIME = -1;
+
     private final long startTimeMillis = System.currentTimeMillis();
     private long endTimeMillis = -1;
     private long durationMillis = -1;
+
+    private static volatile boolean disableSystemTimeCalls;
 
     /**
      * Stops this clock. This method is idempotent, so, after invoking this method, the duration of the clock is
@@ -92,11 +107,30 @@ public class Clock {
         return -1 != durationMillis;
     }
 
+    /**
+     * An optimization hook for low level benchmarks which will make any subsequent calls to
+     * <ul>
+     <li>{@link #newStartTime(TimeUnit)}</li>
+     <li>{@link #newStartTimeMillis()}</li>
+     <li>{@link #onEndMillis(long)}</li>
+     <li>{@link #onEnd(long, TimeUnit)}</li>
+     </ul>
+     * will start returning {@link #SYSTEM_TIME_DISABLED_TIME}. This essentially means that instead of calling
+     * {@link System#currentTimeMillis()} these methods will use {@link #SYSTEM_TIME_DISABLED_TIME}
+     */
+    public static void disableSystemTimeCalls() {
+        disableSystemTimeCalls = true;
+    }
+
     public static long newStartTimeMillis() {
-        return System.currentTimeMillis();
+        return disableSystemTimeCalls ? SYSTEM_TIME_DISABLED_TIME : System.currentTimeMillis();
     }
 
     public static long newStartTime(TimeUnit timeUnit) {
+        if (disableSystemTimeCalls) {
+            return SYSTEM_TIME_DISABLED_TIME;
+        }
+
         if (TimeUnit.MILLISECONDS == timeUnit) {
             return newStartTimeMillis();
         }
@@ -104,6 +138,9 @@ public class Clock {
     }
 
     public static long onEnd(long startTime, TimeUnit timeUnit) {
+        if (disableSystemTimeCalls) {
+            return SYSTEM_TIME_DISABLED_TIME;
+        }
         if (TimeUnit.MILLISECONDS == timeUnit) {
             return onEndMillis(startTime);
         }
@@ -112,6 +149,9 @@ public class Clock {
     }
 
     public static long onEndMillis(long startTimeMillis) {
+        if (disableSystemTimeCalls) {
+            return SYSTEM_TIME_DISABLED_TIME;
+        }
         return System.currentTimeMillis() - startTimeMillis;
     }
 }
