@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
@@ -30,7 +31,6 @@ import rx.functions.Func1;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.NoSuchElementException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -106,23 +106,10 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     }
 
     public Observable<Void> handlePost(final HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-        return request.getContent().last().onErrorResumeNext(
-                new Func1<Throwable, Observable<ByteBuf>>() {
-                    @Override
-                    public Observable<ByteBuf> call(Throwable throwable) {
-                        if (throwable instanceof NoSuchElementException) {
-                            return Observable.from(Unpooled.EMPTY_BUFFER);
-                        }
-                        return Observable.error(throwable);
-                    }
-                }).flatMap(new Func1<ByteBuf, Observable<Void>>() {
+        return request.getContent().flatMap(new Func1<ByteBuf, Observable<Void>>() {
             @Override
             public Observable<Void> call(ByteBuf byteBuf) {
-                if (byteBuf.isReadable()) {
-                    return response.writeAndFlush(byteBuf);
-                } else {
-                    return response.writeStringAndFlush(SINGLE_ENTITY_BODY);
-                }
+                return response.writeAndFlush(byteBuf.retain());
             }
         });
     }

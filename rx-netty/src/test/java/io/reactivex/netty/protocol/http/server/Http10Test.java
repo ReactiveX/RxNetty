@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
@@ -107,8 +108,14 @@ public class Http10Test {
                                                                           HttpClientResponse<ByteBuf> response) {
                                                                       return response.getContent();
                                                                   }
-                                                              }).toBlocking()
-                                                      .toFuture().get(1, TimeUnit.MINUTES);
+                                                              })
+                                                      .map(new Func1<ByteBuf, ByteBuf>() {
+                                                          @Override
+                                                          public ByteBuf call(ByteBuf byteBuf) {
+                                                              return byteBuf.retain();
+                                                          }
+                                                      }).toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected Content.", WELCOME_SERVER_MSG, response.toString(Charset.defaultCharset()));
+        response.release();
     }
 }
