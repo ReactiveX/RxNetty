@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.contexts.http;
 
 import io.netty.bootstrap.Bootstrap;
@@ -20,9 +21,11 @@ import io.netty.channel.ChannelFuture;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.ClientChannelFactoryImpl;
 import io.reactivex.netty.client.ClientConnectionFactory;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.contexts.ContextsContainer;
 import io.reactivex.netty.contexts.RequestCorrelator;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import rx.Subscriber;
@@ -37,8 +40,9 @@ public class HttpContextClientChannelFactory<I, O> extends
 
     private final RequestCorrelator correlator;
 
-    public HttpContextClientChannelFactory(Bootstrap clientBootstrap, RequestCorrelator correlator) {
-        super(clientBootstrap);
+    public HttpContextClientChannelFactory(Bootstrap clientBootstrap, RequestCorrelator correlator,
+                                           MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        super(clientBootstrap, eventsSubject);
         this.correlator = correlator;
     }
 

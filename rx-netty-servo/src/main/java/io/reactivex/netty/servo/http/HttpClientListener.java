@@ -214,7 +214,7 @@ public class HttpClientListener extends TcpClientListener<ClientMetricsEvent<?>>
 
         @Override
         protected void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
-            HttpClientListener.this.onPoolReleaseSuccess(duration, timeUnit);
+            HttpClientListener.this.onPoolAcquireSuccess(duration, timeUnit);
         }
 
         @Override

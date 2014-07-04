@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.contexts;
 
 import io.netty.buffer.ByteBuf;
@@ -88,7 +89,8 @@ public final class RxContexts {
         return builder.pipelineConfigurator(ContextPipelineConfigurators.<I, O>httpClientConfigurator(provider,
                                                                                                       correlator))
                       .withChannelFactory(new HttpContextClientChannelFactory<I, O>(builder.getBootstrap(),
-                                                                                    correlator));
+                                                                                    correlator,
+                                                                                    builder.getEventsSubject()));
     }
 
     public static HttpServer<ByteBuf, ByteBuf> createHttpServer(int port, RequestHandler<ByteBuf, ByteBuf> requestHandler) {
