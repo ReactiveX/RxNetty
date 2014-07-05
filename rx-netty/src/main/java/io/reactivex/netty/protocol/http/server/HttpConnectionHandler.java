@@ -133,7 +133,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                             public void onCompleted() {
                                 eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
                                                       Clock.onEndMillis(startTimeMillis));
-                                response.close();
+                                response.close(false);
                             }
 
                             @Override
@@ -143,7 +143,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                                 if (!response.isHeaderWritten()) {
                                     responseGenerator.updateResponse(response, throwable);
                                 }
-                                response.close();
+                                response.close(false);
                             }
 
                             @Override

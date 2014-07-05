@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
@@ -90,7 +91,7 @@ public class HttpServerTest {
                                      @Override
                                      public Observable<Void> call(Long aLong) {
                                          serverResponse.setStatus(HttpResponseStatus.NOT_FOUND);
-                                         return Observable.empty();
+                                         return serverResponse.close(true); // Processing in a separate thread needs a flush.
                                      }
                                  });
             }
@@ -120,7 +121,7 @@ public class HttpServerTest {
                                   @Override
                                   public Observable<Void> call(HttpClientResponse<ByteBuf> response) {
                                       serverResponse.setStatus(response.getStatus());
-                                      return Observable.empty();
+                                      return serverResponse.close(true); // Processing in a separate thread needs a flush.
                                   }
                               });
             }

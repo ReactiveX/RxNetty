@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty;
 
 import io.netty.buffer.ByteBufAllocator;
@@ -33,7 +34,6 @@ import io.netty.util.DefaultAttributeMap;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.GlobalEventExecutor;
 
-import javax.naming.OperationNotSupportedException;
 import java.net.SocketAddress;
 
 /**
@@ -43,7 +43,7 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     private final DefaultAttributeMap attributeMap = new DefaultAttributeMap();
     private final Channel channel;
-    private final DefaultChannelPromise failedPromise;
+    private final DefaultChannelPromise completedPromise;
 
     public NoOpChannelHandlerContext() {
         this(new LocalChannel());
@@ -51,8 +51,8 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     public NoOpChannelHandlerContext(Channel channel) {
         this.channel = channel;
-        failedPromise = new DefaultChannelPromise(this.channel, executor());
-        failedPromise.setFailure(new OperationNotSupportedException());
+        completedPromise = new DefaultChannelPromise(this.channel, executor());
+        completedPromise.setSuccess();
     }
 
     @Override
@@ -138,65 +138,65 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     @Override
     public ChannelFuture bind(SocketAddress localAddress) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture disconnect() {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture close() {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     @Deprecated
     public ChannelFuture deregister() {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture bind(SocketAddress localAddress, ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress, ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture connect(SocketAddress remoteAddress, SocketAddress localAddress,
                                  ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture disconnect(ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture close(ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     @Deprecated
     public ChannelFuture deregister(ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
@@ -206,22 +206,22 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     @Override
     public ChannelFuture write(Object msg) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture write(Object msg, ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture writeAndFlush(Object msg, ChannelPromise promise) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture writeAndFlush(Object msg) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
@@ -236,7 +236,7 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     @Override
     public ChannelPromise newPromise() {
-        return failedPromise;
+        return new DefaultChannelPromise(channel, executor());
     }
 
     @Override
@@ -246,16 +246,16 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     @Override
     public ChannelFuture newSucceededFuture() {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelFuture newFailedFuture(Throwable cause) {
-        return failedPromise;
+        return completedPromise;
     }
 
     @Override
     public ChannelPromise voidPromise() {
-        return failedPromise;
+        return completedPromise;
     }
 }

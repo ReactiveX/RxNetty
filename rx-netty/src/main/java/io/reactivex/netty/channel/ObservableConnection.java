@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.channel;
 
 import io.netty.channel.ChannelFuture;
@@ -21,6 +22,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
+import io.reactivex.netty.util.NoOpSubscriber;
 import rx.Observable;
 import rx.Subscriber;
 import rx.subjects.PublishSubject;
@@ -67,24 +69,55 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     }
 
     @Override
-    protected Observable<Void> _close() {
-        PublishSubject<I> thisSubject = inputSubject;
-        cleanupConnection(); // Cleanup is required irrespective of close underlying connection (pooled connection)
-        Observable<Void> toReturn = _closeChannel();
-        thisSubject.onCompleted(); // This is just to make sure we make the subject as completed after we finish
-        // closing the channel, results in more deterministic behavior for clients.
-        return toReturn;
-    }
-
-    protected void cleanupConnection() {
+    protected Observable<Void> _close(boolean flush) {
+        final PublishSubject<I> thisSubject = inputSubject;
         cancelPendingWrites(true);
         ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannelHandlerContext().pipeline());
+        if (flush) {
+            Observable<Void> toReturn = flush().lift(new Observable.Operator<Void, Void>() {
+                @Override
+                public Subscriber<? super Void> call(final Subscriber<? super Void> child) {
+                    return new Subscriber<Void>() {
+                        @Override
+                        public void onCompleted() {
+                            _closeChannel().subscribe(child);
+                            thisSubject.onCompleted(); // Even though closeChannel() returns an Observable, close itself is eager.
+                            // So this makes sure we send onCompleted() on subject after close is initialized.
+                            // This results in more deterministic behavior for clients.
+                        }
+
+                        @Override
+                        public void onError(Throwable e) {
+                            child.onError(e);
+                        }
+
+                        @Override
+                        public void onNext(Void aVoid) {
+                            // Insignificant
+                        }
+                    };
+                }
+            });
+            toReturn.subscribe(new NoOpSubscriber<Void>()); // Since subscribing to returned Observable is not required
+                                                            // by the caller and we need to be subscribed to trigger the
+                                                            // close of channel (_closeChannel()), it is required to
+                                                            // subscribe to the returned Observable. We are not
+                                                            // interested in the result so NoOpSub is used.
+            return toReturn;
+        } else {
+            Observable<Void> toReturn = _closeChannel();
+            thisSubject.onCompleted(); // Even though closeChannel() returns an Observable, close itself is eager.
+            // So this makes sure we send onCompleted() on subject after close is initialized.
+            // This results in more deterministic behavior for clients.
+            return toReturn;
+        }
     }
 
     @SuppressWarnings("unchecked")
     protected Observable<Void> _closeChannel() {
         closeStartTimeMillis = Clock.newStartTimeMillis();
         eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
+
         final ChannelFuture closeFuture = getChannelHandlerContext().close();
 
         /**
@@ -126,4 +159,5 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     protected void updateInputSubject(PublishSubject<I> newSubject) {
         inputSubject = newSubject;
     }
+
 }

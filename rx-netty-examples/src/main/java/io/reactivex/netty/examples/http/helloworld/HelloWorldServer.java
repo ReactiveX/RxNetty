@@ -46,7 +46,7 @@ public final class HelloWorldServer {
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 printRequestHeader(request);
                 response.writeString("Welcome!!");
-                return response.close();
+                return response.close(false);
             }
         }).pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>httpServerConfigurator()).build();
 
