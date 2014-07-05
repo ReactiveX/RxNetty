@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.contexts.http;
 
 import com.netflix.server.context.ContextSerializationException;
@@ -249,7 +250,7 @@ public class ContextPropagationTest {
                             @Override
                             public Observable<Void> call(HttpClientResponse<ByteBuf> response) {
                                 serverResponse.setStatus(response.getStatus());
-                                return Observable.empty();
+                                return serverResponse.close(true);
                             }
                         });
             }
