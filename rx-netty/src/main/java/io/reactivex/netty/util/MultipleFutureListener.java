@@ -13,7 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.http;
+
+package io.reactivex.netty.util;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -43,6 +44,9 @@ public class MultipleFutureListener implements ChannelFutureListener {
         completionObservable = Observable.create(new Observable.OnSubscribe<Void>() {
             @Override
             public void call(final Subscriber<? super Void> subscriber) {
+                if (listeningToCount.get() == 0) {
+                    MultipleFutureListener.this.completionPromise.trySuccess();
+                }
                 MultipleFutureListener.this.completionPromise.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {

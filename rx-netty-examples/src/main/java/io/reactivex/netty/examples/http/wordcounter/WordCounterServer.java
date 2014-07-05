@@ -60,7 +60,7 @@ public final class WordCounterServer {
                                   @Override
                                   public Observable<Void> call(Integer counter) {
                                       response.writeString(counter.toString());
-                                      return response.close();
+                                      return response.close(false);
                                   }
                               });
             }

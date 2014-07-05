@@ -59,7 +59,7 @@ public class SimplePostServer {
                     @Override
                     public Observable<Void> call(String clientMessage) {
                         response.writeString(clientMessage.toUpperCase());
-                        return response.close();
+                        return response.close(false);
                     }
                 });
             }

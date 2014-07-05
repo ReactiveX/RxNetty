@@ -43,7 +43,7 @@ public final class SslHelloWorldServer {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
                 response.writeStringAndFlush("Welcome!!");
-                return response.close();
+                return response.close(false);
             }
         }).withSslEngineFactory(DefaultFactories.SELF_SIGNED).build();
 

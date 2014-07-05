@@ -47,4 +47,8 @@ public interface ChannelWriter<O> {
     Observable<Void> writeBytesAndFlush(byte[] msg);
 
     Observable<Void> writeStringAndFlush(String msg);
+
+    Observable<Void> close();
+
+    Observable<Void> close(boolean flush);
 }

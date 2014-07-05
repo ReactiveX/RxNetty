@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
@@ -85,7 +86,27 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     }
 
     @Override
-    public Observable<Void> _close() {
+    public Observable<Void> close() {
+        return close(true);
+    }
+
+    /**
+     * Closes this response with optionally flushing the writes. <br/>
+     *
+     * <b>Unless it is required by the usecase, it is generally more optimal to leave the decision of when to flush to
+     * the framework as that enables a gathering write on the underlying socket, which is more optimal.</b>
+     *
+     * @param flush If this close should also flush the writes.
+     *
+     * @return Observable representing the close result.
+     */
+    @Override
+    public Observable<Void> close(boolean flush) {
+        return super.close(flush);
+    }
+
+    @Override
+    public Observable<Void> _close(boolean flush) {
 
         writeHeadersIfNotWritten();
 
@@ -94,7 +115,7 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
             // sent for keep-alive connections, netty's HTTP codec will not know that the response has ended and hence
             // will ignore the subsequent HTTP header writes. See issue: https://github.com/Netflix/RxNetty/issues/130
         }
-        return flush();
+        return flush ? flush() : Observable.<Void>empty();
     }
 
     HttpResponse getNettyResponse() {

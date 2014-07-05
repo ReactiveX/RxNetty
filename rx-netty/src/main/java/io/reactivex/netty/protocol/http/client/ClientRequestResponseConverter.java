@@ -37,7 +37,7 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionReuseEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.http.MultipleFutureListener;
+import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
 import rx.Subscriber;
 import rx.subjects.PublishSubject;

@@ -114,7 +114,12 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         } else {
             super.write(ctx, msg, promise); // pass through, since we do not understand this message.
         }
+    }
 
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        super.channelReadComplete(ctx);
+        ctx.pipeline().flush(); // If there is nothing to flush, this is a short-circuit in netty.
     }
 
     private void addWriteCompleteEvents(ChannelPromise promise, final long startTimeMillis,

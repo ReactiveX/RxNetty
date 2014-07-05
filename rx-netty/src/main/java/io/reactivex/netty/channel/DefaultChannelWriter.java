@@ -23,7 +23,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.http.MultipleFutureListener;
+import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Action1;
@@ -147,7 +147,6 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
         return ctx;
     }
 
-    @SuppressWarnings("unchecked")
     protected ChannelFuture writeOnChannel(Object msg) {
         ChannelFuture writeFuture = getChannel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the tail of the pipeline.
         unflushedWritesListener.get().listen(writeFuture);
@@ -162,16 +161,21 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
         return closeIssued.get();
     }
 
-    @SuppressWarnings("unchecked")
+    @Override
     public Observable<Void> close() {
+        return close(false);
+    }
+
+    @Override
+    public Observable<Void> close(boolean flush) {
         if (closeIssued.compareAndSet(false, true)) {
-            return _close();
+            return _close(flush);
         } else {
             return CONNECTION_ALREADY_CLOSED;
         }
     }
 
-    protected Observable<Void> _close() {
+    protected Observable<Void> _close(boolean flush) {
         return Observable.empty();
     }
 }
