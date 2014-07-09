@@ -5,7 +5,8 @@
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=7&state=closed)
 
-* [Pull 179] (https://github.com/Netflix/RxNetty/issues/179) Monitors were not getting registered with servo
+* [Pull 179] (https://github.com/Netflix/RxNetty/issues/179) Monitors were not getting registered with servo.
+* [Pull 180] (https://github.com/Netflix/RxNetty/issues/180) HTTP client/server metrics are not getting published to servo.
 
 Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.9%22)
 
