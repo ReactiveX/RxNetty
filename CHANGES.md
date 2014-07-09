@@ -1,6 +1,14 @@
 # RxNetty Releases #
 
 
+### Version 0.3.9 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=7&state=closed)
+
+* [Pull 179] (https://github.com/Netflix/RxNetty/issues/179) Monitors were not getting registered with servo
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.9%22)
+
 ### Version 0.3.8 ###
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=5&state=closed)
