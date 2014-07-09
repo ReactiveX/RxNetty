@@ -36,10 +36,26 @@ import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
  */
 public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>> {
 
-    private final HttpServerMetricEventsListenerImpl delegate = new HttpServerMetricEventsListenerImpl();
+    private final LongGauge requestBacklog;
+    private final LongGauge inflightRequests;
+    private final Counter processedRequests;
+    private final Counter failedRequests;
+    private final Counter responseWriteFailed;
+    private final Timer responseWriteTimes;
+    private final Timer requestReadTimes;
+
+    private final HttpServerMetricEventsListenerImpl delegate;
 
     protected HttpServerListener(String monitorId) {
         super(monitorId);
+        requestBacklog = newLongGauge("requestBacklog");
+        inflightRequests = newLongGauge("inflightRequests");
+        responseWriteTimes = newTimer("responseWriteTimes");
+        requestReadTimes = newTimer("requestReadTimes");
+        processedRequests = newCounter("processedRequests");
+        failedRequests = newCounter("failedRequests");
+        responseWriteFailed = newCounter("responseWriteFailed");
+        delegate = new HttpServerMetricEventsListenerImpl();
     }
 
     @Override
@@ -49,31 +65,31 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
     }
 
     public long getRequestBacklog() {
-        return delegate.requestBacklog.getValue().longValue();
+        return requestBacklog.getValue().longValue();
     }
 
     public long getInflightRequests() {
-        return delegate.inflightRequests.getValue().longValue();
+        return inflightRequests.getValue().longValue();
     }
 
     public long getProcessedRequests() {
-        return delegate.processedRequests.getValue().longValue();
+        return processedRequests.getValue().longValue();
     }
 
     public long getFailedRequests() {
-        return delegate.failedRequests.getValue().longValue();
+        return failedRequests.getValue().longValue();
     }
 
     public long getResponseWriteFailed() {
-        return delegate.responseWriteFailed.getValue().longValue();
+        return responseWriteFailed.getValue().longValue();
     }
 
     public Timer getResponseWriteTimes() {
-        return delegate.responseWriteTimes;
+        return responseWriteTimes;
     }
 
     public Timer getRequestReadTimes() {
-        return delegate.requestReadTimes;
+        return requestReadTimes;
     }
 
     public static HttpServerListener newHttpListener(String monitorId) {
@@ -81,24 +97,6 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
     }
 
     private class HttpServerMetricEventsListenerImpl extends HttpServerMetricEventsListener {
-
-        private final LongGauge requestBacklog;
-        private final LongGauge inflightRequests;
-        private final Counter processedRequests;
-        private final Counter failedRequests;
-        private final Counter responseWriteFailed;
-        private final Timer responseWriteTimes;
-        private final Timer requestReadTimes;
-
-        private HttpServerMetricEventsListenerImpl() {
-            requestBacklog = newLongGauge("requestBacklog");
-            inflightRequests = newLongGauge("inflightRequests");
-            responseWriteTimes = newTimer("responseWriteTimes");
-            requestReadTimes = newTimer("requestReadTimes");
-            processedRequests = newCounter("processedRequests");
-            failedRequests = newCounter("failedRequests");
-            responseWriteFailed = newCounter("responseWriteFailed");
-        }
 
         @Override
         protected void onRequestHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
