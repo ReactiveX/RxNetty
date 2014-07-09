@@ -43,7 +43,7 @@ public class RefCountingMonitor {
     }
 
     public void onSubscribe(Object monitor) {
-        if (subscriptionCount.incrementAndGet() == 0) {
+        if (subscriptionCount.getAndIncrement() == 0) {
             ServoUtils.registerObject(monitorId, monitor);
         }
     }

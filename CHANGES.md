@@ -1,9 +1,29 @@
 # RxNetty Releases #
 
 
+### Version 0.3.9 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=7&state=closed)
+
+* [Pull 179] (https://github.com/Netflix/RxNetty/issues/179) Monitors were not getting registered with servo
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.9%22)
+
+### Version 0.3.8 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=5&state=closed)
+
+* [Issue 150] (https://github.com/Netflix/RxNetty/issues/150) Removed deprecated PoolStats.
+* [Issue 169] (https://github.com/Netflix/RxNetty/issues/169) Removed ContentSource in favor of Observable for HttpClientRequest
+* [Issue 172] (https://github.com/Netflix/RxNetty/issues/172) Missing connection pool events from client built by RxContexts constructs
+* [Issue 175] (https://github.com/Netflix/RxNetty/issues/175) Optionally disable System time calls for metrics
+* [Issue 177] (https://github.com/Netflix/RxNetty/issues/177) For HTTP server use channelReadComplete() to flush writes
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.8%22)
+
 ### Version 0.3.7 ###
 
-[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=2&state=closed)
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=4&state=closed)
 
 * [Issue 98] (https://github.com/Netflix/RxNetty/issues/98) Added pluggable metrics infrastructure with rx-netty-servo implementation.
 * [Issue 106] (https://github.com/Netflix/RxNetty/issues/106) Added TLS support for TCP & HTTP (HTTPS)
