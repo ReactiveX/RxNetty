@@ -22,48 +22,46 @@ Example
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 
 import java.nio.charset.Charset;
 
-public class RxNettyExample {
+public final class RxNettyExample {
 
     public static void main(String... args) throws InterruptedException {
         HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(8080, (request, response) -> {
             System.out.println("Server => Request: " + request.getPath());
             try {
-                if (request.getPath().equals("/error")) {
+                if ("/error".equals(request.getPath())) {
                     throw new RuntimeException("forced error");
                 }
                 response.setStatus(HttpResponseStatus.OK);
-                return response.writeStringAndFlush("Path Requested =>: " + request.getPath() + "\n");
+                response.writeString("Path Requested =>: " + request.getPath() + '\n');
+                return response.close();
             } catch (Throwable e) {
                 System.err.println("Server => Error [" + request.getPath() + "] => " + e);
                 response.setStatus(HttpResponseStatus.BAD_REQUEST);
-                return response.writeStringAndFlush("Error 500: Bad Request\n");
+                response.writeString("Error 500: Bad Request\n");
+                return response.close();
             }
         });
 
         server.start();
 
-        HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", 8080);
+        RxNetty.createHttpGet("http://localhost:8080/")
+               .flatMap(response -> response.getContent())
+               .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
+               .toBlocking().forEach(System.out::println);
 
-        client.submit(HttpClientRequest.createGet("/"))
-                .flatMap(response -> response.getContent())
-                .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-                .toBlocking().forEach(System.out::println);
+        RxNetty.createHttpGet("http://localhost:8080/error")
+               .flatMap(response -> response.getContent())
+               .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
+               .toBlocking().forEach(System.out::println);
 
-        client.submit(HttpClientRequest.createGet("/error"))
-                .flatMap(response -> response.getContent())
-                .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-                .toBlocking().forEach(System.out::println);
-
-        client.submit(HttpClientRequest.createGet("/data"))
-                .flatMap(response -> response.getContent())
-                .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-                .toBlocking().forEach(System.out::println);
+        RxNetty.createHttpGet("http://localhost:8080/data")
+               .flatMap(response -> response.getContent())
+               .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
+               .toBlocking().forEach(System.out::println);
 
         server.shutdown();
     }
