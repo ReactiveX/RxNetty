@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.netty.channel.Channel;
@@ -141,6 +142,10 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
         updateInputSubject(newInputSubject);
         ConnectionReuseEvent reuseEvent = new ConnectionReuseEvent(newInputSubject);
         getChannelHandlerContext().pipeline().fireUserEventTriggered(reuseEvent);
+    }
+
+    public void updateMaxIdleTimeMillis(long maxIdleTimeMillis) {
+        this.maxIdleTimeMillis = maxIdleTimeMillis;
     }
 
     /*Visible for testing*/ void setLastReturnToPoolTimeMillis(long lastReturnToPoolTimeMillis) {

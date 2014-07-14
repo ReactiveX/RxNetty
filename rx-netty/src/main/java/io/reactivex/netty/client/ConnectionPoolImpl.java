@@ -247,11 +247,20 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                                       public void call(ObservableConnection<I, O> connection) {
                                           metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS,
                                                                       Clock.onEndMillis(startTime));
-                                          ((PooledConnection<I, O>) connection).setConnectionPool(
-                                                  ConnectionPoolImpl.this);
+                                          PooledConnection<I, O> pooledConnection = (PooledConnection<I, O>) connection;
+                                          pooledConnection.setConnectionPool(ConnectionPoolImpl.this);
+                                          /**
+                                           * Issue: https://github.com/Netflix/RxNetty/issues/183
+                                           * Pool configuration can be updated after creating the ClientConnectionFactory
+                                           * in ConnectionPoolBuilder. It is pretty convoluted to update the pool config
+                                           * in the connection factory as not all connection factories are pooled.
+                                           * This does not deserve creating a separate interface for pooled factories.
+                                           * Since, max idle timeout in itself is updatable, this is a better route to
+                                           * control the final connection as opposed to the factory.
+                                           */
+                                          pooledConnection.updateMaxIdleTimeMillis(poolConfig.getMaxIdleTimeMillis());
                                           subscriber.onNext(connection);
-                                          subscriber
-                                                  .onCompleted(); // This subscriber is for "A" connection, so it should be completed.
+                                          subscriber.onCompleted(); // This subscriber is for "A" connection, so it should be completed.
                                       }
                                   }, new Action1<Throwable>() {
                                       @Override
