@@ -25,6 +25,7 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolStats;
 import io.reactivex.netty.client.TrackableMetricEventsListener;
+import io.reactivex.netty.metrics.HttpClientMetricEventsListener;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
@@ -190,6 +191,28 @@ public class HttpClientPoolTest {
         Assert.assertEquals("Unexpected total connection count.", 1, stats.getTotalConnectionCount());
         Assert.assertEquals("Unexpected reuse connection count.", 1, stateChangeListener.getReuseCount());
     }
+
+    @Test
+    public void testPoolEvictions() throws InterruptedException {
+        client = newHttpClient(1, 1000, null);
+        final CountDownLatch latch = new CountDownLatch(1);
+        HttpClientMetricEventsListener listener = new HttpClientMetricEventsListener() {
+            @Override
+            protected void onPooledConnectionEviction() {
+                latch.countDown();
+            }
+        };
+
+        client.subscribe(listener);
+
+        submitAndConsumeContent(client, HttpClientRequest.createGet("/"));
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("/");
+
+        client.submit(request).subscribe();
+        latch.await(20, TimeUnit.SECONDS); // Wait less than default idle timeout (30 seconds)
+        Assert.assertEquals("Pooled connection not evicted after idle timeout.", 0, latch.getCount());
+    }
+
 
     private static List<String> submitAndConsumeContent(HttpClientImpl<ByteBuf, ByteBuf> client,
                                                         HttpClientRequest<ByteBuf> request)
