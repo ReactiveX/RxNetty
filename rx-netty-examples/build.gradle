@@ -16,6 +16,8 @@
 
 
 
+
+
 sourceCompatibility = JavaVersion.VERSION_1_6
 targetCompatibility = JavaVersion.VERSION_1_6
 
@@ -42,6 +44,23 @@ task runHelloWorldServer (dependsOn: [classes], type: JavaExec) {
     description = "Run Hello World server"
 
     main = "io.reactivex.netty.examples.http.helloworld.HelloWorldServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runPlainTextServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run Plain text HTTP server"
+
+    main = "io.reactivex.netty.examples.http.plaintext.PlainTextServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runPlainTextClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run Plain text HTTP client"
+
+    args "8111"
+    main = "io.reactivex.netty.examples.http.helloworld.HelloWorldClient"
     classpath = sourceSets.main.runtimeClasspath
 }
 

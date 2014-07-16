@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
@@ -76,6 +77,10 @@ public class HelloWorldClient {
     }
 
     public static void main(String[] args) {
-        new HelloWorldClient(DEFAULT_PORT).sendHelloRequest();
+        int port = DEFAULT_PORT;
+        if (args.length > 0) {
+            port = Integer.parseInt(args[0]);
+        }
+        new HelloWorldClient(port).sendHelloRequest();
     }
 }
