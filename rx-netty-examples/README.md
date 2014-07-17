@@ -9,6 +9,7 @@ Examples Catalog
 
 Protocol | Example / Test | Description
 ---------|---------|------------
+HTTP | [Plain text](src/main/java/io/reactivex/netty/examples/http/plaintext)              | A performance optimized helloworld. Use this as a template for any simple perf tests.
 HTTP | [Hello World](src/main/java/io/reactivex/netty/examples/http/helloworld)            | Simple HTTP GET client/server implementation.
 HTTP | [SSL Hello World](src/main/java/io/reactivex/netty/examples/http/ssl)               | Hello World version with SSL connection.
 HTTP | [Simple POST](src/main/java/io/reactivex/netty/examples/http/post)                  | Simple HTTP POST client/server implementation.
