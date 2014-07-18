@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.channel.ChannelPipeline;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.server.ServerMetricsEvent;
@@ -30,7 +32,16 @@ import io.reactivex.netty.server.ServerMetricsEvent;
 class ServerRequiredConfigurator<I, O> implements PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> {
 
     public static final String REQUEST_RESPONSE_CONVERTER_HANDLER_NAME = "request-response-converter";
+    private final EventExecutorGroup handlersExecutorGroup;
     private MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
+
+    ServerRequiredConfigurator() {
+        this(null);
+    }
+
+    ServerRequiredConfigurator(EventExecutorGroup handlersExecutorGroup) {
+        this.handlersExecutorGroup = handlersExecutorGroup;
+    }
 
     void useMetricEventsSubject(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
@@ -38,6 +49,11 @@ class ServerRequiredConfigurator<I, O> implements PipelineConfigurator<HttpServe
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        pipeline.addLast(REQUEST_RESPONSE_CONVERTER_HANDLER_NAME, new ServerRequestResponseConverter(eventsSubject));
+        pipeline.addLast(getRequestResponseConverterExecutor(), REQUEST_RESPONSE_CONVERTER_HANDLER_NAME,
+                         new ServerRequestResponseConverter(eventsSubject));
+    }
+
+    protected EventExecutorGroup getRequestResponseConverterExecutor() {
+        return handlersExecutorGroup;
     }
 }

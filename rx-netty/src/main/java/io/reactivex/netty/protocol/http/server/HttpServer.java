@@ -13,9 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.server.ErrorHandler;
@@ -33,13 +35,27 @@ public class HttpServer<I, O> extends RxServer<HttpServerRequest<I>, HttpServerR
     public HttpServer(ServerBootstrap bootstrap, int port,
                       PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
                       RequestHandler<I, O> requestHandler) {
-        this(bootstrap, port, pipelineConfigurator, new HttpConnectionHandler<I, O>(requestHandler));
+        this(bootstrap, port, pipelineConfigurator, requestHandler, null);
+    }
+
+    public HttpServer(ServerBootstrap bootstrap, int port,
+                      PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
+                      RequestHandler<I, O> requestHandler, EventExecutorGroup requestProcessingExecutor) {
+        this(bootstrap, port, pipelineConfigurator, new HttpConnectionHandler<I, O>(requestHandler),
+             requestProcessingExecutor);
     }
 
     protected HttpServer(ServerBootstrap bootstrap, int port,
                PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
                HttpConnectionHandler<I, O> connectionHandler) {
-        super(bootstrap, port, addRequiredConfigurator(pipelineConfigurator), connectionHandler);
+        this(bootstrap, port, pipelineConfigurator, connectionHandler, null);
+    }
+
+    protected HttpServer(ServerBootstrap bootstrap, int port,
+               PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
+               HttpConnectionHandler<I, O> connectionHandler, EventExecutorGroup requestProcessingExecutor) {
+        super(bootstrap, port, addRequiredConfigurator(pipelineConfigurator, requestProcessingExecutor),
+              connectionHandler, requestProcessingExecutor);
         @SuppressWarnings({"unchecked", "rawtypes"})
         List<PipelineConfigurator> constituentConfigurators =
                 ((PipelineConfiguratorComposite) this.pipelineConfigurator).getConstituentConfigurators();
@@ -80,8 +96,9 @@ public class HttpServer<I, O> extends RxServer<HttpServerRequest<I>, HttpServerR
     }
 
     private static <I, O> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> addRequiredConfigurator(
-            PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator) {
+            PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
+            EventExecutorGroup requestProcessingExecutor) {
         return new PipelineConfiguratorComposite<HttpServerRequest<I>, HttpServerResponse<O>>(pipelineConfigurator,
-                                                                                  new ServerRequiredConfigurator<I, O>());
+                                                                                  new ServerRequiredConfigurator<I, O>(requestProcessingExecutor));
     }
 }

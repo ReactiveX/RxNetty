@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.udp.server;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.Channel;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.server.AbstractServer;
@@ -29,12 +31,22 @@ import io.reactivex.netty.server.AbstractServer;
 public class UdpServer<I, O> extends AbstractServer<I, O, Bootstrap, Channel, UdpServer<I, O>> {
 
     public UdpServer(Bootstrap bootstrap, int port, final ConnectionHandler<I, O> connectionHandler) {
-        this(bootstrap, port, null, connectionHandler);
+        this(bootstrap, port, connectionHandler, null);
+    }
+
+    public UdpServer(Bootstrap bootstrap, int port, final ConnectionHandler<I, O> connectionHandler,
+                     EventExecutorGroup connHandlingExecutor) {
+        this(bootstrap, port, null, connectionHandler, connHandlingExecutor);
     }
 
     public UdpServer(Bootstrap bootstrap, int port, final PipelineConfigurator<I, O> pipelineConfigurator,
                     final ConnectionHandler<I, O> connectionHandler) {
+        this(bootstrap, port, pipelineConfigurator, connectionHandler, null);
+    }
+
+    public UdpServer(Bootstrap bootstrap, int port, final PipelineConfigurator<I, O> pipelineConfigurator,
+                    final ConnectionHandler<I, O> connectionHandler, EventExecutorGroup connHandlingExecutor) {
         super(bootstrap, port);
-        bootstrap.handler(newChannelInitializer(pipelineConfigurator, connectionHandler));
+        bootstrap.handler(newChannelInitializer(pipelineConfigurator, connectionHandler, connHandlingExecutor));
     }
 }

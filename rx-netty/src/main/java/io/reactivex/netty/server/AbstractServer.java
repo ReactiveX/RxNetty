@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.metrics.MetricEventsListener;
@@ -171,13 +173,14 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     }
 
     protected ChannelInitializer<Channel> newChannelInitializer(final PipelineConfigurator<I, O> pipelineConfigurator,
-                                                                      final ConnectionHandler<I, O> connectionHandler) {
+                                                                final ConnectionHandler<I, O> connectionHandler,
+                                                                final EventExecutorGroup connHandlingExecutor) {
         return new ChannelInitializer<Channel>() {
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ServerRequiredConfigurator<I, O> requiredConfigurator =
                         new ServerRequiredConfigurator<I, O>(connectionHandler, connectionFactory, errorHandler,
-                                                             eventsSubject);
+                                                             eventsSubject, connHandlingExecutor);
                 PipelineConfigurator<I, O> configurator;
                 if (null == pipelineConfigurator) {
                     configurator = requiredConfigurator;

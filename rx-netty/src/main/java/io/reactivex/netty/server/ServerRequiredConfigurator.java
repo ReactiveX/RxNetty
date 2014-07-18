@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.server;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -43,7 +45,14 @@ public class ServerRequiredConfigurator<I, O> extends RxRequiredConfigurator<I,O
     public ServerRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler,
                                       ObservableConnectionFactory<I, O> connectionFactory, ErrorHandler errorHandler,
                                       MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
-        super(eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
+        this(connectionHandler, connectionFactory, errorHandler, eventsSubject, null);
+    }
+
+    public ServerRequiredConfigurator(final ConnectionHandler<I, O> connectionHandler,
+                                      ObservableConnectionFactory<I, O> connectionFactory, ErrorHandler errorHandler,
+                                      MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
+                                      EventExecutorGroup connHandlingExecutor) {
+        super(eventsSubject, ServerChannelMetricEventProvider.INSTANCE, connHandlingExecutor);
         this.connectionHandler = connectionHandler;
         this.connectionFactory = connectionFactory;
         this.errorHandler = errorHandler;
