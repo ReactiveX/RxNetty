@@ -28,6 +28,8 @@ import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.Subscription;
 
 import java.net.InetSocketAddress;
@@ -41,6 +43,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @SuppressWarnings("rawtypes")
 public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends Channel, S extends AbstractServer>
         implements MetricEventsPublisher<ServerMetricsEvent<?>> {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractServer.class);
 
     protected enum ServerState {Created, Starting, Started, Shutdown}
 
@@ -87,6 +91,8 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         }
 
         serverStateRef.set(ServerState.Started); // It will come here only if this was the thread that transitioned to Starting
+
+        logger.info("Rx server started at port: " + getServerPort());
 
         return returnServer();
     }
