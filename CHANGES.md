@@ -1,6 +1,5 @@
 # RxNetty Releases #
 
-
 ### Version 0.3.10 ###
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=8&state=closed)
@@ -11,6 +10,15 @@
 * [Pull 188] (https://github.com/Netflix/RxNetty/pull/188) Adding an option to use a threadpool for Request/Connection processing. 
 
 Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.10%22)
+
+### Version 0.3.9 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=7&state=closed)
+
+* [Pull 179] (https://github.com/Netflix/RxNetty/issues/179) Monitors were not getting registered with servo.
+* [Pull 180] (https://github.com/Netflix/RxNetty/issues/180) HTTP client/server metrics are not getting published to servo.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.9%22)
 
 ### Version 0.3.8 ###
 
