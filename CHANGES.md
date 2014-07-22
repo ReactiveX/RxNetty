@@ -1,5 +1,15 @@
 # RxNetty Releases #
 
+### Version 0.3.10 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=8&state=closed)
+
+* [Issue 183] (https://github.com/Netflix/RxNetty/issues/183) IdleConnectionsTimeoutMillis was not used by PooledConnectionFactory.
+* [Pull 186] (https://github.com/Netflix/RxNetty/pull/186) Added a perf optimized helloworld example.
+* [Issue 187] (https://github.com/Netflix/RxNetty/issues/187) Simplifying Aggregated Client Response usage.
+* [Pull 188] (https://github.com/Netflix/RxNetty/pull/188) Adding an option to use a threadpool for Request/Connection processing. 
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.10%22)
 
 ### Version 0.3.9 ###
 
