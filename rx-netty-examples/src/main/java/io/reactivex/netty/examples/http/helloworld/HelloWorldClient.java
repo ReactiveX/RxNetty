@@ -17,16 +17,17 @@
 package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.protocol.http.client.FlatResponseOperator;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import rx.Observable;
-import rx.functions.Action0;
+import io.reactivex.netty.protocol.http.client.ResponseHolder;
 import rx.functions.Func1;
-import rx.functions.Func2;
 
 import java.nio.charset.Charset;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static io.reactivex.netty.examples.http.helloworld.HelloWorldServer.DEFAULT_PORT;
 
@@ -41,29 +42,18 @@ public class HelloWorldClient {
         this.port = port;
     }
 
-    public HttpResponseStatus sendHelloRequest() {
-        HttpResponseStatus statusCode = RxNetty.createHttpGet("http://localhost:" + port + "/hello")
-                .mergeMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
-                    @Override
-                    public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
-                        return response.getContent();
-                    }
-                }, new Func2<HttpClientResponse<ByteBuf>, ByteBuf, HttpResponseStatus>() {
-                    @Override
-                    public HttpResponseStatus call(HttpClientResponse<ByteBuf> response, ByteBuf content) {
-                        printResponseHeader(response);
-                        System.out.println(content.toString(Charset.defaultCharset()));
-                        return response.getStatus();
-                    }
-                })
-                .doOnTerminate(new Action0() {
-                    @Override
-                    public void call() {
-                        System.out.println("=======================");
-                    }
-                }).toBlocking().last();
-
-        return statusCode;
+    public HttpClientResponse<ByteBuf> sendHelloRequest() throws InterruptedException, ExecutionException, TimeoutException {
+        return RxNetty.createHttpGet("http://localhost:" + port + "/hello")
+               .lift(FlatResponseOperator.<ByteBuf>flatResponse())
+               .map(new Func1<ResponseHolder<ByteBuf>, HttpClientResponse<ByteBuf>>() {
+                   @Override
+                   public HttpClientResponse<ByteBuf> call(ResponseHolder<ByteBuf> holder) {
+                       printResponseHeader(holder.getResponse());
+                       System.out.println(holder.getContent().toString(Charset.defaultCharset()));
+                       System.out.println("========================");
+                       return holder.getResponse();
+                   }
+               }).toBlocking().toFuture().get(1, TimeUnit.MINUTES);
     }
 
     public void printResponseHeader(HttpClientResponse<ByteBuf> response) {
@@ -76,7 +66,7 @@ public class HelloWorldClient {
         }
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
         int port = DEFAULT_PORT;
         if (args.length > 0) {
             port = Integer.parseInt(args[0]);

@@ -25,6 +25,9 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
+
 import static io.reactivex.netty.examples.http.helloworld.HelloWorldServer.DEFAULT_PORT;
 
 /**
@@ -46,9 +49,9 @@ public class HelloWorldTest extends ExamplesEnvironment {
     }
 
     @Test
-    public void testRequestReplySequence() {
+    public void testRequestReplySequence() throws InterruptedException, ExecutionException, TimeoutException {
         HelloWorldClient client = new HelloWorldClient(DEFAULT_PORT);
-        HttpResponseStatus statusCode = client.sendHelloRequest();
+        HttpResponseStatus statusCode = client.sendHelloRequest().getStatus();
         Assert.assertEquals(HttpResponseStatus.OK, statusCode);
     }
 }
