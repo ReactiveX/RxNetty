@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ServerChannel;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
@@ -30,8 +32,18 @@ public class RxServer<I, O> extends AbstractServer<I, O, ServerBootstrap, Server
 
     public RxServer(ServerBootstrap bootstrap, int port, final PipelineConfigurator<I, O> pipelineConfigurator,
                     final ConnectionHandler<I, O> connectionHandler) {
+        this(bootstrap, port, pipelineConfigurator, connectionHandler, null);
+    }
+
+    public RxServer(ServerBootstrap bootstrap, int port, final ConnectionHandler<I, O> connectionHandler,
+                    EventExecutorGroup connHandlingExecutor) {
+        this(bootstrap, port, null, connectionHandler, connHandlingExecutor);
+    }
+
+    public RxServer(ServerBootstrap bootstrap, int port, final PipelineConfigurator<I, O> pipelineConfigurator,
+                    final ConnectionHandler<I, O> connectionHandler, EventExecutorGroup connHandlingExecutor) {
         super(bootstrap, port);
         this.pipelineConfigurator = pipelineConfigurator;
-        bootstrap.childHandler(newChannelInitializer(pipelineConfigurator, connectionHandler));
+        bootstrap.childHandler(newChannelInitializer(pipelineConfigurator, connectionHandler, connHandlingExecutor));
     }
 }

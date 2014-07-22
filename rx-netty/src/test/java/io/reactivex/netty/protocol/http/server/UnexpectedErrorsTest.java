@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
@@ -72,7 +73,7 @@ public class UnexpectedErrorsTest {
     public void testErrorHandlerReturnsNull() throws Exception {
         TestableErrorHandler errorHandler = new TestableErrorHandler(null);
         server.withErrorHandler(errorHandler).start();
-
+        System.err.println("[testErrorHandlerReturnsNull] Server port: " + server.getServerPort());
         blockTillConnected(server.getServerPort());
         channelCloseListener.waitForClose(1, TimeUnit.MINUTES);
 
@@ -85,6 +86,8 @@ public class UnexpectedErrorsTest {
                 Observable.<Void>error(new IllegalStateException("I always throw an error.")));
 
         server.withErrorHandler(errorHandler).start();
+
+        System.err.println("[testConnectionHandlerReturnsError] Server port: " + server.getServerPort());
 
         blockTillConnected(server.getServerPort());
 

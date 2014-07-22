@@ -17,12 +17,17 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.util.concurrent.DefaultEventExecutorGroup;
+import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.channel.RxDefaultThreadFactory;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.server.ConnectionBasedServerBuilder;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerMetricsEvent;
+
+import java.util.concurrent.ThreadFactory;
 
 /**
  * A convenience builder to create instances of {@link HttpServer}
@@ -53,6 +58,45 @@ public class HttpServerBuilder<I, O>
         pipelineConfigurator(PipelineConfigurators.<I, O>httpServerConfigurator());
     }
 
+    /**
+     * If the passed executor is not {@code null} , the configured {@link RequestHandler} will be invoked in the passed
+     * {@link EventExecutorGroup}
+     *
+     * @param eventExecutorGroup The {@link EventExecutorGroup} in which to invoke the configured
+     *                           {@link RequestHandler}. Can be {@code null}, in which case, the
+     *                           {@link RequestHandler} is invoked in the channel's eventloop.
+     *
+     * @return This builder.
+     */
+    @Override
+    public HttpServerBuilder<I, O> withEventExecutorGroup(EventExecutorGroup eventExecutorGroup) {
+        return super.withEventExecutorGroup(eventExecutorGroup);
+    }
+
+    /**
+     * Same as calling {@link #withRequestProcessingThreads(int, ThreadFactory)} with {@link RxDefaultThreadFactory}
+     *
+     * @param threadCount Number of threads to use for request processing.
+     *
+     * @return This builder.
+     */
+    public HttpServerBuilder<I, O> withRequestProcessingThreads(int threadCount) {
+        return super.withEventExecutorGroup(new DefaultEventExecutorGroup(threadCount, new RxDefaultThreadFactory("rx-request-processor")));
+    }
+
+    /**
+     * Same as calling {@link #withEventExecutorGroup(EventExecutorGroup)} with {@link DefaultEventExecutorGroup} using
+     * the passed {@code factory}
+     *
+     * @param threadCount Number of threads to use for request processing.
+     * @param factory Thread factory to use for the {@link DefaultEventExecutorGroup}
+     *
+     * @return This builder.
+     */
+    public HttpServerBuilder<I, O> withRequestProcessingThreads(int threadCount, ThreadFactory factory) {
+        return super.withEventExecutorGroup(new DefaultEventExecutorGroup(threadCount, factory));
+    }
+
     @Override
     public HttpServer<I, O> build() {
         return (HttpServer<I, O>) super.build();
@@ -61,7 +105,7 @@ public class HttpServerBuilder<I, O>
     @Override
     protected HttpServer<I, O> createServer() {
         return new HttpServer<I, O>(serverBootstrap, port, pipelineConfigurator,
-                                    (HttpConnectionHandler<I, O>) connectionHandler);
+                                    (HttpConnectionHandler<I, O>) connectionHandler, eventExecutorGroup);
     }
 
     @Override

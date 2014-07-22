@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
@@ -74,34 +75,38 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
         connectFuture.addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
-                if (!future.isSuccess()) {
-                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(startTimeMillis),
-                                          future.cause());
-                    subscriber.onError(future.cause());
-                } else {
-                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
-                    ChannelPipeline pipeline = future.channel().pipeline();
-                    ChannelHandlerContext ctx = pipeline.lastContext(); // The connection uses the context for write which should always start from the tail.
-                    final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(ctx);
-                    ChannelHandler lifecycleHandler = pipeline.get(RxRequiredConfigurator.CONN_LIFECYCLE_HANDLER_NAME);
-                    if (null == lifecycleHandler) {
-                        onNewConnection(newConnection, subscriber);
+                try {
+                    if (!future.isSuccess()) {
+                        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(startTimeMillis),
+                                              future.cause());
+                        subscriber.onError(future.cause());
                     } else {
-                        @SuppressWarnings("unchecked")
-                        ConnectionLifecycleHandler<I, O> handler = (ConnectionLifecycleHandler<I, O>) lifecycleHandler;
-                        SslHandler sslHandler = pipeline.get(SslHandler.class);
-                        if (null == sslHandler) {
-                            handler.setConnection(newConnection);
+                        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
+                        ChannelPipeline pipeline = future.channel().pipeline();
+                        ChannelHandlerContext ctx = pipeline.lastContext(); // The connection uses the context for write which should always start from the tail.
+                        final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(ctx);
+                        ChannelHandler lifecycleHandler = pipeline.get(RxRequiredConfigurator.CONN_LIFECYCLE_HANDLER_NAME);
+                        if (null == lifecycleHandler) {
                             onNewConnection(newConnection, subscriber);
                         } else {
-                            sslHandler.handshakeFuture().addListener(new GenericFutureListener<Future<? super Channel>>() {
-                                @Override
-                                public void operationComplete(Future<? super Channel> future) throws Exception {
-                                    onNewConnection(newConnection, subscriber);
-                                }
-                            });
+                            @SuppressWarnings("unchecked")
+                            ConnectionLifecycleHandler<I, O> handler = (ConnectionLifecycleHandler<I, O>) lifecycleHandler;
+                            SslHandler sslHandler = pipeline.get(SslHandler.class);
+                            if (null == sslHandler) {
+                                handler.setConnection(newConnection);
+                                onNewConnection(newConnection, subscriber);
+                            } else {
+                                sslHandler.handshakeFuture().addListener(new GenericFutureListener<Future<? super Channel>>() {
+                                    @Override
+                                    public void operationComplete(Future<? super Channel> future) throws Exception {
+                                        onNewConnection(newConnection, subscriber);
+                                    }
+                                });
+                            }
                         }
                     }
+                } catch (Throwable throwable) {
+                    subscriber.onError(throwable);
                 }
             }
         });

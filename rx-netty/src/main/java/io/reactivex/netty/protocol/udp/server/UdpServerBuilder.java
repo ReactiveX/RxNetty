@@ -60,9 +60,9 @@ public class UdpServerBuilder<I, O> extends AbstractServerBuilder<I, O, Bootstra
     @Override
     protected UdpServer<I, O> createServer() {
         if (null != pipelineConfigurator) {
-            return new UdpServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
+            return new UdpServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler, eventExecutorGroup);
         } else {
-            return new UdpServer<I, O>(serverBootstrap, port, connectionHandler);
+            return new UdpServer<I, O>(serverBootstrap, port, connectionHandler, eventExecutorGroup);
         }
     }
 

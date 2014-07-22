@@ -102,6 +102,10 @@ public final class TcpEchoClient {
     }
 
     public static void main(String[] args) {
-        new TcpEchoClient(DEFAULT_PORT).sendEchos();
+        int port = DEFAULT_PORT;
+        if (args.length > 0) {
+            port = Integer.parseInt(args[0]);
+        }
+        new TcpEchoClient(port).sendEchos();
     }
 }

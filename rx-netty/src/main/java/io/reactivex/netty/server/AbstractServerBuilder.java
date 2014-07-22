@@ -23,6 +23,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.metrics.MetricEventsListener;
@@ -45,7 +46,8 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
     protected final int port;
     protected LogLevel wireLogginLevel;
     protected MetricEventsListenerFactory eventListenersFactory;
-    private SSLEngineFactory sslEngineFactory;
+    protected EventExecutorGroup eventExecutorGroup;
+    protected SSLEngineFactory sslEngineFactory;
 
     protected AbstractServerBuilder(int port, T bootstrap, ConnectionHandler<I, O> connectionHandler) {
         if (null == connectionHandler) {
@@ -120,6 +122,22 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         this.eventListenersFactory = eventListenersFactory;
         return returnBuilder();
     }
+
+    /**
+     * If the passed executor is not {@code null} , the configured {@link ConnectionHandler} will be invoked in
+     * the passed {@link EventExecutorGroup}
+     *
+     * @param eventExecutorGroup The {@link EventExecutorGroup} in which to invoke the configured
+     *                           {@link ConnectionHandler}. Can be {@code null}, in which case, the
+     *                           {@link ConnectionHandler} is invoked in the channel's eventloop.
+     *
+     * @return This builder.
+     */
+    public B withEventExecutorGroup(EventExecutorGroup eventExecutorGroup) {
+        this.eventExecutorGroup = eventExecutorGroup;
+        return returnBuilder();
+    }
+
     public PipelineConfigurator<I, O> getPipelineConfigurator() {
         return pipelineConfigurator;
     }

@@ -13,10 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.pipeline;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ChannelMetricEventProvider;
 import io.reactivex.netty.metrics.BytesInspector;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -38,12 +40,27 @@ public abstract class RxRequiredConfigurator<I, O> implements PipelineConfigurat
     public static final String NETTY_OBSERVABLE_ADAPTER_NAME = "netty_observable_adapter";
 
     private final BytesInspector bytesInspector;
+    private final EventExecutorGroup handlersExecutorGroup;
 
     protected RxRequiredConfigurator(@SuppressWarnings("rawtypes") MetricEventsSubject eventsSubject,
                                      ChannelMetricEventProvider metricEventProvider) {
-        bytesInspector = new BytesInspector(eventsSubject, metricEventProvider);
+        this(eventsSubject, metricEventProvider, null);
     }
 
+    /**
+     *
+     * @param eventsSubject Metrics event subject.
+     * @param metricEventProvider Metrics event provider.
+     * @param handlersExecutorGroup The {@link EventExecutorGroup} to be used for all the handlers added by this
+     *                              configurator. This can be {@code null} , in which case the eventloop for the
+     *                              underlying channel is used.
+     */
+    protected RxRequiredConfigurator(@SuppressWarnings("rawtypes") MetricEventsSubject eventsSubject,
+                                     ChannelMetricEventProvider metricEventProvider,
+                                     EventExecutorGroup handlersExecutorGroup) {
+        bytesInspector = new BytesInspector(eventsSubject, metricEventProvider);
+        this.handlersExecutorGroup = handlersExecutorGroup;
+    }
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
@@ -56,8 +73,16 @@ public abstract class RxRequiredConfigurator<I, O> implements PipelineConfigurat
         ObservableAdapter observableAdapter = new ObservableAdapter();
 
         pipeline.addFirst(BYTES_INSPECTOR_HANDLER_NAME, bytesInspector);
-        pipeline.addLast(CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
-        pipeline.addLast(NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
+        pipeline.addLast(getConnectionLifecycleHandlerExecutor(), CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
+        pipeline.addLast(getObservableAdapterExecutor(), NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
+    }
+
+    protected EventExecutorGroup getConnectionLifecycleHandlerExecutor() {
+        return handlersExecutorGroup;
+    }
+
+    protected EventExecutorGroup getObservableAdapterExecutor() {
+        return handlersExecutorGroup;
     }
 
     protected abstract ChannelHandler newConnectionLifecycleHandler(ChannelPipeline pipeline);

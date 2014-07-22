@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.ServerBootstrap;
@@ -37,7 +38,7 @@ public class ServerBuilder<I, O> extends ConnectionBasedServerBuilder<I,O, Serve
 
     @Override
     protected RxServer<I, O> createServer() {
-        return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler);
+        return new RxServer<I, O>(serverBootstrap, port, pipelineConfigurator, connectionHandler, eventExecutorGroup);
     }
 
     @Override

@@ -18,6 +18,8 @@
 
 
 
+
+
 sourceCompatibility = JavaVersion.VERSION_1_6
 targetCompatibility = JavaVersion.VERSION_1_6
 
@@ -60,6 +62,40 @@ task runPlainTextClient (dependsOn: [classes], type: JavaExec) {
     description = "Run Plain text HTTP client"
 
     args "8111"
+    main = "io.reactivex.netty.examples.http.helloworld.HelloWorldClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runCpuIntensiveHttpServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run an HTTP server which does CPU intensive work."
+
+    main = "io.reactivex.netty.examples.http.plaintext.PlainTextServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runCpuIntensiveHttpClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run an HTTP client for the CPU intensive server."
+
+    args "8790"
+    main = "io.reactivex.netty.examples.http.helloworld.HelloWorldClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runCpuIntensiveTcpServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run a TCP server which does CPU intensive work."
+
+    main = "io.reactivex.netty.examples.http.plaintext.PlainTextServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
+task runCpuIntensiveTcpClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run a TCP client for the CPU intensive server."
+
+    args "8790"
     main = "io.reactivex.netty.examples.http.helloworld.HelloWorldClient"
     classpath = sourceSets.main.runtimeClasspath
 }

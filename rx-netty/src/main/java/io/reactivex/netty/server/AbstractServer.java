@@ -13,12 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.server;
 
 import io.netty.bootstrap.AbstractBootstrap;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.metrics.MetricEventsListener;
@@ -26,6 +28,8 @@ import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.Subscription;
 
 import java.net.InetSocketAddress;
@@ -39,6 +43,8 @@ import java.util.concurrent.atomic.AtomicReference;
 @SuppressWarnings("rawtypes")
 public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends Channel, S extends AbstractServer>
         implements MetricEventsPublisher<ServerMetricsEvent<?>> {
+
+    private static final Logger logger = LoggerFactory.getLogger(AbstractServer.class);
 
     protected enum ServerState {Created, Starting, Started, Shutdown}
 
@@ -85,6 +91,8 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
         }
 
         serverStateRef.set(ServerState.Started); // It will come here only if this was the thread that transitioned to Starting
+
+        logger.info("Rx server started at port: " + getServerPort());
 
         return returnServer();
     }
@@ -171,13 +179,14 @@ public class AbstractServer<I, O, B extends AbstractBootstrap<B, C>, C extends C
     }
 
     protected ChannelInitializer<Channel> newChannelInitializer(final PipelineConfigurator<I, O> pipelineConfigurator,
-                                                                      final ConnectionHandler<I, O> connectionHandler) {
+                                                                final ConnectionHandler<I, O> connectionHandler,
+                                                                final EventExecutorGroup connHandlingExecutor) {
         return new ChannelInitializer<Channel>() {
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ServerRequiredConfigurator<I, O> requiredConfigurator =
                         new ServerRequiredConfigurator<I, O>(connectionHandler, connectionFactory, errorHandler,
-                                                             eventsSubject);
+                                                             eventsSubject, connHandlingExecutor);
                 PipelineConfigurator<I, O> configurator;
                 if (null == pipelineConfigurator) {
                     configurator = requiredConfigurator;
