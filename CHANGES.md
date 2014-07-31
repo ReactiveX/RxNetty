@@ -1,5 +1,13 @@
 # RxNetty Releases #
 
+### Version 0.3.11 ###
+
+[Milestone](https://github.com/Netflix/RxNetty/issues?milestone=9&state=closed)
+
+* [Issue 195] (https://github.com/Netflix/RxNetty/issues/195) RxClientImpl.shutdown() should not shutdown the eventloop.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.11%22)
+
 ### Version 0.3.10 ###
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=8&state=closed)
