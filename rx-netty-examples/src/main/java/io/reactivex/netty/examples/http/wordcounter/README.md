@@ -13,14 +13,14 @@ To run the example execute:
 
 ```
 $ cd RxNetty/rx-netty-examples
-$ ../gradlew runWordCounterServer -PtextFile=<some_text_file>
+$ ../gradlew runWordCounterServer 
 ```
 
 and in another console:
 
 ```
 $ cd RxNetty/rx-netty-examples
-$ ../gradlew runWordCounterClient
+$ ../gradlew runWordCounterClient -PtextFile=<some_text_file>
 ```
 
 HTTP client
