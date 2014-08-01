@@ -169,12 +169,8 @@ public class RxClientImpl<I, O> implements RxClient<I, O> {
             return;
         }
 
-        try {
-            if (null != pool) {
-                pool.shutdown();
-            }
-        } finally {
-            clientBootstrap.group().shutdownGracefully();
+        if (null != pool) {
+            pool.shutdown();
         }
     }
 
