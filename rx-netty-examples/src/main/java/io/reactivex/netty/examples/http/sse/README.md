@@ -62,7 +62,7 @@ ServerSentEvent objects.
 HTTP server
 ===========
 
-Here is the snippet from [HttpSseClient](HttpSseClient.java):
+Here is the snippet from [HttpSseServer](HttpSseServer.java):
 
 ```java
 public HttpServer<ByteBuf, ServerSentEvent> createServer() {
