@@ -13,12 +13,9 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.websocketx.WebSocketFrameAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketFrameDecoder;
-import io.netty.handler.codec.http.websocketx.WebSocketFrameEncoder;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
 import io.netty.util.CharsetUtil;
-import io.reactivex.netty.protocol.http.websocket.frame.NettyToRxFrameDecoder;
-import io.reactivex.netty.protocol.http.websocket.frame.RxToNettyFrameEncoder;
 
 import static io.netty.handler.codec.http.HttpHeaders.*;
 import static io.netty.handler.codec.http.HttpMethod.*;
@@ -66,11 +63,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
 
     private void updatePipeline(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.pipeline();
-        ChannelHandlerContext nettyEncoderCtx = p.context(WebSocketFrameEncoder.class);
-        p.addAfter(nettyEncoderCtx.name(), "rxnetty-to-netty-encoder", new RxToNettyFrameEncoder());
-        ChannelHandlerContext nettyDecoderCtx = p.context(WebSocketFrameDecoder.class);
-        p.addAfter(nettyDecoderCtx.name(), "netty-to-rxnetty-decoder", new NettyToRxFrameDecoder());
         if (messageAggregator) {
+            ChannelHandlerContext nettyDecoderCtx = p.context(WebSocketFrameDecoder.class);
             p.addAfter(nettyDecoderCtx.name(), "websocket-frame-aggregator", new WebSocketFrameAggregator(maxFramePayloadLength));
         }
         p.remove(this);

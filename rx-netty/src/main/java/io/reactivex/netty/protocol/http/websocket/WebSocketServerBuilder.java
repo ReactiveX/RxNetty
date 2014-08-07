@@ -1,10 +1,10 @@
 package io.reactivex.netty.protocol.http.websocket;
 
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.protocol.http.websocket.frame.WebSocketFrame;
 import io.reactivex.netty.server.ConnectionBasedServerBuilder;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerMetricsEvent;

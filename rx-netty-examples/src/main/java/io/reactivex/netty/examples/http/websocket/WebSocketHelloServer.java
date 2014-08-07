@@ -1,11 +1,11 @@
 package io.reactivex.netty.examples.http.websocket;
 
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.protocol.http.websocket.frame.TextWebSocketFrame;
-import io.reactivex.netty.protocol.http.websocket.frame.WebSocketFrame;
 import io.reactivex.netty.server.RxServer;
 import rx.Observable;
 import rx.functions.Func1;

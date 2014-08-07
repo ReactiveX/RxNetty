@@ -24,8 +24,8 @@ import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
+import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.protocol.http.websocket.WebSocketClientBuilder.WebSocketVersion;
 
 /**
  * Initial channel setup contains HTTP handlers together with {@link WebSocketClientHandler}
@@ -57,7 +57,7 @@ public class WebSocketClientPipelineConfigurator<R, W> implements PipelineConfig
     public void configureNewPipeline(ChannelPipeline pipeline) {
         WebSocketClientHandshaker handshaker = WebSocketClientHandshakerFactory.newHandshaker(
                 webSocketURI,
-                io.netty.handler.codec.http.websocketx.WebSocketVersion.valueOf(webSocketVersion.name()),
+                webSocketVersion,
                 subprotocol,
                 allowExtensions,
                 new DefaultHttpHeaders(),

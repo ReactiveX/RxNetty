@@ -2,12 +2,12 @@ package io.reactivex.netty.examples.http.websocket;
 
 import java.util.concurrent.TimeUnit;
 
+import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.protocol.http.websocket.WebSocketClient;
-import io.reactivex.netty.protocol.http.websocket.WebSocketClientBuilder.WebSocketVersion;
-import io.reactivex.netty.protocol.http.websocket.frame.TextWebSocketFrame;
-import io.reactivex.netty.protocol.http.websocket.frame.WebSocketFrame;
 import rx.Notification;
 import rx.Observable;
 import rx.functions.Func1;

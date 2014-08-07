@@ -4,6 +4,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.AbstractClientBuilder;
 import io.reactivex.netty.client.ClientChannelFactory;
@@ -14,46 +16,12 @@ import io.reactivex.netty.client.UnpooledClientConnectionFactory;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.protocol.http.websocket.frame.WebSocketFrame;
 
 /**
  * @author Tomasz Bak
  */
 @SuppressWarnings("unchecked")
 public class WebSocketClientBuilder<T extends WebSocketFrame> extends AbstractClientBuilder<T, T, WebSocketClientBuilder<T>, WebSocketClient<T>> {
-
-    public enum WebSocketVersion {
-        UNKNOWN,
-
-        /**
-         * <a href= "http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-00"
-         * >draft-ietf-hybi-thewebsocketprotocol- 00</a>.
-         */
-        V00,
-
-        /**
-         * <a href= "http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-07"
-         * >draft-ietf-hybi-thewebsocketprotocol- 07</a>
-         */
-        V07,
-
-        /**
-         * <a href= "http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-10"
-         * >draft-ietf-hybi-thewebsocketprotocol- 10</a>
-         */
-        V08,
-
-        /**
-         * <a href="http://tools.ietf.org/html/rfc6455 ">RFC 6455</a>. This was originally <a href=
-         * "http://tools.ietf.org/html/draft-ietf-hybi-thewebsocketprotocol-17" >draft-ietf-hybi-thewebsocketprotocol-
-         * 17</a>
-         */
-        V13;
-
-        static WebSocketVersion toNetty(io.netty.handler.codec.http.websocketx.WebSocketVersion nettyVersion) {
-            return valueOf(nettyVersion.name());
-        }
-    }
 
     private URI webSocketURI = URI.create("/");
     private WebSocketVersion webSocketVersion = WebSocketVersion.V13;

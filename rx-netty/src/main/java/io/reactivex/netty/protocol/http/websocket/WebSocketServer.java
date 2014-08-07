@@ -5,17 +5,17 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.protocol.http.websocket.frame.WebSocketFrame;
 import io.reactivex.netty.server.RxServer;
 import rx.Observable;
 import rx.subjects.PublishSubject;
 
 /**
- * {@link WebSocketServer} delays connection executing application handler
+ * {@link WebSocketServer} delays passing new connection to the application handler
  * till WebSocket handshake is complete.
 
  * @author Tomasz Bak
