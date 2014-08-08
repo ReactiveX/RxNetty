@@ -6,6 +6,7 @@ import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.server.RxServer;
 import rx.Observable;
 import rx.functions.Func1;
@@ -13,7 +14,7 @@ import rx.functions.Func1;
 /**
  * @author Tomasz Bak
  */
-public class WebSocketHelloServer {
+public class WebSocketHelloServer extends ExamplesEnvironment {
 
     static final int DEFAULT_PORT = 8090;
 
@@ -26,13 +27,13 @@ public class WebSocketHelloServer {
     public RxServer<WebSocketFrame, WebSocketFrame> createServer() {
         RxServer<WebSocketFrame, WebSocketFrame> server = RxNetty.newWebSocketServerBuilder(port, new ConnectionHandler<WebSocketFrame, WebSocketFrame>() {
             @Override
-            public Observable<Void> handle(final ObservableConnection<WebSocketFrame, WebSocketFrame> newConnection) {
-                return newConnection.getInput().flatMap(new Func1<WebSocketFrame, Observable<Void>>() {
+            public Observable<Void> handle(final ObservableConnection<WebSocketFrame, WebSocketFrame> connection) {
+                return connection.getInput().flatMap(new Func1<WebSocketFrame, Observable<Void>>() {
                     @Override
                     public Observable<Void> call(WebSocketFrame wsFrame) {
                         TextWebSocketFrame textFrame = (TextWebSocketFrame) wsFrame;
                         System.out.println("Got message: " + textFrame.text());
-                        return newConnection.writeAndFlush(new TextWebSocketFrame(textFrame.text().toUpperCase()));
+                        return connection.writeAndFlush(new TextWebSocketFrame(textFrame.text().toUpperCase()));
                     }
                 });
             }

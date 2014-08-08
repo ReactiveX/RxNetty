@@ -213,6 +213,21 @@ task runWordCounterServer (dependsOn: [classes], type: JavaExec) {
     classpath = sourceSets.main.runtimeClasspath
 }
 
+task runWebSocketHelloClient (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run WebSocket client"
+
+    main = "io.reactivex.netty.examples.http.websocket.WebSocketHelloClient"
+    classpath = sourceSets.main.runtimeClasspath
+}
+task runWebSocketHelloServer (dependsOn: [classes], type: JavaExec) {
+    group = "Examples"
+    description = "Run WebSocket server server"
+
+    main = "io.reactivex.netty.examples.http.websocket.WebSocketHelloServer"
+    classpath = sourceSets.main.runtimeClasspath
+}
+
 task runTcpEchoClient (dependsOn: [classes], type: JavaExec) {
     group = "Examples"
     description = "Run TCP echo client"
