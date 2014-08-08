@@ -25,6 +25,8 @@ import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshakerFactory;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
+import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 
 /**
@@ -41,16 +43,19 @@ public class WebSocketClientPipelineConfigurator<R, W> implements PipelineConfig
     private final boolean allowExtensions;
     private final int maxFramePayloadLength;
     private final boolean messageAggregation;
+    private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
     public WebSocketClientPipelineConfigurator(URI webSocketURI, WebSocketVersion webSocketVersion,
                                                String subprotocol, boolean allowExtensions,
-                                               int maxFramePayloadLength, boolean messageAggregation) {
+                                               int maxFramePayloadLength, boolean messageAggregation,
+                                               MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.webSocketURI = webSocketURI;
         this.webSocketVersion = webSocketVersion;
         this.subprotocol = subprotocol;
         this.allowExtensions = allowExtensions;
         this.maxFramePayloadLength = maxFramePayloadLength;
         this.messageAggregation = messageAggregation;
+        this.eventsSubject = eventsSubject;
     }
 
     @Override
@@ -62,7 +67,7 @@ public class WebSocketClientPipelineConfigurator<R, W> implements PipelineConfig
                 allowExtensions,
                 new DefaultHttpHeaders(),
                 maxFramePayloadLength);
-        WebSocketClientHandler handler = new WebSocketClientHandler(handshaker, maxFramePayloadLength, messageAggregation);
+        WebSocketClientHandler handler = new WebSocketClientHandler(handshaker, maxFramePayloadLength, messageAggregation, eventsSubject);
         pipeline.addLast(new HttpClientCodec());
         pipeline.addLast(new HttpObjectAggregator(8192));
         pipeline.addLast(handler);

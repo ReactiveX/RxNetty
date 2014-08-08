@@ -4,7 +4,9 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.server.ServerMetricsEvent;
 
 /**
  * Initial channel setup contains HTTP handlers together with {@link WebSocketServerHandler}
@@ -18,6 +20,7 @@ public class WebSocketServerPipelineConfigurator<R, W> implements PipelineConfig
     private final boolean allowExtensions;
     private final int maxFramePayloadLength;
     private final boolean messageAggregator;
+    private MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
     public WebSocketServerPipelineConfigurator(String webSocketURI, String subprotocols,
                                                boolean allowExtensions, int maxFramePayloadLength,
@@ -36,6 +39,11 @@ public class WebSocketServerPipelineConfigurator<R, W> implements PipelineConfig
 
         pipeline.addLast(new HttpServerCodec());
         pipeline.addLast(new HttpObjectAggregator(65536));
-        pipeline.addLast(new WebSocketServerHandler(handshakeHandlerFactory, maxFramePayloadLength, messageAggregator));
+        pipeline.addLast(new WebSocketServerHandler(
+                handshakeHandlerFactory, maxFramePayloadLength, messageAggregator, eventsSubject));
+    }
+
+    void useMetricEventsSubject(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
+        this.eventsSubject = eventsSubject;
     }
 }

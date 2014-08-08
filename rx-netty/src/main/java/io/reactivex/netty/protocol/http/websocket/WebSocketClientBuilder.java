@@ -20,8 +20,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 /**
  * @author Tomasz Bak
  */
-@SuppressWarnings("unchecked")
-public class WebSocketClientBuilder<T extends WebSocketFrame> extends AbstractClientBuilder<T, T, WebSocketClientBuilder<T>, WebSocketClient<T>> {
+public class WebSocketClientBuilder<I extends WebSocketFrame, O extends WebSocketFrame> extends AbstractClientBuilder<I, O, WebSocketClientBuilder<I, O>, WebSocketClient<I, O>> {
 
     private URI webSocketURI = URI.create("/");
     private WebSocketVersion webSocketVersion = WebSocketVersion.V13;
@@ -36,26 +35,27 @@ public class WebSocketClientBuilder<T extends WebSocketFrame> extends AbstractCl
     }
 
     public WebSocketClientBuilder(String host, int port, Bootstrap bootstrap) {
-        this(bootstrap, host, port, new UnpooledClientConnectionFactory<T, T>(),
-                new ClientChannelFactoryImpl<T, T>(bootstrap));
+        this(bootstrap, host, port, new UnpooledClientConnectionFactory<O, I>(),
+                new ClientChannelFactoryImpl<O, I>(bootstrap));
     }
 
     public WebSocketClientBuilder(Bootstrap bootstrap, String host, int port,
-                                  ClientConnectionFactory<T, T, ObservableConnection<T, T>> connectionFactory,
-                                  ClientChannelFactory<T, T> factory) {
+                                  ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
+                                  ClientChannelFactory<O, I> factory) {
         super(bootstrap, host, port, connectionFactory, factory);
     }
 
     @Override
-    protected WebSocketClient<T> createClient() {
-        PipelineConfigurator<T, T> webSocketPipeline = new WebSocketClientPipelineConfigurator<T, T>(
-                webSocketURI, webSocketVersion, subprotocol, allowExtensions, maxFramePayloadLength, messageAggregation);
+    protected WebSocketClient<I, O> createClient() {
+        PipelineConfigurator<O, I> webSocketPipeline = new WebSocketClientPipelineConfigurator<O, I>(
+                webSocketURI, webSocketVersion, subprotocol, allowExtensions,
+                maxFramePayloadLength, messageAggregation, eventsSubject);
         if (getPipelineConfigurator() != null) {
             appendPipelineConfigurator(webSocketPipeline);
         } else {
             pipelineConfigurator(webSocketPipeline);
         }
-        return new WebSocketClient<T>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
+        return new WebSocketClient<I, O>(getOrCreateName(), serverInfo, bootstrap, pipelineConfigurator, clientConfig,
                 channelFactory, connectionFactory, eventsSubject);
     }
 
@@ -64,7 +64,7 @@ public class WebSocketClientBuilder<T extends WebSocketFrame> extends AbstractCl
         return "WebSocketClient-";
     }
 
-    public WebSocketClientBuilder<T> withWebSocketURI(String uri) {
+    public WebSocketClientBuilder<I, O> withWebSocketURI(String uri) {
         try {
             webSocketURI = new URI(uri);
         } catch (URISyntaxException e) {
@@ -73,33 +73,34 @@ public class WebSocketClientBuilder<T extends WebSocketFrame> extends AbstractCl
         return this;
     }
 
-    public WebSocketClientBuilder<T> withWebSocketVersion(WebSocketVersion version) {
+    public WebSocketClientBuilder<I, O> withWebSocketVersion(WebSocketVersion version) {
         webSocketVersion = version;
         return this;
     }
 
-    public WebSocketClientBuilder<T> withMessageAggregator(boolean messageAggregation) {
+    public WebSocketClientBuilder<I, O> withMessageAggregator(boolean messageAggregation) {
         this.messageAggregation = messageAggregation;
         return this;
     }
 
-    public WebSocketClientBuilder<T> withSubprotocol(String subprotocol) {
+    public WebSocketClientBuilder<I, O> withSubprotocol(String subprotocol) {
         this.subprotocol = subprotocol;
         return this;
     }
 
-    public WebSocketClientBuilder<T> withAllowExtensions(boolean allowExtensions) {
+    public WebSocketClientBuilder<I, O> withAllowExtensions(boolean allowExtensions) {
         this.allowExtensions = allowExtensions;
         return this;
     }
 
-    public WebSocketClientBuilder<T> withMaxFramePayloadLength(int maxFramePayloadLength) {
+    public WebSocketClientBuilder<I, O> withMaxFramePayloadLength(int maxFramePayloadLength) {
         this.maxFramePayloadLength = maxFramePayloadLength;
         return this;
     }
 
+    @SuppressWarnings("rawtypes")
     @Override
-    protected MetricEventsListener<? extends ClientMetricsEvent<? extends Enum>> newMetricsListener(MetricEventsListenerFactory factory, WebSocketClient<T> client) {
-        return null;
+    protected MetricEventsListener<? extends ClientMetricsEvent<? extends Enum>> newMetricsListener(MetricEventsListenerFactory factory, WebSocketClient<I, O> client) {
+        return factory.forWebSocketClient(client);
     }
 }

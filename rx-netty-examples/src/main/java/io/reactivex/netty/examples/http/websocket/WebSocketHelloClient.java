@@ -26,10 +26,11 @@ public class WebSocketHelloClient {
     }
 
     public void sendHelloRequest() {
-        WebSocketClient<TextWebSocketFrame> rxClient = RxNetty.<TextWebSocketFrame>newWebSocketClientBuilder("localhost", port)
-                .withWebSocketURI("/websocket")
-                .withWebSocketVersion(WebSocketVersion.V13)
-                .build();
+        WebSocketClient<TextWebSocketFrame, TextWebSocketFrame> rxClient =
+                RxNetty.<TextWebSocketFrame, TextWebSocketFrame>newWebSocketClientBuilder("localhost", port)
+                        .withWebSocketURI("/websocket")
+                        .withWebSocketVersion(WebSocketVersion.V13)
+                        .build();
 
         Notification<Void> result = rxClient.connect()
                 .flatMap(new Func1<ObservableConnection<TextWebSocketFrame, TextWebSocketFrame>, Observable<Void>>() {
@@ -65,5 +66,4 @@ public class WebSocketHelloClient {
         }
         new WebSocketHelloClient(port).sendHelloRequest();
     }
-
 }

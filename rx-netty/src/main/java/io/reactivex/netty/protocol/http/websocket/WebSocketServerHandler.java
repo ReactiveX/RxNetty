@@ -13,9 +13,14 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.websocketx.WebSocketFrameAggregator;
 import io.netty.handler.codec.http.websocketx.WebSocketFrameDecoder;
+import io.netty.handler.codec.http.websocketx.WebSocketFrameEncoder;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshakerFactory;
 import io.netty.util.CharsetUtil;
+import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.http.websocket.WebSocketServerMetricsHandlers.ServerReadMetricsHandler;
+import io.reactivex.netty.protocol.http.websocket.WebSocketServerMetricsHandlers.ServerWriteMetricsHandler;
+import io.reactivex.netty.server.ServerMetricsEvent;
 
 import static io.netty.handler.codec.http.HttpHeaders.*;
 import static io.netty.handler.codec.http.HttpMethod.*;
@@ -34,11 +39,16 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
     private ChannelPromise handshakeFuture;
     private final int maxFramePayloadLength;
     private final boolean messageAggregator;
+    private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
-    public WebSocketServerHandler(WebSocketServerHandshakerFactory handshakeHandlerFactory, int maxFramePayloadLength, boolean messageAggregator) {
+    public WebSocketServerHandler(WebSocketServerHandshakerFactory handshakeHandlerFactory,
+                                  int maxFramePayloadLength,
+                                  boolean messageAggregator,
+                                  MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
         this.handshakeHandlerFactory = handshakeHandlerFactory;
         this.maxFramePayloadLength = maxFramePayloadLength;
         this.messageAggregator = messageAggregator;
+        this.eventsSubject = eventsSubject;
     }
 
     public ChannelFuture handshakeFuture() {
@@ -56,6 +66,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
             handleHttpRequest(ctx, (FullHttpRequest) msg);
             updatePipeline(ctx);
             handshakeFuture.setSuccess();
+            eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_PROCESSED);
         } else {
             ctx.fireChannelRead(msg);
         }
@@ -63,9 +74,12 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
 
     private void updatePipeline(ChannelHandlerContext ctx) {
         ChannelPipeline p = ctx.pipeline();
+        ChannelHandlerContext nettyEncoderCtx = p.context(WebSocketFrameEncoder.class);
+        p.addAfter(nettyEncoderCtx.name(), "websocket-write-metrics", new ServerWriteMetricsHandler(eventsSubject));
+        ChannelHandlerContext nettyDecoderCtx = p.context(WebSocketFrameDecoder.class);
+        p.addAfter(nettyDecoderCtx.name(), "websocket-read-metrics", new ServerReadMetricsHandler(eventsSubject));
         if (messageAggregator) {
-            ChannelHandlerContext nettyDecoderCtx = p.context(WebSocketFrameDecoder.class);
-            p.addAfter(nettyDecoderCtx.name(), "websocket-frame-aggregator", new WebSocketFrameAggregator(maxFramePayloadLength));
+            p.addAfter("websocket-read-metrics", "websocket-frame-aggregator", new WebSocketFrameAggregator(maxFramePayloadLength));
         }
         p.remove(this);
     }
@@ -79,12 +93,14 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         // Handle a bad request.
         if (!req.getDecoderResult().isSuccess()) {
             sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
+            eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_FAILURE);
             return;
         }
 
         // Allow only GET methods.
         if (req.getMethod() != GET) {
             sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, FORBIDDEN));
+            eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_FAILURE);
             return;
         }
 

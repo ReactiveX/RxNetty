@@ -226,14 +226,13 @@ public final class RxNetty {
         return createHttpRequest(HttpClientRequest.createDelete(uri));
     }
 
-    public static <T extends WebSocketFrame> WebSocketClientBuilder<T> newWebSocketClientBuilder(String host, int port) {
-        return new WebSocketClientBuilder<T>(host, port).enableWireLogging(LogLevel.DEBUG);
+    public static <I extends WebSocketFrame, O extends WebSocketFrame> WebSocketClientBuilder<I, O> newWebSocketClientBuilder(String host, int port) {
+        return new WebSocketClientBuilder<I, O>(host, port).enableWireLogging(LogLevel.DEBUG);
     }
 
-    public static <T extends WebSocketFrame> WebSocketServerBuilder<T> newWebSocketServerBuilder(int port, ConnectionHandler<T, T> connectionHandler) {
-        WebSocketServerBuilder builder =
-                new WebSocketServerBuilder<T>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
-        return builder;
+    public static <I extends WebSocketFrame, O extends WebSocketFrame> WebSocketServerBuilder<I, O>
+    newWebSocketServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
+        return new WebSocketServerBuilder<I, O>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
     }
 
     /**

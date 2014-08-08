@@ -23,22 +23,22 @@ import rx.Subscriber;
  *
  * @author Tomasz Bak
  */
-public class WebSocketClient<T extends WebSocketFrame> extends RxClientImpl<T, T> {
+public class WebSocketClient<I extends WebSocketFrame, O extends WebSocketFrame> extends RxClientImpl<I, O> {
 
     @SuppressWarnings("rawtypes")
     private static final HandshakeOperator HANDSHAKE_OPERATOR = new HandshakeOperator();
 
     public WebSocketClient(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
-                           PipelineConfigurator<T, T> pipelineConfigurator,
-                           ClientConfig clientConfig, ClientChannelFactory<T, T> channelFactory,
-                           ClientConnectionFactory<T, T, ? extends ObservableConnection<T, T>> connectionFactory,
+                           PipelineConfigurator<O, I> pipelineConfigurator,
+                           ClientConfig clientConfig, ClientChannelFactory<O, I> channelFactory,
+                           ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
                            MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory, eventsSubject);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public Observable<ObservableConnection<T, T>> connect() {
+    public Observable<ObservableConnection<O, I>> connect() {
         return super.connect().lift(HANDSHAKE_OPERATOR);
     }
 

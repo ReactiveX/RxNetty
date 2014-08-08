@@ -1,5 +1,7 @@
 package io.reactivex.netty.protocol.http.websocket;
 
+import java.util.List;
+
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
@@ -10,6 +12,7 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
+import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.server.RxServer;
 import rx.Observable;
 import rx.subjects.PublishSubject;
@@ -20,34 +23,50 @@ import rx.subjects.PublishSubject;
 
  * @author Tomasz Bak
  */
-@SuppressWarnings("unchecked")
-public class WebSocketServer<T extends WebSocketFrame> extends RxServer<T, T> {
-    public WebSocketServer(ServerBootstrap bootstrap, int port, ConnectionHandler<T, T> connectionHandler) {
-        super(bootstrap, port, new WrappedObservableConnectionHandler(connectionHandler));
+public class WebSocketServer<I extends WebSocketFrame, O extends WebSocketFrame> extends RxServer<I, O> {
+    @SuppressWarnings("unchecked")
+    public WebSocketServer(ServerBootstrap bootstrap, int port, ConnectionHandler<I, O> connectionHandler) {
+        this(bootstrap, port, null, new WrappedObservableConnectionHandler(connectionHandler));
     }
 
-    public WebSocketServer(ServerBootstrap bootstrap, int port, PipelineConfigurator<T, T> pipelineConfigurator, ConnectionHandler<T, T> connectionHandler) {
-        super(bootstrap, port, pipelineConfigurator, new WrappedObservableConnectionHandler(connectionHandler));
+    @SuppressWarnings("unchecked")
+    public WebSocketServer(ServerBootstrap bootstrap, int port, PipelineConfigurator<I, O> pipelineConfigurator, ConnectionHandler<I, O> connectionHandler) {
+        this(bootstrap, port, pipelineConfigurator, new WrappedObservableConnectionHandler(connectionHandler), null);
     }
 
-    public WebSocketServer(ServerBootstrap bootstrap, int port, ConnectionHandler<T, T> connectionHandler, EventExecutorGroup connHandlingExecutor) {
-        super(bootstrap, port, new WrappedObservableConnectionHandler(connectionHandler), connHandlingExecutor);
+    @SuppressWarnings("unchecked")
+    public WebSocketServer(ServerBootstrap bootstrap, int port, ConnectionHandler<I, O> connectionHandler, EventExecutorGroup connHandlingExecutor) {
+        this(bootstrap, port, null, new WrappedObservableConnectionHandler(connectionHandler), connHandlingExecutor);
     }
 
-    public WebSocketServer(ServerBootstrap bootstrap, int port, PipelineConfigurator<T, T> pipelineConfigurator, ConnectionHandler<T, T> connectionHandler, EventExecutorGroup connHandlingExecutor) {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public WebSocketServer(ServerBootstrap bootstrap, int port, PipelineConfigurator<I, O> pipelineConfigurator, ConnectionHandler<I, O> connectionHandler, EventExecutorGroup connHandlingExecutor) {
         super(bootstrap, port, pipelineConfigurator, new WrappedObservableConnectionHandler(connectionHandler), connHandlingExecutor);
+        List<PipelineConfigurator> constituentConfigurators =
+                ((PipelineConfiguratorComposite) this.pipelineConfigurator).getConstituentConfigurators();
+        boolean updatedSubject = false;
+        for (PipelineConfigurator configurator : constituentConfigurators) {
+            if (configurator instanceof WebSocketServerPipelineConfigurator) {
+                updatedSubject = true;
+                WebSocketServerPipelineConfigurator<I, O> requiredConfigurator = (WebSocketServerPipelineConfigurator<I, O>) configurator;
+                requiredConfigurator.useMetricEventsSubject(eventsSubject);
+            }
+        }
+        if (!updatedSubject) {
+            throw new IllegalStateException("No server required configurator added.");
+        }
     }
 
-    static class WrappedObservableConnectionHandler<T> implements ConnectionHandler<T, T> {
+    static class WrappedObservableConnectionHandler<I, O> implements ConnectionHandler<I, O> {
 
-        private final ConnectionHandler<T, T> originalHandler;
+        private final ConnectionHandler<I, O> originalHandler;
 
-        WrappedObservableConnectionHandler(ConnectionHandler<T, T> originalHandler) {
+        WrappedObservableConnectionHandler(ConnectionHandler<I, O> originalHandler) {
             this.originalHandler = originalHandler;
         }
 
         @Override
-        public Observable<Void> handle(final ObservableConnection<T, T> connection) {
+        public Observable<Void> handle(final ObservableConnection<I, O> connection) {
             ChannelHandlerContext ctx = connection.getChannelHandlerContext();
             final ChannelPipeline p = ctx.channel().pipeline();
             ChannelHandlerContext hctx = p.context(WebSocketServerHandler.class);
