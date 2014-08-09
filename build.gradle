@@ -13,6 +13,9 @@ allprojects {
         mavenLocal()
         mavenCentral() // maven { url: 'http://jcenter.bintray.com' }
     }
+    tasks.withType(Javadoc) {
+        options.addStringOption('Xdoclint:none', '-quiet')
+    }
 }
 
 apply from: file('gradle/convention.gradle')
