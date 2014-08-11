@@ -1,11 +1,12 @@
 package io.reactivex.netty.protocol.http.websocket;
 
 import java.nio.charset.Charset;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
@@ -24,6 +25,7 @@ import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.server.RxServer;
 import org.junit.Test;
 import rx.Observable;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 import static org.junit.Assert.*;
@@ -121,13 +123,13 @@ public class WebSocketClientServerTest {
         assertTrue("Expected close on server", executor.getReceivedServerFrames().get(0) instanceof CloseWebSocketFrame);
     }
 
-    private ByteBuf toByteBuf(String text) {
+    private static ByteBuf toByteBuf(String text) {
         byte[] bytes = text.getBytes(Charset.defaultCharset());
         ByteBuf byteBuf = UnpooledByteBufAllocator.DEFAULT.buffer(bytes.length);
         return byteBuf.writeBytes(bytes);
     }
 
-    private String asText(WebSocketFrame frame) {
+    private static String asText(WebSocketFrame frame) {
         return frame.content().toString(Charset.defaultCharset());
     }
 
@@ -137,8 +139,8 @@ public class WebSocketClientServerTest {
         private WebSocketFrame[] serverFrames;
         private int expectedOnClient;
 
-        private final CopyOnWriteArrayList<WebSocketFrame> receivedClientFrames = new CopyOnWriteArrayList<WebSocketFrame>();
-        private final CopyOnWriteArrayList<WebSocketFrame> receivedServerFrames = new CopyOnWriteArrayList<WebSocketFrame>();
+        private final List<WebSocketFrame> receivedClientFrames = new CopyOnWriteArrayList<WebSocketFrame>();
+        private final List<WebSocketFrame> receivedServerFrames = new CopyOnWriteArrayList<WebSocketFrame>();
         private boolean messageAggregation;
 
         public List<WebSocketFrame> getReceivedClientFrames() {
@@ -174,32 +176,22 @@ public class WebSocketClientServerTest {
             return this;
         }
 
-        public TestSequenceExecutor execute() throws InterruptedException {
-            final CountDownLatch latch = new CountDownLatch(expectedOnServer);
+        public TestSequenceExecutor execute() throws InterruptedException, TimeoutException, ExecutionException {
+            final CountDownLatch serverLatch = new CountDownLatch(expectedOnServer);
             RxServer<WebSocketFrame, WebSocketFrame> server = RxNetty.newWebSocketServerBuilder(0, new ConnectionHandler<WebSocketFrame, WebSocketFrame>() {
                 @Override
                 public Observable<Void> handle(final ObservableConnection<WebSocketFrame, WebSocketFrame> connection) {
                     if (clientFrames == null) {
-                        if (serverFrames != null) {
-                            for (WebSocketFrame serverFrame : serverFrames) {
-                                connection.writeAndFlush(serverFrame);
-                            }
-                        }
-                        return connection.close();
+                        return sendBatchOfFrames(connection, serverFrames);
                     }
                     return connection.getInput().flatMap(new Func1<WebSocketFrame, Observable<Void>>() {
                         @Override
                         public Observable<Void> call(WebSocketFrame frame) {
                             frame.retain();
                             receivedClientFrames.add(frame);
-                            latch.countDown();
-                            if (latch.getCount() == 0) {
-                                if (serverFrames != null) {
-                                    for (WebSocketFrame serverFrame : serverFrames) {
-                                        connection.writeAndFlush(serverFrame);
-                                    }
-                                }
-                                return connection.close();
+                            serverLatch.countDown();
+                            if (serverLatch.getCount() == 0) {
+                                return sendBatchOfFrames(connection, serverFrames);
                             }
                             return Observable.empty();
                         }
@@ -207,7 +199,8 @@ public class WebSocketClientServerTest {
                 }
             }).withMessageAggregator(messageAggregation).enableWireLogging(LogLevel.ERROR).build().start();
 
-            Observable<WebSocketFrame> responseObservable = RxNetty.newWebSocketClientBuilder("localhost", server.getServerPort())
+            final CountDownLatch clientLatch = new CountDownLatch(expectedOnClient);
+            RxNetty.newWebSocketClientBuilder("localhost", server.getServerPort())
                     .withWebSocketVersion(WebSocketVersion.V13)
                     .withMessageAggregator(messageAggregation)
                     .enableWireLogging(LogLevel.ERROR)
@@ -216,33 +209,41 @@ public class WebSocketClientServerTest {
                     .flatMap(new Func1<ObservableConnection<WebSocketFrame, WebSocketFrame>, Observable<WebSocketFrame>>() {
                         @Override
                         public Observable<WebSocketFrame> call(final ObservableConnection<WebSocketFrame, WebSocketFrame> connection) {
-                            if (clientFrames != null) {
-                                for (int i = 0; i < clientFrames.length - 1; i++) {
-                                    connection.writeAndFlush(clientFrames[i]);
-                                }
-                                connection.writeAndFlush(clientFrames[clientFrames.length - 1]);
-                            }
-                            return connection.getInput().map(new Func1<WebSocketFrame, WebSocketFrame>() {
+                            sendBatchOfFrames(connection, clientFrames);
+                            return connection.getInput().doOnNext(new Action1<WebSocketFrame>() {
                                 @Override
-                                public WebSocketFrame call(WebSocketFrame webSocketFrame) {
+                                public void call(WebSocketFrame webSocketFrame) {
                                     webSocketFrame.retain();
-                                    return webSocketFrame;
                                 }
                             });
                         }
+                    })
+                    .subscribe(new Action1<WebSocketFrame>() {
+                        @Override
+                        public void call(WebSocketFrame webSocketFrame) {
+                            receivedServerFrames.add(webSocketFrame);
+                            clientLatch.countDown();
+                        }
                     });
-            Iterator<WebSocketFrame> clientResponseIterator = responseObservable.toBlocking().getIterator();
-            for (int i = 0; clientResponseIterator.hasNext() && i < expectedOnClient; i++) {
-                receivedServerFrames.add(clientResponseIterator.next());
-            }
+            assertTrue("Timeout on server", serverLatch.await(30, TimeUnit.SECONDS));
+            assertTrue("Timeout on client", clientLatch.await(30, TimeUnit.SECONDS));
 
-            assertTrue("Test timeout", latch.await(100, TimeUnit.MILLISECONDS));
             server.shutdown();
 
             assertEquals("Invalid number of server frames received", expectedOnClient, receivedServerFrames.size());
             assertEquals("Invalid number of client frames received", expectedOnServer, receivedClientFrames.size());
 
             return this;
+        }
+
+        private Observable<Void> sendBatchOfFrames(ObservableConnection<WebSocketFrame, WebSocketFrame> connection, WebSocketFrame[] frames) {
+            if (frames != null) {
+                for (WebSocketFrame frame : frames) {
+                    connection.write(frame);
+                }
+                return connection.flush();
+            }
+            return Observable.empty();
         }
     }
 }
