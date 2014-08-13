@@ -15,12 +15,13 @@
  */
 package io.reactivex.netty.protocol.http.server;
 
+import io.reactivex.netty.channel.Handler;
 import rx.Observable;
 
 /**
  * @author Nitesh Kant
  */
-public interface RequestHandler<I, O> {
+public interface RequestHandler<I, O> extends Handler<HttpServerRequest<I>, HttpServerResponse<O>> {
 
     Observable<Void> handle(HttpServerRequest<I> request, HttpServerResponse<O> response);
 
