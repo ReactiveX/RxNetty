@@ -73,7 +73,7 @@ public class WebSocketServer<I extends WebSocketFrame, O extends WebSocketFrame>
             if (hctx != null) {
                 WebSocketServerHandler handler = p.get(WebSocketServerHandler.class);
                 final PublishSubject<Void> subject = PublishSubject.create();
-                handler.handshakeFuture().addListener(new ChannelFutureListener() {
+                handler.addHandshakeFinishedListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
                         originalHandler.handle(connection).subscribe(subject);

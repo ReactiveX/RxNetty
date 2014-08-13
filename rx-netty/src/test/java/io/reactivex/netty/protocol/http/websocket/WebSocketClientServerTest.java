@@ -202,7 +202,7 @@ public class WebSocketClientServerTest {
             final CountDownLatch clientLatch = new CountDownLatch(expectedOnClient);
             RxNetty.newWebSocketClientBuilder("localhost", server.getServerPort())
                     .withWebSocketVersion(WebSocketVersion.V13)
-                    .withMessageAggregator(messageAggregation)
+                    .withMessageAggregation(messageAggregation)
                     .enableWireLogging(LogLevel.ERROR)
                     .build()
                     .connect()

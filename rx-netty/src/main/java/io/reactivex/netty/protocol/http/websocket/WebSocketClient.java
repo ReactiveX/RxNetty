@@ -5,6 +5,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPipelineException;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.ClientChannelFactory;
@@ -44,15 +45,15 @@ public class WebSocketClient<I extends WebSocketFrame, O extends WebSocketFrame>
 
     static class HandshakeOperator<T extends WebSocketFrame> implements Operator<ObservableConnection<T, T>, ObservableConnection<T, T>> {
         @Override
-        public Subscriber<ObservableConnection<T, T>> call(final Subscriber<? super ObservableConnection<T, T>> subscriber) {
-            return new Subscriber<ObservableConnection<T, T>>() {
+        public Subscriber<ObservableConnection<T, T>> call(final Subscriber<? super ObservableConnection<T, T>> originalSubscriber) {
+            Subscriber<ObservableConnection<T, T>> liftSubscriber = new Subscriber<ObservableConnection<T, T>>() {
                 @Override
                 public void onCompleted() {
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    subscriber.onError(e);
+                    originalSubscriber.onError(e);
                 }
 
                 @Override
@@ -62,16 +63,21 @@ public class WebSocketClient<I extends WebSocketFrame, O extends WebSocketFrame>
                     ChannelHandlerContext hctx = p.context(WebSocketClientHandler.class);
                     if (hctx != null) {
                         WebSocketClientHandler handler = p.get(WebSocketClientHandler.class);
-                        handler.handshakeFuture().addListener(new ChannelFutureListener() {
+                        handler.addHandshakeFinishedListener(new ChannelFutureListener() {
                             @Override
                             public void operationComplete(ChannelFuture future) throws Exception {
-                                subscriber.onNext(connection);
-                                subscriber.onCompleted();
+                                originalSubscriber.onNext(connection);
+                                originalSubscriber.onCompleted();
                             }
                         });
+                    } else {
+                        originalSubscriber.onError(new ChannelPipelineException(
+                                "invalid pipeline configuration - WebSocket pipeline with no WebSocketClientHandler"));
                     }
                 }
             };
+            originalSubscriber.add(liftSubscriber);
+            return liftSubscriber;
         }
     }
 }

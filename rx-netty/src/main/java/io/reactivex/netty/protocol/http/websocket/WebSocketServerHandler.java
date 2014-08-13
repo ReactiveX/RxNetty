@@ -51,8 +51,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         this.eventsSubject = eventsSubject;
     }
 
-    public ChannelFuture handshakeFuture() {
-        return handshakeFuture;
+    public void addHandshakeFinishedListener(ChannelFutureListener listener) {
+        handshakeFuture.addListener(listener);
     }
 
     @Override
@@ -63,10 +63,22 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
     @Override
     public void channelRead0(ChannelHandlerContext ctx, Object msg) throws Exception {
         if (msg instanceof FullHttpRequest) {
-            handleHttpRequest(ctx, (FullHttpRequest) msg);
-            updatePipeline(ctx);
-            handshakeFuture.setSuccess();
-            eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_PROCESSED);
+            ChannelFuture upgradeFuture = handleHttpRequest(ctx, (FullHttpRequest) msg);
+            if (upgradeFuture != null) {
+                updatePipeline(ctx);
+                upgradeFuture.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        if (future.isSuccess()) {
+                            handshakeFuture.setSuccess();
+                            eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_PROCESSED);
+                        } else {
+                            handshakeFuture.setFailure(future.cause());
+                            eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_FAILURE);
+                        }
+                    }
+                });
+            }
         } else {
             ctx.fireChannelRead(msg);
         }
@@ -89,28 +101,28 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
         ctx.flush();
     }
 
-    private void handleHttpRequest(ChannelHandlerContext ctx, FullHttpRequest req) {
+    private ChannelFuture handleHttpRequest(ChannelHandlerContext ctx, FullHttpRequest req) {
         // Handle a bad request.
         if (!req.getDecoderResult().isSuccess()) {
             sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, BAD_REQUEST));
             eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_FAILURE);
-            return;
+            return null;
         }
 
         // Allow only GET methods.
         if (req.getMethod() != GET) {
             sendHttpResponse(ctx, req, new DefaultFullHttpResponse(HTTP_1_1, FORBIDDEN));
             eventsSubject.onEvent(WebSocketServerMetricsEvent.HANDSHAKE_FAILURE);
-            return;
+            return null;
         }
 
         // Handshake
         WebSocketServerHandshaker handshaker = handshakeHandlerFactory.newHandshaker(req);
         if (handshaker == null) {
             WebSocketServerHandshakerFactory.sendUnsupportedVersionResponse(ctx.channel());
-        } else {
-            handshaker.handshake(ctx.channel(), req);
+            return null;
         }
+        return handshaker.handshake(ctx.channel(), req);
     }
 
     private static void sendHttpResponse(

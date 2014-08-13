@@ -17,7 +17,7 @@
 package io.reactivex.netty.protocol.http.websocket;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
@@ -60,8 +60,8 @@ public class WebSocketClientHandler extends ChannelInboundHandlerAdapter {
         this.eventsSubject = eventsSubject;
     }
 
-    public ChannelFuture handshakeFuture() {
-        return handshakeFuture;
+    public void addHandshakeFinishedListener(ChannelFutureListener listener) {
+        handshakeFuture.addListener(listener);
     }
 
     @Override

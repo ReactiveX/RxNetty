@@ -78,7 +78,7 @@ public class WebSocketClientBuilder<I extends WebSocketFrame, O extends WebSocke
         return this;
     }
 
-    public WebSocketClientBuilder<I, O> withMessageAggregator(boolean messageAggregation) {
+    public WebSocketClientBuilder<I, O> withMessageAggregation(boolean messageAggregation) {
         this.messageAggregation = messageAggregation;
         return this;
     }
@@ -88,7 +88,7 @@ public class WebSocketClientBuilder<I extends WebSocketFrame, O extends WebSocke
         return this;
     }
 
-    public WebSocketClientBuilder<I, O> withAllowExtensions(boolean allowExtensions) {
+    public WebSocketClientBuilder<I, O> allowExtensions(boolean allowExtensions) {
         this.allowExtensions = allowExtensions;
         return this;
     }
