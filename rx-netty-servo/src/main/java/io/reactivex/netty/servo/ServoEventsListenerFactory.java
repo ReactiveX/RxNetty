@@ -20,12 +20,16 @@ import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.server.HttpServer;
+import io.reactivex.netty.protocol.http.websocket.WebSocketClient;
+import io.reactivex.netty.protocol.http.websocket.WebSocketServer;
 import io.reactivex.netty.protocol.udp.client.UdpClient;
 import io.reactivex.netty.protocol.udp.server.UdpServer;
 import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import io.reactivex.netty.servo.http.HttpClientListener;
 import io.reactivex.netty.servo.http.HttpServerListener;
+import io.reactivex.netty.servo.http.websocket.WebSocketClientListener;
+import io.reactivex.netty.servo.http.websocket.WebSocketServerListener;
 import io.reactivex.netty.servo.tcp.TcpClientListener;
 import io.reactivex.netty.servo.tcp.TcpServerListener;
 import io.reactivex.netty.servo.udp.UdpClientListener;
@@ -59,6 +63,11 @@ public class ServoEventsListenerFactory implements MetricEventsListenerFactory {
     }
 
     @Override
+    public WebSocketClientListener forWebSocketClient(@SuppressWarnings("rawtypes") WebSocketClient client) {
+        return WebSocketClientListener.newWebSocketListener(clientMetricNamePrefix + client.name());
+    }
+
+    @Override
     public UdpClientListener forUdpClient(@SuppressWarnings("rawtypes") UdpClient client) {
         return UdpClientListener.newUdpListener(clientMetricNamePrefix + client.name());
     }
@@ -71,6 +80,11 @@ public class ServoEventsListenerFactory implements MetricEventsListenerFactory {
     @Override
     public HttpServerListener forHttpServer(@SuppressWarnings("rawtypes") HttpServer server) {
         return HttpServerListener.newHttpListener(serverMetricNamePrefix + server.getServerPort());
+    }
+
+    @Override
+    public WebSocketServerListener forWebSocketServer(@SuppressWarnings("rawtypes") WebSocketServer server) {
+        return WebSocketServerListener.newWebSocketListener(serverMetricNamePrefix + server.getServerPort());
     }
 
     @Override
