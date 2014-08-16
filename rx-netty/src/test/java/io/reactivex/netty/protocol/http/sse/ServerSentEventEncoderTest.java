@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.protocol.text.sse;
+package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.NoOpChannelHandlerContext;

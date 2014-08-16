@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.protocol.text.sse;
+package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -40,7 +40,7 @@ public class ServerSentEventDecoderTest {
 
     private final ByteBufAllocator alloc = new UnpooledByteBufAllocator(false);
 
-    static class TestableServerSentEventDecoder extends ServerSentEventDecoder {
+    static class TestableServerSentEventDecoder extends io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder {
         @Override
         public void callDecode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
             super.callDecode(ctx, in, out);
