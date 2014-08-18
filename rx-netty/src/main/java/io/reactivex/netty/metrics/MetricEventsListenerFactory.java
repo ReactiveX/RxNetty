@@ -20,6 +20,8 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.server.HttpServer;
+import io.reactivex.netty.protocol.http.websocket.WebSocketClient;
+import io.reactivex.netty.protocol.http.websocket.WebSocketServer;
 import io.reactivex.netty.protocol.udp.client.UdpClient;
 import io.reactivex.netty.protocol.udp.server.UdpServer;
 import io.reactivex.netty.server.RxServer;
@@ -38,12 +40,16 @@ public interface MetricEventsListenerFactory {
 
     MetricEventsListener<ClientMetricsEvent<?>> forHttpClient(@SuppressWarnings("rawtypes")HttpClient client);
 
+    MetricEventsListener<ClientMetricsEvent<?>> forWebSocketClient(@SuppressWarnings("rawtypes")WebSocketClient client);
+
     MetricEventsListener<ClientMetricsEvent<?>> forUdpClient(@SuppressWarnings("rawtypes")UdpClient client);
 
     MetricEventsListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> forTcpServer(
             @SuppressWarnings("rawtypes") RxServer server);
 
     MetricEventsListener<ServerMetricsEvent<?>> forHttpServer(@SuppressWarnings("rawtypes")HttpServer server);
+
+    MetricEventsListener<ServerMetricsEvent<?>> forWebSocketServer(@SuppressWarnings("rawtypes")WebSocketServer server);
 
     MetricEventsListener<ServerMetricsEvent<?>> forUdpServer(@SuppressWarnings("rawtypes")UdpServer server);
 }

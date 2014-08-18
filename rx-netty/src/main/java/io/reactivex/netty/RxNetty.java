@@ -19,6 +19,7 @@ package io.reactivex.netty;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.socket.DatagramPacket;
 import io.netty.channel.socket.nio.NioDatagramChannel;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ContentTransformer;
@@ -39,6 +40,8 @@ import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
+import io.reactivex.netty.protocol.http.websocket.WebSocketClientBuilder;
+import io.reactivex.netty.protocol.http.websocket.WebSocketServerBuilder;
 import io.reactivex.netty.protocol.udp.client.UdpClientBuilder;
 import io.reactivex.netty.protocol.udp.server.UdpServer;
 import io.reactivex.netty.protocol.udp.server.UdpServerBuilder;
@@ -221,6 +224,15 @@ public final class RxNetty {
 
     public static Observable<HttpClientResponse<ByteBuf>> createHttpDelete(String uri) {
         return createHttpRequest(HttpClientRequest.createDelete(uri));
+    }
+
+    public static <I extends WebSocketFrame, O extends WebSocketFrame> WebSocketClientBuilder<I, O> newWebSocketClientBuilder(String host, int port) {
+        return new WebSocketClientBuilder<I, O>(host, port).enableWireLogging(LogLevel.DEBUG);
+    }
+
+    public static <I extends WebSocketFrame, O extends WebSocketFrame> WebSocketServerBuilder<I, O>
+    newWebSocketServerBuilder(int port, ConnectionHandler<I, O> connectionHandler) {
+        return new WebSocketServerBuilder<I, O>(port, connectionHandler).enableWireLogging(LogLevel.DEBUG);
     }
 
     /**
