@@ -25,6 +25,8 @@ import io.reactivex.netty.server.RxServer;
 
 import java.util.List;
 
+import static io.reactivex.netty.protocol.http.server.HttpServerRequest.DEFAULT_CONTENT_SUBSCRIPTION_TIMEOUT_MS;
+
 /**
  * @author Nitesh Kant
  */
@@ -42,19 +44,21 @@ public class HttpServer<I, O> extends RxServer<HttpServerRequest<I>, HttpServerR
                       PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
                       RequestHandler<I, O> requestHandler, EventExecutorGroup requestProcessingExecutor) {
         this(bootstrap, port, pipelineConfigurator, new HttpConnectionHandler<I, O>(requestHandler),
-             requestProcessingExecutor);
+             requestProcessingExecutor, DEFAULT_CONTENT_SUBSCRIPTION_TIMEOUT_MS);
     }
 
     protected HttpServer(ServerBootstrap bootstrap, int port,
                PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
                HttpConnectionHandler<I, O> connectionHandler) {
-        this(bootstrap, port, pipelineConfigurator, connectionHandler, null);
+        this(bootstrap, port, pipelineConfigurator, connectionHandler, null, DEFAULT_CONTENT_SUBSCRIPTION_TIMEOUT_MS);
     }
 
     protected HttpServer(ServerBootstrap bootstrap, int port,
                PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
-               HttpConnectionHandler<I, O> connectionHandler, EventExecutorGroup requestProcessingExecutor) {
-        super(bootstrap, port, addRequiredConfigurator(pipelineConfigurator, requestProcessingExecutor),
+               HttpConnectionHandler<I, O> connectionHandler, EventExecutorGroup requestProcessingExecutor,
+               long requestContentSubscriptionTimeoutMs) {
+        super(bootstrap, port, addRequiredConfigurator(pipelineConfigurator, requestProcessingExecutor,
+                                                       requestContentSubscriptionTimeoutMs),
               connectionHandler, requestProcessingExecutor);
         @SuppressWarnings({"unchecked", "rawtypes"})
         List<PipelineConfigurator> constituentConfigurators =
@@ -97,8 +101,9 @@ public class HttpServer<I, O> extends RxServer<HttpServerRequest<I>, HttpServerR
 
     private static <I, O> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> addRequiredConfigurator(
             PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<O>> pipelineConfigurator,
-            EventExecutorGroup requestProcessingExecutor) {
+            EventExecutorGroup requestProcessingExecutor, long requestContentSubscriptionTimeoutMs) {
         return new PipelineConfiguratorComposite<HttpServerRequest<I>, HttpServerResponse<O>>(pipelineConfigurator,
-                                                                                  new ServerRequiredConfigurator<I, O>(requestProcessingExecutor));
+                                                                                  new ServerRequiredConfigurator<I, O>(requestProcessingExecutor,
+                                                                                                                       requestContentSubscriptionTimeoutMs));
     }
 }

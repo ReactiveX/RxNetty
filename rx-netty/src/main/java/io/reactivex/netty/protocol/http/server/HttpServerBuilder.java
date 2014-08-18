@@ -28,6 +28,7 @@ import io.reactivex.netty.server.RxServer;
 import io.reactivex.netty.server.ServerMetricsEvent;
 
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A convenience builder to create instances of {@link HttpServer}
@@ -36,6 +37,8 @@ import java.util.concurrent.ThreadFactory;
  */
 public class HttpServerBuilder<I, O>
         extends ConnectionBasedServerBuilder<HttpServerRequest<I>, HttpServerResponse<O>, HttpServerBuilder<I, O>> {
+
+    private long contentSubscriptionTimeoutMs;
 
     public HttpServerBuilder(int port, RequestHandler<I, O> requestHandler, boolean send10ResponseFor10Request) {
         super(port, new HttpConnectionHandler<I, O>(requestHandler, send10ResponseFor10Request));
@@ -97,6 +100,20 @@ public class HttpServerBuilder<I, O>
         return super.withEventExecutorGroup(new DefaultEventExecutorGroup(threadCount, factory));
     }
 
+    /**
+     * {@link HttpServerRequest} does not allow unlimited delayed content subscriptions.
+     * This method specifies the timeout for the subscription of the content.
+     *
+     * @param subscriptionTimeout Timeout value.
+     * @param timeunit Timeout time unit.
+     *
+     * @return This builder.
+     */
+    public HttpServerBuilder<I, O> withRequestContentSubscriptionTimeout(long subscriptionTimeout, TimeUnit timeunit) {
+        contentSubscriptionTimeoutMs = TimeUnit.MILLISECONDS.convert(subscriptionTimeout, timeunit);
+        return this;
+    }
+
     @Override
     public HttpServer<I, O> build() {
         return (HttpServer<I, O>) super.build();
@@ -105,7 +122,8 @@ public class HttpServerBuilder<I, O>
     @Override
     protected HttpServer<I, O> createServer() {
         return new HttpServer<I, O>(serverBootstrap, port, pipelineConfigurator,
-                                    (HttpConnectionHandler<I, O>) connectionHandler, eventExecutorGroup);
+                                    (HttpConnectionHandler<I, O>) connectionHandler, eventExecutorGroup,
+                                    contentSubscriptionTimeoutMs);
     }
 
     @Override

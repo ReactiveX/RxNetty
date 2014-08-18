@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
@@ -21,11 +22,11 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.junit.Assert;
 import org.junit.Test;
 import rx.Observable;
 import rx.Subscriber;
-import rx.subjects.PublishSubject;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -67,7 +68,7 @@ public class RedirectOperatorTest {
         public TestableRedirectHandler(int maxHops, HttpResponseStatus redirectResponseStatus) {
             this.maxHops = maxHops;
             DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, redirectResponseStatus);
-            response = new HttpClientResponse<O>(nettyResponse, PublishSubject.<O>create());
+            response = new HttpClientResponse<O>(nettyResponse, UnicastContentSubject.<O>createWithoutNoSubscriptionTimeout());
         }
 
         public TestableRedirectHandler(int maxHops) {
@@ -164,9 +165,9 @@ public class RedirectOperatorTest {
             HttpClientRequest<ByteBuf> request = new HttpClientRequest<ByteBuf>(nettyRequest);
             DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
                                                                         HttpResponseStatus.TEMPORARY_REDIRECT);
-            final HttpClientResponse<ByteBuf> response = new HttpClientResponse<ByteBuf>(nettyResponse,
-                                                                                         PublishSubject
-                                                                                                 .<ByteBuf>create());
+            final HttpClientResponse<ByteBuf> response =
+                    new HttpClientResponse<ByteBuf>(nettyResponse,
+                                              UnicastContentSubject .<ByteBuf>createWithoutNoSubscriptionTimeout());
             handler = new TestableRedirectHandler<ByteBuf, ByteBuf>(2, redirectStatus);
 
             subscriber = new UnsafeRedirectSubscriber();

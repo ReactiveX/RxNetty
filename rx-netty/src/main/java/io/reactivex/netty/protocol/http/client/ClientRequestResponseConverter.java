@@ -33,14 +33,16 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.NewRxConnectionEvent;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionReuseEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
+import rx.Observer;
 import rx.Subscriber;
-import rx.subjects.PublishSubject;
 
 /**
  * A channel handler for {@link HttpClient} to convert netty's http request/response objects to {@link HttpClient}'s
@@ -76,12 +78,14 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
-    @SuppressWarnings("rawtypes") private PublishSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
+    @SuppressWarnings("rawtypes") private UnicastContentSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
+    @SuppressWarnings("rawtypes") private Observer connInputObsrvr;
+
     private long responseReceiveStartTimeMillis; // Reset every time we receive a header.
 
     public ClientRequestResponseConverter(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
-        contentSubject = PublishSubject.create();
+        contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(); // Timeout handling is done dynamically by the client.
     }
 
     @Override
@@ -95,7 +99,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
          *  super.channelRead(ctx, rxResponse); below) it will so happen that we invoke onComplete (below code when the
          *  first response completes) on the new subject as opposed to the old response subject.
          */
-        @SuppressWarnings("rawtypes") final PublishSubject subjectToUse = contentSubject;
+        @SuppressWarnings("rawtypes") final UnicastContentSubject subjectToUse = contentSubject;
 
         if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             responseReceiveStartTimeMillis = Clock.newStartTimeMillis();
@@ -127,6 +131,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
                                       Clock.onEndMillis(responseReceiveStartTimeMillis));
                 subjectToUse.onCompleted();
+                connInputObsrvr.onCompleted();
             }
         } else if(!HttpResponse.class.isAssignableFrom(recievedMsgClass)){
             invokeContentOnNext(msg);
@@ -184,7 +189,13 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof ConnectionReuseEvent) {
-            contentSubject = PublishSubject.create(); // Reset the subject on reuse.
+            contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(); // Reset the subject on reuse.
+                                                                                         // Timeout handling is done dynamically by the client.
+            ConnectionReuseEvent reuseEvent = (ConnectionReuseEvent) evt;
+            connInputObsrvr = reuseEvent.getConnectedObserver();
+        } else if (evt instanceof NewRxConnectionEvent) {
+            NewRxConnectionEvent rxConnectionEvent = (NewRxConnectionEvent) evt;
+            connInputObsrvr = rxConnectionEvent.getConnectedObserver();
         }
         super.userEventTriggered(ctx, evt);
     }

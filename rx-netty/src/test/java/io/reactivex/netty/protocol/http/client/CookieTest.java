@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
@@ -25,9 +26,9 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.junit.Assert;
 import org.junit.Test;
-import rx.subjects.PublishSubject;
 
 import java.util.Map;
 import java.util.Set;
@@ -47,7 +48,7 @@ public class CookieTest {
         String cookie1Header = cookie1Name + '=' + cookie1Value
                                + "; expires=Thu, 18-Feb-2016 07:47:08 GMT; path=" + cookie1Path + "; domain=" + cookie1Domain;
         nettyResponse.headers().add(HttpHeaders.Names.SET_COOKIE, cookie1Header);
-        HttpClientResponse<ByteBuf> response = new HttpClientResponse<ByteBuf>(nettyResponse, PublishSubject.<ByteBuf>create());
+        HttpClientResponse<ByteBuf> response = new HttpClientResponse<ByteBuf>(nettyResponse, UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
         Map<String,Set<Cookie>> cookies = response.getCookies();
         Assert.assertNotNull("Cookies are null.", cookies);
         Assert.assertEquals("Cookies are empty.", 1, cookies.size());

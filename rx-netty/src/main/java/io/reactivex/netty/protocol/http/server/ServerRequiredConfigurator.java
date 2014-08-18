@@ -33,14 +33,12 @@ class ServerRequiredConfigurator<I, O> implements PipelineConfigurator<HttpServe
 
     public static final String REQUEST_RESPONSE_CONVERTER_HANDLER_NAME = "request-response-converter";
     private final EventExecutorGroup handlersExecutorGroup;
+    private final long requestContentSubscriptionTimeoutMs;
     private MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
-    ServerRequiredConfigurator() {
-        this(null);
-    }
-
-    ServerRequiredConfigurator(EventExecutorGroup handlersExecutorGroup) {
+    ServerRequiredConfigurator(EventExecutorGroup handlersExecutorGroup, long requestContentSubscriptionTimeoutMs) {
         this.handlersExecutorGroup = handlersExecutorGroup;
+        this.requestContentSubscriptionTimeoutMs = requestContentSubscriptionTimeoutMs;
     }
 
     void useMetricEventsSubject(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
@@ -50,7 +48,7 @@ class ServerRequiredConfigurator<I, O> implements PipelineConfigurator<HttpServe
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
         pipeline.addLast(getRequestResponseConverterExecutor(), REQUEST_RESPONSE_CONVERTER_HANDLER_NAME,
-                         new ServerRequestResponseConverter(eventsSubject));
+                         new ServerRequestResponseConverter(eventsSubject, requestContentSubscriptionTimeoutMs));
     }
 
     protected EventExecutorGroup getRequestResponseConverterExecutor() {

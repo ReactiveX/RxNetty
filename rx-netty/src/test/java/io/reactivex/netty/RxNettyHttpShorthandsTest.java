@@ -107,7 +107,7 @@ public class RxNettyHttpShorthandsTest {
         HttpClientResponse<ByteBuf> response =
                 RxNetty.createHttpPut("http://localhost:" + mockServer.getServerPort() + '/',
                                       Observable.just(Unpooled.buffer().writeBytes("Hello!".getBytes())))
-                       .toBlocking() .toFuture().get(1, TimeUnit.MINUTES);
+                       .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
         Assert.assertEquals("Unexpected HTTP method sent.", "PUT", response.getHeaders().get(METHOD_HEADER));
         Assert.assertEquals("Content not sent by the client.", "true", response.getHeaders().get(CONTENT_RECEIEVED_HEADER));
     }

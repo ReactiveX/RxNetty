@@ -84,7 +84,8 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
 
         enrichRequest(request, httpClientConfig);
         Observable<HttpClientResponse<O>> toReturn =
-                connectionObservable.lift(new RequestProcessingOperator<I, O>(request, eventsSubject));
+                connectionObservable.lift(new RequestProcessingOperator<I, O>(request, eventsSubject,
+                                                                              httpClientConfig.getResponseSubscriptionTimeoutMs()));
 
         if (followRedirect) {
             toReturn = toReturn.lift(new RedirectOperator<I, O>(request, this, httpClientConfig));

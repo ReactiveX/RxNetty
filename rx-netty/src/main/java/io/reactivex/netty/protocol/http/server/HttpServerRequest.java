@@ -20,7 +20,10 @@ import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.protocol.http.AbstractHttpContentHolder;
 import io.reactivex.netty.protocol.http.CookiesHolder;
+import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import rx.Observable;
 import rx.subjects.Subject;
 
@@ -29,24 +32,52 @@ import java.util.Map;
 import java.util.Set;
 
 /**
+ * <h2>Handling Content</h2>
+ * This request supports delayed subscription to content (if expected). Although this is useful, it incurs an overhead
+ * of buffering the content till the subscription arrives. In order to reduce this overhead and safety against memory
+ * leaks the following restrictions are imposed on the users:
+ *
+ * <ul>
+ <li>The content {@link Observable} as returned by {@link #getContent()} supports one and only one subscriber.</li>
+ <li>It is mandatory to either call {@link #ignoreContent()} or have atleast one subscription to {@link #getContent()}</li>
+ <li>Any subscriptions to {@link #getContent()} after the configured timeout, will result in error on the subscriber.</li>
+ </ul>
+ *
  * @author Nitesh Kant
  */
-public class HttpServerRequest<T> {
+public class HttpServerRequest<T> extends AbstractHttpContentHolder<T> {
+
+    public static final long DEFAULT_CONTENT_SUBSCRIPTION_TIMEOUT_MS = 1;
 
     private final HttpRequest nettyRequest;
     private final HttpRequestHeaders headers;
-    private final Subject<T, T> contentSubject;
     private final HttpMethod method;
     private final HttpVersion protocolVersion;
     private final UriInfoHolder uriInfoHolder;
     private final CookiesHolder cookiesHolder;
+    private volatile long processingStartTimeMillis;
 
+    /**
+     * @deprecated Use {@link #HttpServerRequest(HttpRequest, UnicastContentSubject)} instead. The content need not
+     * necessarily be a {@link Subject}
+     */
+    @Deprecated
     public HttpServerRequest(HttpRequest nettyRequest, Subject<T, T> contentSubject) {
+        super(contentSubject);
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(this.nettyRequest);
         method = this.nettyRequest.getMethod();
         protocolVersion = this.nettyRequest.getProtocolVersion();
-        this.contentSubject = contentSubject;
+        uriInfoHolder = new UriInfoHolder(this.nettyRequest.getUri());
+        cookiesHolder = CookiesHolder.newServerRequestHolder(nettyRequest.headers());
+    }
+
+    public HttpServerRequest(HttpRequest nettyRequest, UnicastContentSubject<T> content) {
+        super(content);
+        this.nettyRequest = nettyRequest;
+        headers = new HttpRequestHeaders(this.nettyRequest);
+        method = this.nettyRequest.getMethod();
+        protocolVersion = this.nettyRequest.getProtocolVersion();
         uriInfoHolder = new UriInfoHolder(this.nettyRequest.getUri());
         cookiesHolder = CookiesHolder.newServerRequestHolder(nettyRequest.headers());
     }
@@ -83,7 +114,11 @@ public class HttpServerRequest<T> {
         return cookiesHolder.getAllCookies();
     }
 
-    public Observable<T> getContent() {
-        return contentSubject;
+    void onProcessingStart(long processingStartTimeMillis) {
+        this.processingStartTimeMillis = processingStartTimeMillis;
+    }
+
+    long onProcessingEnd() {
+        return Clock.onEndMillis(processingStartTimeMillis);
     }
 }

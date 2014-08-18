@@ -23,7 +23,6 @@ import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
-import rx.Observer;
 import rx.Subscriber;
 
 /**
@@ -76,26 +75,9 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                     public void onNext(HttpServerRequest<I> newRequest) {
                         final long startTimeMillis = Clock.newStartTimeMillis();
                         eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
-                        newRequest.getContent().subscribe(new Observer<I>() {
-                            // There is no guarantee that the RequestHandler will subscribe to the content, but we want this
-                            // metric anyways, so we subscribe to the content here.
-                            @Override
-                            public void onCompleted() {
-                                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE,
-                                                      Clock.onEndMillis(startTimeMillis));
-                            }
 
-                            @Override
-                            public void onError(Throwable e) {
-                            }
-
-                            @Override
-                            public void onNext(I i) {
-                            }
-                        });
-
-                        final HttpServerResponse<O> response = new HttpServerResponse<O>(
-                                newConnection.getChannelHandlerContext(),
+                        final HttpServerResponse<O> response =
+                                new HttpServerResponse<O>(newConnection.getChannelHandlerContext(),
                         /*
                          * Server should send the highest version it is compatible with.
                          * http://tools.ietf.org/html/rfc2145#section-2.3
