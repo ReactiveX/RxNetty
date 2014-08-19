@@ -120,7 +120,7 @@ $ ./gradlew build
 
 ## Bugs and Feedback
 
-For bugs, questions and discussions please use the [Github Issues](https://github.com/Netflix/ReactiveX/issues).
+For bugs, questions and discussions please use the [Github Issues](https://github.com/ReactiveX/RxNetty/issues).
 
  
 ## LICENSE
