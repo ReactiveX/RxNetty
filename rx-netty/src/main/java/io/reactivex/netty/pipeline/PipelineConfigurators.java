@@ -32,10 +32,10 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.SimpleTextProtocolConfigurator;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;

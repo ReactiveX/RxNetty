@@ -20,9 +20,6 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.text.sse.SSEClientPipelineConfigurator;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
-import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
  * An extension to {@link SSEClientPipelineConfigurator} that enables SSE over HTTP. <br/>

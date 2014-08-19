@@ -24,7 +24,6 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
-import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
  * A handler to insert {@link ServerSentEventDecoder} at a proper position in the pipeline according to the protocol. <br/>

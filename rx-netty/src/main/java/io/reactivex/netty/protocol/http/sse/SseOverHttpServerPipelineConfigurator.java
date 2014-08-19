@@ -23,13 +23,10 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
-import io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
-import io.reactivex.netty.protocol.text.sse.ServerSentEventEncoder;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator.SERVER_SENT_EVENT_ENCODER;
-import static io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator.SSE_ENCODER_HANDLER_NAME;
+import static io.reactivex.netty.protocol.http.sse.SSEServerPipelineConfigurator.SERVER_SENT_EVENT_ENCODER;
+import static io.reactivex.netty.protocol.http.sse.SSEServerPipelineConfigurator.SSE_ENCODER_HANDLER_NAME;
 
 /**
  * An extension to {@link SSEServerPipelineConfigurator} that enables SSE over HTTP. <br/>

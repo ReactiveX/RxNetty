@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.http.sse;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
