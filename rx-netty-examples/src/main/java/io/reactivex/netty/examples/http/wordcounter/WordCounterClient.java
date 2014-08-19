@@ -18,6 +18,7 @@ package io.reactivex.netty.examples.http.wordcounter;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.StringTransformer;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -28,7 +29,7 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Action0;
-import rx.functions.Action1;
+import rx.functions.Func1;
 import rx.subscriptions.Subscriptions;
 
 import java.io.BufferedInputStream;
@@ -58,16 +59,27 @@ public class WordCounterClient {
         PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> pipelineConfigurator
                 = PipelineConfigurators.httpClientConfigurator();
 
-        HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port, pipelineConfigurator);
+        HttpClient<ByteBuf, ByteBuf> client = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", port)
+                                                     .pipelineConfigurator(pipelineConfigurator)
+                                                     .enableWireLogging(LogLevel.ERROR).build();
         HttpClientRequest<ByteBuf> request = HttpClientRequest.create(HttpMethod.POST, "test/post");
 
         FileContentSource fileContentSource = new FileContentSource(new File(textFile));
         request.withRawContentSource(fileContentSource, StringTransformer.DEFAULT_INSTANCE);
 
-        WordCountAction wAction = new WordCountAction();
-        client.submit(request).toBlocking().forEach(wAction);
-
-        return wAction.wordCount;
+        return client.submit(request)
+                     .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<Integer>>() {
+                         @Override
+                         public Observable<Integer> call(HttpClientResponse<ByteBuf> response) {
+                             return response.getContent()
+                                            .map(new Func1<ByteBuf, Integer>() {
+                                                @Override
+                                                public Integer call(ByteBuf byteBuf) {
+                                                    return Integer.parseInt(byteBuf.toString(Charset.defaultCharset()));
+                                                }
+                                            });
+                         }
+                     }).toBlocking().single();
     }
 
     static class FileContentSource extends Observable<String> {
@@ -99,20 +111,6 @@ public class WordCounterClient {
                     } catch (Throwable throwable) {
                         subscriber.onError(throwable);
                     }
-                }
-            });
-        }
-    }
-
-    static class WordCountAction implements Action1<HttpClientResponse<ByteBuf>> {
-        public volatile int wordCount;
-
-        @Override
-        public void call(HttpClientResponse<ByteBuf> response) {
-            response.getContent().forEach(new Action1<ByteBuf>() {
-                @Override
-                public void call(ByteBuf content) {
-                    wordCount = Integer.parseInt(content.toString(Charset.defaultCharset()));
                 }
             });
         }
