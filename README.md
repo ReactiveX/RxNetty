@@ -112,7 +112,7 @@ compile 'com.netflix.rxnetty:rx-netty:x.y.z'
 To build:
 
 ```
-$ git clone git@github.com:Netflix/RxNetty.git
+$ git clone git@github.com:ReactiveX/RxNetty.git
 $ cd RxNetty/
 $ ./gradlew build
 ```
@@ -120,7 +120,7 @@ $ ./gradlew build
 
 ## Bugs and Feedback
 
-For bugs, questions and discussions please use the [Github Issues](https://github.com/Netflix/RxNetty/issues).
+For bugs, questions and discussions please use the [Github Issues](https://github.com/Netflix/ReactiveX/issues).
 
  
 ## LICENSE
