@@ -20,11 +20,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.FileRegion;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
+import rx.Observable.OnSubscribe;
+import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
 
@@ -101,6 +105,28 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     public Observable<Void> writeStringAndFlush(String msg) {
         write(msg, new StringTransformer());
         return flush();
+    }
+    
+    @Override
+    public Observable<Void> writeFileRegion(FileRegion region) {
+        final ChannelFuture future = writeOnChannel(region);
+        return Observable.create(new OnSubscribe<Void>() {
+            @Override
+            public void call(final Subscriber<? super Void> subscriber) {
+                future.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future)
+                            throws Exception {
+                        if (future.isSuccess()) {
+                            subscriber.onCompleted();
+                        }
+                        else {
+                            subscriber.onError(future.cause());
+                        }
+                    }
+                });
+            }
+        });
     }
 
     @Override

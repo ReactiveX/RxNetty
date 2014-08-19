@@ -17,6 +17,7 @@
 package io.reactivex.netty.channel;
 
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.FileRegion;
 import rx.Observable;
 
 /**
@@ -36,6 +37,8 @@ public interface ChannelWriter<O> {
 
     void writeString(String msg);
 
+    Observable<Void> writeFileRegion(FileRegion region);
+    
     Observable<Void> flush();
 
     void cancelPendingWrites(boolean mayInterruptIfRunning);
@@ -51,4 +54,5 @@ public interface ChannelWriter<O> {
     Observable<Void> close();
 
     Observable<Void> close(boolean flush);
+    
 }
