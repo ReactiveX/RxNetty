@@ -127,7 +127,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
                                .doOnError(new Action1<Throwable>() {
                                    @Override
                                    public void call(Throwable throwable) {
-                                       eventsSubject.onEvent(metricEventProvider.getFlushSuccessEvent(),
+                                       eventsSubject.onEvent(metricEventProvider.getFlushFailedEvent(),
                                                              Clock.onEndMillis(startTimeMillis), throwable);
                                    }
                                });
