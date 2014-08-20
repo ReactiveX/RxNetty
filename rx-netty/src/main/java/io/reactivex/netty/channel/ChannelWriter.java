@@ -37,7 +37,7 @@ public interface ChannelWriter<O> {
 
     void writeString(String msg);
 
-    Observable<Void> writeFileRegion(FileRegion region);
+    void writeFileRegion(FileRegion region);
     
     Observable<Void> flush();
 

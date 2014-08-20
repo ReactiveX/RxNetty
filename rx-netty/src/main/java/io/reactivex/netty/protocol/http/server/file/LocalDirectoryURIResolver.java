@@ -3,25 +3,25 @@ package io.reactivex.netty.protocol.http.server.file;
 import io.netty.util.internal.SystemPropertyUtil;
 
 import java.io.File;
-import java.net.MalformedURLException;
-import java.net.URL;
+import java.net.URI;
+import java.net.URISyntaxException;
 
-public class LocalDirectoryURLResolver implements URLResolver {
+public class LocalDirectoryURIResolver implements URIResolver {
     private final String prefix;
     
-    public LocalDirectoryURLResolver() {
+    public LocalDirectoryURIResolver() {
         this(SystemPropertyUtil.get("user.dir") + File.separator);
     }
     
-    public LocalDirectoryURLResolver(String prefix) {
+    public LocalDirectoryURIResolver(String prefix) {
         this.prefix = prefix;
     }
      
     @Override
-    public URL getUrl(String path) {
+    public URI getUri(String path) {
         try {
-            return new URL("file:///" + prefix + path);
-        } catch (MalformedURLException e) {
+            return new URI("file:///" + prefix + path);
+        } catch (URISyntaxException e) {
             return null;
         }
     }

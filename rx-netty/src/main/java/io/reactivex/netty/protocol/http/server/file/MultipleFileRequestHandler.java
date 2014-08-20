@@ -31,7 +31,7 @@ public class MultipleFileRequestHandler implements RequestHandler<ByteBuf, ByteB
      */
     public static class Builder {
         private List<OwnableRequestHandler<ByteBuf, ByteBuf>> handlers = Lists.newArrayList();
-        public Builder add(URLResolver resolver, RequestHandler<ByteBuf, ByteBuf> handler) {
+        public Builder add(URIResolver resolver, RequestHandler<ByteBuf, ByteBuf> handler) {
             handlers.add(new OwnableRequestHandler<ByteBuf, ByteBuf>(resolver, handler));
             return this;
         }

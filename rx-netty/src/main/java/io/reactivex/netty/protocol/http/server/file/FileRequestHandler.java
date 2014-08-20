@@ -2,6 +2,7 @@ package io.reactivex.netty.protocol.http.server.file;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -10,7 +11,7 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 
 import java.io.File;
 import java.io.RandomAccessFile;
-import java.net.URL;
+import java.net.URI;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
@@ -25,11 +26,9 @@ import rx.Observable;
  *
  */
 public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
-    public static final String IF_MODIFIED_SINCE = "If-Modified-Since";
-
-    private final URLResolver resolver;
+    private final URIResolver resolver;
     
-    public FileRequestHandler(URLResolver resolver) {
+    public FileRequestHandler(URIResolver resolver) {
         this.resolver = resolver;
     }
     
@@ -43,13 +42,12 @@ public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
         }
         
         try {
-            final String uri = request.getUri();
-            URL resource = resolver.getUrl(uri);
-            if (resource == null) {
+            URI uri = resolver.getUri(request.getUri());
+            if (uri == null) {
                 return FileResponses.sendError(response, HttpResponseStatus.NOT_FOUND);
             }
             
-            File file = new File(resource.toURI());
+            File file = new File(uri);
             if (file.isHidden() || !file.exists()) {
                 return FileResponses.sendError(response, HttpResponseStatus.NOT_FOUND);
             }
@@ -67,7 +65,7 @@ public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
             long fileLength = raf.length();
 
             // Cache Validation
-            String ifModifiedSince = request.getHeaders().get(IF_MODIFIED_SINCE);
+            String ifModifiedSince = request.getHeaders().get(HttpHeaders.Names.IF_MODIFIED_SINCE);
             if (ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
                 SimpleDateFormat dateFormatter = new SimpleDateFormat(FileResponses.HTTP_DATE_FORMAT, Locale.US);
                 Date ifModifiedSinceDate = dateFormatter.parse(ifModifiedSince);
@@ -87,8 +85,8 @@ public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
             response.getHeaders().setContentLength(fileLength);
             FileResponses.setContentTypeHeader(response, file);
             FileResponses.setDateAndCacheHeaders(response, file);
-            return response.writeFileRegion(new DefaultFileRegion(raf.getChannel(), 0, fileLength));
-            
+            response.writeFileRegion(new DefaultFileRegion(raf.getChannel(), 0, fileLength));
+            return response.close();
 //            if (HttpHeaderUtil.isKeepAlive(request)) {
 //                response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
 //            }

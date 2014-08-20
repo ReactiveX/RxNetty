@@ -16,9 +16,9 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 public class OwnableRequestHandler<I, O> implements RequestHandler<I, O> {
 
     private final RequestHandler<I, O> delegate;
-    private final URLResolver resolver;
+    private final URIResolver resolver;
     
-    public OwnableRequestHandler(URLResolver resolver, RequestHandler<I, O> delegate) {
+    public OwnableRequestHandler(URIResolver resolver, RequestHandler<I, O> delegate) {
         this.delegate = delegate;
         this.resolver = resolver;
     }
@@ -28,7 +28,7 @@ public class OwnableRequestHandler<I, O> implements RequestHandler<I, O> {
      * @return Returns true if the RequestHandler owns the file resolved from this URI
      */
     public boolean owns(HttpServerRequest<I> request) {
-        return null != resolver.getUrl(request.getUri());
+        return null != resolver.getUri(request.getUri());
     }
     
     @Override
