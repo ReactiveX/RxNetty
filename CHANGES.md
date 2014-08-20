@@ -1,5 +1,17 @@
 # RxNetty Releases #
 
+### Version 0.3.12 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.12+is%3Aclosed)
+
+* [Issue 118] (https://github.com/Netflix/RxNetty/issues/118) Javadoc errors when compiling with Java 8.
+* [Pull 196] (https://github.com/Netflix/RxNetty/pull/196) Websocket client and server implementation.
+* [Pull 204] (https://github.com/Netflix/RxNetty/pull/204) Add a generic Handler interface
+* [Issue 206] (https://github.com/Netflix/RxNetty/issue/206) HttpClientResponse.getContent() will loose data if not eagerly subscribed.
+* [Issue 199] (https://github.com/Netflix/RxNetty/issue/199) Invalid metric event used in DefaultChannelWriter.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.12%22)
+
 ### Version 0.3.11 ###
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=9&state=closed)
