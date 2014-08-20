@@ -68,11 +68,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  */
 public final class UnicastContentSubject<T> extends Subject<T, T> {
 
-    private static final IllegalStateException ALREADY_DISPOSED_EXCEPTION =
-            new IllegalStateException("Content stream is already disposed.");
-    public static final IllegalStateException MULTIPLE_SUBSCRIBERS_EXCEPTIONS =
-            new IllegalStateException("Content can only have one subscription. Use Observable.publish() if you want to multicast.");
-
     private final State<T> state;
     private volatile Observable<Long> timeoutScheduler;
 
@@ -252,9 +247,9 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                     }
                 }));
             } else if(State.STATES.SUBSCRIBED.ordinal() == state.state) {
-                subscriber.onError(MULTIPLE_SUBSCRIBERS_EXCEPTIONS);
+                subscriber.onError(new IllegalStateException("Content can only have one subscription. Use Observable.publish() if you want to multicast."));
             } else if(State.STATES.DISPOSED.ordinal() == state.state) {
-                subscriber.onError(ALREADY_DISPOSED_EXCEPTION);
+                subscriber.onError(new IllegalStateException("Content stream is already disposed."));
             }
         }
 
