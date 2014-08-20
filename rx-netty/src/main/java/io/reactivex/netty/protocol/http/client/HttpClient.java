@@ -13,10 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.reactivex.netty.client.RxClient;
 import rx.Observable;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  *
@@ -40,6 +43,7 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
 
         private RedirectsHandling followRedirect = RedirectsHandling.Undefined;
         private int maxRedirects = RedirectOperator.DEFAULT_MAX_HOPS;
+        private long responseSubscriptionTimeoutMs = HttpClientResponse.DEFAULT_CONTENT_SUBSCRIPTION_TIMEOUT_MS;
 
         protected HttpClientConfig() {
             // Only the builder can create this instance, so that we can change the constructor signature at will.
@@ -59,6 +63,10 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
 
         public int getMaxRedirects() {
             return maxRedirects;
+        }
+
+        public long getResponseSubscriptionTimeoutMs() {
+            return responseSubscriptionTimeoutMs;
         }
 
         @Override
@@ -89,6 +97,11 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
             public Builder followRedirect(int maxRedirects) {
                 setFollowRedirect(true);
                 config.maxRedirects = maxRedirects;
+                return returnBuilder();
+            }
+
+            public Builder responseSubscriptionTimeout(long timeout, TimeUnit timeUnit) {
+                config.responseSubscriptionTimeoutMs = TimeUnit.MILLISECONDS.convert(timeout, timeUnit);
                 return returnBuilder();
             }
 

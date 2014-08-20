@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.client;
 
 import io.reactivex.netty.channel.ObservableConnection;
@@ -27,6 +28,8 @@ import rx.functions.Action1;
 import rx.subscriptions.CompositeSubscription;
 import rx.subscriptions.Subscriptions;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author Nitesh Kant
  */
@@ -35,10 +38,13 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
 
     private final HttpClientRequest<I> request;
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    private final long responseSubscriptionTimeoutMs;
 
-    RequestProcessingOperator(HttpClientRequest<I> request, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+    RequestProcessingOperator(HttpClientRequest<I> request, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                              long responseSubscriptionTimeoutMs) {
         this.request = request;
         this.eventsSubject = eventsSubject;
+        this.responseSubscriptionTimeoutMs = responseSubscriptionTimeoutMs;
     }
 
     @Override
@@ -76,23 +82,9 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                                          .doOnNext(new Action1<HttpClientResponse<O>>() {
                                              @Override
                                              public void call(final HttpClientResponse<O> response) {
-                                                 cs.add(response.getContent().subscribe(new Observer<O>() {
-                                                     @Override
-                                                     public void onCompleted() {
-                                                         child.onCompleted();
-                                                     }
-
-                                                     @Override
-                                                     public void onError(Throwable e) {
-                                                         // Nothing to do as error on content also comes to the error in input and the child is
-                                                         // already subscribed to input.
-                                                     }
-
-                                                     @Override
-                                                     public void onNext(O o) {
-                                                         // Swallow as the eventual subscriber will subscribe to it if required.
-                                                     }
-                                                 }));
+                                                 response.updateNoContentSubscriptionTimeoutIfNotScheduled(
+                                                         responseSubscriptionTimeoutMs,
+                                                         TimeUnit.MILLISECONDS);
                                              }
                                          })
                                          .doOnError(new Action1<Throwable>() {

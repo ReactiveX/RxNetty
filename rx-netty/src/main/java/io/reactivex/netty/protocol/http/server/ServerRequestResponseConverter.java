@@ -32,8 +32,10 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import io.reactivex.netty.server.ServerMetricsEvent;
-import rx.subjects.PublishSubject;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * A channel handler for {@link HttpServer} to convert netty's http request/response objects to {@link HttpServer}'s
@@ -60,24 +62,30 @@ import rx.subjects.PublishSubject;
 public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
+    private final long requestContentSubscriptionTimeoutMs;
+    @SuppressWarnings("rawtypes") private HttpServerRequest rxRequest;
 
-    public ServerRequestResponseConverter(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
+    public ServerRequestResponseConverter(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
+                                          long requestContentSubscriptionTimeoutMs) {
         this.eventsSubject = eventsSubject;
+        this.requestContentSubscriptionTimeoutMs = requestContentSubscriptionTimeoutMs;
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
-        @SuppressWarnings("rawtypes") PublishSubject contentSubject = PublishSubject.create();
+        @SuppressWarnings("rawtypes") UnicastContentSubject contentSubject =
+                UnicastContentSubject.create(requestContentSubscriptionTimeoutMs, TimeUnit.MILLISECONDS);
 
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HEADERS_RECEIVED);
 
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpServerRequest rxRequest = new HttpServerRequest((HttpRequest) msg, contentSubject);
-            super.channelRead(ctx, rxRequest); // For FullHttpRequest, this assumes that after this call returns,
-                                               // someone has subscribed to the content observable, if not the content will be lost.
+            this.rxRequest = rxRequest;
+
+            super.channelRead(ctx, rxRequest);
         }
 
         if (HttpContent.class.isAssignableFrom(recievedMsgClass)) {// This will be executed if the incoming message is a FullHttpRequest or only HttpContent.
@@ -85,6 +93,8 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_CONTENT_RECEIVED);
             invokeContentOnNext(content, contentSubject);
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
+                long durationInMs = rxRequest.onProcessingEnd();
+                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE, durationInMs);
                 contentSubject.onCompleted();
             }
         } else {
@@ -138,7 +148,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static void invokeContentOnNext(Object nextObject, PublishSubject contentSubject) {
+    private static void invokeContentOnNext(Object nextObject, UnicastContentSubject contentSubject) {
         try {
             contentSubject.onNext(nextObject);
         } catch (ClassCastException e) {

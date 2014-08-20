@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
@@ -27,9 +28,9 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.NoOpChannelHandlerContext;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.junit.Assert;
 import org.junit.Test;
-import rx.subjects.PublishSubject;
 
 import java.util.Map;
 import java.util.Set;
@@ -49,7 +50,7 @@ public class CookieTest {
         String cookie1Header = cookie1Name + '=' + cookie1Value
                                + "; expires=Thu, 18-Feb-2016 07:47:08 GMT; path=" + cookie1Path + "; domain=" + cookie1Domain;
         nettyRequest.headers().add(HttpHeaders.Names.COOKIE, cookie1Header);
-        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, PublishSubject.<ByteBuf>create());
+        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
         Map<String,Set<Cookie>> cookies = request.getCookies();
         Assert.assertEquals("Unexpected number of cookies.", 1, cookies.size());
         Set<Cookie> cookies1 = cookies.get(cookie1Name);

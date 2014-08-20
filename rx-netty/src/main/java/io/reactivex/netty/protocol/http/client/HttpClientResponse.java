@@ -20,7 +20,9 @@ import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.protocol.http.AbstractHttpContentHolder;
 import io.reactivex.netty.protocol.http.CookiesHolder;
+import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -28,16 +30,30 @@ import rx.subjects.Subject;
 
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
- * A Http response object used by {@link HttpClient}
+ * A Http response object used by {@link HttpClient}. <br>
+ *
+ * <h2>Handling Content</h2>
+ * This response supports delayed subscription to content (if expected). Although this is useful, it incurs an overhead
+ * of buffering the content till the subscription arrives. In order to reduce this overhead and safety against memory
+ * leaks the following restrictions are imposed on the users:
+ *
+ * <ul>
+ <li>The content {@link Observable} as returned by {@link #getContent()} supports one and only one subscriber.</li>
+ <li>It is mandatory to either call {@link #ignoreContent()} or have atleast one subscription to {@link #getContent()}</li>
+ <li>Any subscriptions to {@link #getContent()} after the configured timeout, will result in error on the subscriber.</li>
+ </ul>
  *
  * @param <T> The type of the default response content.
  *
  * @author Nitesh Kant
  */
-public class HttpClientResponse<T> {
+public class HttpClientResponse<T> extends AbstractHttpContentHolder<T> {
+
+    public static final long DEFAULT_CONTENT_SUBSCRIPTION_TIMEOUT_MS = 1;
 
     private static final Logger logger = LoggerFactory.getLogger(HttpClientResponse.class);
 
@@ -48,15 +64,28 @@ public class HttpClientResponse<T> {
     public static final String KEEP_ALIVE_TIMEOUT_HEADER_ATTR = "timeout";
 
     private final HttpResponse nettyResponse;
-    private final Subject<T, T> contentSubject;
     private final HttpResponseHeaders responseHeaders;
     private final HttpVersion httpVersion;
     private final HttpResponseStatus status;
     private final CookiesHolder cookiesHolder;
 
+    /**
+     * @deprecated Use {@link #HttpClientResponse(HttpResponse, UnicastContentSubject)} instead. The content need not
+     * necessarily be a {@link Subject}.
+     */
+    @Deprecated
     public HttpClientResponse(HttpResponse nettyResponse, Subject<T, T> contentSubject) {
+        super(contentSubject);
         this.nettyResponse = nettyResponse;
-        this.contentSubject = contentSubject;
+        httpVersion = this.nettyResponse.getProtocolVersion();
+        status = this.nettyResponse.getStatus();
+        responseHeaders = new HttpResponseHeaders(nettyResponse);
+        cookiesHolder = CookiesHolder.newClientResponseHolder(nettyResponse.headers());
+    }
+
+    public HttpClientResponse(HttpResponse nettyResponse, UnicastContentSubject<T> content) {
+        super(content);
+        this.nettyResponse = nettyResponse;
         httpVersion = this.nettyResponse.getProtocolVersion();
         status = this.nettyResponse.getStatus();
         responseHeaders = new HttpResponseHeaders(nettyResponse);
@@ -79,8 +108,11 @@ public class HttpClientResponse<T> {
         return cookiesHolder.getAllCookies();
     }
 
-    public Observable<T> getContent() {
-        return contentSubject;
+    void updateNoContentSubscriptionTimeoutIfNotScheduled(long noContentSubscriptionTimeout, TimeUnit timeUnit) {
+        if (UnicastContentSubject.class.isAssignableFrom(content.getClass())) {
+            UnicastContentSubject<T> unicastContentSubject = (UnicastContentSubject<T>) content;
+            unicastContentSubject.updateTimeoutIfNotScheduled(noContentSubscriptionTimeout, timeUnit);
+        }
     }
 
     /**
