@@ -49,6 +49,11 @@ public class MultipleFileRequestHandler implements RequestHandler<ByteBuf, ByteB
     
     @Override
     public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
+        String sanitizedUri = UrlUtils.sanitizeUri(request.getUri());
+        if (sanitizedUri == null) {
+            return FileResponses.sendError(response, HttpResponseStatus.FORBIDDEN);
+        }
+        
         // Iterate through handlers in the order in which they were configured
         // If no handler found then respond with a 404
         for (OwnableRequestHandler<ByteBuf, ByteBuf> handler : handlers) {

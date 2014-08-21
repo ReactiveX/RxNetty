@@ -5,6 +5,9 @@ import io.netty.util.internal.SystemPropertyUtil;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.Paths;
 
 public class LocalDirectoryURIResolver implements URIResolver {
     private final String prefix;
@@ -20,7 +23,11 @@ public class LocalDirectoryURIResolver implements URIResolver {
     @Override
     public URI getUri(String path) {
         try {
-            return new URI("file:///" + prefix + path);
+            URI uri = new URI("file:///" + prefix + path);
+            if (Files.notExists(Paths.get(uri), LinkOption.NOFOLLOW_LINKS)) {
+                return null;
+            }
+            return uri;
         } catch (URISyntaxException e) {
             return null;
         }

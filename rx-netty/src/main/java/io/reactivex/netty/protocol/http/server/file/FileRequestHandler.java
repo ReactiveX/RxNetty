@@ -42,7 +42,12 @@ public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
         }
         
         try {
-            URI uri = resolver.getUri(request.getUri());
+            String sanitizedUri = UrlUtils.sanitizeUri(request.getUri());
+            if (sanitizedUri == null) {
+                return FileResponses.sendError(response, HttpResponseStatus.FORBIDDEN);
+            }
+            
+            URI uri = resolver.getUri(sanitizedUri);
             if (uri == null) {
                 return FileResponses.sendError(response, HttpResponseStatus.NOT_FOUND);
             }
@@ -86,10 +91,9 @@ public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
             FileResponses.setContentTypeHeader(response, file);
             FileResponses.setDateAndCacheHeaders(response, file);
             response.writeFileRegion(new DefaultFileRegion(raf.getChannel(), 0, fileLength));
+            
+            // TODO: Handle keep alive headers
             return response.close();
-//            if (HttpHeaderUtil.isKeepAlive(request)) {
-//                response.headers().set(CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-//            }
         }
         catch (Exception e) {
             return FileResponses.sendError(response, HttpResponseStatus.INTERNAL_SERVER_ERROR);

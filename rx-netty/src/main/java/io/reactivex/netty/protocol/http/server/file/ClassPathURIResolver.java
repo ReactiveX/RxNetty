@@ -1,5 +1,6 @@
 package io.reactivex.netty.protocol.http.server.file;
 
+import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
@@ -21,6 +22,11 @@ public class ClassPathURIResolver implements URIResolver {
     
     public ClassPathURIResolver(String prefix) {
         this.prefix = prefix;
+        
+        // Remove any trailing '/'s
+        while (prefix.endsWith(File.separator))
+            prefix = prefix.substring(0, prefix.length()-1);
+
     }
      
     @Override
