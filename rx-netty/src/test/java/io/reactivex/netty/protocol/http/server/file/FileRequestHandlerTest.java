@@ -24,9 +24,8 @@ import com.google.common.net.HttpHeaders;
 public class FileRequestHandlerTest {
     @Test
     public void shouldNotAllowRoot() throws Exception {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new FileRequestHandler(
-                new ClassPathURIResolver()
-                )).start();
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new WebappFileRequestHandler())
+                .start();
         
         final CountDownLatch finishLatch = new CountDownLatch(1);
         HttpClientResponse<ByteBuf> response = RxNetty.createHttpClient("localhost", server.getServerPort())
@@ -44,9 +43,8 @@ public class FileRequestHandlerTest {
     
     @Test
     public void shouldReturnFile() throws Exception {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new FileRequestHandler(
-                new ClassPathURIResolver()
-                )).start();
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new WebappFileRequestHandler())
+                .start();
         
         final CountDownLatch finishLatch = new CountDownLatch(1);
         final AtomicReference<HttpResponseStatus> status = new AtomicReference<HttpResponseStatus>();
@@ -84,9 +82,8 @@ public class FileRequestHandlerTest {
     
     @Test
     public void shouldReturnNotFound() throws Exception {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new FileRequestHandler(
-                new ClassPathURIResolver()
-                )).start();
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new WebappFileRequestHandler())
+                .start();
         
         final CountDownLatch finishLatch = new CountDownLatch(1);
         HttpClientResponse<ByteBuf> response = RxNetty.createHttpClient("localhost", server.getServerPort())
@@ -104,9 +101,8 @@ public class FileRequestHandlerTest {
     
     @Test
     public void shouldFailBasicHackAttempt() throws Exception {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new FileRequestHandler(
-                new ClassPathURIResolver()
-                )).start();
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(0, new WebappFileRequestHandler())
+                .start();
         
         final CountDownLatch finishLatch = new CountDownLatch(1);
         HttpClientResponse<ByteBuf> response = RxNetty.createHttpClient("localhost", server.getServerPort())

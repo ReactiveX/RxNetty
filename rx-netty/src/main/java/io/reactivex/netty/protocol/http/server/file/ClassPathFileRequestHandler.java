@@ -6,21 +6,16 @@ import java.net.URISyntaxException;
 import java.net.URL;
 
 /**
- * Resolve the URL for a request URI from the classpath
+ * FileRequestHandler that reads files from the class path
  * 
  * @author elandau
  *
  */
-public class ClassPathURIResolver implements URIResolver {
-    private static final String DEFAULT_PATH_PREFIX = "WEB-INF";
+public class ClassPathFileRequestHandler extends FileRequestHandler {
     
     private final String prefix;
     
-    public ClassPathURIResolver() {
-        this(DEFAULT_PATH_PREFIX);
-    }
-    
-    public ClassPathURIResolver(String prefix) {
+    public ClassPathFileRequestHandler(String prefix) {
         this.prefix = prefix;
         
         // Remove any trailing '/'s
@@ -30,7 +25,7 @@ public class ClassPathURIResolver implements URIResolver {
     }
      
     @Override
-    public URI getUri(String path) {
+    protected URI resolveUri(String path) {
         try {
             URL url = Thread.currentThread().getContextClassLoader().getResource(prefix + path);
             if (url == null)

@@ -9,19 +9,24 @@ import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Paths;
 
-public class LocalDirectoryURIResolver implements URIResolver {
+/**
+ * FileRequestHandler that reads files from the file system
+ * 
+ * @author elandau
+ */
+public class LocalDirectoryRequestHandler extends FileRequestHandler {
     private final String prefix;
     
-    public LocalDirectoryURIResolver() {
+    public LocalDirectoryRequestHandler() {
         this(SystemPropertyUtil.get("user.dir") + File.separator);
     }
     
-    public LocalDirectoryURIResolver(String prefix) {
+    public LocalDirectoryRequestHandler(String prefix) {
         this.prefix = prefix;
     }
      
     @Override
-    public URI getUri(String path) {
+    protected URI resolveUri(String path) {
         try {
             URI uri = new URI("file:///" + prefix + path);
             if (Files.notExists(Paths.get(uri), LinkOption.NOFOLLOW_LINKS)) {

@@ -5,11 +5,12 @@ import io.netty.channel.DefaultFileRegion;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.reactivex.netty.protocol.http.server.HttpError;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
-import io.reactivex.netty.protocol.http.server.RequestHandler;
 
 import java.io.File;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.URI;
 import java.text.SimpleDateFormat;
@@ -17,6 +18,7 @@ import java.util.Date;
 import java.util.Locale;
 
 import rx.Observable;
+import rx.functions.Action0;
 
 /**
  * Base implementation for serving local files.  Resolving the request URI to
@@ -25,54 +27,47 @@ import rx.Observable;
  * @author elandau
  *
  */
-public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
-    private final URIResolver resolver;
-    
-    public FileRequestHandler(URIResolver resolver) {
-        this.resolver = resolver;
-    }
-    
+public abstract class FileRequestHandler extends AbstractFileRequestHandler {
     @Override
-    public Observable<Void> handle(
-            HttpServerRequest<ByteBuf> request,
-            HttpServerResponse<ByteBuf> response) {
-        
+    public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
+        // We don't support GET.  
         if (!request.getHttpMethod().equals(HttpMethod.GET)) {
-            return Observable.empty();
+            return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
         }
         
+        RandomAccessFile raf = null;
+        
         try {
-            String sanitizedUri = UrlUtils.sanitizeUri(request.getUri());
+            String sanitizedUri = sanitizeUri(request.getUri());
             if (sanitizedUri == null) {
-                return FileResponses.sendError(response, HttpResponseStatus.FORBIDDEN);
+                return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
             }
             
-            URI uri = resolver.getUri(sanitizedUri);
+            URI uri = resolveUri(sanitizedUri);
             if (uri == null) {
-                return FileResponses.sendError(response, HttpResponseStatus.NOT_FOUND);
+                return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
             }
             
             File file = new File(uri);
             if (file.isHidden() || !file.exists()) {
-                return FileResponses.sendError(response, HttpResponseStatus.NOT_FOUND);
+                return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
             }
 
             if (file.isDirectory()) {
-                // File listing not allowed
-                return FileResponses.sendError(response, HttpResponseStatus.FORBIDDEN);
+                return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
             }
             
             if (!file.isFile()) {
-                return FileResponses.sendError(response, HttpResponseStatus.FORBIDDEN);
+                return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
             }
 
-            RandomAccessFile raf = new RandomAccessFile(file, "r");
+            raf = new RandomAccessFile(file, "r");
             long fileLength = raf.length();
 
             // Cache Validation
             String ifModifiedSince = request.getHeaders().get(HttpHeaders.Names.IF_MODIFIED_SINCE);
             if (ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
-                SimpleDateFormat dateFormatter = new SimpleDateFormat(FileResponses.HTTP_DATE_FORMAT, Locale.US);
+                SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
                 Date ifModifiedSinceDate = dateFormatter.parse(ifModifiedSince);
 
                 // Only compare up to the second because the datetime format we send to the client
@@ -81,22 +76,36 @@ public class FileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
                 long fileLastModifiedSeconds = file.lastModified() / 1000;
                 if (ifModifiedSinceDateSeconds == fileLastModifiedSeconds) {
                     response.setStatus(HttpResponseStatus.NOT_MODIFIED);
-                    FileResponses.setDateHeader(response);
-                    return Observable.empty();
+                    setDateHeader(response);
+                    return response.close().finallyDo(closeFileAction(raf));
                 }
             }
             
             response.setStatus(HttpResponseStatus.OK);
             response.getHeaders().setContentLength(fileLength);
-            FileResponses.setContentTypeHeader(response, file);
-            FileResponses.setDateAndCacheHeaders(response, file);
+            setContentTypeHeader(response, file);
+            setDateAndCacheHeaders(response, file);
             response.writeFileRegion(new DefaultFileRegion(raf.getChannel(), 0, fileLength));
             
             // TODO: Handle keep alive headers
-            return response.close();
+            return response.close().finallyDo(closeFileAction(raf));
         }
         catch (Exception e) {
-            return FileResponses.sendError(response, HttpResponseStatus.INTERNAL_SERVER_ERROR);
+            return Observable.error(e);
         }
+    }
+
+    protected abstract URI resolveUri(String path);
+    
+    public Action0 closeFileAction(final RandomAccessFile file) {
+        return new Action0() {
+            @Override
+            public void call() {
+                try {
+                    file.close();
+                } catch (IOException e) {
+                }
+            }
+        };
     }
 }
