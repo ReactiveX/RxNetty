@@ -5,9 +5,9 @@ import io.netty.util.internal.SystemPropertyUtil;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.LinkOption;
-import java.nio.file.Paths;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * FileRequestHandler that reads files from the file system
@@ -15,6 +15,8 @@ import java.nio.file.Paths;
  * @author elandau
  */
 public class LocalDirectoryRequestHandler extends FileRequestHandler {
+    private static final Logger logger = LoggerFactory.getLogger(LocalDirectoryRequestHandler.class);
+    
     private final String prefix;
     
     public LocalDirectoryRequestHandler() {
@@ -22,18 +24,22 @@ public class LocalDirectoryRequestHandler extends FileRequestHandler {
     }
     
     public LocalDirectoryRequestHandler(String prefix) {
-        this.prefix = prefix;
+        this.prefix = "file:///" + prefix;
     }
      
     @Override
     protected URI resolveUri(String path) {
+        String filename = prefix + path;
         try {
-            URI uri = new URI("file:///" + prefix + path);
-            if (Files.notExists(Paths.get(uri), LinkOption.NOFOLLOW_LINKS)) {
+            URI uri = new URI(filename);
+            File file = new File(uri);
+            if (!file.exists()) {
+                logger.debug("File '{}' not found", filename);
                 return null;
             }
             return uri;
         } catch (URISyntaxException e) {
+            logger.debug("Error resovlving uri for '{}'", filename);
             return null;
         }
     }

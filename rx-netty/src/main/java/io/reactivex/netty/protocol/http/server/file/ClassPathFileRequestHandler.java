@@ -5,6 +5,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * FileRequestHandler that reads files from the class path
  * 
@@ -12,6 +15,7 @@ import java.net.URL;
  *
  */
 public class ClassPathFileRequestHandler extends FileRequestHandler {
+    private static final Logger logger = LoggerFactory.getLogger(ClassPathFileRequestHandler.class);
     
     private final String prefix;
     
@@ -26,12 +30,16 @@ public class ClassPathFileRequestHandler extends FileRequestHandler {
      
     @Override
     protected URI resolveUri(String path) {
+        String resourcePath = prefix + path;
         try {
-            URL url = Thread.currentThread().getContextClassLoader().getResource(prefix + path);
-            if (url == null)
+            URL url = Thread.currentThread().getContextClassLoader().getResource(resourcePath);
+            if (url == null) {
+                logger.debug("Resource '{}' not found ", resourcePath);
                 return null;
+            }
             return url.toURI();
         } catch (URISyntaxException e) {
+            logger.debug("Error resovlving uri for '{}'", resourcePath);
             return null;
         }
     }

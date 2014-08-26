@@ -32,35 +32,35 @@ public abstract class FileRequestHandler extends AbstractFileRequestHandler {
     public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
         // We don't support GET.  
         if (!request.getHttpMethod().equals(HttpMethod.GET)) {
-            return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
+            return Observable.error(new HttpError(HttpResponseStatus.METHOD_NOT_ALLOWED));
         }
         
         RandomAccessFile raf = null;
         
+        String sanitizedUri = sanitizeUri(request.getUri());
+        if (sanitizedUri == null) {
+            return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
+        }
+        
+        URI uri = resolveUri(sanitizedUri);
+        if (uri == null) {
+            return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
+        }
+        
+        File file = new File(uri);
+        if (file.isHidden() || !file.exists()) {
+            return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
+        }
+
+        if (file.isDirectory()) {
+            return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
+        }
+        
+        if (!file.isFile()) {
+            return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
+        }
+
         try {
-            String sanitizedUri = sanitizeUri(request.getUri());
-            if (sanitizedUri == null) {
-                return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
-            }
-            
-            URI uri = resolveUri(sanitizedUri);
-            if (uri == null) {
-                return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
-            }
-            
-            File file = new File(uri);
-            if (file.isHidden() || !file.exists()) {
-                return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
-            }
-
-            if (file.isDirectory()) {
-                return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
-            }
-            
-            if (!file.isFile()) {
-                return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
-            }
-
             raf = new RandomAccessFile(file, "r");
             long fileLength = raf.length();
 
@@ -76,7 +76,7 @@ public abstract class FileRequestHandler extends AbstractFileRequestHandler {
                 long fileLastModifiedSeconds = file.lastModified() / 1000;
                 if (ifModifiedSinceDateSeconds == fileLastModifiedSeconds) {
                     response.setStatus(HttpResponseStatus.NOT_MODIFIED);
-                    setDateHeader(response);
+                    setDateHeader(response, dateFormatter);
                     return response.close().finallyDo(closeFileAction(raf));
                 }
             }

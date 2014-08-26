@@ -32,8 +32,7 @@ public abstract class AbstractFileRequestHandler implements RequestHandler<ByteB
      * @param response
      *            HTTP response
      */
-    public static void setDateHeader(HttpServerResponse<ByteBuf> response) {
-        SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
+    public static void setDateHeader(HttpServerResponse<ByteBuf> response, SimpleDateFormat dateFormatter) {
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
 
         Calendar time = new GregorianCalendar();
