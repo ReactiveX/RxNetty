@@ -25,7 +25,6 @@ import io.reactivex.netty.protocol.http.AbstractHttpContentHolder;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import rx.Observable;
-import rx.subjects.Subject;
 
 import java.util.List;
 import java.util.Map;
@@ -56,21 +55,6 @@ public class HttpServerRequest<T> extends AbstractHttpContentHolder<T> {
     private final UriInfoHolder uriInfoHolder;
     private final CookiesHolder cookiesHolder;
     private volatile long processingStartTimeMillis;
-
-    /**
-     * @deprecated Use {@link #HttpServerRequest(HttpRequest, UnicastContentSubject)} instead. The content need not
-     * necessarily be a {@link Subject}
-     */
-    @Deprecated
-    public HttpServerRequest(HttpRequest nettyRequest, Subject<T, T> contentSubject) {
-        super(contentSubject);
-        this.nettyRequest = nettyRequest;
-        headers = new HttpRequestHeaders(this.nettyRequest);
-        method = this.nettyRequest.getMethod();
-        protocolVersion = this.nettyRequest.getProtocolVersion();
-        uriInfoHolder = new UriInfoHolder(this.nettyRequest.getUri());
-        cookiesHolder = CookiesHolder.newServerRequestHolder(nettyRequest.headers());
-    }
 
     public HttpServerRequest(HttpRequest nettyRequest, UnicastContentSubject<T> content) {
         super(content);

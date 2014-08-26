@@ -17,7 +17,6 @@
 package io.reactivex.netty.protocol.http;
 
 import rx.Observable;
-import rx.subjects.Subject;
 
 /**
  * An abstract implementation of {@link HttpContentHolder}
@@ -26,15 +25,7 @@ import rx.subjects.Subject;
  */
 public abstract class AbstractHttpContentHolder<T> implements HttpContentHolder<T> {
 
-    protected final Observable<T> content;
-
-    /**
-     * @deprecated Use {@link #AbstractHttpContentHolder(UnicastContentSubject)} instead.
-     */
-    @Deprecated
-    protected AbstractHttpContentHolder(Subject<T, T> content) {
-        this.content = content;
-    }
+    protected final UnicastContentSubject<T> content;
 
     protected AbstractHttpContentHolder(UnicastContentSubject<T> content) {
         this.content = content;
@@ -47,9 +38,6 @@ public abstract class AbstractHttpContentHolder<T> implements HttpContentHolder<
 
     @Override
     public void ignoreContent() {
-        if (UnicastContentSubject.class.isAssignableFrom(content.getClass())) {
-            UnicastContentSubject<T> unicastContentSubject = (UnicastContentSubject<T>) content;
-            unicastContentSubject.disposeIfNotSubscribed();
-        }
+        content.disposeIfNotSubscribed();
     }
 }
