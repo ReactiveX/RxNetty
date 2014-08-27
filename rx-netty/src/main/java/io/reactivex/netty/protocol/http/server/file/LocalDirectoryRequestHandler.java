@@ -39,7 +39,7 @@ public class LocalDirectoryRequestHandler extends FileRequestHandler {
             }
             return uri;
         } catch (URISyntaxException e) {
-            logger.debug("Error resovlving uri for '{}'", filename);
+            logger.debug("Error resolving uri for '{}'", filename);
             return null;
         }
     }

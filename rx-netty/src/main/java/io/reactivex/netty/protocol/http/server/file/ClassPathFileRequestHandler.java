@@ -39,7 +39,7 @@ public class ClassPathFileRequestHandler extends FileRequestHandler {
             }
             return url.toURI();
         } catch (URISyntaxException e) {
-            logger.debug("Error resovlving uri for '{}'", resourcePath);
+            logger.debug("Error resolving uri for '{}'", resourcePath);
             return null;
         }
     }
