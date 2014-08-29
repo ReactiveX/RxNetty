@@ -1,10 +1,15 @@
 package io.reactivex.netty.protocol.http.server.file;
 
+import static io.netty.handler.codec.http.HttpHeaders.Names.*;
+import static io.netty.handler.codec.http.HttpHeaders.Values.*;
+import static io.netty.handler.codec.http.HttpMethod.*;
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
+import io.netty.handler.codec.http.HttpChunkedInput;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.ssl.SslHandler;
+import io.netty.handler.stream.ChunkedFile;
 import io.reactivex.netty.protocol.http.server.HttpError;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
@@ -13,12 +18,15 @@ import java.io.File;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.net.URI;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import rx.Observable;
-import rx.functions.Action0;
 
 /**
  * Base implementation for serving local files.  Resolving the request URI to
@@ -28,84 +36,106 @@ import rx.functions.Action0;
  *
  */
 public abstract class FileRequestHandler extends AbstractFileRequestHandler {
+    private static final Logger logger = LoggerFactory.getLogger(FileRequestHandler.class);
+    
+    private static final int CHUNK_SIZE = 8192;
+    
     @Override
     public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
         // We don't support GET.  
-        if (!request.getHttpMethod().equals(HttpMethod.GET)) {
-            return Observable.error(new HttpError(HttpResponseStatus.METHOD_NOT_ALLOWED));
+        if (!request.getHttpMethod().equals(GET)) {
+            return Observable.error(new HttpError(METHOD_NOT_ALLOWED));
         }
         
         RandomAccessFile raf = null;
         
         String sanitizedUri = sanitizeUri(request.getUri());
         if (sanitizedUri == null) {
-            return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
+            return Observable.error(new HttpError(FORBIDDEN));
         }
         
         URI uri = resolveUri(sanitizedUri);
         if (uri == null) {
-            return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
+            return Observable.error(new HttpError(NOT_FOUND));
         }
         
         File file = new File(uri);
         if (file.isHidden() || !file.exists()) {
-            return Observable.error(new HttpError(HttpResponseStatus.NOT_FOUND));
+            return Observable.error(new HttpError(NOT_FOUND));
         }
 
         if (file.isDirectory()) {
-            return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
+            return Observable.error(new HttpError(FORBIDDEN));
         }
         
         if (!file.isFile()) {
-            return Observable.error(new HttpError(HttpResponseStatus.FORBIDDEN));
+            return Observable.error(new HttpError(FORBIDDEN));
         }
 
+        long fileLength;
         try {
             raf = new RandomAccessFile(file, "r");
-            long fileLength = raf.length();
+            fileLength = raf.length();
+        }
+        catch (Exception e) {
+            logger.warn("Error accessing file {}", uri, e);
+            if (raf != null) {
+                try {
+                    raf.close();
+                } catch (IOException e1) {
+                    logger.warn("Error closing file {}", uri, e1);
+                }
+            }
+            return Observable.error(e);
+        }
+        
+        // Cache Validation
+        String ifModifiedSince = request.getHeaders().get(IF_MODIFIED_SINCE);
+        if (ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
+            SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
+            Date ifModifiedSinceDate = null;
+            try {
+                ifModifiedSinceDate = dateFormatter.parse(ifModifiedSince);
+            } catch (ParseException e) {
+                logger.warn("Failed to parse {} header", IF_MODIFIED_SINCE);
+            }
 
-            // Cache Validation
-            String ifModifiedSince = request.getHeaders().get(HttpHeaders.Names.IF_MODIFIED_SINCE);
-            if (ifModifiedSince != null && !ifModifiedSince.isEmpty()) {
-                SimpleDateFormat dateFormatter = new SimpleDateFormat(HTTP_DATE_FORMAT, Locale.US);
-                Date ifModifiedSinceDate = dateFormatter.parse(ifModifiedSince);
-
+            if (ifModifiedSinceDate != null) {
                 // Only compare up to the second because the datetime format we send to the client
                 // does not have milliseconds
                 long ifModifiedSinceDateSeconds = ifModifiedSinceDate.getTime() / 1000;
                 long fileLastModifiedSeconds = file.lastModified() / 1000;
                 if (ifModifiedSinceDateSeconds == fileLastModifiedSeconds) {
-                    response.setStatus(HttpResponseStatus.NOT_MODIFIED);
+                    response.setStatus(NOT_MODIFIED);
                     setDateHeader(response, dateFormatter);
-                    return response.close().finallyDo(closeFileAction(raf));
+                    return response.close();
                 }
             }
-            
-            response.setStatus(HttpResponseStatus.OK);
-            response.getHeaders().setContentLength(fileLength);
-            setContentTypeHeader(response, file);
-            setDateAndCacheHeaders(response, file);
+        }
+        
+        response.setStatus(OK);
+        response.getHeaders().setContentLength(fileLength);
+        setContentTypeHeader(response, file);
+        setDateAndCacheHeaders(response, file);
+        
+        if (HttpHeaders.isKeepAlive(request.getNettyRequest())) {
+            response.getHeaders().set(CONNECTION, KEEP_ALIVE);
+        }
+        
+        if (response.getChannelHandlerContext().pipeline().get(SslHandler.class) == null) {
             response.writeFileRegion(new DefaultFileRegion(raf.getChannel(), 0, fileLength));
-            
-            // TODO: Handle keep alive headers
-            return response.close().finallyDo(closeFileAction(raf));
         }
-        catch (Exception e) {
-            return Observable.error(e);
+        else {
+            try {
+                response.writeChunkedInput(new HttpChunkedInput(new ChunkedFile(raf, 0, fileLength, CHUNK_SIZE)));
+            } catch (IOException e) {
+                logger.warn("Failed to write chunked file {}", e);
+                return Observable.error(e);
+            }
         }
+        
+        return response.close();
     }
 
     protected abstract URI resolveUri(String path);
-    
-    public Action0 closeFileAction(final RandomAccessFile file) {
-        return new Action0() {
-            @Override
-            public void call() {
-                try {
-                    file.close();
-                } catch (IOException e) {
-                }
-            }
-        };
-    }
 }

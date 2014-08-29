@@ -86,4 +86,9 @@ public class HttpServerRequest<T> {
     public Observable<T> getContent() {
         return contentSubject;
     }
+    
+    public HttpRequest getNettyRequest() {
+        return nettyRequest;
+    }
+    
 }

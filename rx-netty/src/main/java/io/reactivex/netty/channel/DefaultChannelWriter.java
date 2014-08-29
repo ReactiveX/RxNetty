@@ -22,6 +22,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.FileRegion;
+import io.netty.handler.codec.http.HttpChunkedInput;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.util.MultipleFutureListener;
@@ -108,6 +109,10 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     @Override
     public void writeFileRegion(FileRegion region) {
         writeOnChannel(region);
+    }
+
+    public void writeChunkedInput(HttpChunkedInput httpChunkedInput) {
+        writeOnChannel(httpChunkedInput);
     }
 
     @Override
