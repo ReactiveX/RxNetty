@@ -3,6 +3,7 @@ package io.reactivex.netty.protocol.http.server.file;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
+import io.netty.handler.codec.http.HttpHeaders;
 
 import java.io.File;
 import java.io.UnsupportedEncodingException;
@@ -16,8 +17,6 @@ import java.util.TimeZone;
 import java.util.regex.Pattern;
 
 import javax.activation.MimetypesFileTypeMap;
-
-import com.google.common.net.HttpHeaders;
 
 public abstract class AbstractFileRequestHandler implements RequestHandler<ByteBuf, ByteBuf> {
     public static final Pattern INSECURE_URI = Pattern.compile(".*[<>&\"].*");
@@ -36,7 +35,7 @@ public abstract class AbstractFileRequestHandler implements RequestHandler<ByteB
         dateFormatter.setTimeZone(TimeZone.getTimeZone(HTTP_DATE_GMT_TIMEZONE));
 
         Calendar time = new GregorianCalendar();
-        response.getHeaders().set(HttpHeaders.DATE, dateFormatter.format(time.getTime()));
+        response.getHeaders().set(HttpHeaders.Names.DATE, dateFormatter.format(time.getTime()));
     }
     
     /**
@@ -53,13 +52,13 @@ public abstract class AbstractFileRequestHandler implements RequestHandler<ByteB
 
         // Date header
         Calendar time = new GregorianCalendar();
-        response.getHeaders().set(HttpHeaders.DATE, dateFormatter.format(time.getTime()));
+        response.getHeaders().set(HttpHeaders.Names.DATE, dateFormatter.format(time.getTime()));
 
         // Add cache headers
         time.add(Calendar.SECOND, HTTP_CACHE_SECONDS);
-        response.getHeaders().set(HttpHeaders.EXPIRES, dateFormatter.format(time.getTime()));
-        response.getHeaders().set(HttpHeaders.CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS);
-        response.getHeaders().set(HttpHeaders.LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
+        response.getHeaders().set(HttpHeaders.Names.EXPIRES, dateFormatter.format(time.getTime()));
+        response.getHeaders().set(HttpHeaders.Names.CACHE_CONTROL, "private, max-age=" + HTTP_CACHE_SECONDS);
+        response.getHeaders().set(HttpHeaders.Names.LAST_MODIFIED, dateFormatter.format(new Date(fileToCache.lastModified())));
     }
 
     /**
@@ -72,7 +71,7 @@ public abstract class AbstractFileRequestHandler implements RequestHandler<ByteB
      */
     public static void setContentTypeHeader(HttpServerResponse<ByteBuf> response, File file) {
         MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
-        response.getHeaders().set(HttpHeaders.CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath()));
+        response.getHeaders().set(HttpHeaders.Names.CONTENT_TYPE, mimeTypesMap.getContentType(file.getPath()));
     }
     
     public static String sanitizeUri(String uri)  {
