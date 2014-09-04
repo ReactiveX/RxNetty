@@ -26,7 +26,6 @@ import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
-import rx.subjects.Subject;
 
 import java.util.Map;
 import java.util.Set;
@@ -69,20 +68,6 @@ public class HttpClientResponse<T> extends AbstractHttpContentHolder<T> {
     private final HttpResponseStatus status;
     private final CookiesHolder cookiesHolder;
 
-    /**
-     * @deprecated Use {@link #HttpClientResponse(HttpResponse, UnicastContentSubject)} instead. The content need not
-     * necessarily be a {@link Subject}.
-     */
-    @Deprecated
-    public HttpClientResponse(HttpResponse nettyResponse, Subject<T, T> contentSubject) {
-        super(contentSubject);
-        this.nettyResponse = nettyResponse;
-        httpVersion = this.nettyResponse.getProtocolVersion();
-        status = this.nettyResponse.getStatus();
-        responseHeaders = new HttpResponseHeaders(nettyResponse);
-        cookiesHolder = CookiesHolder.newClientResponseHolder(nettyResponse.headers());
-    }
-
     public HttpClientResponse(HttpResponse nettyResponse, UnicastContentSubject<T> content) {
         super(content);
         this.nettyResponse = nettyResponse;
@@ -109,10 +94,7 @@ public class HttpClientResponse<T> extends AbstractHttpContentHolder<T> {
     }
 
     void updateNoContentSubscriptionTimeoutIfNotScheduled(long noContentSubscriptionTimeout, TimeUnit timeUnit) {
-        if (UnicastContentSubject.class.isAssignableFrom(content.getClass())) {
-            UnicastContentSubject<T> unicastContentSubject = (UnicastContentSubject<T>) content;
-            unicastContentSubject.updateTimeoutIfNotScheduled(noContentSubscriptionTimeout, timeUnit);
-        }
+        content.updateTimeoutIfNotScheduled(noContentSubscriptionTimeout, timeUnit);
     }
 
     /**
