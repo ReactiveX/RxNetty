@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
 import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
@@ -63,6 +64,13 @@ public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
     protected void channelRead0(ChannelHandlerContext ctx, Object msg)
             throws Exception {
         if (msg instanceof HttpResponse) {
+
+            /**
+             * Since SSE is an endless stream, we can never reuse a connection and hence as soon as SSE traffic is
+             * received, the connection is marked as discardable on close.
+             */
+            ctx.channel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true); // SSE traffic should always discard connection on close.
+
             ChannelPipeline pipeline = ctx.channel().pipeline();
             if (!HttpHeaders.isTransferEncodingChunked((HttpResponse) msg)) {
                 pipeline.addFirst(SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
