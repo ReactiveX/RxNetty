@@ -78,7 +78,7 @@ public class UdpClientConnection<I, O> extends ObservableConnection<I, O> {
 
     @Override
     public void writeBytes(byte[] msg) {
-        ByteBuf data = getChannelHandlerContext().alloc().buffer(msg.length);
+        ByteBuf data = getChannel().alloc().buffer(msg.length);
         data.writeBytes(msg);
         writeOnChannel(new DatagramPacket(data, receiverAddress));
     }

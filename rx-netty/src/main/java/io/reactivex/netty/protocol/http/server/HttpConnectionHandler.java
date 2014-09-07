@@ -76,6 +76,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                         final long startTimeMillis = Clock.newStartTimeMillis();
                         eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
 
+                        @SuppressWarnings("deprecation") //TODO: Remove when we stop returning ctx. (Issue https://github.com/ReactiveX/RxNetty/issues/229)
                         final HttpServerResponse<O> response =
                                 new HttpServerResponse<O>(newConnection.getChannelHandlerContext(),
                         /*

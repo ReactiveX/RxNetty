@@ -115,8 +115,7 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
 
     @Override
     protected Observable<Void> _closeChannel() {
-        Long keepAliveTimeout = getChannelHandlerContext().channel()
-                                .attr(ClientRequestResponseConverter.KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).get();
+        Long keepAliveTimeout = getChannel().attr(ClientRequestResponseConverter.KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).get();
         if (null != keepAliveTimeout) {
             maxIdleTimeMillis = keepAliveTimeout;
         }
@@ -149,10 +148,9 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
      * @return {@code true} if the connection is usable.
      */
     public boolean isUsable() {
-        Boolean discardConn = getChannelHandlerContext().channel()
-                              .attr(ClientRequestResponseConverter.DISCARD_CONNECTION).get();
+        Boolean discardConn = getChannel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).get();
 
-        if (!getChannelHandlerContext().channel().isActive() || Boolean.TRUE == discardConn) {
+        if (!getChannel().isActive() || Boolean.TRUE == discardConn) {
             return false;
         }
 
@@ -166,7 +164,7 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
         PublishSubject<I> newInputSubject = PublishSubject.create();
         updateInputSubject(newInputSubject);
         ConnectionReuseEvent reuseEvent = new ConnectionReuseEvent(this, newInputSubject);
-        getChannelHandlerContext().pipeline().fireUserEventTriggered(reuseEvent);
+        getChannel().pipeline().fireUserEventTriggered(reuseEvent);
     }
 
     public void updateMaxIdleTimeMillis(long maxIdleTimeMillis) {

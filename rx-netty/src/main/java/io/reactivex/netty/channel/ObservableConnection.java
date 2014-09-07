@@ -84,7 +84,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
      * instance which when sending from the constructor will escape "this"
      */
     protected void fireNewRxConnectionEvent() {
-        ChannelHandlerContext firstContext = getChannelHandlerContext().pipeline().firstContext();
+        ChannelHandlerContext firstContext = getChannel().pipeline().firstContext();
         firstContext.fireUserEventTriggered(new NewRxConnectionEvent(this, inputSubject));
     }
 
@@ -105,7 +105,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     protected Observable<Void> _close(boolean flush) {
         final PublishSubject<I> thisSubject = inputSubject;
         cancelPendingWrites(true);
-        ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannelHandlerContext().pipeline());
+        ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannel().pipeline());
         if (flush) {
             Observable<Void> toReturn = flush().lift(new Observable.Operator<Void, Void>() {
                 @Override
@@ -151,7 +151,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         closeStartTimeMillis = Clock.newStartTimeMillis();
         eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
 
-        final ChannelFuture closeFuture = getChannelHandlerContext().close();
+        final ChannelFuture closeFuture = getChannel().close();
 
         /**
          * This listener if added inside the returned Observable onSubscribe() function, would mean that the

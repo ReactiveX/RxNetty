@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.protocol.http.server;
 
+import io.netty.channel.Channel;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
@@ -54,10 +55,28 @@ public class HttpServerRequest<T> extends AbstractHttpContentHolder<T> {
     private final HttpVersion protocolVersion;
     private final UriInfoHolder uriInfoHolder;
     private final CookiesHolder cookiesHolder;
+    private final Channel nettyChannel;
     private volatile long processingStartTimeMillis;
 
+    /**
+     * @deprecated This class will no longer be instantiable outside this package.
+     */
+    @Deprecated
     public HttpServerRequest(HttpRequest nettyRequest, UnicastContentSubject<T> content) {
         super(content);
+        this.nettyRequest = nettyRequest;
+        headers = new HttpRequestHeaders(this.nettyRequest);
+        method = this.nettyRequest.getMethod();
+        protocolVersion = this.nettyRequest.getProtocolVersion();
+        uriInfoHolder = new UriInfoHolder(this.nettyRequest.getUri());
+        cookiesHolder = CookiesHolder.newServerRequestHolder(nettyRequest.headers());
+        nettyChannel = null;
+    }
+
+    protected HttpServerRequest(Channel channel, HttpRequest nettyRequest,
+                                UnicastContentSubject<T> content) {
+        super(content);
+        nettyChannel = channel;
         this.nettyRequest = nettyRequest;
         headers = new HttpRequestHeaders(this.nettyRequest);
         method = this.nettyRequest.getMethod();
@@ -96,6 +115,10 @@ public class HttpServerRequest<T> extends AbstractHttpContentHolder<T> {
 
     public Map<String, Set<Cookie>> getCookies() {
         return cookiesHolder.getAllCookies();
+    }
+
+    public Channel getNettyChannel() {
+        return nettyChannel;
     }
 
     void onProcessingStart(long processingStartTimeMillis) {

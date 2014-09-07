@@ -17,6 +17,7 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.CookieDecoder;
 import io.netty.handler.codec.http.DefaultCookie;
@@ -50,7 +51,10 @@ public class CookieTest {
         String cookie1Header = cookie1Name + '=' + cookie1Value
                                + "; expires=Thu, 18-Feb-2016 07:47:08 GMT; path=" + cookie1Path + "; domain=" + cookie1Domain;
         nettyRequest.headers().add(HttpHeaders.Names.COOKIE, cookie1Header);
-        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
+        Channel noOpChannel = new NoOpChannelHandlerContext().channel();
+        HttpServerRequest<ByteBuf> request =
+                new HttpServerRequest<ByteBuf>(noOpChannel, nettyRequest,
+                                               UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
         Map<String,Set<Cookie>> cookies = request.getCookies();
         Assert.assertEquals("Unexpected number of cookies.", 1, cookies.size());
         Set<Cookie> cookies1 = cookies.get(cookie1Name);

@@ -17,9 +17,11 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.NoOpChannelHandlerContext;
 import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,7 +32,7 @@ import java.util.Map;
 /**
  * @author Nitesh Kant
  */
-public class UriTest {
+public class HttpServerRequestUriTest {
 
     @Test
     public void testRequestUri() throws Exception {
@@ -43,7 +45,7 @@ public class UriTest {
         String queryString = qp1Name + '=' + qp1Val + '&' + qp2Name + '=' + qp2Val + '&' + qp2Name + '=' + qp2Val2 ;
         String uri = path + '?' + queryString;
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
-        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
+        HttpServerRequest<ByteBuf> request = newServerRequest(nettyRequest);
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
         Assert.assertEquals("Unexpected query string", queryString,request.getQueryString());
         Assert.assertEquals("Unexpected path string", path, request.getPath());
@@ -67,7 +69,7 @@ public class UriTest {
         String path = "a/b/c";
         String uri = path + '?';
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
-        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
+        HttpServerRequest<ByteBuf> request = newServerRequest(nettyRequest);
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
         Assert.assertEquals("Unexpected query string", "", request.getQueryString());
     }
@@ -77,8 +79,14 @@ public class UriTest {
         String path = "a/b/c";
         String uri = path;
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
-        HttpServerRequest<ByteBuf> request = new HttpServerRequest<ByteBuf>(nettyRequest, UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
+        HttpServerRequest<ByteBuf> request = newServerRequest(nettyRequest);
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
         Assert.assertEquals("Unexpected query string", "", request.getQueryString());
+    }
+
+    protected HttpServerRequest<ByteBuf> newServerRequest(DefaultHttpRequest nettyRequest) {
+        Channel noOpChannel = new NoOpChannelHandlerContext().channel();
+        return new HttpServerRequest<ByteBuf>(noOpChannel, nettyRequest,
+                                              UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
     }
 }

@@ -82,8 +82,7 @@ public class WebSocketServer<I extends WebSocketFrame, O extends WebSocketFrame>
 
         @Override
         public Observable<Void> handle(final ObservableConnection<I, O> connection) {
-            ChannelHandlerContext ctx = connection.getChannelHandlerContext();
-            final ChannelPipeline p = ctx.channel().pipeline();
+            final ChannelPipeline p = connection.getChannel().pipeline();
             ChannelHandlerContext hctx = p.context(WebSocketServerHandler.class);
             if (hctx != null) {
                 WebSocketServerHandler handler = p.get(WebSocketServerHandler.class);

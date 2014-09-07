@@ -17,13 +17,12 @@ package io.reactivex.netty.ingress;
 
 import io.reactivex.netty.RemoteRxEvent;
 import io.reactivex.netty.channel.ObservableConnection;
+import rx.Observable;
+import rx.functions.Action1;
 
 import java.net.InetSocketAddress;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicReference;
-
-import rx.Observable;
-import rx.functions.Action1;
 
 public class InetAddressWhiteListIngressPolicy implements IngressPolicy{
 
@@ -42,7 +41,7 @@ public class InetAddressWhiteListIngressPolicy implements IngressPolicy{
 	public boolean allowed(
 			ObservableConnection<RemoteRxEvent, RemoteRxEvent> connection) {
 		InetSocketAddress inetSocketAddress 
-			= (InetSocketAddress) connection.getChannelHandlerContext().channel().remoteAddress();
+			= (InetSocketAddress) connection.getChannel().remoteAddress();
 		return whiteList.get().contains(inetSocketAddress.getAddress().getHostAddress());
 	}
 		

@@ -82,7 +82,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HEADERS_RECEIVED);
 
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpServerRequest rxRequest = new HttpServerRequest((HttpRequest) msg, contentSubject);
+            HttpServerRequest rxRequest = new HttpServerRequest(ctx.channel(), (HttpRequest) msg, contentSubject);
             this.rxRequest = rxRequest;
 
             super.channelRead(ctx, rxRequest);
