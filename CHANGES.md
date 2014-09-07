@@ -1,5 +1,29 @@
 # RxNetty Releases #
 
+### Version 0.3.13 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.13+is%3Aclosed)
+
+* [Issue 214] (https://github.com/Netflix/RxNetty/issues/214) HttpServerRequest should provide a way to access Netty channel.
+* [Issue 216] (https://github.com/Netflix/RxNetty/issues/216) Remove deprecated HttpClientResponse and HttpServerRequest constructors.
+* [Issue 218] (https://github.com/Netflix/RxNetty/issues/218) Migrate Branch Master -> 0.x.
+* [Issue 223] (https://github.com/Netflix/RxNetty/issues/223) Client connections receiving SSE responses should never be pooled & reused.
+* [Issue 225] (https://github.com/Netflix/RxNetty/issues/225) Unsubscribing from HttpClient.submit() should not close connection.
+* [Issue 226] (https://github.com/Netflix/RxNetty/issues/226) Response should be flushed on `RequestHandler`'s failure.
+* [Issue 228] (https://github.com/Netflix/RxNetty/issues/228) `DefaultChannelWriter` should return `Channel` instead of `ChannelHandlerContext`.
+* [Issue 230] (https://github.com/Netflix/RxNetty/issues/230) FlatResponseOperator does not emit any item if there is no content.
+
+##### Deprecations
+
+* [Issue 228] (https://github.com/Netflix/RxNetty/issues/228) `DefaultChannelWriter.getChannelHandlerContext()` is deprecated.
+
+##### Deprecation removals
+
+* [Issue 216] (https://github.com/Netflix/RxNetty/issues/216) Remove deprecated HttpClientResponse and HttpServerRequest constructors.
+
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.13%22)
+
 ### Version 0.3.12 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.12+is%3Aclosed)
@@ -7,8 +31,20 @@
 * [Issue 118] (https://github.com/Netflix/RxNetty/issues/118) Javadoc errors when compiling with Java 8.
 * [Pull 196] (https://github.com/Netflix/RxNetty/pull/196) Websocket client and server implementation.
 * [Pull 204] (https://github.com/Netflix/RxNetty/pull/204) Add a generic Handler interface
-* [Issue 206] (https://github.com/Netflix/RxNetty/issue/206) HttpClientResponse.getContent() will loose data if not eagerly subscribed.
-* [Issue 199] (https://github.com/Netflix/RxNetty/issue/199) Invalid metric event used in DefaultChannelWriter.
+* [Issue 206] (https://github.com/Netflix/RxNetty/issues/206) HttpClientResponse.getContent() will loose data if not eagerly subscribed.
+* [Issue 199] (https://github.com/Netflix/RxNetty/issues/199) Invalid metric event used in DefaultChannelWriter.
+
+##### Change in behavior
+
+As part of  [Issue 206] (https://github.com/Netflix/RxNetty/issues/206) the following change in behavior is done in this release:
+
+##### Old Behavior
+- Before this fix, the the `Observable` returned from `HttpClient.submit()` used to complete after the content of the response completed.
+- The content could be lost (this issue) if the content was subscribed out of the `onNext` call of `HttpClientResponse`
+
+##### New Behavior
+- After this fix, the `Observable` returned from `HttpClient.submit()` completes immediately after one callback of `HttpClientResponse`. 
+- The content can be subscribed out of the `onNext` call of `HttpClientResponse` till the content timeout as described in #206.
 
 Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.12%22)
 
