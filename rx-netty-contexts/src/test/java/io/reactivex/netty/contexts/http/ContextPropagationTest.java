@@ -28,9 +28,11 @@ import io.reactivex.netty.contexts.MapBackedKeySupplier;
 import io.reactivex.netty.contexts.RxContexts;
 import io.reactivex.netty.contexts.TestContext;
 import io.reactivex.netty.contexts.TestContextSerializer;
+import io.reactivex.netty.protocol.http.client.FlatResponseOperator;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.ResponseHolder;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -41,18 +43,15 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import rx.Observable;
-import rx.functions.Action0;
-import rx.functions.Action1;
 import rx.functions.Func1;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static io.reactivex.netty.contexts.ThreadLocalRequestCorrelator.getCurrentContextContainer;
 import static io.reactivex.netty.contexts.ThreadLocalRequestCorrelator.getCurrentRequestId;
@@ -103,7 +102,7 @@ public class ContextPropagationTest {
                     return Observable.error(e);
                 }
             }
-        }).enableWireLogging(LogLevel.DEBUG).build();
+        }).enableWireLogging(LogLevel.ERROR).build();
         mockServer.start();
     }
 
@@ -121,10 +120,10 @@ public class ContextPropagationTest {
                             public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
                                 return client.submit(HttpClientRequest.createGet("/"));
                             }
-                        }).enableWireLogging(LogLevel.ERROR).build().start();
+                        }).enableWireLogging(LogLevel.DEBUG).build().start();
 
         HttpClient<ByteBuf, ByteBuf> testClient = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", server.getServerPort())
-                                                         .enableWireLogging(LogLevel.DEBUG).build();
+                                                         .enableWireLogging(LogLevel.ERROR).build();
 
         String reqId = "testE2E";
         sendTestRequest(testClient, reqId);
@@ -184,7 +183,8 @@ public class ContextPropagationTest {
                 RxContexts.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", mockServer.getServerPort(),
                                                                   REQUEST_ID_HEADER_NAME,
                                                                   RxContexts.DEFAULT_CORRELATOR)
-                          .withMaxConnections(1).withIdleConnectionsTimeoutMillis(100000).build();
+                          .withMaxConnections(1).enableWireLogging(LogLevel.ERROR)
+                          .withIdleConnectionsTimeoutMillis(100000).build();
         ContextsContainer container = new ContextsContainerImpl(new MapBackedKeySupplier());
         container.addContext(CTX_1_NAME, CTX_1_VAL);
         container.addContext(CTX_2_NAME, CTX_2_VAL, new TestContextSerializer());
@@ -203,7 +203,8 @@ public class ContextPropagationTest {
                 RxContexts.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", mockServer.getServerPort(),
                                                                   REQUEST_ID_HEADER_NAME,
                                                                   RxContexts.DEFAULT_CORRELATOR)
-                          .withMaxConnections(1).withIdleConnectionsTimeoutMillis(100000).build();
+                          .withMaxConnections(1).enableWireLogging(LogLevel.ERROR)
+                          .withIdleConnectionsTimeoutMillis(100000).build();
 
         ContextsContainer container = new ContextsContainerImpl(new MapBackedKeySupplier());
         container.addContext(CTX_1_NAME, CTX_1_VAL);
@@ -259,7 +260,7 @@ public class ContextPropagationTest {
 
     private static void invokeMockServer(HttpClient<ByteBuf, ByteBuf> testClient, final String requestId,
                                          boolean finishServerProcessing)
-            throws MockBackendRequestFailedException, InterruptedException {
+            throws MockBackendRequestFailedException, InterruptedException, TimeoutException, ExecutionException {
         try {
             sendTestRequest(testClient, requestId);
         } finally {
@@ -277,40 +278,24 @@ public class ContextPropagationTest {
     }
 
     private static void sendTestRequest(HttpClient<ByteBuf, ByteBuf> testClient, final String requestId)
-            throws MockBackendRequestFailedException, InterruptedException {
+            throws MockBackendRequestFailedException, InterruptedException, TimeoutException, ExecutionException {
         System.err.println("Sending test request to mock server, with request id: " + requestId);
         RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
-        final CountDownLatch finishLatch = new CountDownLatch(1);
-        final List<HttpClientResponse<ByteBuf>> responseHolder = new ArrayList<HttpClientResponse<ByteBuf>>();
-        testClient.submit(HttpClientRequest.createGet("").withHeader(REQUEST_ID_HEADER_NAME, requestId))
-                  .finallyDo(new Action0() {
-                      @Override
-                      public void call() {
-                          finishLatch.countDown();
-                      }
-                  })
-                  .subscribe(new Action1<HttpClientResponse<ByteBuf>>() {
-                      @Override
-                      public void call(HttpClientResponse<ByteBuf> response) {
-                          responseHolder.add(response);
-                      }
-                  });
 
-        finishLatch.await(1, TimeUnit.MINUTES);
-        if (responseHolder.isEmpty()) {
-            throw new AssertionError("Response not received.");
-        }
+        ResponseHolder<ByteBuf> responseHolder =
+                testClient.submit(HttpClientRequest.createGet("").withHeader(REQUEST_ID_HEADER_NAME, requestId))
+                          .lift(FlatResponseOperator.<ByteBuf>flatResponse())
+                          .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
 
         System.err.println("Received response from mock server, with request id: " + requestId
-                           + ", status: " + responseHolder.get(0).getStatus());
+                           + ", status: " + responseHolder.getResponse().getStatus());
 
-        HttpClientResponse<ByteBuf> response = responseHolder.get(0);
-
-        if (response.getStatus().code() != HttpResponseStatus.OK.code()) {
-            throw new MockBackendRequestFailedException("Test request failed. Status: " + response.getStatus().code());
+        if (responseHolder.getResponse().getStatus().code() != HttpResponseStatus.OK.code()) {
+            throw new MockBackendRequestFailedException("Test request failed. Status: "
+                                                        + responseHolder.getResponse().getStatus().code());
         }
 
-        String requestIdGot = response.getHeaders().get(REQUEST_ID_HEADER_NAME);
+        String requestIdGot = responseHolder.getResponse().getHeaders().get(REQUEST_ID_HEADER_NAME);
 
         if (!requestId.equals(requestId)) {
             throw new MockBackendRequestFailedException("Request Id not sent from mock server. Expected: "

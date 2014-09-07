@@ -29,11 +29,26 @@ public class ResponseHolder<T> {
         this.content = content;
     }
 
+    public ResponseHolder(HttpClientResponse<T> response) {
+        this.response = response;
+        content = null;
+    }
+
     public HttpClientResponse<T> getResponse() {
         return response;
     }
 
+    /**
+     * Returns the content, if any. Use {@link #hasContent()} to check if there is a content in this holder.
+     *
+     * @return The content, if any, {@code null} otherwise.
+     * Use {@link #hasContent()} to check if there is a content in this holder.
+     */
     public T getContent() {
         return content;
+    }
+
+    public boolean hasContent() {
+        return null != content;
     }
 }
