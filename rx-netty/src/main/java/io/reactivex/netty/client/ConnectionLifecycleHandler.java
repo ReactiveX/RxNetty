@@ -32,7 +32,7 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     }
 
     /*package private to set the connection*/ void setConnection(ObservableConnection<I, O> newConnection) {
-        if (!newConnection.getChannelHandlerContext().channel().isRegistered()) {
+        if (!newConnection.getChannel().isRegistered()) {
             connection.close();
         } else {
             connection = newConnection;

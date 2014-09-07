@@ -100,7 +100,7 @@ public class HttpContextClientChannelFactory<I, O> extends
         @Override
         public void onNext(ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
             if (null != requestId && null != container) {
-                connection.getChannelHandlerContext().pipeline()
+                connection.getChannel().pipeline()
                           .fireUserEventTriggered(new NewContextEvent(requestId, container));
             }
             original.onNext(connection);

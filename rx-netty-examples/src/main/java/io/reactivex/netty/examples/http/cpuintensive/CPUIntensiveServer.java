@@ -49,7 +49,7 @@ public final class CPUIntensiveServer {
                                                    final HttpServerResponse<ByteBuf> response) {
                         printRequestHeader(request);
                         response.getHeaders().set(IN_EVENT_LOOP_HEADER_NAME,
-                                                  response.getChannelHandlerContext().channel().eventLoop()
+                                                  response.getChannel().eventLoop()
                                                           .inEventLoop());
                         response.writeString("Welcome!!");
                         return response.close(false);

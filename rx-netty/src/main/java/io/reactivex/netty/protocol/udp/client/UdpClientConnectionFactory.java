@@ -44,8 +44,8 @@ class UdpClientConnectionFactory<I, O> implements ClientConnectionFactory<I, O, 
 
     @Override
     public UdpClientConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return new UdpClientConnection<I, O>(ctx, receiverAddress, eventsSubject,
-                                             ClientChannelMetricEventProvider.INSTANCE);
+        return UdpClientConnection.create(ctx, receiverAddress, eventsSubject,
+                                          ClientChannelMetricEventProvider.INSTANCE);
     }
 
     @Override

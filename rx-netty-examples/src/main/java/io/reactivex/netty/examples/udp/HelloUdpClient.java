@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.udp;
 
 import io.netty.channel.socket.DatagramPacket;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
@@ -38,7 +39,8 @@ public final class HelloUdpClient {
     }
 
     public String sendHello() {
-        String content = RxNetty.createUdpClient("localhost", port).connect()
+        String content = RxNetty.<DatagramPacket, DatagramPacket>newUdpClientBuilder("localhost", port)
+                                .enableWireLogging(LogLevel.ERROR).build().connect()
                 .flatMap(new Func1<ObservableConnection<DatagramPacket, DatagramPacket>,
                         Observable<DatagramPacket>>() {
                     @Override
@@ -46,7 +48,8 @@ public final class HelloUdpClient {
                         connection.writeStringAndFlush("Is there anybody out there?");
                         return connection.getInput();
                     }
-                }).take(1)
+                })
+                .take(1)
                 .map(new Func1<DatagramPacket, String>() {
                     @Override
                     public String call(DatagramPacket datagramPacket) {

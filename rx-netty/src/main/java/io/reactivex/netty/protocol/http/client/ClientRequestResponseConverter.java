@@ -33,7 +33,9 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.AbstractConnectionEvent;
 import io.reactivex.netty.channel.NewRxConnectionEvent;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionReuseEvent;
 import io.reactivex.netty.metrics.Clock;
@@ -43,6 +45,7 @@ import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
+import rx.functions.Action0;
 
 /**
  * A channel handler for {@link HttpClient} to convert netty's http request/response objects to {@link HttpClient}'s
@@ -78,14 +81,11 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
-    @SuppressWarnings("rawtypes") private UnicastContentSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
-    @SuppressWarnings("rawtypes") private Observer connInputObsrvr;
-
-    private long responseReceiveStartTimeMillis; // Reset every time we receive a header.
+    private ResponseState responseState; /*State associated with this handler. Since a handler instance is ALWAYS invoked by the same thread, this need not be thread-safe*/
 
     public ClientRequestResponseConverter(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
-        contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(); // Timeout handling is done dynamically by the client.
+        responseState = new ResponseState();
     }
 
     @Override
@@ -94,21 +94,21 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
         /**
          *  Issue: https://github.com/Netflix/RxNetty/issues/129
-         *  The contentSubject changes in a different method userEventTriggered() when the connection is reused. If the
+         *  The state changes in a different method userEventTriggered() when the connection is reused. If the
          *  connection reuse event is generated as part of execution of this method (for the specific issue, as part of
          *  super.channelRead(ctx, rxResponse); below) it will so happen that we invoke onComplete (below code when the
          *  first response completes) on the new subject as opposed to the old response subject.
          */
-        @SuppressWarnings("rawtypes") final UnicastContentSubject subjectToUse = contentSubject;
+        final ResponseState stateToUse = responseState;
 
         if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
-            responseReceiveStartTimeMillis = Clock.newStartTimeMillis();
+            stateToUse.responseReceiveStartTimeMillis = Clock.newStartTimeMillis();
             eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_HEADER_RECEIVED);
             @SuppressWarnings({"rawtypes", "unchecked"})
             HttpResponse response = (HttpResponse) msg;
 
             @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpClientResponse rxResponse = new HttpClientResponse(response, subjectToUse);
+            HttpClientResponse rxResponse = new HttpClientResponse(response, stateToUse.contentSubject);
             Long keepAliveTimeoutSeconds = rxResponse.getKeepAliveTimeoutSeconds();
             if (null != keepAliveTimeoutSeconds) {
                 ctx.channel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).set(keepAliveTimeoutSeconds * 1000);
@@ -125,16 +125,15 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_CONTENT_RECEIVED);
             ByteBuf content = ((ByteBufHolder) msg).content();
             if (content.isReadable()) {
-                invokeContentOnNext(content);
+                invokeContentOnNext(content, stateToUse);
             }
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
                 eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
-                                      Clock.onEndMillis(responseReceiveStartTimeMillis));
-                subjectToUse.onCompleted();
-                connInputObsrvr.onCompleted();
+                                      Clock.onEndMillis(stateToUse.responseReceiveStartTimeMillis));
+                stateToUse.sendOnComplete();
             }
         } else if(!HttpResponse.class.isAssignableFrom(recievedMsgClass)){
-            invokeContentOnNext(msg);
+            invokeContentOnNext(msg, stateToUse);
         }
     }
 
@@ -189,23 +188,20 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof ConnectionReuseEvent) {
-            contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(); // Reset the subject on reuse.
-                                                                                         // Timeout handling is done dynamically by the client.
-            ConnectionReuseEvent reuseEvent = (ConnectionReuseEvent) evt;
-            connInputObsrvr = reuseEvent.getConnectedObserver();
+            responseState = new ResponseState(); // Reset the state on reuse.
+            responseState.setConnection((AbstractConnectionEvent<?>) evt);
         } else if (evt instanceof NewRxConnectionEvent) {
-            NewRxConnectionEvent rxConnectionEvent = (NewRxConnectionEvent) evt;
-            connInputObsrvr = rxConnectionEvent.getConnectedObserver();
+            responseState.setConnection((AbstractConnectionEvent<?>) evt);
         }
         super.userEventTriggered(ctx, evt);
     }
 
     @SuppressWarnings("unchecked")
-    private void invokeContentOnNext(Object nextObject) {
+    private static void invokeContentOnNext(Object nextObject, ResponseState stateToUse) {
         try {
-            contentSubject.onNext(nextObject);
+            stateToUse.contentSubject.onNext(nextObject);
         } catch (ClassCastException e) {
-            contentSubject.onError(e);
+            stateToUse.contentSubject.onError(e);
         } finally {
             ReferenceCountUtil.release(nextObject);
         }
@@ -272,4 +268,44 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         });
     }
 
+    /**
+     * All state for this handler. At any point we need to invoke any method outside of this handler, this state should
+     * be stored in a local variable and used after the external call finishes. Failure to do so will cause race
+     * conditions in us using different state before and after the method call specifically if the external call ends
+     * up generating a user generated event and triggering {@link #userEventTriggered(ChannelHandlerContext, Object)}
+     * which in turn changes this state.
+     *
+     * Issue: https://github.com/Netflix/RxNetty/issues/129
+     */
+    private static final class ResponseState {
+
+        @SuppressWarnings("rawtypes") private final UnicastContentSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
+        @SuppressWarnings("rawtypes") private Observer connInputObsrvr;
+        @SuppressWarnings("rawtypes") private ObservableConnection connection;
+
+        private long responseReceiveStartTimeMillis; // Reset every time we receive a header.
+
+        private ResponseState() {
+            contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(new Action0() {
+                @Override
+                public void call() {
+                    if (null != connection) {
+                        connection.close();
+                    }
+                }
+            });// Timeout handling is done dynamically by the client.
+        }
+
+        private void sendOnComplete() {
+            connection.close(); // Close before sending on complete results in more predictable behavior for clients
+                                // listening for response complete and expecting connection close.
+            contentSubject.onCompleted();
+            connInputObsrvr.onCompleted();
+        }
+
+        private void setConnection(AbstractConnectionEvent<?> connectionEvent) {
+            connection = connectionEvent.getConnection();
+            connInputObsrvr = connectionEvent.getConnectedObserver();
+        }
+    }
 }

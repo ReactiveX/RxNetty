@@ -18,7 +18,6 @@ package io.reactivex.netty.protocol.http.client;
 
 import rx.Observable;
 import rx.Subscriber;
-import rx.functions.Func1;
 
 /**
  * An operator to be used for a source of {@link HttpClientResponse} containing aggregated responses i.e. which does not
@@ -52,12 +51,35 @@ public class FlatResponseOperator<T>
             public void onNext(final HttpClientResponse<T> response) {
                 response.getContent()
                         .take(1)
-                        .map(new Func1<T, ResponseHolder<T>>() {
+                        .lift(new Observable.Operator<ResponseHolder<T>, T>() {
                             @Override
-                            public ResponseHolder<T> call(T t) {
-                                return new ResponseHolder<T>(response, t);
+                            public Subscriber<? super T> call(final Subscriber<? super ResponseHolder<T>> child) {
+                                return new Subscriber<T>() {
+
+                                    private boolean hasContent;
+
+                                    @Override
+                                    public void onCompleted() {
+                                        if (!hasContent) {
+                                            child.onNext(new ResponseHolder<T>(response));
+                                        }
+                                        child.onCompleted();
+                                    }
+
+                                    @Override
+                                    public void onError(Throwable e) {
+                                        child.onError(e);
+                                    }
+
+                                    @Override
+                                    public void onNext(T next) {
+                                        hasContent = true;
+                                        child.onNext(new ResponseHolder<T>(response, next));
+                                    }
+                                };
                             }
-                        }).subscribe(child);
+                        })
+                        .subscribe(child);
             }
         };
     }

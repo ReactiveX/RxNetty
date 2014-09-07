@@ -86,12 +86,20 @@ public class HttpClientTest {
                 "localhost", port);
         Observable<ObservableConnection<HttpClientResponse<ByteBuf>,HttpClientRequest<ByteBuf>>> connectionObservable = client.connect().cache();
 
-        final Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"), connectionObservable);
+        final Observable<ByteBuf> content =
+                client.submit(HttpClientRequest.createGet("test/singleEntity"), connectionObservable)
+                      .flatMap(
+                              new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
+                                  @Override
+                                  public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
+                                      return response.getContent();
+                                  }
+                              });
         ObservableConnection<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> conn = connectionObservable.toBlocking().last();
         Assert.assertFalse("Connection already closed.", conn.isCloseIssued());
 
         final CountDownLatch responseCompleteLatch = new CountDownLatch(1);
-        response.finallyDo(new Action0() {
+        content.finallyDo(new Action0() {
             @Override
             public void call() {
                 responseCompleteLatch.countDown();
@@ -100,7 +108,7 @@ public class HttpClientTest {
 
         responseCompleteLatch.await(1, TimeUnit.MINUTES);
 
-        assertTrue("Connection not closed after response recieved.", conn.isCloseIssued());
+        assertTrue("Connection not closed after content recieved.", conn.isCloseIssued());
     }
 
     @Test

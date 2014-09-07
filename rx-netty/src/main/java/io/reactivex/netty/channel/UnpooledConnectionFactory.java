@@ -34,7 +34,7 @@ public class UnpooledConnectionFactory<I, O> implements ObservableConnectionFact
 
     @Override
     public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return new ObservableConnection<I, O>(ctx, eventsSubject, metricEventProvider);
+        return ObservableConnection.create(ctx, eventsSubject, metricEventProvider);
     }
 
     @Override

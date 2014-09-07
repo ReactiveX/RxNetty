@@ -40,20 +40,53 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     private final ChannelMetricEventProvider metricEventProvider;
     /* Guarded by closeIssued so that its only updated once*/ protected volatile long closeStartTimeMillis = -1;
 
-    public ObservableConnection(final ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
-                                ChannelMetricEventProvider metricEventProvider) {
+    protected ObservableConnection(final ChannelHandlerContext ctx, ChannelMetricEventProvider metricEventProvider,
+                                   MetricEventsSubject<?> eventsSubject) {
         super(ctx, eventsSubject, metricEventProvider);
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
         inputSubject = PublishSubject.create();
-        ChannelHandlerContext firstContext = ctx.pipeline().firstContext();
-        firstContext.fireUserEventTriggered(new NewRxConnectionEvent(inputSubject));
+    }
+
+    /**
+     * @deprecated Use {@link ObservableConnection#create(ChannelHandlerContext, MetricEventsSubject,
+     * ChannelMetricEventProvider)} instead.
+     */
+    @Deprecated
+    public ObservableConnection(final ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
+                                ChannelMetricEventProvider metricEventProvider) {
+        this(ctx, metricEventProvider, eventsSubject);
     }
 
     public Observable<I> getInput() {
         return inputSubject;
     }
 
+    public static <I, O>  ObservableConnection<I, O> create(final ChannelHandlerContext ctx,
+                                                            final MetricEventsSubject<?> eventsSubject,
+                                                            final ChannelMetricEventProvider metricEventProvider) {
+        final ObservableConnection<I, O> toReturn = new ObservableConnection<I, O>(ctx, metricEventProvider,
+                                                                                   eventsSubject);
+        /**
+         * Sending the event here does not leak "this" via the NewRxConnectionEvent as opposed to doing it inside the
+         * constructor.
+         */
+        toReturn.fireNewRxConnectionEvent();
+
+        return toReturn;
+    }
+
+    /**
+     * Fires a {@link NewRxConnectionEvent} for this connection.
+     *
+     * <b>This must only be called before passing the connection instance to any other code.</b> The reason why this is
+     * not done as part of the constructor is that {@link NewRxConnectionEvent} requires the {@link ObservableConnection}
+     * instance which when sending from the constructor will escape "this"
+     */
+    protected void fireNewRxConnectionEvent() {
+        ChannelHandlerContext firstContext = getChannel().pipeline().firstContext();
+        firstContext.fireUserEventTriggered(new NewRxConnectionEvent(this, inputSubject));
+    }
 
     /**
      * Closes this connection. This method is idempotent, so it can be called multiple times without any side-effect on
@@ -72,7 +105,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     protected Observable<Void> _close(boolean flush) {
         final PublishSubject<I> thisSubject = inputSubject;
         cancelPendingWrites(true);
-        ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannelHandlerContext().pipeline());
+        ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannel().pipeline());
         if (flush) {
             Observable<Void> toReturn = flush().lift(new Observable.Operator<Void, Void>() {
                 @Override
@@ -118,7 +151,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         closeStartTimeMillis = Clock.newStartTimeMillis();
         eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
 
-        final ChannelFuture closeFuture = getChannelHandlerContext().close();
+        final ChannelFuture closeFuture = getChannel().close();
 
         /**
          * This listener if added inside the returned Observable onSubscribe() function, would mean that the

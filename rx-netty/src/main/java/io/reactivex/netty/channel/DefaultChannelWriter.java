@@ -39,7 +39,10 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     protected static final Observable<Void> CONNECTION_ALREADY_CLOSED =
             Observable.error(new IllegalStateException("Connection is already closed."));
     protected final AtomicBoolean closeIssued = new AtomicBoolean();
+
     private final ChannelHandlerContext ctx;
+    private final Channel nettyChannel;
+
     /**
      * A listener for all pending writes before a flush.
      */
@@ -55,6 +58,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
             throw new NullPointerException("Channel context can not be null.");
         }
         this.ctx = ctx;
+        nettyChannel = ctx.channel();
         unflushedWritesListener = new AtomicReference<MultipleFutureListener>(new MultipleFutureListener(ctx.newPromise()));
     }
 
@@ -108,14 +112,14 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     public Observable<Void> flush() {
         final long startTimeMillis = Clock.newStartTimeMillis();
         eventsSubject.onEvent(metricEventProvider.getFlushStartEvent());
-        MultipleFutureListener existingListener = unflushedWritesListener.getAndSet(new MultipleFutureListener(
-                ctx.newPromise()));
+        MultipleFutureListener existingListener =
+                unflushedWritesListener.getAndSet(new MultipleFutureListener(nettyChannel.newPromise()));
         /**
          * Do flush() after getting the last listener so that we do not wait for a write which is not flushed.
          * If we do it before getting the existingListener then the write that happens after the flush() from the user
          * will be contained in the retrieved listener and hence we will wait till the next flush() finish.
          */
-        ctx.flush();
+        nettyChannel.flush();
         return existingListener.asObservable()
                                .doOnCompleted(new Action0() {
                                    @Override
@@ -140,9 +144,15 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
 
     @Override
     public ByteBufAllocator getAllocator() {
-        return ctx.alloc();
+        return nettyChannel.alloc();
     }
 
+    /**
+     * @deprecated It is misleading to provide {@link ChannelHandlerContext} instance as it is unclear which handler
+     * this context belongs to. So, instead one should use {@link #getChannel()} and all actions possible from the
+     * {@link ChannelHandlerContext} are possible via the {@link Channel}.
+     */
+    @Deprecated
     public ChannelHandlerContext getChannelHandlerContext() {
         return ctx;
     }
@@ -153,8 +163,8 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
         return writeFuture;
     }
 
-    protected Channel getChannel() {
-        return ctx.channel();
+    public Channel getChannel() {
+        return nettyChannel;
     }
 
     public boolean isCloseIssued() {

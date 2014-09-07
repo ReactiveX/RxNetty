@@ -52,7 +52,7 @@ class DefaultErrorResponseGenerator<O> implements ErrorResponseGenerator<O> {
     public void updateResponse(HttpServerResponse<O> response, Throwable error) {
         response.setStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR);
         response.getHeaders().set(HttpHeaders.Names.CONTENT_TYPE, "text/html");
-        ByteBuf buffer = response.getChannelHandlerContext().alloc().buffer(1024);// 1KB initial length.
+        ByteBuf buffer = response.getChannel().alloc().buffer(1024);// 1KB initial length.
         PrintStream printStream = null;
         try {
             printStream = new PrintStream(new ByteBufOutputStream(buffer));

@@ -49,6 +49,18 @@ public class UnicastContentSubjectTest {
     }
 
     @Test(expected = IllegalStateException.class)
+    public void testNoSubscriptionsWithOnUnsubscribeAction() throws Exception {
+        TestScheduler testScheduler = Schedulers.test();
+        OnUnsubscribeAction onUnsub = new OnUnsubscribeAction();
+        UnicastContentSubject<String> subject = UnicastContentSubject.create(1, TimeUnit.DAYS, testScheduler,
+                                                                             onUnsub);
+        subject.onNext("Start the timeout now."); // Since the timeout is scheduled only after content arrival.
+        testScheduler.advanceTimeBy(1, TimeUnit.DAYS);
+        Assert.assertTrue("On unsubscribe action not called on dispose.", onUnsub.isCalled());
+        subject.toBlocking().last(); // Should immediately throw an error.
+    }
+
+    @Test(expected = IllegalStateException.class)
     public void testMultiSubscriber() throws Exception {
         UnicastContentSubject<Object> subject = UnicastContentSubject.createWithoutNoSubscriptionTimeout();
         subject.subscribe(Subscribers.empty());
@@ -81,6 +93,13 @@ public class UnicastContentSubjectTest {
         latch.await(1, TimeUnit.MINUTES);
 
         Assert.assertNull("Subscription got an error.", errorOnSubscribe.get());
+    }
+
+    @Test
+    public void testOnUnsubscribeAction() throws Exception {
+        OnUnsubscribeAction onUnsubscribeAction = new OnUnsubscribeAction();
+        UnicastContentSubject.createWithoutNoSubscriptionTimeout(onUnsubscribeAction).subscribe().unsubscribe();
+        Assert.assertTrue("On unsubscribe action not called.", onUnsubscribeAction.isCalled());
     }
 
     @Test
@@ -128,5 +147,22 @@ public class UnicastContentSubjectTest {
         Assert.assertEquals("Unexpected ByteBuf ref count when received.", 2, byteBufRefCnt.get());
         Assert.assertSame("Unexpected byte buffer received.", buffer, last);
         Assert.assertEquals("Byte buffer not released.", 0, last.refCnt());
+    }
+
+    private static class OnUnsubscribeAction implements Action0 {
+
+        private volatile boolean called;
+
+        public OnUnsubscribeAction() {
+        }
+
+        @Override
+        public void call() {
+            called = true;
+        }
+
+        public boolean isCalled() {
+            return called;
+        }
     }
 }
