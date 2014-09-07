@@ -150,6 +150,9 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                                                         // (PassThroughObserver on any notification) and this thread.
 
             state.setObserverRef(noOpSub); // All future notifications are not sent anywhere.
+            if (null != state.onUnsubscribe) {
+                state.onUnsubscribe.call(); // Since this is an inline/sync call, if this throws an error, it gets thrown to the caller.
+            }
             return true;
         }
         return false;
