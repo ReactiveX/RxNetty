@@ -125,7 +125,7 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                                 if (!response.isHeaderWritten()) {
                                     responseGenerator.updateResponse(response, throwable);
                                 }
-                                response.close(false);
+                                response.close(true); // Response should be flushed for errors: https://github.com/ReactiveX/RxNetty/issues/226
                             }
 
                             @Override

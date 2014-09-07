@@ -45,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author Nitesh Kant
@@ -116,8 +117,8 @@ public class HttpClientPoolTest {
                                                                           onComplete);
 
         Assert.assertEquals("Unexpected idle connection count on completion of submit. ", 0, idleCountOnComplete[0]);
-        Assert.assertEquals("Unexpected in-use connection count on completion of submit. ", 1, inUseCountOnComplete[0]);
-        Assert.assertEquals("Unexpected total connection count on completion of submit. ", 1, totalCountOnComplete[0]);
+        Assert.assertEquals("Unexpected in-use connection count on completion of submit. ", 0, inUseCountOnComplete[0]);
+        Assert.assertEquals("Unexpected total connection count on completion of submit. ", 0, totalCountOnComplete[0]);
 
         Assert.assertEquals("Unexpected HTTP response code.", 200, response.getStatus().code());
         Assert.assertEquals("Unexpected Idle connection count.", 0, stats.getIdleCount());
@@ -256,20 +257,33 @@ public class HttpClientPoolTest {
             throws InterruptedException {
         final CountDownLatch completionLatch = new CountDownLatch(1);
         Observable<HttpClientResponse<ByteBuf>> submit = client.submit(request);
+        final AtomicReference<HttpClientResponse<ByteBuf>> toReturnRef =
+                new AtomicReference<HttpClientResponse<ByteBuf>>();
+
+        Observable<ByteBuf> contentStream =
+                submit.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
+                    @Override
+                    public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
+                        toReturnRef.set(response);
+                        return response.getContent();
+                    }
+                }).finallyDo(new Action0() {
+                    @Override
+                    public void call() {
+                        completionLatch.countDown();
+
+                    }
+                }).ignoreElements();
 
         if (null != onComplete) {
-            submit = submit.doOnCompleted(onComplete);
+            contentStream = contentStream.doOnCompleted(onComplete);
         }
-        HttpClientResponse<ByteBuf> response = submit.finallyDo(new Action0() {
-            @Override
-            public void call() {
-                completionLatch.countDown();
-            }
-        }).toBlocking().last();
+
+        contentStream.toBlocking().lastOrDefault(null);
 
         completionLatch.await(1, TimeUnit.MINUTES);
 
-        return response;
+        return toReturnRef.get();
     }
 
     private void waitForClose() throws InterruptedException {

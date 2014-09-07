@@ -89,22 +89,46 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
      * <b>This can cause a memory leak in case no one ever subscribes to this subject.</b> See
      * {@link UnicastContentSubject} for details.
      *
+     * @param onUnsubscribe An action to be invoked when the sole subscriber to this {@link Subject} unsubscribes.
+     * @param <T> The type emitted and received by this subject.
+     *
+     * @return The new instance of {@link UnicastContentSubject}
+     */
+    public static <T> UnicastContentSubject<T> createWithoutNoSubscriptionTimeout(Action0 onUnsubscribe) {
+        State<T> state = new State<T>(onUnsubscribe);
+        return new UnicastContentSubject<T>(state);
+    }
+
+    /**
+     * Creates a new {@link UnicastContentSubject} without a no subscription timeout.
+     * <b>This can cause a memory leak in case no one ever subscribes to this subject.</b> See
+     * {@link UnicastContentSubject} for details.
+     *
      * @param <T> The type emitted and received by this subject.
      *
      * @return The new instance of {@link UnicastContentSubject}
      */
     public static <T> UnicastContentSubject<T> createWithoutNoSubscriptionTimeout() {
-        State<T> state = new State<T>();
-        return new UnicastContentSubject<T>(state);
+        return createWithoutNoSubscriptionTimeout(null);
     }
 
     public static <T> UnicastContentSubject<T> create(long noSubscriptionTimeout, TimeUnit timeUnit) {
-        return create(noSubscriptionTimeout, timeUnit, Schedulers.computation());
+        return create(noSubscriptionTimeout, timeUnit, (Action0)null);
+    }
+
+    public static <T> UnicastContentSubject<T> create(long noSubscriptionTimeout, TimeUnit timeUnit,
+                                                      Action0 onUnsubscribe) {
+        return create(noSubscriptionTimeout, timeUnit, Schedulers.computation(), onUnsubscribe);
     }
 
     public static <T> UnicastContentSubject<T> create(long noSubscriptionTimeout, TimeUnit timeUnit,
                                                       Scheduler timeoutScheduler) {
-        State<T> state = new State<T>();
+        return create(noSubscriptionTimeout, timeUnit, timeoutScheduler, null);
+    }
+
+    public static <T> UnicastContentSubject<T> create(long noSubscriptionTimeout, TimeUnit timeUnit,
+                                                      Scheduler timeoutScheduler, Action0 onUnsubscribe) {
+        State<T> state = new State<T>(onUnsubscribe);
         return new UnicastContentSubject<T>(state, noSubscriptionTimeout, timeUnit, timeoutScheduler);
     }
 
@@ -139,6 +163,16 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
     /** The common state. */
     private static final class State<T> {
+
+        private final Action0 onUnsubscribe;
+
+        public State() {
+            this(null);
+        }
+
+        public State(Action0 onUnsubscribe) {
+            this.onUnsubscribe = onUnsubscribe;
+        }
 
         /**
          * Following are the only possible state transitions:
@@ -243,6 +277,9 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                 subscriber.add(Subscriptions.create(new Action0() {
                     @Override
                     public void call() {
+                        if (null != state.onUnsubscribe) {
+                            state.onUnsubscribe.call();
+                        }
                         state.setObserverRef(Subscribers.empty());
                     }
                 }));

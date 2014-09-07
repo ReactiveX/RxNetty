@@ -23,10 +23,8 @@ import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
-import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.subscriptions.CompositeSubscription;
-import rx.subscriptions.Subscriptions;
 
 import java.util.concurrent.TimeUnit;
 
@@ -70,13 +68,6 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
 
                     @Override
                     public void onNext(final ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
-
-                        cs.add(Subscriptions.create(new Action0() {
-                            @Override
-                            public void call() {
-                                connection.close();
-                            }
-                        }));
 
                         cs.add(connection.getInput()
                                          .doOnNext(new Action1<HttpClientResponse<O>>() {

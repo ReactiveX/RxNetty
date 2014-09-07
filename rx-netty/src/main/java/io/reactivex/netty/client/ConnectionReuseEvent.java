@@ -15,20 +15,17 @@
  */
 package io.reactivex.netty.client;
 
+import io.reactivex.netty.channel.AbstractConnectionEvent;
 import rx.Observer;
 
 /**
  * @author Nitesh Kant
  */
-public class ConnectionReuseEvent {
+@SuppressWarnings("rawtypes")
+public class ConnectionReuseEvent extends AbstractConnectionEvent<PooledConnection>{
 
-    @SuppressWarnings("rawtypes") private final Observer connectedObserver;
-
-    public ConnectionReuseEvent(@SuppressWarnings("rawtypes") Observer connectedObserver) {
-        this.connectedObserver = connectedObserver;
-    }
-
-    public @SuppressWarnings("rawtypes") Observer getConnectedObserver() {
-        return connectedObserver;
+    public ConnectionReuseEvent(PooledConnection<?, ?> connection,
+                                @SuppressWarnings("rawtypes") final Observer connectedObserver) {
+        super(connectedObserver, connection);
     }
 }

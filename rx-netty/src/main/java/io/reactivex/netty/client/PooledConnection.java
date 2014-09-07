@@ -50,23 +50,48 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
     private volatile long lastReturnToPoolTimeMillis;
     private volatile long maxIdleTimeMillis;
 
+    /**
+     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, ChannelMetricEventProvider,
+     * MetricEventsSubject)} instead.
+     */
+    @Deprecated
     public PooledConnection(ChannelHandlerContext ctx) {
         this(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis());
     }
 
+    /**
+     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, long, ChannelMetricEventProvider,
+     * MetricEventsSubject)} instead.
+     */
+    @Deprecated
     public PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis) {
         this(ctx, maxIdleTimeMillis, NoOpChannelMetricEventProvider.NoOpMetricEventsSubject.INSTANCE,
              NoOpChannelMetricEventProvider.INSTANCE);
     }
 
+    /**
+     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, ChannelMetricEventProvider,
+     * MetricEventsSubject)} instead.
+     */
+    @Deprecated
     public PooledConnection(ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
                             ChannelMetricEventProvider metricEventProvider) {
         this(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), eventsSubject, metricEventProvider);
     }
 
+    /**
+     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, long, ChannelMetricEventProvider,
+     * MetricEventsSubject)} instead.
+     */
+    @Deprecated
     public PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis, MetricEventsSubject<?> eventsSubject,
                             ChannelMetricEventProvider metricEventProvider) {
-        super(ctx, eventsSubject, metricEventProvider);
+        this(ctx, maxIdleTimeMillis, metricEventProvider, eventsSubject);
+    }
+
+    protected PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis,
+                               ChannelMetricEventProvider metricEventProvider, MetricEventsSubject<?> eventsSubject) {
+        super(ctx, metricEventProvider, eventsSubject);
         lastReturnToPoolTimeMillis = System.currentTimeMillis();
         this.maxIdleTimeMillis = maxIdleTimeMillis;
     }
@@ -140,12 +165,27 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
         closeIssued.set(false); // So that close can be called after reuse.
         PublishSubject<I> newInputSubject = PublishSubject.create();
         updateInputSubject(newInputSubject);
-        ConnectionReuseEvent reuseEvent = new ConnectionReuseEvent(newInputSubject);
+        ConnectionReuseEvent reuseEvent = new ConnectionReuseEvent(this, newInputSubject);
         getChannelHandlerContext().pipeline().fireUserEventTriggered(reuseEvent);
     }
 
     public void updateMaxIdleTimeMillis(long maxIdleTimeMillis) {
         this.maxIdleTimeMillis = maxIdleTimeMillis;
+    }
+
+    public static <I, O> PooledConnection<I, O> create(ChannelHandlerContext ctx, long maxIdleTimeMillis,
+                                                       ChannelMetricEventProvider metricEventProvider,
+                                                       MetricEventsSubject<?> eventsSubject) {
+        final PooledConnection<I, O> toReturn = new PooledConnection<I, O>(ctx, maxIdleTimeMillis, metricEventProvider,
+                                                                           eventsSubject);
+        toReturn.fireNewRxConnectionEvent();
+        return toReturn;
+    }
+
+    public static <I, O> PooledConnection<I, O> create(ChannelHandlerContext ctx,
+                                                       ChannelMetricEventProvider metricEventProvider,
+                                                       MetricEventsSubject<?> eventsSubject) {
+        return create(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), metricEventProvider, eventsSubject);
     }
 
     /*Visible for testing*/ void setLastReturnToPoolTimeMillis(long lastReturnToPoolTimeMillis) {

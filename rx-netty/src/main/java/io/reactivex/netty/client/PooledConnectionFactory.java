@@ -33,8 +33,8 @@ public class PooledConnectionFactory<I, O> implements ClientConnectionFactory<I,
 
     @Override
     public PooledConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return new PooledConnection<I, O>(ctx, poolConfig.getMaxIdleTimeMillis(), eventsSubject,
-                                          ClientChannelMetricEventProvider.INSTANCE);
+        return PooledConnection.create(ctx, poolConfig.getMaxIdleTimeMillis(),
+                                       ClientChannelMetricEventProvider.INSTANCE, eventsSubject);
     }
 
     @Override

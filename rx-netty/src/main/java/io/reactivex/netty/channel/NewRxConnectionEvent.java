@@ -22,15 +22,12 @@ import rx.Observer;
  *
  * @author Nitesh Kant
  */
-public class NewRxConnectionEvent {
+@SuppressWarnings("rawtypes")
+public class NewRxConnectionEvent extends AbstractConnectionEvent<ObservableConnection> {
 
-    @SuppressWarnings("rawtypes") private final Observer connectedObserver;
-
-    public NewRxConnectionEvent(@SuppressWarnings("rawtypes") Observer connectedObserver) {
-        this.connectedObserver = connectedObserver;
+    public NewRxConnectionEvent(final ObservableConnection<?, ?> observableConnection,
+                                final Observer connectedObserver) {
+        super(connectedObserver, observableConnection);
     }
 
-    public @SuppressWarnings("rawtypes") Observer getConnectedObserver() {
-        return connectedObserver;
-    }
 }
