@@ -1,6 +1,7 @@
 package io.reactivex.netty.protocol.http.server.file;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
@@ -18,8 +19,6 @@ import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func1;
-
-import com.google.common.net.HttpHeaders;
 
 public class FileRequestHandlerTest {
     @Test
@@ -56,8 +55,8 @@ public class FileRequestHandlerTest {
                           @Override
                           public void call(HttpClientResponse<ByteBuf> response) {
                               status.set(response.getStatus());
-                              contentType.set(response.getHeaders().getHeader(HttpHeaders.CONTENT_TYPE));
-                              contentLength.set(Integer.parseInt(response.getHeaders().get(HttpHeaders.CONTENT_LENGTH)));
+                              contentType.set(response.getHeaders().getHeader(HttpHeaders.Names.CONTENT_TYPE));
+                              contentLength.set(Integer.parseInt(response.getHeaders().get(HttpHeaders.Names.CONTENT_LENGTH)));
                           }
                       })
                       .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {

@@ -1,13 +1,17 @@
 package io.reactivex.netty.protocol.http.server.file;
 
-import static io.netty.handler.codec.http.HttpHeaders.Names.*;
-import static io.netty.handler.codec.http.HttpHeaders.Values.*;
-import static io.netty.handler.codec.http.HttpMethod.*;
-import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.netty.handler.codec.http.HttpHeaders.Names.CONNECTION;
+import static io.netty.handler.codec.http.HttpHeaders.Names.IF_MODIFIED_SINCE;
+import static io.netty.handler.codec.http.HttpHeaders.Values.KEEP_ALIVE;
+import static io.netty.handler.codec.http.HttpMethod.GET;
+import static io.netty.handler.codec.http.HttpResponseStatus.FORBIDDEN;
+import static io.netty.handler.codec.http.HttpResponseStatus.METHOD_NOT_ALLOWED;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_FOUND;
+import static io.netty.handler.codec.http.HttpResponseStatus.NOT_MODIFIED;
+import static io.netty.handler.codec.http.HttpResponseStatus.OK;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.DefaultFileRegion;
 import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.stream.ChunkedFile;
 import io.reactivex.netty.protocol.http.server.HttpError;
@@ -118,7 +122,7 @@ public abstract class FileRequestHandler extends AbstractFileRequestHandler {
         setContentTypeHeader(response, file);
         setDateAndCacheHeaders(response, file);
         
-        if (HttpHeaders.isKeepAlive(request.getNettyRequest())) {
+        if (request.getHeaders().isKeepAlive()) {
             response.getHeaders().set(CONNECTION, KEEP_ALIVE);
         }
         
