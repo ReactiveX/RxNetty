@@ -42,6 +42,9 @@ public final class DefaultFactories {
         return new SSLContextBasedFactory(sslContext);
     }
 
+    /**
+     * Get a SSLEngineFactory configured with a temporary self-signed certificate for testing purposes.
+     */
     public static SSLEngineFactory selfSigned() {
         if (SELF_SIGNED == null) {
             synchronized (SelfSignedSSLEngineFactory.class) {
@@ -51,6 +54,9 @@ public final class DefaultFactories {
         return SELF_SIGNED;
     }
 
+    /**
+     * Get a SSLEngineFactory configured to trust all X.509 certificates without any verification.
+     */
     public static SSLEngineFactory trustAll() {
         if (TRUST_ALL == null) {
             synchronized (TrustAllSSLEngineFactory.class) {
