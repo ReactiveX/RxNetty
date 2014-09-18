@@ -30,7 +30,7 @@ Here is the snippet from [SslHelloWordClient](SslHelloWorldClient.java):
 ```java
 public HttpResponseStatus sendHelloRequest() throws Exception {
     HttpClient<ByteBuf, ByteBuf> rxClient = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", port)
-            .withSslEngineFactory(DefaultFactories.TRUST_ALL)
+            .withSslEngineFactory(DefaultFactories.trustAll())
             .build();
 
     HttpResponseStatus statusCode = rxClient.submit(HttpClientRequest.createGet("/hello"))
@@ -40,7 +40,7 @@ public HttpResponseStatus sendHelloRequest() throws Exception {
 ```
 
 The client code is identical to its non-encrypted counterpart ([HelloWorldClient](../helloworld/README.md)), except
-the HTTPClient creation step. The predefined DefaultFactories.TRUST_ALL SSLEngineFactory used in the example
+the HTTPClient creation step. The predefined DefaultFactories.trustAll() SSLEngineFactory used in the example
 will accept all certificates without validation. It is good only for testing purposes.
 
 HTTP server
@@ -56,7 +56,7 @@ public HttpServer<ByteBuf, ByteBuf> createServer() throws CertificateException, 
             response.writeStringAndFlush("Welcome!!");
             return response.close();
         }
-    }).withSslEngineFactory(DefaultFactories.SELF_SIGNED).build();
+    }).withSslEngineFactory(DefaultFactories.selfSigned()).build();
     ...
 }
 ```

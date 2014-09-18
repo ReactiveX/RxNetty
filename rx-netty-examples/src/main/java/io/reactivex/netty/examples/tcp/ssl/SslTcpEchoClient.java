@@ -44,7 +44,7 @@ public class SslTcpEchoClient {
 
     public List<String> sendEchos() {
         RxClient<String, String> rxClient = RxNetty.<String, String>newTcpClientBuilder("localhost", port)
-                .withSslEngineFactory(DefaultFactories.TRUST_ALL)
+                .withSslEngineFactory(DefaultFactories.trustAll())
                 .pipelineConfigurator(PipelineConfigurators.textOnlyConfigurator())
                 .build();
 

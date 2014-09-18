@@ -45,7 +45,7 @@ public final class SslHelloWorldServer {
                 response.writeStringAndFlush("Welcome!!");
                 return response.close(false);
             }
-        }).withSslEngineFactory(DefaultFactories.SELF_SIGNED).build();
+        }).withSslEngineFactory(DefaultFactories.selfSigned()).build();
 
         System.out.println("HTTP hello world server started...");
         return server;

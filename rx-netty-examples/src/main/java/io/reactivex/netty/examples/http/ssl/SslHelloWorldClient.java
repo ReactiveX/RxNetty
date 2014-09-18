@@ -44,7 +44,7 @@ public class SslHelloWorldClient {
 
     public HttpResponseStatus sendHelloRequest() throws Exception {
         HttpClient<ByteBuf, ByteBuf> rxClient = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", port)
-                .withSslEngineFactory(DefaultFactories.TRUST_ALL)
+                .withSslEngineFactory(DefaultFactories.trustAll())
                 .build();
 
         HttpResponseStatus statusCode = rxClient.submit(HttpClientRequest.createGet("/hello"))

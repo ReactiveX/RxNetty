@@ -58,7 +58,7 @@ public final class SslTcpEchoServer {
                     }
                 });
             }
-        }).withSslEngineFactory(DefaultFactories.SELF_SIGNED)
+        }).withSslEngineFactory(DefaultFactories.selfSigned())
                 .appendPipelineConfigurator(PipelineConfigurators.textOnlyConfigurator())
                 .build();
 

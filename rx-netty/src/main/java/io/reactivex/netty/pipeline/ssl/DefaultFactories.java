@@ -27,18 +27,43 @@ import java.security.cert.CertificateException;
 
 /**
  * @author Tomasz Bak
+ * @author Andrew Reitz
  */
 public final class DefaultFactories {
 
-    public static SSLEngineFactory SELF_SIGNED = new SelfSignedSSLEngineFactory();
+    private static SSLEngineFactory SELF_SIGNED;
 
-    public static SSLEngineFactory TRUST_ALL = new TrustAllSSLEngineFactory();
+    private static SSLEngineFactory TRUST_ALL;
 
     private DefaultFactories() {
     }
 
     public static SSLEngineFactory fromSSLContext(SSLContext sslContext) {
         return new SSLContextBasedFactory(sslContext);
+    }
+
+    /**
+     * Get a SSLEngineFactory configured with a temporary self-signed certificate for testing purposes.
+     */
+    public static SSLEngineFactory selfSigned() {
+        if (SELF_SIGNED == null) {
+            synchronized (SelfSignedSSLEngineFactory.class) {
+                SELF_SIGNED = new SelfSignedSSLEngineFactory();
+            }
+        }
+        return SELF_SIGNED;
+    }
+
+    /**
+     * Get a SSLEngineFactory configured to trust all X.509 certificates without any verification.
+     */
+    public static SSLEngineFactory trustAll() {
+        if (TRUST_ALL == null) {
+            synchronized (TrustAllSSLEngineFactory.class) {
+                TRUST_ALL = new TrustAllSSLEngineFactory();
+            }
+        }
+        return TRUST_ALL;
     }
 
     public static class SSLContextBasedFactory implements SSLEngineFactory {
