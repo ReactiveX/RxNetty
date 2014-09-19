@@ -27,6 +27,7 @@ import io.netty.handler.codec.http.DefaultHttpHeaders;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpChunkedInput;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
@@ -116,6 +117,10 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
             // will ignore the subsequent HTTP header writes. See issue: https://github.com/Netflix/RxNetty/issues/130
         }
         return flush ? flush() : Observable.<Void>empty();
+    }
+
+    public void writeChunkedInput(HttpChunkedInput httpChunkedInput) {
+        writeOnChannel(httpChunkedInput);
     }
 
     HttpResponse getNettyResponse() {

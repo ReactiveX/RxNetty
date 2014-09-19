@@ -63,42 +63,41 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
     private final long requestContentSubscriptionTimeoutMs;
-    @SuppressWarnings("rawtypes") private HttpServerRequest rxRequest;
+    private RequestState currentRequestState;
 
     public ServerRequestResponseConverter(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
                                           long requestContentSubscriptionTimeoutMs) {
         this.eventsSubject = eventsSubject;
         this.requestContentSubscriptionTimeoutMs = requestContentSubscriptionTimeoutMs;
+        currentRequestState = new RequestState();
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
 
-        @SuppressWarnings("rawtypes") UnicastContentSubject contentSubject =
-                UnicastContentSubject.create(requestContentSubscriptionTimeoutMs, TimeUnit.MILLISECONDS);
+        final RequestState stateToUse = currentRequestState;
+        boolean isHttpRequest = false;
 
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HEADERS_RECEIVED);
-
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpServerRequest rxRequest = new HttpServerRequest(ctx.channel(), (HttpRequest) msg, contentSubject);
-            this.rxRequest = rxRequest;
-
-            super.channelRead(ctx, rxRequest);
+            stateToUse.createRxRequest(ctx, (HttpRequest) msg); // Update the state to use.
+            super.channelRead(ctx, stateToUse.rxRequest);
+            isHttpRequest = true;
         }
 
         if (HttpContent.class.isAssignableFrom(recievedMsgClass)) {// This will be executed if the incoming message is a FullHttpRequest or only HttpContent.
             ByteBuf content = ((ByteBufHolder) msg).content();
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_CONTENT_RECEIVED);
-            invokeContentOnNext(content, contentSubject);
+            invokeContentOnNext(content, stateToUse.contentSubject);
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
-                long durationInMs = rxRequest.onProcessingEnd();
+                long durationInMs = stateToUse.rxRequest.onProcessingEnd();
                 eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE, durationInMs);
-                contentSubject.onCompleted();
+                stateToUse.contentSubject.onCompleted();
+                currentRequestState = new RequestState(); // Reset the current state for the next request to arrive on this connection
             }
-        } else {
-            invokeContentOnNext(msg, contentSubject);
+        } else if(!isHttpRequest) { // If it is not HttpContent and not HttpRequest then it is a custom user object that is just sent as content.
+            invokeContentOnNext(msg, stateToUse.contentSubject);
         }
     }
 
@@ -155,6 +154,18 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
             contentSubject.onError(e);
         } finally {
             ReferenceCountUtil.release(nextObject);
+        }
+    }
+
+    private final class RequestState {
+
+        @SuppressWarnings("rawtypes") private HttpServerRequest rxRequest;
+        @SuppressWarnings("rawtypes") private UnicastContentSubject contentSubject;
+
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        private void createRxRequest(ChannelHandlerContext ctx, HttpRequest httpRequest) {
+            contentSubject = UnicastContentSubject.create(requestContentSubscriptionTimeoutMs, TimeUnit.MILLISECONDS);
+            rxRequest = new HttpServerRequest(ctx.channel(), httpRequest, contentSubject);
         }
     }
 }

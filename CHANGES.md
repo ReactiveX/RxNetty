@@ -1,5 +1,15 @@
 # RxNetty Releases #
 
+### Version 0.3.14 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.14+is%3Aclosed)
+
+* [Issue 233] (https://github.com/Netflix/RxNetty/issues/233) Using DefaultFactories.TRUST_ALL causes SelfSignedSSLEngineFactory to Error on Certain Systems.
+* [Pull 219] (https://github.com/ReactiveX/RxNetty/pull/219) Http RequestHandler to serve files.
+* [Issue 235] (https://github.com/Netflix/RxNetty/issues/235) HttpServer with non-aggregated request is broken.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.14%22)
+
 ### Version 0.3.13 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.13+is%3Aclosed)
