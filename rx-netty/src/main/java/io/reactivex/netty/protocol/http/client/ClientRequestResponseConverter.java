@@ -127,6 +127,9 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             if (content.isReadable()) {
                 invokeContentOnNext(content, stateToUse);
             }
+            else if (content.refCnt() == 1) {
+                ReferenceCountUtil.release(content);
+            }
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
                 eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
                                       Clock.onEndMillis(stateToUse.responseReceiveStartTimeMillis));
