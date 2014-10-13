@@ -124,14 +124,17 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpContent.class.isAssignableFrom(recievedMsgClass)) {// This will be executed if the incoming message is a FullHttpResponse or only HttpContent.
             eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_CONTENT_RECEIVED);
             ByteBuf content = ((ByteBufHolder) msg).content();
-            if (content.isReadable()) {
-                invokeContentOnNext(content, stateToUse);
-            }
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
+                if (content.isReadable()) {
+                    invokeContentOnNext(content, stateToUse);
+                }
                 eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
                                       Clock.onEndMillis(stateToUse.responseReceiveStartTimeMillis));
                 stateToUse.sendOnComplete();
+            } else {
+                invokeContentOnNext(content, stateToUse);
             }
+
         } else if(!HttpResponse.class.isAssignableFrom(recievedMsgClass)){
             invokeContentOnNext(msg, stateToUse);
         }
