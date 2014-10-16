@@ -82,6 +82,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HEADERS_RECEIVED);
             stateToUse.createRxRequest(ctx, (HttpRequest) msg); // Update the state to use.
+            stateToUse.rxRequest.onProcessingStart(Clock.newStartTimeMillis());
             super.channelRead(ctx, stateToUse.rxRequest);
             isHttpRequest = true;
         }
