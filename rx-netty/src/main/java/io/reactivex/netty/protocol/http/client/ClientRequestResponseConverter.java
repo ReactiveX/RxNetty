@@ -176,16 +176,22 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
                 }
-                writeContent(ctx, allWritesListener, contentSource, promise);
+                writeContent(ctx, allWritesListener, contentSource, promise, rxRequest);
             } else { // If no content then write Last Content immediately.
                 // In order for netty's codec to understand that HTTP request writing is over, we always have to write the
                 // LastHttpContent irrespective of whether it is chunked or not.
-                writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent());
+                writeLastHttpContent(ctx, allWritesListener, rxRequest);
             }
 
         } else {
             ctx.write(msg, promise); // pass through, since we do not understand this message.
         }
+    }
+
+    protected void writeLastHttpContent(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener,
+                                        HttpClientRequest<?> rxRequest) {
+        writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent());
+        rxRequest.onWriteComplete();
     }
 
     @Override
@@ -221,11 +227,12 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     }
 
     private void writeContent(final ChannelHandlerContext ctx, final MultipleFutureListener allWritesListener,
-                              final Observable<?> contentSource, final ChannelPromise promise) {
+                              final Observable<?> contentSource, final ChannelPromise promise,
+                              final HttpClientRequest<?> rxRequest) {
         contentSource.subscribe(new Subscriber<Object>() {
             @Override
             public void onCompleted() {
-                writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent());
+                writeLastHttpContent(ctx, allWritesListener, rxRequest);
             }
 
             @Override
