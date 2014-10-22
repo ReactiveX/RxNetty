@@ -16,12 +16,14 @@
 package io.reactivex.netty.metrics;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.ChannelMetricEventProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,13 +44,14 @@ public class BytesInspector extends ChannelDuplexHandler {
         this.metricEventProvider = metricEventProvider;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         try {
             if (ByteBuf.class.isAssignableFrom(msg.getClass())) {
-                ByteBuf byteBuf = (ByteBuf) msg;
-                eventsSubject.onEvent(metricEventProvider.getBytesReadEvent(), (Object) byteBuf.readableBytes());
+                publishBytesRead((ByteBuf) msg);
+            } else if (ByteBufHolder.class.isAssignableFrom(msg.getClass())) {
+                ByteBufHolder holder = (ByteBufHolder) msg;
+                publishBytesRead(holder.content());
             }
         } catch (Exception e) {
             logger.warn("Failed to publish bytes read metrics event. This does *not* stop the pipeline processing.", e);
@@ -58,30 +61,44 @@ public class BytesInspector extends ChannelDuplexHandler {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         try {
             if (ByteBuf.class.isAssignableFrom(msg.getClass())) {
-                final long startTimeMillis = Clock.newStartTimeMillis();
-                final int bytesToWrite = ((ByteBuf) msg).readableBytes();
-                eventsSubject.onEvent(metricEventProvider.getWriteStartEvent(), (Object) bytesToWrite);
-                promise.addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        if (future.isSuccess()) {
-                            eventsSubject.onEvent(metricEventProvider.getWriteSuccessEvent(),
-                                                  Clock.onEndMillis(startTimeMillis), bytesToWrite);
-                        } else {
-                            eventsSubject.onEvent(metricEventProvider.getWriteFailedEvent(),
-                                                  Clock.onEndMillis(startTimeMillis), future.cause(), bytesToWrite);
-                        }
-                    }
-                });
+                publishBytesWritten(((ByteBuf) msg).readableBytes(), promise);
+            } else if (ByteBufHolder.class.isAssignableFrom(msg.getClass())) {
+                publishBytesWritten(((ByteBufHolder)msg).content().readableBytes(), promise);
+            } else if (FileRegion.class.isAssignableFrom(msg.getClass())) {
+                publishBytesWritten(((FileRegion) msg).count(), promise);
             }
         } catch (Exception e) {
             logger.warn("Failed to publish bytes write metrics event. This does *not* stop the pipeline processing.", e);
         } finally {
             super.write(ctx, msg, promise);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    protected void publishBytesWritten(final long bytesToWrite, ChannelPromise promise) {
+        final long startTimeMillis = Clock.newStartTimeMillis();
+        eventsSubject.onEvent(metricEventProvider.getWriteStartEvent(), (Object) bytesToWrite);
+        promise.addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (future.isSuccess()) {
+                    eventsSubject.onEvent(metricEventProvider.getWriteSuccessEvent(),
+                                          Clock.onEndMillis(startTimeMillis), bytesToWrite);
+                } else {
+                    eventsSubject.onEvent(metricEventProvider.getWriteFailedEvent(),
+                                          Clock.onEndMillis(startTimeMillis), future.cause(), bytesToWrite);
+                }
+            }
+        });
+    }
+
+    @SuppressWarnings("unchecked")
+    protected void publishBytesRead(ByteBuf byteBuf) {
+        if (null != byteBuf) {
+            eventsSubject.onEvent(metricEventProvider.getBytesReadEvent(), (Object) byteBuf.readableBytes());
         }
     }
 }

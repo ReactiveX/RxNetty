@@ -28,6 +28,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
 
         RequestSubmitted(false, false, Void.class),
 
+        RequestContentSourceError(false, true, Void.class),
         RequestHeadersWriteStart(false, false, Void.class),
         RequestHeadersWriteSuccess(true, false, Void.class),
         RequestHeadersWriteFailed(true, true, Void.class),
@@ -36,6 +37,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
         RequestContentWriteFailed(true, true, Void.class),
 
         RequestWriteComplete(true, false, Void.class),
+        RequestWriteFailed(true, true, Void.class),
 
         ResponseHeadersReceived(false, false, Void.class),
         ResponseContentReceived(false, false, Void.class),
@@ -71,6 +73,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
     }
 
     public static final HttpClientMetricsEvent<EventType> REQUEST_SUBMITTED = from(EventType.RequestSubmitted);
+    public static final HttpClientMetricsEvent<EventType> REQUEST_CONTENT_SOURCE_ERROR = from(EventType.RequestContentSourceError);
     public static final HttpClientMetricsEvent<EventType> REQUEST_HEADERS_WRITE_START = from(EventType.RequestHeadersWriteStart);
     public static final HttpClientMetricsEvent<EventType> REQUEST_HEADERS_WRITE_SUCCESS = from(EventType.RequestHeadersWriteSuccess);
     public static final HttpClientMetricsEvent<EventType> REQUEST_HEADERS_WRITE_FAILED = from(EventType.RequestHeadersWriteFailed);
@@ -78,6 +81,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
     public static final HttpClientMetricsEvent<EventType> REQUEST_CONTENT_WRITE_SUCCESS = from(EventType.RequestContentWriteSuccess);
     public static final HttpClientMetricsEvent<EventType> REQUEST_CONTENT_WRITE_FAILED = from(EventType.RequestContentWriteFailed);
     public static final HttpClientMetricsEvent<EventType> REQUEST_WRITE_COMPLETE = from(EventType.RequestWriteComplete);
+    public static final HttpClientMetricsEvent<EventType> REQUEST_WRITE_FAILED = from(EventType.RequestWriteFailed);
 
     public static final HttpClientMetricsEvent<EventType> RESPONSE_HEADER_RECEIVED = from(EventType.ResponseHeadersReceived);
     public static final HttpClientMetricsEvent<EventType> RESPONSE_CONTENT_RECEIVED = from(EventType.ResponseContentReceived);

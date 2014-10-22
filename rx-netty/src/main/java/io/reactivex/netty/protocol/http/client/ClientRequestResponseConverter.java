@@ -38,6 +38,7 @@ import io.reactivex.netty.channel.NewRxConnectionEvent;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionReuseEvent;
+import io.reactivex.netty.client.PooledConnectionReleasedEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.UnicastContentSubject;
@@ -46,6 +47,8 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
 import rx.functions.Action0;
+
+import java.io.IOException;
 
 /**
  * A channel handler for {@link HttpClient} to convert netty's http request/response objects to {@link HttpClient}'s
@@ -82,6 +85,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
     private ResponseState responseState; /*State associated with this handler. Since a handler instance is ALWAYS invoked by the same thread, this need not be thread-safe*/
+
+    public static final IOException CONN_CLOSE_BEFORE_RESPONSE = new IOException("Connection closed by peer before sending a response.");
 
     public ClientRequestResponseConverter(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
@@ -125,11 +130,10 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_CONTENT_RECEIVED);
             ByteBuf content = ((ByteBufHolder) msg).content();
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
+                stateToUse.responseReceiveComplete();
                 if (content.isReadable()) {
                     invokeContentOnNext(content, stateToUse);
                 }
-                eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
-                                      Clock.onEndMillis(stateToUse.responseReceiveStartTimeMillis));
                 stateToUse.sendOnComplete();
             } else {
                 invokeContentOnNext(content, stateToUse);
@@ -143,6 +147,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         Class<?> recievedMsgClass = msg.getClass();
+
+        final ResponseState stateToUse = responseState;
 
         if (HttpClientRequest.class.isAssignableFrom(recievedMsgClass)) {
             HttpClientRequest<?> rxRequest = (HttpClientRequest<?>) msg;
@@ -176,11 +182,11 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 if (!rxRequest.getHeaders().isContentLengthSet()) {
                     rxRequest.getHeaders().add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
                 }
-                writeContent(ctx, allWritesListener, contentSource, promise, rxRequest);
+                writeContent(ctx, allWritesListener, contentSource, promise, rxRequest, stateToUse);
             } else { // If no content then write Last Content immediately.
                 // In order for netty's codec to understand that HTTP request writing is over, we always have to write the
                 // LastHttpContent irrespective of whether it is chunked or not.
-                writeLastHttpContent(ctx, allWritesListener, rxRequest);
+                writeLastHttpContent(ctx, allWritesListener, rxRequest, stateToUse);
             }
 
         } else {
@@ -189,8 +195,15 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     }
 
     protected void writeLastHttpContent(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener,
-                                        HttpClientRequest<?> rxRequest) {
-        writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent());
+                                        HttpClientRequest<?> rxRequest,
+                                        final ResponseState responseState) {
+        writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent())
+                .addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        responseState.nowWaitingForResponse();
+                    }
+                });
         rxRequest.onWriteComplete();
     }
 
@@ -201,8 +214,16 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             responseState.setConnection((AbstractConnectionEvent<?>) evt);
         } else if (evt instanceof NewRxConnectionEvent) {
             responseState.setConnection((AbstractConnectionEvent<?>) evt);
+        } else if (evt instanceof PooledConnectionReleasedEvent) {
+            responseState.onConnectionClose();
         }
         super.userEventTriggered(ctx, evt);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        responseState.onConnectionClose();
+        super.channelInactive(ctx);
     }
 
     @SuppressWarnings("unchecked")
@@ -228,21 +249,18 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
     private void writeContent(final ChannelHandlerContext ctx, final MultipleFutureListener allWritesListener,
                               final Observable<?> contentSource, final ChannelPromise promise,
-                              final HttpClientRequest<?> rxRequest) {
+                              final HttpClientRequest<?> rxRequest, final ResponseState responseState) {
         contentSource.subscribe(new Subscriber<Object>() {
             @Override
             public void onCompleted() {
-                writeLastHttpContent(ctx, allWritesListener, rxRequest);
+                writeLastHttpContent(ctx, allWritesListener, rxRequest, responseState);
             }
 
             @Override
             public void onError(Throwable e) {
-                allWritesListener.cancelPendingFutures(true); // If fetching from content source failed, we should
-                                                              // cancel pending writes and fail the write. The state of
-                                                              // the connection is left to the writer to decide. Ideally
-                                                              // it should be closed because what was written is
-                                                              // non-deterministic
+                eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_CONTENT_SOURCE_ERROR, e);
                 promise.tryFailure(e);
+                rxRequest.onWriteComplete();
             }
 
             @Override
@@ -252,14 +270,15 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         });
     }
 
-    private void writeAContentChunk(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener,
-                                    Object chunk) {
+    private ChannelFuture writeAContentChunk(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener,
+                                             Object chunk) {
         eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_START);
         final long startTimeMillis = Clock.newStartTimeMillis();
         ChannelFuture writeFuture = ctx.write(chunk);
         addWriteCompleteEvents(writeFuture, startTimeMillis, HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_SUCCESS,
                                HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_FAILED);
         allWritesListener.listen(writeFuture);
+        return writeFuture;
     }
 
 
@@ -287,11 +306,12 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
      *
      * Issue: https://github.com/Netflix/RxNetty/issues/129
      */
-    private static final class ResponseState {
+    private final class ResponseState {
 
         @SuppressWarnings("rawtypes") private final UnicastContentSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
         @SuppressWarnings("rawtypes") private Observer connInputObsrvr;
         @SuppressWarnings("rawtypes") private ObservableConnection connection;
+        private boolean isWaitingForResponse;
 
         private long responseReceiveStartTimeMillis; // Reset every time we receive a header.
 
@@ -307,8 +327,11 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         }
 
         private void sendOnComplete() {
+            eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
+                                  Clock.onEndMillis(responseReceiveStartTimeMillis));
+
             connection.close(); // Close before sending on complete results in more predictable behavior for clients
-                                // listening for response complete and expecting connection close.
+            // listening for response complete and expecting connection close.
             contentSubject.onCompleted();
             connInputObsrvr.onCompleted();
         }
@@ -316,6 +339,26 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         private void setConnection(AbstractConnectionEvent<?> connectionEvent) {
             connection = connectionEvent.getConnection();
             connInputObsrvr = connectionEvent.getConnectedObserver();
+        }
+
+        private void nowWaitingForResponse() {
+            isWaitingForResponse = true;
+        }
+
+        private void responseReceiveComplete() {
+            isWaitingForResponse = false;
+        }
+
+        private void onConnectionClose() {
+            if (isWaitingForResponse) {
+                if (null != connection) {
+                    // If the response was not completed, the connection is not usable any further.
+                    connection.getChannel().attr(DISCARD_CONNECTION).set(true);
+                }
+                if (null != connInputObsrvr) {
+                    connInputObsrvr.onError(CONN_CLOSE_BEFORE_RESPONSE);
+                }
+            }
         }
     }
 }

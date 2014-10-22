@@ -88,7 +88,6 @@ public class MultipleFutureListener implements ChannelFutureListener {
          * If all complete (listen count == 0) we complete the subscribers.
          */
         if (!future.isSuccess()) {
-            cancelPendingFutures(true);
             completionPromise.tryFailure(future.cause());
         } else if (nowListeningTo == 0) {
             completionPromise.trySuccess(null);

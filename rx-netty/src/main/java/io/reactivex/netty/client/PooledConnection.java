@@ -108,6 +108,8 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
             discard(); // This is the case where multiple close are invoked on the same connection.
             // One results in release and then the other result in discard if the call was
             // because of an underlying channel close.
+        } else {
+            cancelPendingWrites(true);
         }
 
         return super.close();

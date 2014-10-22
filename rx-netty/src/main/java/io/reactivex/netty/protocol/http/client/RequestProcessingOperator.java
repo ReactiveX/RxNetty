@@ -70,6 +70,8 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                     @Override
                     public void onNext(final ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
 
+                        // Why don't we close the connection on unsubscribe?
+                        // See issue: https://github.com/ReactiveX/RxNetty/issues/225
                         cs.add(connection.getInput()
                                          .doOnNext(new Action1<HttpClientResponse<O>>() {
                                              @Override
@@ -101,6 +103,8 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
 
                                     @Override
                                     public void onError(Throwable e) {
+                                        eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_FAILED,
+                                                              Clock.onEndMillis(startTimeMillis), e);
                                         child.onError(e);
                                     }
 

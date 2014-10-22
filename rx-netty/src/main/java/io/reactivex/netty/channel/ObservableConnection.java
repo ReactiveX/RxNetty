@@ -104,7 +104,6 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     @Override
     protected Observable<Void> _close(boolean flush) {
         final PublishSubject<I> thisSubject = inputSubject;
-        cancelPendingWrites(true);
         ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannel().pipeline());
         if (flush) {
             Observable<Void> toReturn = flush().lift(new Observable.Operator<Void, Void>() {

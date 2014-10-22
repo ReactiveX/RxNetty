@@ -35,6 +35,7 @@ import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import io.reactivex.netty.server.ServerMetricsEvent;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -61,6 +62,8 @@ import java.util.concurrent.TimeUnit;
  */
 public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
+    public static final IOException CONN_CLOSE_BEFORE_REQUEST_COMPLETE = new IOException("Connection closed by peer before sending the entire request.");
+
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
     private final long requestContentSubscriptionTimeoutMs;
     private RequestState currentRequestState;
@@ -82,7 +85,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpRequest.class.isAssignableFrom(recievedMsgClass)) {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HEADERS_RECEIVED);
             stateToUse.createRxRequest(ctx, (HttpRequest) msg); // Update the state to use.
-            stateToUse.rxRequest.onProcessingStart(Clock.newStartTimeMillis());
+            stateToUse.onProcessingStart(Clock.newStartTimeMillis());
             super.channelRead(ctx, stateToUse.rxRequest);
             isHttpRequest = true;
         }
@@ -92,9 +95,7 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_CONTENT_RECEIVED);
             invokeContentOnNext(content, stateToUse.contentSubject);
             if (LastHttpContent.class.isAssignableFrom(recievedMsgClass)) {
-                long durationInMs = stateToUse.rxRequest.onProcessingEnd();
-                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE, durationInMs);
-                stateToUse.contentSubject.onCompleted();
+                stateToUse.onRequestComplete();
                 currentRequestState = new RequestState(); // Reset the current state for the next request to arrive on this connection
             }
         } else if(!isHttpRequest) { // If it is not HttpContent and not HttpRequest then it is a custom user object that is just sent as content.
@@ -132,6 +133,12 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
         ctx.pipeline().flush(); // If there is nothing to flush, this is a short-circuit in netty.
     }
 
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        currentRequestState.onConnectionClose();
+        super.channelInactive(ctx);
+    }
+
     private void addWriteCompleteEvents(ChannelPromise promise, final long startTimeMillis,
                                         final HttpServerMetricsEvent<HttpServerMetricsEvent.EventType> successEvent,
                                         final HttpServerMetricsEvent<HttpServerMetricsEvent.EventType> failureEvent) {
@@ -162,11 +169,30 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
         @SuppressWarnings("rawtypes") private HttpServerRequest rxRequest;
         @SuppressWarnings("rawtypes") private UnicastContentSubject contentSubject;
+        private boolean isReadingRequest;
 
         @SuppressWarnings({"rawtypes", "unchecked"})
         private void createRxRequest(ChannelHandlerContext ctx, HttpRequest httpRequest) {
             contentSubject = UnicastContentSubject.create(requestContentSubscriptionTimeoutMs, TimeUnit.MILLISECONDS);
             rxRequest = new HttpServerRequest(ctx.channel(), httpRequest, contentSubject);
+        }
+
+        private void onProcessingStart(long startTimeMillis) {
+            rxRequest.onProcessingStart(startTimeMillis);
+            isReadingRequest = true;
+        }
+
+        private void onRequestComplete() {
+            isReadingRequest = false;
+            long durationInMs = rxRequest.onProcessingEnd();
+            eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE, durationInMs);
+            contentSubject.onCompleted();
+        }
+
+        private void onConnectionClose() {
+            if (isReadingRequest) {
+                contentSubject.onError(CONN_CLOSE_BEFORE_REQUEST_COMPLETE);
+            }
         }
     }
 }
