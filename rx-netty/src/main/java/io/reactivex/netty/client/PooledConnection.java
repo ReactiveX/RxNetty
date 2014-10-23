@@ -108,8 +108,6 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
             discard(); // This is the case where multiple close are invoked on the same connection.
             // One results in release and then the other result in discard if the call was
             // because of an underlying channel close.
-        } else {
-            cancelPendingWrites(true);
         }
 
         return super.close();
@@ -124,6 +122,9 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
 
         final Observable<Void> release;
         if (null != pool) {
+
+            cancelPendingWrites(true); // Cancel pending writes before releasing to the pool.
+
             release = pool.release(this);
             /**
              * Other way of doing this is release.finallyDo() but that would depend on whether someone subscribes to the
