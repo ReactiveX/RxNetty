@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.ObservableConnectionFactory;
 
@@ -26,5 +26,5 @@ public interface ClientConnectionFactory<I, O, C extends ObservableConnection<I,
         extends ObservableConnectionFactory<I, O> {
 
     @Override
-    C newConnection(ChannelHandlerContext ctx);
+    C newConnection(Channel channel);
 }

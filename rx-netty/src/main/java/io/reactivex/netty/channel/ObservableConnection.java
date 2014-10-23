@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.channel;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
@@ -40,33 +41,23 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
     private final ChannelMetricEventProvider metricEventProvider;
     /* Guarded by closeIssued so that its only updated once*/ protected volatile long closeStartTimeMillis = -1;
 
-    protected ObservableConnection(final ChannelHandlerContext ctx, ChannelMetricEventProvider metricEventProvider,
+    protected ObservableConnection(final Channel channel, ChannelMetricEventProvider metricEventProvider,
                                    MetricEventsSubject<?> eventsSubject) {
-        super(ctx, eventsSubject, metricEventProvider);
+        super(channel, eventsSubject, metricEventProvider);
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
         inputSubject = PublishSubject.create();
-    }
-
-    /**
-     * @deprecated Use {@link ObservableConnection#create(ChannelHandlerContext, MetricEventsSubject,
-     * ChannelMetricEventProvider)} instead.
-     */
-    @Deprecated
-    public ObservableConnection(final ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
-                                ChannelMetricEventProvider metricEventProvider) {
-        this(ctx, metricEventProvider, eventsSubject);
     }
 
     public Observable<I> getInput() {
         return inputSubject;
     }
 
-    public static <I, O>  ObservableConnection<I, O> create(final ChannelHandlerContext ctx,
+    public static <I, O>  ObservableConnection<I, O> create(final Channel channel,
                                                             final MetricEventsSubject<?> eventsSubject,
                                                             final ChannelMetricEventProvider metricEventProvider) {
-        final ObservableConnection<I, O> toReturn = new ObservableConnection<I, O>(ctx, metricEventProvider,
-                                                                                   eventsSubject);
+        final ObservableConnection<I, O> toReturn = new ObservableConnection<I, O>(channel, metricEventProvider,
+                                                                                eventsSubject);
         /**
          * Sending the event here does not leak "this" via the NewRxConnectionEvent as opposed to doing it inside the
          * constructor.

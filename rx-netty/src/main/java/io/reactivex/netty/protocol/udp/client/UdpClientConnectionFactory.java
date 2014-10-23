@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.protocol.udp.client;
 
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.netty.channel.socket.DatagramPacket;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientConnectionFactory;
@@ -43,8 +43,8 @@ class UdpClientConnectionFactory<I, O> implements ClientConnectionFactory<I, O, 
     }
 
     @Override
-    public UdpClientConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return UdpClientConnection.create(ctx, receiverAddress, eventsSubject,
+    public UdpClientConnection<I, O> newConnection(Channel channel) {
+        return UdpClientConnection.create(channel, receiverAddress, eventsSubject,
                                           ClientChannelMetricEventProvider.INSTANCE);
     }
 

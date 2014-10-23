@@ -17,9 +17,7 @@
 package io.reactivex.netty.client;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.channel.ChannelMetricEventProvider;
-import io.reactivex.netty.channel.NoOpChannelMetricEventProvider;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
@@ -50,48 +48,9 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
     private volatile long lastReturnToPoolTimeMillis;
     private volatile long maxIdleTimeMillis;
 
-    /**
-     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, ChannelMetricEventProvider,
-     * MetricEventsSubject)} instead.
-     */
-    @Deprecated
-    public PooledConnection(ChannelHandlerContext ctx) {
-        this(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis());
-    }
-
-    /**
-     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, long, ChannelMetricEventProvider,
-     * MetricEventsSubject)} instead.
-     */
-    @Deprecated
-    public PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis) {
-        this(ctx, maxIdleTimeMillis, NoOpChannelMetricEventProvider.NoOpMetricEventsSubject.INSTANCE,
-             NoOpChannelMetricEventProvider.INSTANCE);
-    }
-
-    /**
-     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, ChannelMetricEventProvider,
-     * MetricEventsSubject)} instead.
-     */
-    @Deprecated
-    public PooledConnection(ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
-                            ChannelMetricEventProvider metricEventProvider) {
-        this(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), eventsSubject, metricEventProvider);
-    }
-
-    /**
-     * @deprecated Use {@link PooledConnection#create(ChannelHandlerContext, long, ChannelMetricEventProvider,
-     * MetricEventsSubject)} instead.
-     */
-    @Deprecated
-    public PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis, MetricEventsSubject<?> eventsSubject,
-                            ChannelMetricEventProvider metricEventProvider) {
-        this(ctx, maxIdleTimeMillis, metricEventProvider, eventsSubject);
-    }
-
-    protected PooledConnection(ChannelHandlerContext ctx, long maxIdleTimeMillis,
+    protected PooledConnection(Channel channel, long maxIdleTimeMillis,
                                ChannelMetricEventProvider metricEventProvider, MetricEventsSubject<?> eventsSubject) {
-        super(ctx, metricEventProvider, eventsSubject);
+        super(channel, metricEventProvider, eventsSubject);
         lastReturnToPoolTimeMillis = System.currentTimeMillis();
         this.maxIdleTimeMillis = maxIdleTimeMillis;
     }
@@ -174,19 +133,19 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
         this.maxIdleTimeMillis = maxIdleTimeMillis;
     }
 
-    public static <I, O> PooledConnection<I, O> create(ChannelHandlerContext ctx, long maxIdleTimeMillis,
+    public static <I, O> PooledConnection<I, O> create(Channel channel, long maxIdleTimeMillis,
                                                        ChannelMetricEventProvider metricEventProvider,
                                                        MetricEventsSubject<?> eventsSubject) {
-        final PooledConnection<I, O> toReturn = new PooledConnection<I, O>(ctx, maxIdleTimeMillis, metricEventProvider,
+        final PooledConnection<I, O> toReturn = new PooledConnection<I, O>(channel, maxIdleTimeMillis, metricEventProvider,
                                                                            eventsSubject);
         toReturn.fireNewRxConnectionEvent();
         return toReturn;
     }
 
-    public static <I, O> PooledConnection<I, O> create(ChannelHandlerContext ctx,
+    public static <I, O> PooledConnection<I, O> create(Channel channel,
                                                        ChannelMetricEventProvider metricEventProvider,
                                                        MetricEventsSubject<?> eventsSubject) {
-        return create(ctx, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), metricEventProvider, eventsSubject);
+        return create(channel, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), metricEventProvider, eventsSubject);
     }
 
     /*Visible for testing*/ void setLastReturnToPoolTimeMillis(long lastReturnToPoolTimeMillis) {

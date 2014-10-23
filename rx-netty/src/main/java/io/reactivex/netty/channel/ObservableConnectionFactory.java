@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.channel;
 
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 
 /**
@@ -23,7 +23,7 @@ import io.reactivex.netty.metrics.MetricEventsSubject;
  */
 public interface ObservableConnectionFactory<I, O> {
 
-    ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx);
+    ObservableConnection<I, O> newConnection(Channel channel);
 
     void useMetricEventsSubject(MetricEventsSubject<?> eventsSubject);
 }

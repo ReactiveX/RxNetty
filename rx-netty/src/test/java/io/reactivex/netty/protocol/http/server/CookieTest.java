@@ -69,7 +69,7 @@ public class CookieTest {
     public void testSetCookie() throws Exception {
         DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
         HttpServerResponse<ByteBuf> response =
-                new HttpServerResponse<ByteBuf>(new NoOpChannelHandlerContext(), nettyResponse,
+                new HttpServerResponse<ByteBuf>(new NoOpChannelHandlerContext().channel(), nettyResponse,
                                                 new MetricEventsSubject<HttpServerMetricsEvent<?>>());
         String cookieName = "name";
         String cookieValue = "value";

@@ -57,7 +57,7 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         if(null == ctx.channel().pipeline().get(SslHandler.class)) {
             final long startTimeMillis = Clock.newStartTimeMillis();
-            connection = connectionFactory.newConnection(ctx);
+            connection = connectionFactory.newConnection(ctx.channel());
             eventsSubject.onEvent(ServerMetricsEvent.NEW_CLIENT_CONNECTED);
 
             super.channelActive(ctx); // Called before connection handler call to finish the pipeline before the connection
@@ -74,7 +74,7 @@ public class ConnectionLifecycleHandler<I, O> extends ChannelInboundHandlerAdapt
         super.userEventTriggered(ctx, evt);
         if (evt instanceof SslHandshakeCompletionEvent) {
             final long startTimeMillis = Clock.newStartTimeMillis();
-            connection = connectionFactory.newConnection(ctx.pipeline().lastContext());
+            connection = connectionFactory.newConnection(ctx.channel());
             handleConnection(startTimeMillis);
         }
     }

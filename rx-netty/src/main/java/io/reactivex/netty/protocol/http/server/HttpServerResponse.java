@@ -18,8 +18,8 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -53,19 +53,19 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     private volatile boolean fullResponseWritten;
     private ChannelFuture headerWriteFuture;
 
-    protected HttpServerResponse(ChannelHandlerContext ctx,
+    protected HttpServerResponse(Channel nettyChannel,
                                  MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
-        this(ctx, HttpVersion.HTTP_1_1, eventsSubject);
+        this(nettyChannel, HttpVersion.HTTP_1_1, eventsSubject);
     }
 
-    protected HttpServerResponse(ChannelHandlerContext ctx, HttpVersion httpVersion,
+    protected HttpServerResponse(Channel nettyChannel, HttpVersion httpVersion,
                                  MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
-        this(ctx, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK), eventsSubject);
+        this(nettyChannel, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK), eventsSubject);
     }
 
-    /*Visible for testing */ HttpServerResponse(ChannelHandlerContext ctx, HttpResponse nettyResponse,
+    /*Visible for testing */ HttpServerResponse(Channel nettyChannel, HttpResponse nettyResponse,
                                                 MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
-        super(ctx, eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
+        super(nettyChannel, eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
         this.nettyResponse = nettyResponse;
         headers = new HttpResponseHeaders(nettyResponse);
     }
