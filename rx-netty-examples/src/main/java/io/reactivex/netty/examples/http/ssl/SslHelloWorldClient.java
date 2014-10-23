@@ -19,17 +19,15 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.ssl.DefaultFactories;
+import io.reactivex.netty.protocol.http.client.FlatResponseOperator;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
-import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import rx.Observable;
-import rx.functions.Action0;
+import io.reactivex.netty.protocol.http.client.ResponseHolder;
 import rx.functions.Func1;
-import rx.functions.Func2;
 
 import java.nio.charset.Charset;
 
-import static io.reactivex.netty.examples.http.ssl.SslHelloWorldServer.*;
+import static io.reactivex.netty.examples.http.ssl.SslHelloWorldServer.DEFAULT_PORT;
 
 /**
  * @author Tomasz Bak
@@ -48,25 +46,17 @@ public class SslHelloWorldClient {
                 .build();
 
         HttpResponseStatus statusCode = rxClient.submit(HttpClientRequest.createGet("/hello"))
-                .mergeMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
-                    @Override
-                    public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
-                        return response.getContent();
-                    }
-                }, new Func2<HttpClientResponse<ByteBuf>, ByteBuf, HttpResponseStatus>() {
-                    @Override
-                    public HttpResponseStatus call(HttpClientResponse<ByteBuf> response, ByteBuf content) {
-                        System.out.println(content.toString(Charset.defaultCharset()));
-                        return response.getStatus();
-                    }
-                })
-                .doOnTerminate(new Action0() {
-                    @Override
-                    public void call() {
-                        System.out.println("=======================");
-                    }
-                }).toBlocking().last();
-
+                                                .lift(FlatResponseOperator.<ByteBuf>flatResponse())
+                                                .map(new Func1<ResponseHolder<ByteBuf>, ResponseHolder<ByteBuf>>() {
+                                                    @Override
+                                                    public ResponseHolder<ByteBuf> call(ResponseHolder<ByteBuf> holder) {
+                                                        System.out.println(holder.getContent().toString(
+                                                                Charset.defaultCharset()));
+                                                        System.out.println("=======================");
+                                                        return holder;
+                                                    }
+                                                })
+                                                .toBlocking().single().getResponse().getStatus();
         return statusCode;
     }
 

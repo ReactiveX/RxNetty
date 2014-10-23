@@ -27,7 +27,7 @@ tasks.withType(Javadoc).each {
 
 dependencies {
     compile "io.netty:netty-codec-http:${netty_version}"
-    compile "com.netflix.rxjava:rxjava-core:${rxjava_version}"
+    compile "io.reactivex:rxjava:${rxjava_version}"
 
     testCompile 'junit:junit:4.10'
 }

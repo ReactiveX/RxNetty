@@ -86,12 +86,13 @@ public class HttpServerTest {
         HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> serverResponse) {
-                return Observable.just(1L, Schedulers.computation())
+                return Observable.just(1L).subscribeOn(Schedulers.computation())
                                  .flatMap(new Func1<Long, Observable<Void>>() {
                                      @Override
                                      public Observable<Void> call(Long aLong) {
                                          serverResponse.setStatus(HttpResponseStatus.NOT_FOUND);
-                                         return serverResponse.close(true); // Processing in a separate thread needs a flush.
+                                         return serverResponse.close(
+                                                 true); // Processing in a separate thread needs a flush.
                                      }
                                  });
             }
