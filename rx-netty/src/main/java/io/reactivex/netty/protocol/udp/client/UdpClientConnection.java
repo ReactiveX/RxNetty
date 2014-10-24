@@ -16,10 +16,9 @@
 package io.reactivex.netty.protocol.udp.client;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.netty.channel.socket.DatagramPacket;
 import io.reactivex.netty.channel.ChannelMetricEventProvider;
-import io.reactivex.netty.channel.NoOpChannelMetricEventProvider;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
@@ -37,41 +36,19 @@ public class UdpClientConnection<I, O> extends ObservableConnection<I, O> {
 
     private final InetSocketAddress receiverAddress;
 
-    protected UdpClientConnection(ChannelHandlerContext ctx, InetSocketAddress receiverAddress,
+    protected UdpClientConnection(Channel channel, InetSocketAddress receiverAddress,
                                   ChannelMetricEventProvider metricEventProvider,
                                   MetricEventsSubject<?> eventsSubject) {
-        super(ctx, metricEventProvider, eventsSubject);
+        super(channel, metricEventProvider, eventsSubject);
         this.receiverAddress = receiverAddress;
     }
 
-
-    /**
-     * @deprecated Use {@link #create(ChannelHandlerContext, InetSocketAddress, MetricEventsSubject,
-     * ChannelMetricEventProvider)} instead.
-     */
-    @Deprecated
-    public UdpClientConnection(ChannelHandlerContext ctx, InetSocketAddress receiverAddress) {
-        this(ctx, receiverAddress, NoOpChannelMetricEventProvider.NoOpMetricEventsSubject.INSTANCE,
-             NoOpChannelMetricEventProvider.INSTANCE);
-    }
-
-    /**
-     * @deprecated Use {@link #create(ChannelHandlerContext, InetSocketAddress, MetricEventsSubject,
-     * ChannelMetricEventProvider)} instead.
-     */
-    @Deprecated
-    public UdpClientConnection(ChannelHandlerContext ctx, InetSocketAddress receiverAddress,
-                               MetricEventsSubject<?> eventsSubject, ChannelMetricEventProvider metricEventProvider) {
-        super(ctx, metricEventProvider, eventsSubject);
-        this.receiverAddress = receiverAddress;
-    }
-
-    public static <I, O> UdpClientConnection<I, O> create(final ChannelHandlerContext ctx,
+    public static <I, O> UdpClientConnection<I, O> create(final Channel channel,
                                                           InetSocketAddress receiverAddress,
                                                           final MetricEventsSubject<?> eventsSubject,
                                                           final ChannelMetricEventProvider metricEventProvider) {
-        UdpClientConnection<I, O> toReturn = new UdpClientConnection<I, O>(ctx, receiverAddress, metricEventProvider,
-                                                                           eventsSubject);
+        UdpClientConnection<I, O> toReturn = new UdpClientConnection<I, O>(channel, receiverAddress, metricEventProvider,
+                                                                        eventsSubject);
         toReturn.fireNewRxConnectionEvent();
         return toReturn;
     }

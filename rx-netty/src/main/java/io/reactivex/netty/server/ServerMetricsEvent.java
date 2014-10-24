@@ -34,8 +34,8 @@ public class ServerMetricsEvent<T extends Enum> extends AbstractMetricsEvent<T> 
         ConnectionCloseFailed(true, true, Void.class),
 
         /* Write events on underlying connection, this has no associated protocol, so it is raw bytes written. */
-        WriteStart(false, false, Integer.class),
-        WriteSuccess(true, false, Integer.class),
+        WriteStart(false, false, Long.class),
+        WriteSuccess(true, false, Long.class),
         WriteFailed(true, true, Integer.class),
         FlushStart(false, false, Void.class),
         FlushSuccess(true, false, Void.class),

@@ -28,6 +28,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.channel.ByteTransformer;
 import io.reactivex.netty.channel.ContentTransformer;
 import rx.Observable;
+import rx.functions.Action0;
 import rx.functions.Func1;
 
 import java.nio.charset.Charset;
@@ -42,6 +43,7 @@ public class HttpClientRequest<T> {
     private Observable<T> contentSource;
     private Observable<ByteBuf> rawContentSource;
     private String absoluteUri;
+    private Action0 onWriteCompleteAction;
 
     HttpClientRequest(HttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
@@ -125,7 +127,7 @@ public class HttpClientRequest<T> {
         });
         return this;
     }
-    
+
     public <S> HttpClientRequest<T> withRawContent(S content, final ContentTransformer<S> transformer) {
         return withRawContentSource(Observable.just(content), transformer);
     }
@@ -188,6 +190,16 @@ public class HttpClientRequest<T> {
     void removeContent() {
         contentSource = null;
         rawContentSource = null;
+    }
+
+    void doOnWriteComplete(Action0 onWriteCompleteAction) {
+        this.onWriteCompleteAction = onWriteCompleteAction;
+    }
+
+    void onWriteComplete() {
+        if (null != onWriteCompleteAction) {
+            onWriteCompleteAction.call();
+        }
     }
 
     /*Set by HttpClient*/void setDynamicUriParts(String host, int port, boolean secure) {

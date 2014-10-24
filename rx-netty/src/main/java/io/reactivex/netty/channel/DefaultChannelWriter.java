@@ -20,7 +20,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -41,7 +40,6 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
             Observable.error(new IllegalStateException("Connection is already closed."));
     protected final AtomicBoolean closeIssued = new AtomicBoolean();
 
-    private final ChannelHandlerContext ctx;
     private final Channel nettyChannel;
 
     /**
@@ -51,16 +49,15 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
     private final ChannelMetricEventProvider metricEventProvider;
 
-    protected DefaultChannelWriter(ChannelHandlerContext ctx, MetricEventsSubject<?> eventsSubject,
+    protected DefaultChannelWriter(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
                                    ChannelMetricEventProvider metricEventProvider) {
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
-        if (null == ctx) {
-            throw new NullPointerException("Channel context can not be null.");
+        if (null == nettyChannel) {
+            throw new NullPointerException("Channel can not be null.");
         }
-        this.ctx = ctx;
-        nettyChannel = ctx.channel();
-        unflushedWritesListener = new AtomicReference<MultipleFutureListener>(new MultipleFutureListener(ctx.newPromise()));
+        this.nettyChannel = nettyChannel;
+        unflushedWritesListener = new AtomicReference<MultipleFutureListener>(new MultipleFutureListener(nettyChannel.newPromise()));
     }
 
     @Override
@@ -151,16 +148,6 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     @Override
     public ByteBufAllocator getAllocator() {
         return nettyChannel.alloc();
-    }
-
-    /**
-     * @deprecated It is misleading to provide {@link ChannelHandlerContext} instance as it is unclear which handler
-     * this context belongs to. So, instead one should use {@link #getChannel()} and all actions possible from the
-     * {@link ChannelHandlerContext} are possible via the {@link Channel}.
-     */
-    @Deprecated
-    public ChannelHandlerContext getChannelHandlerContext() {
-        return ctx;
     }
 
     protected ChannelFuture writeOnChannel(Object msg) {

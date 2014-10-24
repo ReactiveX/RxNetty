@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 
 /**
@@ -32,8 +32,8 @@ public class PooledConnectionFactory<I, O> implements ClientConnectionFactory<I,
     }
 
     @Override
-    public PooledConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return PooledConnection.create(ctx, poolConfig.getMaxIdleTimeMillis(),
+    public PooledConnection<I, O> newConnection(Channel channel) {
+        return PooledConnection.create(channel, poolConfig.getMaxIdleTimeMillis(),
                                        ClientChannelMetricEventProvider.INSTANCE, eventsSubject);
     }
 

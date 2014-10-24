@@ -65,6 +65,10 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
         onEvent(event, NO_DURATION, NO_TIME_UNIT, NO_ERROR, NO_VALUE);
     }
 
+    public void onEvent(E event, Throwable throwable) {
+        onEvent(event, NO_DURATION, NO_TIME_UNIT, throwable, NO_VALUE);
+    }
+
     public void onEvent(E event, long duration, TimeUnit timeUnit) {
         onEvent(event, duration, timeUnit, NO_ERROR, NO_VALUE);
     }

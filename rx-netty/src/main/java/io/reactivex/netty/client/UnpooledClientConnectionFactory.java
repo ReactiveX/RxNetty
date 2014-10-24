@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.client;
 
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.channel.UnpooledConnectionFactory;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -32,8 +32,8 @@ public class UnpooledClientConnectionFactory<I, O> implements ClientConnectionFa
     }
 
     @Override
-    public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return delegate.newConnection(ctx);
+    public ObservableConnection<I, O> newConnection(Channel channel) {
+        return delegate.newConnection(channel);
     }
 
     @Override

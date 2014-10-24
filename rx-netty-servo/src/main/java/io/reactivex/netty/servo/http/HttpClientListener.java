@@ -41,6 +41,7 @@ public class HttpClientListener extends TcpClientListener<ClientMetricsEvent<?>>
     private final Counter processedRequests;
     private final Counter requestWriteFailed;
     private final Counter failedResponses;
+    private final Counter failedContentSource;
     private final Timer requestWriteTimes;
     private final Timer responseReadTimes;
     private final Timer requestProcessingTimes;
@@ -56,6 +57,7 @@ public class HttpClientListener extends TcpClientListener<ClientMetricsEvent<?>>
         processedRequests = newCounter("processedRequests");
         requestWriteFailed = newCounter("requestWriteFailed");
         failedResponses = newCounter("failedResponses");
+        failedContentSource = newCounter("failedContentSource");
         requestProcessingTimes = newTimer("requestProcessingTimes");
     }
 
@@ -89,6 +91,10 @@ public class HttpClientListener extends TcpClientListener<ClientMetricsEvent<?>>
         return failedResponses.getValue().longValue();
     }
 
+    public long getFailedContentSource() {
+        return failedContentSource.getValue().longValue();
+    }
+
     public Timer getRequestWriteTimes() {
         return requestWriteTimes;
     }
@@ -119,17 +125,18 @@ public class HttpClientListener extends TcpClientListener<ClientMetricsEvent<?>>
         }
 
         @Override
+        protected void onRequestContentSourceError(Throwable throwable) {
+            failedContentSource.increment();
+        }
+
+        @Override
         protected void onRequestWriteComplete(long duration, TimeUnit timeUnit) {
             requestWriteTimes.record(duration, timeUnit);
         }
 
         @Override
-        protected void onRequestContentWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            requestWriteFailed.increment();
-        }
-
-        @Override
-        protected void onRequestHeadersWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        protected void onRequestWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            decrementLongGauge(inflightRequests);
             requestWriteFailed.increment();
         }
 

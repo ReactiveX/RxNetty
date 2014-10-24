@@ -168,14 +168,17 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         long startTimeMillis = Clock.newStartTimeMillis();
 
         try {
+            connection.getChannel().pipeline().fireUserEventTriggered(new PooledConnectionReleasedEvent(connection));
             metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_START);
             if (isShutdown.get() || !connection.isUsable()) {
                 discardConnection(connection);
-                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(startTimeMillis));
+                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(
+                        startTimeMillis));
                 return Observable.empty();
             } else {
                 idleConnections.add(connection);
-                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(startTimeMillis));
+                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(
+                        startTimeMillis));
                 return Observable.empty();
             }
         } catch (Throwable throwable) {

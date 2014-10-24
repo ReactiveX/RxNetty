@@ -15,16 +15,19 @@
  */
 package io.reactivex.netty.client;
 
-import io.netty.channel.Channel;
-import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.channel.ObservableConnectionFactory;
-
 /**
  * @author Nitesh Kant
  */
-public interface ClientConnectionFactory<I, O, C extends ObservableConnection<I, O>>
-        extends ObservableConnectionFactory<I, O> {
+@SuppressWarnings("rawtypes")
+public class PooledConnectionReleasedEvent {
 
-    @Override
-    C newConnection(Channel channel);
+    private final PooledConnection<?, ?> connection;
+
+    public PooledConnectionReleasedEvent(final PooledConnection<?, ?> connection) {
+        this.connection = connection;
+    }
+
+    public PooledConnection<?, ?> getConnection() {
+        return connection;
+    }
 }

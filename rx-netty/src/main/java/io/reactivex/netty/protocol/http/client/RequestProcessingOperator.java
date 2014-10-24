@@ -23,6 +23,7 @@ import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.subscriptions.CompositeSubscription;
 
@@ -69,6 +70,8 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                     @Override
                     public void onNext(final ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>> connection) {
 
+                        // Why don't we close the connection on unsubscribe?
+                        // See issue: https://github.com/ReactiveX/RxNetty/issues/225
                         cs.add(connection.getInput()
                                          .doOnNext(new Action1<HttpClientResponse<O>>() {
                                              @Override
@@ -86,26 +89,33 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                                              }
                                          })
                                          .subscribe(child)); //subscribe the child for response.
-
-                        connection.writeAndFlush(request).subscribe(new Observer<Void>() {
+                        request.doOnWriteComplete(new Action0() {
                             @Override
-                            public void onCompleted() {
-                                // Failure in writes gets reported during write, this is for the entire request write
-                                // over event.
-                                eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_COMPLETE,
-                                                      Clock.onEndMillis(startTimeMillis));
-                            }
+                            public void call() {
+                                connection.flush().subscribe(new Observer<Void>() {
+                                    @Override
+                                    public void onCompleted() {
+                                        // Failure in writes gets reported during write, this is for the entire request write
+                                        // over event.
+                                        eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_COMPLETE,
+                                                              Clock.onEndMillis(startTimeMillis));
+                                    }
 
-                            @Override
-                            public void onError(Throwable e) {
-                                child.onError(e);
-                            }
+                                    @Override
+                                    public void onError(Throwable e) {
+                                        eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_FAILED,
+                                                              Clock.onEndMillis(startTimeMillis), e);
+                                        child.onError(e);
+                                    }
 
-                            @Override
-                            public void onNext(Void aVoid) {
-                                // No op as nothing to do for a write onNext().
+                                    @Override
+                                    public void onNext(Void aVoid) {
+                                        // No op as nothing to do for a write onNext().
+                                    }
+                                });
                             }
                         });
+                        connection.write(request);
                     }
                 };
         return toReturn;

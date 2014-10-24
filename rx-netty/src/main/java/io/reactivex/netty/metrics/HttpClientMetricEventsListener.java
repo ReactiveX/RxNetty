@@ -40,6 +40,9 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
                 case RequestSubmitted:
                     onRequestSubmitted();
                     break;
+                case RequestContentSourceError:
+                    onRequestContentSourceError(throwable);
+                    break;
                 case RequestHeadersWriteStart:
                     onRequestHeadersWriteStart();
                     break;
@@ -61,6 +64,9 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
                 case RequestWriteComplete:
                     onRequestWriteComplete(duration, timeUnit);
                     break;
+                case RequestWriteFailed:
+                    onRequestWriteFailed(duration, timeUnit, throwable);
+                    break;
                 case ResponseHeadersReceived:
                     onResponseHeadersReceived(duration, timeUnit);
                     break;
@@ -79,6 +85,10 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
             }
         }
     }
+
+    @SuppressWarnings("unused") protected void onRequestContentSourceError(Throwable throwable) {}
+
+    @SuppressWarnings("unused") protected void onRequestWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 
     @SuppressWarnings("unused") protected void onResponseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 

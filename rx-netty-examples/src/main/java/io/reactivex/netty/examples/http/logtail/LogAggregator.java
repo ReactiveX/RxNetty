@@ -29,7 +29,6 @@ import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 import rx.Observable;
-import rx.exceptions.OnErrorThrowable;
 import rx.functions.Func1;
 
 import java.util.ArrayList;
@@ -66,9 +65,9 @@ public class LogAggregator {
                                 ServerSentEvent data = new ServerSentEvent(sse.getEventId(), "data", sse.getEventData());
                                 return response.writeAndFlush(data);
                             }
-                        }).onErrorFlatMap(new Func1<OnErrorThrowable, Observable<Void>>() {
+                        }).onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
                             @Override
-                            public Observable<Void> call(OnErrorThrowable onErrorThrowable) {
+                            public Observable<Void> call(Throwable throwable) {
                                 response.setStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR);
                                 return response.close();
                             }

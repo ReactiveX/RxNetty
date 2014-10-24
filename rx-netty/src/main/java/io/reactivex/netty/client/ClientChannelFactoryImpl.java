@@ -21,7 +21,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
@@ -83,8 +82,7 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
                     } else {
                         eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
                         ChannelPipeline pipeline = future.channel().pipeline();
-                        ChannelHandlerContext ctx = pipeline.lastContext(); // The connection uses the context for write which should always start from the tail.
-                        final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(ctx);
+                        final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(future.channel());
                         ChannelHandler lifecycleHandler = pipeline.get(RxRequiredConfigurator.CONN_LIFECYCLE_HANDLER_NAME);
                         if (null == lifecycleHandler) {
                             onNewConnection(newConnection, subscriber);

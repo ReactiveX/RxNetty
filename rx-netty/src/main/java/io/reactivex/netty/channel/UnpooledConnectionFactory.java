@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.channel;
 
-import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.Channel;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 
 /**
@@ -33,8 +33,8 @@ public class UnpooledConnectionFactory<I, O> implements ObservableConnectionFact
     }
 
     @Override
-    public ObservableConnection<I, O> newConnection(ChannelHandlerContext ctx) {
-        return ObservableConnection.create(ctx, eventsSubject, metricEventProvider);
+    public ObservableConnection<I, O> newConnection(Channel channel) {
+        return ObservableConnection.create(channel, eventsSubject, metricEventProvider);
     }
 
     @Override

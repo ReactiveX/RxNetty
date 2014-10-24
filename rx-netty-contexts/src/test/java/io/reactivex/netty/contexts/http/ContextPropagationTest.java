@@ -28,11 +28,9 @@ import io.reactivex.netty.contexts.MapBackedKeySupplier;
 import io.reactivex.netty.contexts.RxContexts;
 import io.reactivex.netty.contexts.TestContext;
 import io.reactivex.netty.contexts.TestContextSerializer;
-import io.reactivex.netty.protocol.http.client.FlatResponseOperator;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.ResponseHolder;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -43,15 +41,17 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 import rx.Observable;
+import rx.functions.Action0;
 import rx.functions.Func1;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 import static io.reactivex.netty.contexts.ThreadLocalRequestCorrelator.getCurrentContextContainer;
 import static io.reactivex.netty.contexts.ThreadLocalRequestCorrelator.getCurrentRequestId;
@@ -260,7 +260,7 @@ public class ContextPropagationTest {
 
     private static void invokeMockServer(HttpClient<ByteBuf, ByteBuf> testClient, final String requestId,
                                          boolean finishServerProcessing)
-            throws MockBackendRequestFailedException, InterruptedException, TimeoutException, ExecutionException {
+            throws MockBackendRequestFailedException, InterruptedException {
         try {
             sendTestRequest(testClient, requestId);
         } finally {
@@ -276,26 +276,45 @@ public class ContextPropagationTest {
             Assert.assertNull("Current context not cleared from thread.", getCurrentContextContainer());
         }
     }
-
     private static void sendTestRequest(HttpClient<ByteBuf, ByteBuf> testClient, final String requestId)
-            throws MockBackendRequestFailedException, InterruptedException, TimeoutException, ExecutionException {
+            throws MockBackendRequestFailedException, InterruptedException {
         System.err.println("Sending test request to mock server, with request id: " + requestId);
         RxContexts.DEFAULT_CORRELATOR.dumpThreadState(System.err);
+        final CountDownLatch finishLatch = new CountDownLatch(1);
+        final List<HttpClientResponse<ByteBuf>> responseHolder = new ArrayList<HttpClientResponse<ByteBuf>>();
+        testClient.submit(HttpClientRequest.createGet("").withHeader(REQUEST_ID_HEADER_NAME, requestId))
+                  .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
+                      @Override
+                      public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
+                          responseHolder.add(response);
+                          return response.getContent();
+                      }
+                  })
+                  .ignoreElements()
+                  .finallyDo(new Action0() {
+                      @Override
+                      public void call() {
+                          finishLatch.countDown();
+                      }
+                  })
+                  .subscribe();
 
-        ResponseHolder<ByteBuf> responseHolder =
-                testClient.submit(HttpClientRequest.createGet("").withHeader(REQUEST_ID_HEADER_NAME, requestId))
-                          .lift(FlatResponseOperator.<ByteBuf>flatResponse())
-                          .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
+        finishLatch.await(1, TimeUnit.MINUTES);
 
-        System.err.println("Received response from mock server, with request id: " + requestId
-                           + ", status: " + responseHolder.getResponse().getStatus());
-
-        if (responseHolder.getResponse().getStatus().code() != HttpResponseStatus.OK.code()) {
-            throw new MockBackendRequestFailedException("Test request failed. Status: "
-                                                        + responseHolder.getResponse().getStatus().code());
+        if (responseHolder.isEmpty()) {
+            throw new AssertionError("Response not received.");
         }
 
-        String requestIdGot = responseHolder.getResponse().getHeaders().get(REQUEST_ID_HEADER_NAME);
+        System.err.println("Received response from mock server, with request id: " + requestId
+                           + ", status: " + responseHolder.get(0).getStatus());
+
+        HttpClientResponse<ByteBuf> response = responseHolder.get(0);
+
+        if (response.getStatus().code() != HttpResponseStatus.OK.code()) {
+            throw new MockBackendRequestFailedException("Test request failed. Status: " + response.getStatus().code());
+        }
+
+        String requestIdGot = response.getHeaders().get(REQUEST_ID_HEADER_NAME);
 
         if (!requestId.equals(requestId)) {
             throw new MockBackendRequestFailedException("Request Id not sent from mock server. Expected: "
