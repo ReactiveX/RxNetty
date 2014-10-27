@@ -1,5 +1,25 @@
 # RxNetty Releases #
 
+### Version 0.3.15 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.15+is%3Aclosed)
+
+* [Issue 229] (https://github.com/Netflix/RxNetty/issues/229) Remove deprecated method `DefaultChannelWriter.getChannelHandlerContext()`.
+* [Issue 237] (https://github.com/Netflix/RxNetty/issues/237) Empty Client Request Buffers Are Not Released.
+* [Issue 243] (https://github.com/Netflix/RxNetty/issues/243) HttpServerListener requestReadTimes metric value is incorrect.
+* [Issue 245] (https://github.com/Netflix/RxNetty/issues/245) Race condition between write and flush in `HttpClient.submit()`.
+* [Issue 248] (https://github.com/Netflix/RxNetty/issues/248) Connection close cancels pending writes.
+* [Issue 249] (https://github.com/Netflix/RxNetty/issues/249) `BytesInspector` does not record events for `ByteBufHolder` and `FileRegion`.
+* [Issue 250] (https://github.com/Netflix/RxNetty/issues/250) Fix connection closing and content stream behavior.
+* [Issue 251] (https://github.com/Netflix/RxNetty/issues/251) Metric events for Request content source error and request write failure.
+* [Issue 252] (https://github.com/Netflix/RxNetty/issues/252) Upgrade RxJava to 1.0.0-RC7.
+
+##### Deprecation removals
+
+* [Issue 229] (https://github.com/Netflix/RxNetty/issues/229) Remove deprecated method `DefaultChannelWriter.getChannelHandlerContext()`.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.15%22)
+
 ### Version 0.3.14 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.14+is%3Aclosed)
