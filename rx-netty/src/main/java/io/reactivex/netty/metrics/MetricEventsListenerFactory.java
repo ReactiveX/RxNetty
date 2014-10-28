@@ -33,23 +33,23 @@ import io.reactivex.netty.server.ServerMetricsEvent;
  *
  * @author Nitesh Kant
  */
-public interface MetricEventsListenerFactory {
+public abstract class MetricEventsListenerFactory {
 
-    MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> forTcpClient(
+    public abstract MetricEventsListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> forTcpClient(
             @SuppressWarnings("rawtypes") RxClient client);
 
-    MetricEventsListener<ClientMetricsEvent<?>> forHttpClient(@SuppressWarnings("rawtypes")HttpClient client);
+    public abstract MetricEventsListener<ClientMetricsEvent<?>> forHttpClient(@SuppressWarnings("rawtypes")HttpClient client);
 
-    MetricEventsListener<ClientMetricsEvent<?>> forWebSocketClient(@SuppressWarnings("rawtypes")WebSocketClient client);
+    public abstract MetricEventsListener<ClientMetricsEvent<?>> forWebSocketClient(@SuppressWarnings("rawtypes")WebSocketClient client);
 
-    MetricEventsListener<ClientMetricsEvent<?>> forUdpClient(@SuppressWarnings("rawtypes")UdpClient client);
+    public abstract MetricEventsListener<ClientMetricsEvent<?>> forUdpClient(@SuppressWarnings("rawtypes")UdpClient client);
 
-    MetricEventsListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> forTcpServer(
+    public abstract MetricEventsListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> forTcpServer(
             @SuppressWarnings("rawtypes") RxServer server);
 
-    MetricEventsListener<ServerMetricsEvent<?>> forHttpServer(@SuppressWarnings("rawtypes")HttpServer server);
+    public abstract MetricEventsListener<ServerMetricsEvent<?>> forHttpServer(@SuppressWarnings("rawtypes")HttpServer server);
 
-    MetricEventsListener<ServerMetricsEvent<?>> forWebSocketServer(@SuppressWarnings("rawtypes")WebSocketServer server);
+    public abstract MetricEventsListener<ServerMetricsEvent<?>> forWebSocketServer(@SuppressWarnings("rawtypes")WebSocketServer server);
 
-    MetricEventsListener<ServerMetricsEvent<?>> forUdpServer(@SuppressWarnings("rawtypes")UdpServer server);
+    public abstract MetricEventsListener<ServerMetricsEvent<?>> forUdpServer(@SuppressWarnings("rawtypes")UdpServer server);
 }

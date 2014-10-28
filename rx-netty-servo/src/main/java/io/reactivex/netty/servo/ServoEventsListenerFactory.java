@@ -38,7 +38,7 @@ import io.reactivex.netty.servo.udp.UdpServerListener;
 /**
  * @author Nitesh Kant
  */
-public class ServoEventsListenerFactory implements MetricEventsListenerFactory {
+public class ServoEventsListenerFactory extends MetricEventsListenerFactory {
 
     private final String clientMetricNamePrefix;
     private final String serverMetricNamePrefix;

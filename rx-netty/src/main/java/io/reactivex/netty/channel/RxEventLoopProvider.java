@@ -28,7 +28,7 @@ import io.reactivex.netty.server.ServerBuilder;
  *
  * @author Nitesh Kant
  */
-public interface RxEventLoopProvider {
+public abstract class RxEventLoopProvider {
 
     /**
      * The {@link EventLoopGroup} to be used by all {@link RxClient} instances if it is not explicitly provided using
@@ -36,7 +36,7 @@ public interface RxEventLoopProvider {
      *
      * @return The {@link EventLoopGroup} to be used for all clients.
      */
-    EventLoopGroup globalClientEventLoop();
+    public abstract EventLoopGroup globalClientEventLoop();
 
     /**
      * The {@link EventLoopGroup} to be used by all {@link RxServer} instances if it is not explicitly provided using
@@ -44,7 +44,7 @@ public interface RxEventLoopProvider {
      *
      * @return The {@link EventLoopGroup} to be used for all servers.
      */
-    EventLoopGroup globalServerEventLoop();
+    public abstract EventLoopGroup globalServerEventLoop();
 
     /**
      * The {@link EventLoopGroup} to be used by all {@link RxServer} instances as a parent eventloop group
@@ -54,5 +54,5 @@ public interface RxEventLoopProvider {
      *
      * @return The {@link EventLoopGroup} to be used for all servers.
      */
-    EventLoopGroup globalServerParentEventLoop();
+    public abstract EventLoopGroup globalServerParentEventLoop();
 }

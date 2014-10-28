@@ -61,6 +61,7 @@ public final class RxNetty {
 
     private static final CompositeHttpClient<ByteBuf, ByteBuf> globalClient =
             new CompositeHttpClientBuilder<ByteBuf, ByteBuf>().withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();
+
     private static MetricEventsListenerFactory metricEventsListenerFactory;
 
     private RxNetty() {

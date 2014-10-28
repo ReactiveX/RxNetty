@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Nitesh Kant
  */
-public class SingleNioLoopProvider implements RxEventLoopProvider {
+public class SingleNioLoopProvider extends RxEventLoopProvider {
 
     private final SharedNioEventLoopGroup eventLoop;
     private final SharedNioEventLoopGroup parentEventLoop;
