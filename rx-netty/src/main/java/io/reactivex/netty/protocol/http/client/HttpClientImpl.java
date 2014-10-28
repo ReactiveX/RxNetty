@@ -35,6 +35,8 @@ import rx.functions.Action0;
 
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
+    private final String hostHeaderValue;
+
     public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
                           PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
                           ClientConfig clientConfig,
@@ -44,6 +46,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                           MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory,
               eventsSubject);
+        hostHeaderValue = prepareHostHeaderValue();
     }
 
     public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
@@ -52,6 +55,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                           ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder,
                           MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder, eventsSubject);
+        hostHeaderValue = prepareHostHeaderValue();
     }
 
     @Override
@@ -69,7 +73,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         return submit(request, connectionObservable, null == clientConfig
                                                      ? HttpClientConfig.Builder.newDefaultConfig() : clientConfig);
     }
-    
+
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
                                                        final Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable,
                                                        final ClientConfig config) {
@@ -133,7 +137,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         request.setDynamicUriParts(serverInfo.getHost(), serverInfo.getPort(), false /*Set when we handle https*/);
 
         if(!request.getHeaders().contains(HttpHeaders.Names.HOST)) {
-            request.getHeaders().add(HttpHeaders.Names.HOST, serverInfo.getHost());
+            request.getHeaders().add(HttpHeaders.Names.HOST, hostHeaderValue);
         }
 
         if (config instanceof HttpClientConfig) {
@@ -142,5 +146,13 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                 request.getHeaders().set(HttpHeaders.Names.USER_AGENT, httpClientConfig.getUserAgent());
             }
         }
+    }
+
+    private String prepareHostHeaderValue() {
+        if (serverInfo.getPort() == 80 || serverInfo.getPort() == 443) {
+            return serverInfo.getHost();
+        }
+        // Add port to the host header if the port is not standard port. Issue: https://github.com/ReactiveX/RxNetty/issues/258
+        return serverInfo.getHost() + ':' + serverInfo.getPort();
     }
 }
