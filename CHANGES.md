@@ -13,7 +13,7 @@
 
 * [Issue 260] (https://github.com/Netflix/RxNetty/issues/260) Convert `RxEventLoopProvider` and `MetricEventsListenerFactory` to abstract classes.
 
-Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.15%22)
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.16%22)
 
 ### Version 0.3.15 ###
 
