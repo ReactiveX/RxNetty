@@ -1,5 +1,20 @@
 # RxNetty Releases #
 
+### Version 0.3.16 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.16+is%3Aclosed)
+
+* [Issue 258] (https://github.com/Netflix/RxNetty/issues/258) Include port in the HTTP HOST header.
+* [Issue 259] (https://github.com/Netflix/RxNetty/issues/259) Support native netty protocol as a runtime choice.
+* [Issue 260] (https://github.com/Netflix/RxNetty/issues/260) Convert `RxEventLoopProvider` and `MetricEventsListenerFactory` to abstract classes.
+* [Issue 261] (https://github.com/Netflix/RxNetty/issues/261) `ServerSentEventEncoder` is sub-optimal in using StringBuilder
+
+##### Incompatible changes
+
+* [Issue 260] (https://github.com/Netflix/RxNetty/issues/260) Convert `RxEventLoopProvider` and `MetricEventsListenerFactory` to abstract classes.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.15%22)
+
 ### Version 0.3.15 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.15+is%3Aclosed)
