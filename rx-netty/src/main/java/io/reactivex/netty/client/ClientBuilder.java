@@ -16,6 +16,11 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.SocketChannel;
+import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
@@ -62,6 +67,19 @@ public class ClientBuilder<I, O> extends AbstractClientBuilder<I,O, ClientBuilde
     @Override
     protected String generatedNamePrefix() {
         return "TcpClient-";
+    }
+
+    @Override
+    protected Class<? extends SocketChannel> defaultSocketChannelClass() {
+        if (RxNetty.isUsingNativeTransport()) {
+            return EpollSocketChannel.class;
+        }
+        return super.defaultSocketChannelClass();
+    }
+
+    @Override
+    protected EventLoopGroup defaultEventloop(Class<? extends Channel> socketChannel) {
+        return RxNetty.getRxEventLoopProvider().globalClientEventLoop(true); // get native eventloop if configured.
     }
 
     @Override

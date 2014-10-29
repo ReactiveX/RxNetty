@@ -16,8 +16,13 @@
 package io.reactivex.netty.protocol.http.websocket;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
+import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.AbstractClientBuilder;
 import io.reactivex.netty.client.ClientChannelFactory;
@@ -58,6 +63,19 @@ public class WebSocketClientBuilder<I extends WebSocketFrame, O extends WebSocke
                                   ClientConnectionFactory<O, I, ? extends ObservableConnection<O, I>> connectionFactory,
                                   ClientChannelFactory<O, I> factory) {
         super(bootstrap, host, port, connectionFactory, factory);
+    }
+
+    @Override
+    protected Class<? extends SocketChannel> defaultSocketChannelClass() {
+        if (RxNetty.isUsingNativeTransport()) {
+            return EpollSocketChannel.class;
+        }
+        return super.defaultSocketChannelClass();
+    }
+
+    @Override
+    protected EventLoopGroup defaultEventloop(Class<? extends Channel> socketChannel) {
+        return RxNetty.getRxEventLoopProvider().globalClientEventLoop(true); // get native eventloop if configured.
     }
 
     @Override
