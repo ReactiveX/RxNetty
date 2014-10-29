@@ -67,7 +67,7 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
         return returnBuilder();
     }
 
-    public B channel(Class<C> serverChannelClass) {
+    public B channel(Class<? extends C> serverChannelClass) {
         this.serverChannelClass = serverChannelClass;
         return returnBuilder();
     }

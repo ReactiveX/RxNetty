@@ -28,7 +28,7 @@ import io.reactivex.netty.server.ServerBuilder;
  *
  * @author Nitesh Kant
  */
-public interface RxEventLoopProvider {
+public abstract class RxEventLoopProvider {
 
     /**
      * The {@link EventLoopGroup} to be used by all {@link RxClient} instances if it is not explicitly provided using
@@ -36,7 +36,7 @@ public interface RxEventLoopProvider {
      *
      * @return The {@link EventLoopGroup} to be used for all clients.
      */
-    EventLoopGroup globalClientEventLoop();
+    public abstract EventLoopGroup globalClientEventLoop();
 
     /**
      * The {@link EventLoopGroup} to be used by all {@link RxServer} instances if it is not explicitly provided using
@@ -44,7 +44,7 @@ public interface RxEventLoopProvider {
      *
      * @return The {@link EventLoopGroup} to be used for all servers.
      */
-    EventLoopGroup globalServerEventLoop();
+    public abstract EventLoopGroup globalServerEventLoop();
 
     /**
      * The {@link EventLoopGroup} to be used by all {@link RxServer} instances as a parent eventloop group
@@ -54,5 +54,40 @@ public interface RxEventLoopProvider {
      *
      * @return The {@link EventLoopGroup} to be used for all servers.
      */
-    EventLoopGroup globalServerParentEventLoop();
+    public abstract EventLoopGroup globalServerParentEventLoop();
+
+    /**
+     * The {@link EventLoopGroup} to be used by all {@link RxClient} instances if it is not explicitly provided using
+     * {@link ClientBuilder#eventloop(EventLoopGroup)}.
+     *
+     * @param nativeTransport {@code true} If the eventloop for native transport is to be returned (if configured)
+     *
+     * @return The {@link EventLoopGroup} to be used for all client. If {@code nativeTransport} was {@code true} then
+     * return the {@link EventLoopGroup} for native transport.
+     */
+    public abstract EventLoopGroup globalClientEventLoop(boolean nativeTransport);
+
+    /**
+     * The {@link EventLoopGroup} to be used by all {@link RxServer} instances if it is not explicitly provided using
+     * {@link ServerBuilder#eventLoop(EventLoopGroup)} or {@link ServerBuilder#eventLoops(EventLoopGroup, EventLoopGroup)} .
+     *
+     * @param nativeTransport {@code true} If the eventloop for native transport is to be returned (if configured)
+     *
+     * @return The {@link EventLoopGroup} to be used for all servers. If {@code nativeTransport} was {@code true} then
+     * return the {@link EventLoopGroup} for native transport.     *
+     */
+    public abstract EventLoopGroup globalServerEventLoop(boolean nativeTransport);
+
+    /**
+     * The {@link EventLoopGroup} to be used by all {@link RxServer} instances as a parent eventloop group
+     * (First argument to this method: {@link io.netty.bootstrap.ServerBootstrap#group(EventLoopGroup, EventLoopGroup)}),
+     * if it is not explicitly provided using {@link ServerBuilder#eventLoop(EventLoopGroup)} or
+     * {@link ServerBuilder#eventLoops(EventLoopGroup, EventLoopGroup)}.
+     *
+     * @param nativeTransport {@code true} If the eventloop for native transport is to be returned (if configured)
+     *
+     * @return The {@link EventLoopGroup} to be used for all servers. If {@code nativeTransport} was {@code true} then
+     * return the {@link EventLoopGroup} for native transport.
+     */
+    public abstract EventLoopGroup globalServerParentEventLoop(boolean nativeTransport);
 }

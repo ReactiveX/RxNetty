@@ -32,31 +32,46 @@ import java.util.regex.Pattern;
 public class ServerSentEventEncoder extends MessageToMessageEncoder<ServerSentEvent> {
 
     private static final Pattern PATTERN_NEW_LINE = Pattern.compile("\n");
+    private static final byte[] EVENT_PREFIX_BYTES = "event: ".getBytes();
+    private static final byte[] NEW_LINE_AS_BYTES = "\n".getBytes();
+    private static final byte[] ID_PREFIX_AS_BYTES = "id: ".getBytes();
+    private static final byte[] DATA_PREFIX_AS_BYTES = "data: ".getBytes();
 
     @Override
     protected void encode(ChannelHandlerContext ctx, ServerSentEvent serverSentEvent, List<Object> out) throws Exception {
-        StringBuilder eventBuilder = new StringBuilder();
+        ByteBuf outBuffer = ctx.alloc().buffer();
+        out.add(outBuffer);
+
         if (serverSentEvent.getEventType() != null) {
-            eventBuilder.append("event: ").append(serverSentEvent.getEventType()).append('\n');
+            outBuffer.writeBytes(EVENT_PREFIX_BYTES)
+                     .writeBytes(serverSentEvent.getEventType().getBytes())
+                     .writeBytes(NEW_LINE_AS_BYTES);
         }
+
         if (serverSentEvent.getEventData() != null) {
-            appendData(serverSentEvent, eventBuilder);
+            appendData(serverSentEvent, outBuffer);
         }
+
         if (serverSentEvent.getEventId() != null) {
-            eventBuilder.append("id: ").append(serverSentEvent.getEventId()).append('\n');
+            outBuffer.writeBytes(ID_PREFIX_AS_BYTES)
+                     .writeBytes(serverSentEvent.getEventId().getBytes())
+                     .writeBytes(NEW_LINE_AS_BYTES);
         }
-        eventBuilder.append('\n');
-        String data = eventBuilder.toString();
-        out.add(ctx.alloc().buffer(data.length()).writeBytes(data.getBytes()));
+
+        outBuffer.writeBytes(NEW_LINE_AS_BYTES);
     }
 
-    private void appendData(ServerSentEvent serverSentEvent, StringBuilder eventBuilder) {
+    private static void appendData(ServerSentEvent serverSentEvent, ByteBuf outBuffer) {
         if (serverSentEvent.isSplitMode()) {
             for (String dataLine : PATTERN_NEW_LINE.split(serverSentEvent.getEventData())) {
-                eventBuilder.append("data: ").append(dataLine).append('\n');
+                outBuffer.writeBytes(DATA_PREFIX_AS_BYTES)
+                         .writeBytes(dataLine.getBytes())
+                         .writeBytes(NEW_LINE_AS_BYTES);
             }
         } else {
-            eventBuilder.append("data: ").append(serverSentEvent.getEventData()).append('\n');
+            outBuffer.writeBytes(DATA_PREFIX_AS_BYTES)
+                     .writeBytes(serverSentEvent.getEventData().getBytes())
+                     .writeBytes(NEW_LINE_AS_BYTES);
         }
     }
 }

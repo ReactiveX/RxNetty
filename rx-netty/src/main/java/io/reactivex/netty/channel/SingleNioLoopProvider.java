@@ -17,11 +17,14 @@
 package io.reactivex.netty.channel;
 
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.Future;
+import io.reactivex.netty.RxNetty;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * An implementation of {@link RxEventLoopProvider} that returns the same {@link EventLoopGroup} instance for both
@@ -29,10 +32,14 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Nitesh Kant
  */
-public class SingleNioLoopProvider implements RxEventLoopProvider {
+public class SingleNioLoopProvider extends RxEventLoopProvider {
 
     private final SharedNioEventLoopGroup eventLoop;
     private final SharedNioEventLoopGroup parentEventLoop;
+    private final AtomicReference<EpollEventLoopGroup> nativeEventLoop;
+    private final AtomicReference<EpollEventLoopGroup> nativeParentEventLoop;
+    private final int parentEventLoopCount;
+    private final int childEventLoopCount;
 
     public SingleNioLoopProvider() {
         this(Runtime.getRuntime().availableProcessors());
@@ -41,11 +48,18 @@ public class SingleNioLoopProvider implements RxEventLoopProvider {
     public SingleNioLoopProvider(int threadCount) {
         eventLoop = new SharedNioEventLoopGroup(threadCount);
         parentEventLoop = eventLoop;
+        parentEventLoopCount = childEventLoopCount = threadCount;
+        nativeEventLoop = new AtomicReference<EpollEventLoopGroup>();
+        nativeParentEventLoop = nativeEventLoop;
     }
 
     public SingleNioLoopProvider(int parentEventLoopCount, int childEventLoopCount) {
-        eventLoop = new SharedNioEventLoopGroup(childEventLoopCount);
+        this.parentEventLoopCount = parentEventLoopCount;
+        this.childEventLoopCount = childEventLoopCount;
         parentEventLoop = new SharedNioEventLoopGroup(parentEventLoopCount);
+        eventLoop = new SharedNioEventLoopGroup(childEventLoopCount);
+        nativeParentEventLoop = new AtomicReference<EpollEventLoopGroup>();
+        nativeEventLoop = new AtomicReference<EpollEventLoopGroup>();
     }
 
     @Override
@@ -63,6 +77,56 @@ public class SingleNioLoopProvider implements RxEventLoopProvider {
     @Override
     public EventLoopGroup globalServerParentEventLoop() {
         return parentEventLoop;
+    }
+
+    @Override
+    public EventLoopGroup globalClientEventLoop(boolean nativeTransport) {
+        if (nativeTransport && RxNetty.isUsingNativeTransport()) {
+            return getNativeEventLoop();
+        }
+        return globalClientEventLoop();
+    }
+
+    @Override
+    public EventLoopGroup globalServerEventLoop(boolean nativeTransport) {
+        if (nativeTransport && RxNetty.isUsingNativeTransport()) {
+            return getNativeEventLoop();
+        }
+        return globalServerEventLoop();
+    }
+
+    @Override
+    public EventLoopGroup globalServerParentEventLoop(boolean nativeTransport) {
+        if (nativeTransport && RxNetty.isUsingNativeTransport()) {
+            return getNativeParentEventLoop();
+        }
+        return globalServerParentEventLoop();
+    }
+
+    private EpollEventLoopGroup getNativeParentEventLoop() {
+        if (nativeParentEventLoop == nativeEventLoop) { // Means using same event loop for acceptor and worker pool.
+            return getNativeEventLoop();
+        }
+
+        EpollEventLoopGroup eventLoopGroup = nativeParentEventLoop.get();
+        if (null == eventLoopGroup) {
+            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(parentEventLoopCount);
+            if (!nativeParentEventLoop.compareAndSet(null, newEventLoopGroup)) {
+                newEventLoopGroup.shutdownGracefully();
+            }
+        }
+        return nativeParentEventLoop.get();
+    }
+
+    private EpollEventLoopGroup getNativeEventLoop() {
+        EpollEventLoopGroup eventLoopGroup = nativeEventLoop.get();
+        if (null == eventLoopGroup) {
+            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(childEventLoopCount);
+            if (!nativeEventLoop.compareAndSet(null, newEventLoopGroup)) {
+                newEventLoopGroup.shutdownGracefully();
+            }
+        }
+        return nativeEventLoop.get();
     }
 
     public static class SharedNioEventLoopGroup extends NioEventLoopGroup {

@@ -21,6 +21,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
@@ -53,13 +54,16 @@ public abstract class ConnectionBasedServerBuilder<I, O, B extends ConnectionBas
 
     @Override
     protected Class<? extends ServerChannel> defaultServerChannelClass() {
+        if (RxNetty.isUsingNativeTransport()) {
+            return EpollServerSocketChannel.class;
+        }
         return NioServerSocketChannel.class;
     }
 
     @Override
     protected void configureDefaultEventloopGroup() {
-        serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerParentEventLoop(),
-                              RxNetty.getRxEventLoopProvider().globalServerEventLoop());
+        serverBootstrap.group(RxNetty.getRxEventLoopProvider().globalServerParentEventLoop(true),
+                              RxNetty.getRxEventLoopProvider().globalServerEventLoop(true));
     }
 
     @Override
