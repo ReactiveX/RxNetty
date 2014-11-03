@@ -1,5 +1,25 @@
 # RxNetty Releases #
 
+### Version 0.3.17 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.17+is%3Aclosed)
+
+* [Issue 267] (https://github.com/Netflix/RxNetty/issues/267) Change ServerSentEvent to store data as `ByteBuf`.  
+* [Pull 265] (https://github.com/ReactiveX/RxNetty/pull/265) Release `LastHttpContent` when it is not readable.
+* [Issue 263] (https://github.com/Netflix/RxNetty/issues/263) Rename eventloops.
+* [Issue 209] (https://github.com/ReactiveX/RxNetty/issues/209) Deprecate all SSE classes in io.reactivex.netty.protocol.text.sse.
+* [Issue 205] (https://github.com/ReactiveX/RxNetty/issues/205) Move SSE related class to the http package.
+* [Issue 220] (https://github.com/ReactiveX/RxNetty/issues/220) Confusing ServerSentEvent API causes emitting empty "event" fields.
+* [Issue 222] (https://github.com/ReactiveX/RxNetty/issues/222) SSE API is error prone, and lacks flexibility for common usage patterns.
+* [Issue 30] (https://github.com/ReactiveX/RxNetty/issues/30) SSE codec re-implementation.
+
+
+##### Deprecations
+
+* [Issue 209] (https://github.com/ReactiveX/RxNetty/issues/209) Deprecate all SSE classes in io.reactivex.netty.protocol.text.sse.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.17%22)
+
 ### Version 0.3.16 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.16+is%3Aclosed)

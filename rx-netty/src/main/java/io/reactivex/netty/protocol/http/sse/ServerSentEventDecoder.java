@@ -170,7 +170,11 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
                         }
 
                         state = State.SkipColonAndWhiteSpaces; // We have read the field name, next we should skip colon & WS.
-                        currentFieldType = readCurrentFieldTypeFromBuffer(fieldNameBuffer);
+                        try {
+                            currentFieldType = readCurrentFieldTypeFromBuffer(fieldNameBuffer);
+                        } finally {
+                            fieldNameBuffer.release();
+                        }
                     }
                     break;
                 case ReadFieldValue:
