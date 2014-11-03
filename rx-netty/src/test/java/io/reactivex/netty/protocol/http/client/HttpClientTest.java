@@ -34,7 +34,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import io.reactivex.netty.server.RxServerThreadFactory;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -114,7 +114,7 @@ public class HttpClientTest {
     @Test
     public void testChunkedStreaming() throws Exception {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
-                                                                        PipelineConfigurators.<ByteBuf>sseClientConfigurator());
+                                                                        PipelineConfigurators.<ByteBuf>clientSseConfigurator());
         Observable<HttpClientResponse<ServerSentEvent>> response =
                 client.submit(HttpClientRequest.createGet("test/stream"));
 
@@ -127,7 +127,7 @@ public class HttpClientTest {
     public void testMultipleChunks() throws Exception {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators
-                                                                                .<ByteBuf>sseClientConfigurator());
+                                                                                .<ByteBuf>clientSseConfigurator());
         Observable<HttpClientResponse<ServerSentEvent>> response =
                 client.submit(HttpClientRequest.createDelete("test/largeStream"));
 
@@ -140,7 +140,7 @@ public class HttpClientTest {
     public void testMultipleChunksWithTransformation() throws Exception {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
                                                                         PipelineConfigurators
-                                                                                .<ByteBuf>sseClientConfigurator());
+                                                                                .<ByteBuf>clientSseConfigurator());
         Observable<HttpClientResponse<ServerSentEvent>> response =
                 client.submit(HttpClientRequest.createGet("test/largeStream"));
         Observable<String> transformed = response.flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<String>>() {
@@ -150,7 +150,7 @@ public class HttpClientTest {
                     return httpResponse.getContent().map(new Func1<ServerSentEvent, String>() {
                         @Override
                         public String call(ServerSentEvent sseEvent) {
-                            return sseEvent.getEventData();
+                            return sseEvent.contentAsString();
                         }
                     });
                 }
@@ -274,7 +274,7 @@ public class HttpClientTest {
     @Test
     public void testNonChunkingStream() throws Exception {
         HttpClient<ByteBuf, ServerSentEvent> client = RxNetty.createHttpClient("localhost", port,
-                                                                        PipelineConfigurators.<ByteBuf>sseClientConfigurator());
+                                                                        PipelineConfigurators.<ByteBuf>clientSseConfigurator());
         Observable<HttpClientResponse<ServerSentEvent>> response =
                 client.submit(HttpClientRequest.createGet("test/nochunk_stream"));
         final List<String> result = new ArrayList<String>();
@@ -286,7 +286,7 @@ public class HttpClientTest {
         }).toBlocking().forEach(new Action1<ServerSentEvent>() {
             @Override
             public void call(ServerSentEvent event) {
-                result.add(event.getEventData());
+                result.add(event.contentAsString());
             }
         });
         assertEquals(RequestProcessor.smallStreamContent, result);
@@ -429,7 +429,7 @@ public class HttpClientTest {
                 .toBlocking().forEach(new Action1<ServerSentEvent>() {
             @Override
             public void call(ServerSentEvent serverSentEvent) {
-                result.add(serverSentEvent.getEventData());
+                result.add(serverSentEvent.contentAsString());
             }
         });
     }

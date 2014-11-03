@@ -110,7 +110,8 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
 
         EpollEventLoopGroup eventLoopGroup = nativeParentEventLoop.get();
         if (null == eventLoopGroup) {
-            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(parentEventLoopCount);
+            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(parentEventLoopCount,
+                                                                            new RxDefaultThreadFactory("rx-netty-epoll-eventloop"));
             if (!nativeParentEventLoop.compareAndSet(null, newEventLoopGroup)) {
                 newEventLoopGroup.shutdownGracefully();
             }
@@ -121,7 +122,8 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
     private EpollEventLoopGroup getNativeEventLoop() {
         EpollEventLoopGroup eventLoopGroup = nativeEventLoop.get();
         if (null == eventLoopGroup) {
-            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(childEventLoopCount);
+            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(childEventLoopCount,
+                                                                            new RxDefaultThreadFactory("rx-netty-epoll-eventloop"));
             if (!nativeEventLoop.compareAndSet(null, newEventLoopGroup)) {
                 newEventLoopGroup.shutdownGracefully();
             }
@@ -134,11 +136,11 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
         private final AtomicInteger refCount = new AtomicInteger();
 
         public SharedNioEventLoopGroup() {
-            super(0, new RxDefaultThreadFactory("rx-selector"));
+            super(0, new RxDefaultThreadFactory("rx-netty-nio-eventloop"));
         }
 
         public SharedNioEventLoopGroup(int threadCount) {
-            super(threadCount, new RxDefaultThreadFactory("rx-selector"));
+            super(threadCount, new RxDefaultThreadFactory("rx-netty-nio-eventloop"));
         }
 
         @Override

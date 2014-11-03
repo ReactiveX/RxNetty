@@ -23,7 +23,7 @@ import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Notification;
 import rx.Observable;
 import rx.functions.Func1;
@@ -54,7 +54,7 @@ public final class HttpSseServer {
                                                    HttpServerResponse<ServerSentEvent> response) {
                         return getIntervalObservable(response);
                     }
-                }, PipelineConfigurators.<ByteBuf>sseServerConfigurator());
+                }, PipelineConfigurators.<ByteBuf>serveSseConfigurator());
         System.out.println("HTTP Server Sent Events server started...");
         return server;
     }
@@ -65,7 +65,9 @@ public final class HttpSseServer {
                     @Override
                     public Observable<Void> call(Long interval) {
                         System.out.println("Writing SSE event for interval: " + interval);
-                        return response.writeAndFlush(new ServerSentEvent(String.valueOf(interval), "notification", "hello " + interval));
+                        ByteBuf data = response.getAllocator().buffer().writeBytes(("hello " + interval).getBytes());
+                        ServerSentEvent event = new ServerSentEvent(data);
+                        return response.writeAndFlush(event);
                     }
                 }).materialize()
                 .takeWhile(new Func1<Notification<Void>, Boolean>() {

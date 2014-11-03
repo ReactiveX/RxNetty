@@ -29,7 +29,10 @@ import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurato
  * @see ServerSentEventEncoder
  *
  * @author Nitesh Kant
+ *
+ * @deprecated Since SSE is always over HTTP, using the same protocol name isn't correct.
  */
+@Deprecated
 public class SSEServerPipelineConfigurator<R, W> implements PipelineConfigurator<R, W> {
 
     public static final String SSE_ENCODER_HANDLER_NAME = "sse-encoder";

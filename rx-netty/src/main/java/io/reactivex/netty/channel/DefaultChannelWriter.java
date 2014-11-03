@@ -73,6 +73,12 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     }
 
     @Override
+    public Observable<Void> writeBytesAndFlush(ByteBuf msg) {
+        writeBytes(msg);
+        return flush();
+    }
+
+    @Override
     public void write(O msg) {
         writeOnChannel(msg);
     }
@@ -84,8 +90,13 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     }
 
     @Override
+    public void writeBytes(ByteBuf msg) {
+        write(msg, IdentityTransformer.DEFAULT_INSTANCE);
+    }
+
+    @Override
     public void writeBytes(byte[] msg) {
-        write(msg, new ByteTransformer());
+        write(msg, ByteTransformer.DEFAULT_INSTANCE);
     }
 
     @Override
@@ -95,7 +106,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
 
     @Override
     public Observable<Void> writeBytesAndFlush(byte[] msg) {
-        write(msg, new ByteTransformer());
+        write(msg, ByteTransformer.DEFAULT_INSTANCE);
         return flush();
     }
 

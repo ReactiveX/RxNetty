@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.channel;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.FileRegion;
 import rx.Observable;
@@ -33,6 +34,8 @@ public interface ChannelWriter<O> {
 
     <R> void write(R msg, ContentTransformer<R> transformer);
 
+    void writeBytes(ByteBuf msg);
+
     void writeBytes(byte[] msg);
 
     void writeString(String msg);
@@ -46,6 +49,8 @@ public interface ChannelWriter<O> {
     ByteBufAllocator getAllocator();
 
     <R> Observable<Void> writeAndFlush(R msg, ContentTransformer<R> transformer);
+
+    Observable<Void> writeBytesAndFlush(ByteBuf msg);
 
     Observable<Void> writeBytesAndFlush(byte[] msg);
 

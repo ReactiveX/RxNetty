@@ -23,36 +23,29 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
-import io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
-import io.reactivex.netty.protocol.text.sse.ServerSentEventEncoder;
 
 import static io.netty.handler.codec.http.HttpHeaders.Names.CONTENT_TYPE;
-import static io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator.SERVER_SENT_EVENT_ENCODER;
-import static io.reactivex.netty.protocol.text.sse.SSEServerPipelineConfigurator.SSE_ENCODER_HANDLER_NAME;
 
 /**
- * An extension to {@link SSEServerPipelineConfigurator} that enables SSE over HTTP. <br/>
- *
- * @see ServerSentEventEncoder
+ * {@link PipelineConfigurator} implementation for <a href="http://www.w3.org/TR/eventsource/">Server Sent Events</a> to
+ * be used for SSE servers.
  *
  * @author Nitesh Kant
- *
- * @deprecated Use {@link io.reactivex.netty.protocol.http.sse.SseServerPipelineConfigurator} instead.
  */
-@Deprecated
-public class SseOverHttpServerPipelineConfigurator<I>
+public class SseServerPipelineConfigurator<I>
         implements PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<ServerSentEvent>> {
 
+    public static final String SSE_ENCODER_HANDLER_NAME = "sse-encoder";
+    public static final ServerSentEventEncoder SERVER_SENT_EVENT_ENCODER = new ServerSentEventEncoder(); // contains no state.
     public static final String SSE_RESPONSE_HEADERS_COMPLETER = "sse-response-headers-completer";
 
     private final HttpServerPipelineConfigurator<I, ?> serverPipelineConfigurator;
 
-    public SseOverHttpServerPipelineConfigurator() {
+    public SseServerPipelineConfigurator() {
         this(new HttpServerPipelineConfigurator<I, Object>());
     }
 
-    public SseOverHttpServerPipelineConfigurator(HttpServerPipelineConfigurator<I, ?> serverPipelineConfigurator) {
+    public SseServerPipelineConfigurator(HttpServerPipelineConfigurator<I, ?> serverPipelineConfigurator) {
         this.serverPipelineConfigurator = serverPipelineConfigurator;
     }
 

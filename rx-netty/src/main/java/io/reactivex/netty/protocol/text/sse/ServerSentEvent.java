@@ -17,7 +17,10 @@ package io.reactivex.netty.protocol.text.sse;
 
 /**
  * This class represents a single server-sent event.
+ *
+ * @deprecated Use {@link io.reactivex.netty.protocol.http.sse.ServerSentEvent} instead.
  */
+@Deprecated
 public class ServerSentEvent {
 
     private final String eventId;
