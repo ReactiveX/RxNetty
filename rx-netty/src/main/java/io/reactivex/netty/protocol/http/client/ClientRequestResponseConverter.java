@@ -133,6 +133,10 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 stateToUse.responseReceiveComplete();
                 if (content.isReadable()) {
                     invokeContentOnNext(content, stateToUse);
+                } else {
+                    // CompositeByteBuf and possibly other implementations may still need to be
+                    // released event if they are not readable.
+                    ReferenceCountUtil.release(content);
                 }
                 stateToUse.sendOnComplete();
             } else {
