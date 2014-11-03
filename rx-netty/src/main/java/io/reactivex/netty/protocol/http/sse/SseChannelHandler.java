@@ -15,7 +15,6 @@
  */
 package io.reactivex.netty.protocol.http.sse;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
@@ -25,19 +24,20 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
-import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
  * A handler to insert {@link ServerSentEventDecoder} at a proper position in the pipeline according to the protocol. <br/>
  * There are the following cases, this handles:
  *
  * <h1>Http response with chunked encoding</h1>
- * In this case, the {@link ServerSentEventDecoder} is inserted after this {@link SSEInboundHandler}
+ * In this case, the {@link ServerSentEventDecoder} is inserted after this {@link SseChannelHandler}
  *
  * <h1>Http response with no chunking</h1>
  * In this case, the {@link ServerSentEventDecoder} is inserted as the first handler in the pipeline. This makes the
- * {@link ByteBuf} at the origin to be converted to {@link io.reactivex.netty.protocol.text.sse.ServerSentEvent} and hence any other handler will not look at this
- * message unless it is really interested.
+ * {@link io.netty.buffer.ByteBuf} at the origin to be converted to {@link ServerSentEvent} and hence any other handler
+ * will not look at this message unless it is really interested.
+ *
+ *
  * <h3>Caveat</h3>
  * In some cases where any message is buffered before this pipeline change is made by this handler (i.e. adding
  * {@link ServerSentEventDecoder} as the first handler), the {@link ServerSentEventDecoder} will not be applied to those
@@ -45,20 +45,15 @@ import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
  * {@link ServerSentEventDecoder} is applied on the incoming data, the next instance of {@link ServerSentEventDecoder}
  * will be redundant.
  *
- * <h1>No HTTP protocol</h1>
- * In this case, the handler does not do anything, assuming that there is no special handling required.
- *
- * @deprecated Use {@link SseChannelHandler} instead.
  */
-@Deprecated
 @ChannelHandler.Sharable
-public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
+public class SseChannelHandler extends SimpleChannelInboundHandler<Object> {
 
-    public static final String NAME = "sse-handler";
-    public static final String SSE_DECODER_HANDLER_NAME = "sse-decoder";
-    public static final String SSE_DECODER_POST_INBOUND_HANDLER = "sse-decoder-post-inbound";
+    public static final String NAME = "sse-inbound-handler";
+    public static final String SSE_DECODER_HANDLER_NAME = "rx-sse-decoder";
+    public static final String SSE_DECODER_POST_INBOUND_HANDLER = "rx-sse-decoder-post-inbound";
 
-    public SSEInboundHandler() {
+    public SseChannelHandler() {
         super(false); // Never auto-release, management of buffer is done via {@link ObservableAdapter}
     }
 
@@ -108,7 +103,7 @@ public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
             }
 
             ctx.fireChannelRead(msg); // Since the content is already consumed above (by the SSEDecoder), this is just
-                                      // as sending just trailing headers. This is critical to mark the end of stream.
+            // as sending just trailing headers. This is critical to mark the end of stream.
 
         } else if (msg instanceof HttpContent) {
             ctx.fireChannelRead(((HttpContent) msg).content());

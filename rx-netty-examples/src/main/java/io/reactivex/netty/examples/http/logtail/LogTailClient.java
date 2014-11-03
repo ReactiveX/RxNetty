@@ -18,12 +18,13 @@ package io.reactivex.netty.examples.http.logtail;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -49,7 +50,9 @@ public class LogTailClient {
 
     public List<LogEvent> collectEventLogs() {
         HttpClient<ByteBuf, ServerSentEvent> client =
-                RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
+                RxNetty.<ByteBuf, ServerSentEvent>newHttpClientBuilder("localhost", port)
+                       .enableWireLogging(LogLevel.DEBUG)
+                       .pipelineConfigurator(PipelineConfigurators.<ByteBuf>clientSseConfigurator()).build();
 
         Iterable<LogEvent> eventIterable = client.submit(HttpClientRequest.createGet("/logstream"))
                 .flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
@@ -63,7 +66,7 @@ public class LogTailClient {
                 }).map(new Func1<ServerSentEvent, LogEvent>() {
                            @Override
                            public LogEvent call(ServerSentEvent serverSentEvent) {
-                               return LogEvent.fromCSV(serverSentEvent.getEventData());
+                               return LogEvent.fromCSV(serverSentEvent.contentAsString());
                            }
                        }
                 ).filter(new Func1<LogEvent, Boolean>() {

@@ -20,30 +20,25 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.text.sse.SSEClientPipelineConfigurator;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
-import io.reactivex.netty.protocol.text.sse.ServerSentEventDecoder;
 
 /**
- * An extension to {@link SSEClientPipelineConfigurator} that enables SSE over HTTP. <br/>
- *
- * @see SSEInboundHandler
- * @see ServerSentEventDecoder
+ * {@link PipelineConfigurator} implementation for <a href="http://www.w3.org/TR/eventsource/">Server Sent Events</a> to
+ * be used for SSE clients.
  *
  * @author Nitesh Kant
- *
- * @deprecated Use {@link io.reactivex.netty.protocol.http.sse.SseClientPipelineConfigurator} instead.
  */
-@Deprecated
-public class SseOverHttpClientPipelineConfigurator<I> implements PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>> {
+public class SseClientPipelineConfigurator<I>
+        implements PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>> {
+
+    public static final SseChannelHandler SSE_CHANNEL_HANDLER = new SseChannelHandler();
 
     private final HttpClientPipelineConfigurator<I, ?> httpClientPipelineConfigurator;
 
-    public SseOverHttpClientPipelineConfigurator() {
+    public SseClientPipelineConfigurator() {
         this(new HttpClientPipelineConfigurator<I, Object>());
     }
 
-    public SseOverHttpClientPipelineConfigurator(HttpClientPipelineConfigurator<I, ?> httpClientPipelineConfigurator) {
+    public SseClientPipelineConfigurator(HttpClientPipelineConfigurator<I, ?> httpClientPipelineConfigurator) {
         this.httpClientPipelineConfigurator = httpClientPipelineConfigurator;
     }
 
@@ -52,10 +47,10 @@ public class SseOverHttpClientPipelineConfigurator<I> implements PipelineConfigu
         httpClientPipelineConfigurator.configureNewPipeline(pipeline);
         if (null != pipeline.get(HttpClientPipelineConfigurator.REQUEST_RESPONSE_CONVERTER_HANDLER_NAME)) {
             pipeline.addBefore(HttpClientPipelineConfigurator.REQUEST_RESPONSE_CONVERTER_HANDLER_NAME,
-                               SSEInboundHandler.NAME, SSEClientPipelineConfigurator.SSE_INBOUND_HANDLER);
+                               SseChannelHandler.NAME, SSE_CHANNEL_HANDLER);
         } else {
             // Assuming that the underlying HTTP configurator knows what its doing. It will mostly fail though.
-            pipeline.addLast(SSEInboundHandler.NAME, SSEClientPipelineConfigurator.SSE_INBOUND_HANDLER);
+            pipeline.addLast(SseChannelHandler.NAME, SSE_CHANNEL_HANDLER);
         }
     }
 }

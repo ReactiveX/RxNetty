@@ -22,7 +22,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -48,7 +48,7 @@ public final class HttpSseClient {
 
     public List<ServerSentEvent> readServerSideEvents() {
         HttpClient<ByteBuf, ServerSentEvent> client =
-                RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
+                RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>clientSseConfigurator());
 
         Iterable<ServerSentEvent> eventIterable = client.submit(HttpClientRequest.createGet("/hello")).
                 flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {

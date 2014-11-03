@@ -32,10 +32,12 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.SseClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
+import io.reactivex.netty.protocol.http.sse.SseServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.SimpleTextProtocolConfigurator;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.TimeUnit;
@@ -83,11 +85,27 @@ public final class PipelineConfigurators {
                                                                                   new HttpObjectAggregationConfigurator());
     }
 
-    public static <I> PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>> sseClientConfigurator() {
+    public static <I> PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>> clientSseConfigurator() {
+        return new SseClientPipelineConfigurator<I>();
+    }
+
+    public static <I> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<ServerSentEvent>> serveSseConfigurator() {
+        return new SseServerPipelineConfigurator<I>();
+    }
+
+    /**
+     * @deprecated Use {@link #clientSseConfigurator()} instead.
+     */
+    @Deprecated
+    public static <I> PipelineConfigurator<HttpClientResponse<io.reactivex.netty.protocol.text.sse.ServerSentEvent>, HttpClientRequest<I>> sseClientConfigurator() {
         return new SseOverHttpClientPipelineConfigurator<I>();
     }
 
-    public static <I> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<ServerSentEvent>> sseServerConfigurator() {
+    /**
+     * @deprecated Use {@link #serveSseConfigurator()} instead.
+     */
+    @Deprecated
+    public static <I> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<io.reactivex.netty.protocol.text.sse.ServerSentEvent>> sseServerConfigurator() {
         return new SseOverHttpServerPipelineConfigurator<I>();
     }
 

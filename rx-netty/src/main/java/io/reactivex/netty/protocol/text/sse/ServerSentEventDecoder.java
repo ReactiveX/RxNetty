@@ -25,7 +25,10 @@ import java.util.List;
  * An decoder for server-sent event. It does not record retry or last event ID. Otherwise, it
  * follows the same interpretation logic as documented here: <a href="http://www.whatwg.org/specs/web-apps/current-work/multipage/comms.html#event-stream-interpretation">Event Stream
  * Interpretation</a>
+ *
+ * @deprecated Use {@link io.reactivex.netty.protocol.http.sse.ServerSentEventDecoder} instead.
  */
+@Deprecated
 public class ServerSentEventDecoder extends ReplayingDecoder<ServerSentEventDecoder.State> {
     private final MessageBuffer eventBuffer;
 

@@ -32,7 +32,10 @@ import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurato
  * @see ServerSentEventDecoder
  *
  * @author Nitesh Kant
+ *
+ * @deprecated Since SSE is always over HTTP, using the same protocol name isn't correct.
  */
+@Deprecated
 public class SSEClientPipelineConfigurator<W> implements PipelineConfigurator<ServerSentEvent, W> {
 
     public static final SSEInboundHandler SSE_INBOUND_HANDLER = new SSEInboundHandler();

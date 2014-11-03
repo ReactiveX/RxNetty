@@ -17,7 +17,7 @@
 package io.reactivex.netty.examples.http.logtail;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClient;
@@ -27,8 +27,9 @@ import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 import java.util.ArrayList;
@@ -53,7 +54,7 @@ public class LogAggregator {
     }
 
     public HttpServer<ByteBuf, ServerSentEvent> createAggregationServer() {
-        server = RxNetty.createHttpServer(port,
+        server = RxNetty.newHttpServerBuilder(port,
                 new RequestHandler<ByteBuf, ServerSentEvent>() {
                     @Override
                     public Observable<Void> handle(final HttpServerRequest<ByteBuf> request,
@@ -62,18 +63,11 @@ public class LogAggregator {
                         return connectToLogProducers().flatMap(new Func1<ServerSentEvent, Observable<Void>>() {
                             @Override
                             public Observable<Void> call(ServerSentEvent sse) {
-                                ServerSentEvent data = new ServerSentEvent(sse.getEventId(), "data", sse.getEventData());
-                                return response.writeAndFlush(data);
-                            }
-                        }).onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
-                            @Override
-                            public Observable<Void> call(Throwable throwable) {
-                                response.setStatus(HttpResponseStatus.INTERNAL_SERVER_ERROR);
-                                return response.close();
+                                return response.writeAndFlush(sse);
                             }
                         });
                     }
-                }, PipelineConfigurators.<ByteBuf>sseServerConfigurator());
+                }).enableWireLogging(LogLevel.ERROR).pipelineConfigurator(PipelineConfigurators.<ByteBuf>serveSseConfigurator()).build();
         System.out.println("Logs aggregator server started...");
         return server;
     }
@@ -88,12 +82,18 @@ public class LogAggregator {
 
     private static Observable<ServerSentEvent> connectToLogProducer(int port) {
         HttpClient<ByteBuf, ServerSentEvent> client =
-                RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>sseClientConfigurator());
+                RxNetty.createHttpClient("localhost", port, PipelineConfigurators.<ByteBuf>clientSseConfigurator());
 
         return client.submit(HttpClientRequest.createGet("/logstream")).flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
             @Override
             public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> response) {
-                return response.getContent();
+                return response.getContent()
+                               .doOnNext(new Action1<ServerSentEvent>() {
+                                   @Override
+                                   public void call(ServerSentEvent serverSentEvent) {
+                                       serverSentEvent.retain();
+                                   }
+                               });
             }
         });
     }

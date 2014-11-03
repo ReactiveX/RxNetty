@@ -17,13 +17,14 @@
 package io.reactivex.netty.examples.http.logtail;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -45,14 +46,16 @@ public class LogProducer {
     }
 
     public HttpServer<ByteBuf, ServerSentEvent> createServer() {
-        HttpServer<ByteBuf, ServerSentEvent> server = RxNetty.createHttpServer(port,
+        HttpServer<ByteBuf, ServerSentEvent> server = RxNetty.newHttpServerBuilder(port,
                 new RequestHandler<ByteBuf, ServerSentEvent>() {
                     @Override
                     public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
                                                    HttpServerResponse<ServerSentEvent> response) {
                         return createReplyHandlerObservable(response);
                     }
-                }, PipelineConfigurators.<ByteBuf>sseServerConfigurator());
+                }).pipelineConfigurator(PipelineConfigurators.<ByteBuf>serveSseConfigurator())
+                  .enableWireLogging(LogLevel.DEBUG)
+                  .build();
         System.out.println("Started log producer on port " + port);
         return server;
     }
@@ -62,12 +65,10 @@ public class LogProducer {
                 .flatMap(new Func1<Long, Observable<Void>>() {
                     @Override
                     public Observable<Void> call(Long interval) {
-                        ServerSentEvent data = new ServerSentEvent(
-                                Long.toString(interval),
-                                "data",
-                                LogEvent.randomLogEvent(source).toCSV()
-                        );
-                        return response.writeAndFlush(data);
+                        ByteBuf eventId = response.getAllocator().buffer().writeLong(interval);
+                        ByteBuf data = response.getAllocator().buffer().writeBytes(LogEvent.randomLogEvent(
+                                source).toCSV().getBytes());
+                        return response.writeAndFlush(ServerSentEvent.withEventId(eventId, data));
                     }
                 });
     }

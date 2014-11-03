@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.http.logtail;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
-import io.reactivex.netty.protocol.text.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -28,8 +28,8 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.reactivex.netty.examples.http.logtail.LogTailClient.DEFAULT_TAIL_SIZE;
 import static io.reactivex.netty.examples.http.logtail.LogAggregator.DEFAULT_AG_PORT;
+import static io.reactivex.netty.examples.http.logtail.LogTailClient.DEFAULT_TAIL_SIZE;
 
 /**
  * @author Tomasz Bak
@@ -41,7 +41,7 @@ public class LogTailClientTest extends ExamplesEnvironment {
     private static final int PR_INTERVAL = 50;
 
     private HttpServer<ByteBuf, ServerSentEvent> aggregationServer;
-    private List<HttpServer<ByteBuf, ServerSentEvent>> producerServers = new ArrayList<HttpServer<ByteBuf, ServerSentEvent>>();
+    private final List<HttpServer<ByteBuf, ServerSentEvent>> producerServers = new ArrayList<HttpServer<ByteBuf, ServerSentEvent>>();
 
     @Before
     public void setupServers() {

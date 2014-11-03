@@ -27,7 +27,10 @@ import java.util.regex.Pattern;
  * An encoder to convert {@link ServerSentEvent} to a {@link ByteBuf}
  *
  * @author Nitesh Kant
+ *
+ * @deprecated Use {@link io.reactivex.netty.protocol.http.sse.ServerSentEventEncoder} instead.
  */
+@Deprecated
 @ChannelHandler.Sharable
 public class ServerSentEventEncoder extends MessageToMessageEncoder<ServerSentEvent> {
 
