@@ -18,7 +18,6 @@ package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.DecoderException;
 import io.reactivex.netty.NoOpChannelHandlerContext;
 import org.junit.Test;
 
@@ -30,6 +29,8 @@ import static io.reactivex.netty.protocol.http.sse.SseTestUtil.newServerSentEven
 import static io.reactivex.netty.protocol.http.sse.SseTestUtil.newSseProtocolString;
 import static io.reactivex.netty.protocol.http.sse.SseTestUtil.toByteBuf;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Tomasz Bak
@@ -41,13 +42,6 @@ public class ServerSentEventDecoderTest {
     private final ChannelHandlerContext ch = new NoOpChannelHandlerContext();
 
     static class TestableServerSentEventDecoder extends ServerSentEventDecoder {
-
-        TestableServerSentEventDecoder() {
-        }
-
-        TestableServerSentEventDecoder(int maxFieldNameLength) {
-            super(maxFieldNameLength);
-        }
 
         @Override
         public void callDecode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
@@ -190,28 +184,30 @@ public class ServerSentEventDecoderTest {
         doTest("ata: data line\n", expected);
     }
 
-    @Test(expected = TooLongFieldNameException.class)
-    public void testMaxFieldLength() throws Exception {
-        TestableServerSentEventDecoder decoder = new TestableServerSentEventDecoder(2);
-        decoder.callDecode(ch, toByteBuf("eventt"), new ArrayList<Object>());
+    @Test
+    public void testInvalidFieldNameAndNextEvent() throws Exception {
+        ArrayList<Object> out = new ArrayList<Object>();
+        decoder.callDecode(ch, toByteBuf("eventt: event type\n"), out);
+        assertTrue("Output list not empty.", out.isEmpty());
+
+        decoder.callDecode(ch, toByteBuf("data: dumb \n"), out);
+        assertFalse("Event not emitted after invalid field name.", out.isEmpty());
+        assertEquals("Unexpected event count after invalid field name.", 1, out.size());
+
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testInvalidFieldName() throws Throwable {
-        try {
-            decoder.callDecode(ch, toByteBuf("eventt: dumb \n"), new ArrayList<Object>());
-        } catch (DecoderException e) {
-            throw e.getCause();
-        }
+        ArrayList<Object> out = new ArrayList<Object>();
+        decoder.callDecode(ch, toByteBuf("eventt: dumb \n"), out);
+        assertTrue("Event emitted for invalid field name.", out.isEmpty());
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test
     public void testFieldNameWithSpace() throws Throwable {
-        try {
-            decoder.callDecode(ch, toByteBuf("eve nt: dumb \n"), new ArrayList<Object>());
-        } catch (DecoderException e) {
-            throw e.getCause();
-        }
+        ArrayList<Object> out = new ArrayList<Object>();
+        decoder.callDecode(ch, toByteBuf("eve nt: dumb \n"), new ArrayList<Object>());
+        assertTrue("Event emitted for invalid field name.", out.isEmpty());
     }
 
     @Test
