@@ -39,6 +39,7 @@ Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.15+is%3Aclosed)
 
+* [Issue 208] (https://github.com/Netflix/RxNetty/issues/208) HTTPClient should discard a connection when response isn't completely consumed.
 * [Issue 229] (https://github.com/Netflix/RxNetty/issues/229) Remove deprecated method `DefaultChannelWriter.getChannelHandlerContext()`.
 * [Issue 237] (https://github.com/Netflix/RxNetty/issues/237) Empty Client Request Buffers Are Not Released.
 * [Issue 243] (https://github.com/Netflix/RxNetty/issues/243) HttpServerListener requestReadTimes metric value is incorrect.
