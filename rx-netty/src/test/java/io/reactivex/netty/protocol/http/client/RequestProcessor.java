@@ -126,26 +126,24 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         return response.writeBytesAndFlush(responseBytes);
     }
 
-    public Observable<Void> redirectGet(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-        response.getHeaders().set("Location", "http://localhost:" + request.getQueryParameters().get("port").get(0) + "/test/singleEntity");
+    public Observable<Void> redirectGet(final HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().set("Location", "/test/singleEntity");
         response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
         return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
 
     public Observable<Void> redirectCustom(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-        String port = request.getQueryParameters().get("port").get(0);
         boolean isRedirectLoop = request.getUri().contains("redirectLoop");
         int currentCount = getIntParamWithDefault(request, "count", 0);
         int redirectsRequested = getIntParamWithDefault(request, "redirectsRequested", 1);
         String location;
         if (currentCount >= redirectsRequested) {
-            location = "http://localhost:" + port + "/test/singleEntity";
+            location = "/test/singleEntity";
         } else {
-
-            location = "http://localhost:" + port
-            + "/test/" + (isRedirectLoop ? "redirectLoop" : "redirectLimited" + redirectLoopUniqueIndex.incrementAndGet())
-            + "?port=" + port + "&count=" + (currentCount + 1)
-            + "&redirectsRequested=" + redirectsRequested;
+            location = "/test/" + (isRedirectLoop ? "redirectLoop"
+                                                  : "redirectLimited" + redirectLoopUniqueIndex.incrementAndGet())
+                       + "?count=" + (currentCount + 1)
+                       + "&redirectsRequested=" + redirectsRequested;
         }
 
         response.getHeaders().set("Location", location);
@@ -153,8 +151,14 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
 
-    public Observable<Void> redirectPost(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-        response.getHeaders().set("Location", "http://localhost:" + request.getQueryParameters().get("port").get(0) + "/test/post");
+    public Observable<Void> redirectPost(final HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().set("Location", "/test/post");
+        response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
+        return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
+    }
+
+    public Observable<Void> redirectAbsolute(final HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().set("Location", "http://localhost/test/post");
         response.setStatus(HttpResponseStatus.MOVED_PERMANENTLY);
         return response.writeAndFlush(Unpooled.EMPTY_BUFFER);
     }
@@ -202,6 +206,8 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
             return handleCloseConnection(response);
         } else if (uri.startsWith("test/keepAliveTimeout")) {
             return handleKeepAliveTimeout(response);
+        } else if (uri.startsWith("test/redirectAbsolute")) {
+            return redirectAbsolute(response);
         } else if (uri.startsWith("test/redirectInfinite")) {
             return redirectCustom(request, response);
         } else if (uri.startsWith("test/redirectLoop")) {
@@ -209,9 +215,9 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
         } else if (uri.startsWith("test/redirectLimited")) {
             return redirectCustom(request, response);
         } else if (uri.startsWith("test/redirect") && request.getHttpMethod().equals(HttpMethod.GET)) {
-            return redirectGet(request, response);
+            return redirectGet(response);
         } else if (uri.startsWith("test/redirectPost") && request.getHttpMethod().equals(HttpMethod.POST)) {
-            return redirectPost(request, response);
+            return redirectPost(response);
         } else {
             response.setStatus(HttpResponseStatus.NOT_FOUND);
             return response.flush();

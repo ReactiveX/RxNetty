@@ -27,6 +27,7 @@ import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.internal.operators.NotificationLite;
+import rx.observers.SerializedObserver;
 import rx.observers.Subscribers;
 import rx.schedulers.Schedulers;
 import rx.subjects.Subject;
@@ -223,7 +224,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
         }
 
         public void setObserverRef(Observer<? super T> o) { // Guarded by casState()
-            observerRef = o;
+            observerRef = new SerializedObserver<T>(o);
         }
 
         public boolean casObserverRef(Observer<? super T> expected, Observer<? super T> next) {
