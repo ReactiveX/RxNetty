@@ -1,5 +1,21 @@
 # RxNetty Releases #
 
+### Version 0.3.18 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.18+is%3Aclosed)
+
+* [Issue 257] (https://github.com/Netflix/RxNetty/issues/257) Support relative URIs for redirect.  
+* [Issue 269] (https://github.com/Netflix/RxNetty/issues/269) `ServerSentEventDecoder` stops decoding after receiving an illegal field.  
+* [Issue 270] (https://github.com/Netflix/RxNetty/issues/270) HttpClient should only do relative redirects.  
+* [Issue 271] (https://github.com/Netflix/RxNetty/issues/271) URI fragment must be inherited by the redirect location.  
+* [Issue 272] (https://github.com/Netflix/RxNetty/issues/272) Guaranteeing sequential notifications from operators/Subjects.  
+
+##### Incompatible changes
+
+* [Issue 270] (https://github.com/Netflix/RxNetty/issues/270) HttpClient should only do relative redirects.
+
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.16%22)
+
 ### Version 0.3.17 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.17+is%3Aclosed)
