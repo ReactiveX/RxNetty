@@ -17,6 +17,7 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.QueryStringDecoder;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -53,6 +54,7 @@ public class UriInfoHolder {
     }
 
     public synchronized Map<String, List<String>> getQueryParameters() {
-        return decoder.parameters();
+        // decoder.parameters() sometimes returns an immutable map
+        return new HashMap<String, List<String>>(decoder.parameters());
     }
 }
