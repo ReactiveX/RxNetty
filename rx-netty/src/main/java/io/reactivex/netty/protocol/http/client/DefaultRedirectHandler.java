@@ -24,6 +24,7 @@ import org.slf4j.LoggerFactory;
 import rx.Observable;
 
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Arrays;
 
 import static io.reactivex.netty.protocol.http.client.HttpRedirectException.Reason.InvalidRedirect;
@@ -77,7 +78,13 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
     @Override
     public boolean requiresRedirect(RedirectionContext context, HttpClientResponse<O> response) {
         int statusCode = response.getStatus().code();
-        return Arrays.binarySearch(REDIRECTABLE_STATUS_CODES, statusCode) >= 0;
+        // This class only supports relative redirects as an HttpClient is always tied to a host:port combo and hence
+        // can not do an absolute redirect.
+        if (Arrays.binarySearch(REDIRECTABLE_STATUS_CODES, statusCode) >= 0) {
+            String location = extractRedirectLocation(response);
+            return !location.startsWith("http"); // Only process relative URIs: Issue https://github.com/ReactiveX/RxNetty/issues/270
+        }
+        return false;
     }
 
     @Override
@@ -107,8 +114,6 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
                                                              + location, e);
         }
 
-        validateUri(location, redirectUri);
-
         context.setNextRedirect(redirectUri);
     }
 
@@ -116,24 +121,10 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
         return redirectedResponse.getHeaders().get(HttpHeaders.Names.LOCATION);
     }
 
-    protected void validateUri(String location, URI redirectUri) {
-        if (!redirectUri.isAbsolute()) {
-            // Redirect URI must be absolute
-            throw new HttpRedirectException(InvalidRedirect,
-                                            String.format("Redirect URI %s must be absolute", location));
-        }
-
-        String host = redirectUri.getHost();
-        if (host == null) {
-            throw new HttpRedirectException(InvalidRedirect,
-                                            String.format("Location header %s does not contain a host name", location));
-        }
-    }
-
     protected HttpClientRequest<I> createRedirectRequest(HttpClientRequest<I> original, URI redirectLocation,
                                                          int redirectStatus) {
         HttpRequest nettyRequest = original.getNettyRequest();
-        nettyRequest.setUri(getNettyRequestUri(redirectLocation));
+        nettyRequest.setUri(getNettyRequestUri(redirectLocation, original.getUri(), redirectStatus));
 
         HttpClientRequest<I> newRequest = new HttpClientRequest<I>(nettyRequest, original);
 
@@ -146,7 +137,7 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
         return newRequest;
     }
 
-    private static String getNettyRequestUri(URI uri) {
+    protected static String getNettyRequestUri(URI uri, String originalUriString, int redirectStatus) {
         StringBuilder sb = new StringBuilder();
         if (uri.getRawPath() != null) {
             sb.append(uri.getRawPath());
@@ -156,6 +147,20 @@ public class DefaultRedirectHandler<I, O> implements RedirectOperator.RedirectHa
         }
         if (uri.getRawFragment() != null) {
             sb.append('#').append(uri.getRawFragment());
+        } else if(redirectStatus >= 300) {
+            // http://tools.ietf.org/html/rfc7231#section-7.1.2 suggests that the URI fragment should be carried over to
+            // the redirect location if not exists in the redirect location.
+            // Issue: https://github.com/ReactiveX/RxNetty/issues/271
+            try {
+                URI originalUri = new URI(originalUriString);
+                if (originalUri.getRawFragment() != null) {
+                    sb.append('#').append(originalUri.getRawFragment());
+                }
+            } catch (URISyntaxException e) {
+                logger.warn("Error parsing original request URI during redirect. " +
+                            "This means that the path fragment if any in the original request will not be inherited " +
+                            "by the redirect.", e);
+            }
         }
         return sb.toString();
     }

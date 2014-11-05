@@ -38,6 +38,13 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
     private static final char[] DATA_FIELD_NAME = "data".toCharArray();
     private static final char[] ID_FIELD_NAME = "id".toCharArray();
 
+    protected static final ByteBufProcessor SKIP_TILL_LINE_DELIMITER_PROCESSOR = new ByteBufProcessor() {
+        @Override
+        public boolean process(byte value) throws Exception {
+            return !isLineDelimiter((char) value);
+        }
+    };
+
     protected static final ByteBufProcessor SKIP_LINE_DELIMITERS_AND_SPACES_PROCESSOR = new ByteBufProcessor() {
         @Override
         public boolean process(byte value) throws Exception {
@@ -78,11 +85,10 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
         }
     }
 
-    private final int maxFieldNameLength;
-
     private enum State {
         SkipColonAndWhiteSpaces,// Skip colon and all whitespaces after reading field name.
         SkipLineDelimitersAndSpaces,// Skip all line delimiters after field value end.
+        DiscardTillEOL,// On recieving an illegal/unidentified field, ignore everything till EOL.
         ReadFieldName, // Read till a colon to get the name of the field.
         ReadFieldValue // Read value till the line delimiter.
     }
@@ -104,14 +110,6 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
 
     private State state = State.ReadFieldName;
 
-    public ServerSentEventDecoder() {
-        this(DEFAULT_MAX_FIELD_LENGTH);
-    }
-
-    public ServerSentEventDecoder(int maxFieldNameLength) {
-        this.maxFieldNameLength = maxFieldNameLength;
-    }
-
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
 
@@ -125,34 +123,30 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
 
             switch (state) {
                 case SkipColonAndWhiteSpaces:
-                    skipColonAndWhiteSapaces(in);
-                    state = State.ReadFieldValue;
+                    if (skipColonAndWhiteSpaces(in)) {
+                        state = State.ReadFieldValue;
+                    }
                     break;
                 case SkipLineDelimitersAndSpaces:
-                    skipLineDelimiters(in);
-                    state = State.ReadFieldName;
+                    if (skipLineDelimiters(in)) {
+                        state = State.ReadFieldName;
+                    }
+                    break;
+                case DiscardTillEOL:
+                    if(skipTillEOL(in)) {
+                        state = State.SkipLineDelimitersAndSpaces;
+                    }
                     break;
                 case ReadFieldName:
                     final int indexOfColon = scanAndFindColon(in);
 
                     if (-1 == indexOfColon) { // No colon found
-                        int bytesReceivedTillNow = null != incompleteData ? incompleteData.readableBytes() :
-                                                   in.readableBytes() - readerIndexAtStart;
-                        if (bytesReceivedTillNow > maxFieldNameLength) { // Reject as max field name length reached.
-                            if (null != incompleteData) {
-                                incompleteData.release();
-                                incompleteData = null;
-                            }
-                            throw new TooLongFieldNameException(
-                                    "Too long field name for a server sent event. Field name length received till now: "
-                                    + bytesReceivedTillNow);
-                        } else { // Accumulate data into the field name buffer.
-                            if (null == incompleteData) {
-                                incompleteData = ctx.alloc().buffer(maxFieldNameLength, maxFieldNameLength);
-                            }
-                            // accumulate into incomplete data buffer to be used when the full data arrives.
-                            incompleteData.writeBytes(in);
+                        // Accumulate data into the field name buffer.
+                        if (null == incompleteData) {
+                            incompleteData = ctx.alloc().buffer();
                         }
+                        // accumulate into incomplete data buffer to be used when the full data arrives.
+                        incompleteData.writeBytes(in);
                     } else {
                         int fieldNameLengthInTheCurrentBuffer = indexOfColon - readerIndexAtStart;
 
@@ -165,7 +159,7 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
                         } else {
                             // Consume the data from the input buffer.
                             fieldNameBuffer = ctx.alloc().buffer(fieldNameLengthInTheCurrentBuffer,
-                                                                    fieldNameLengthInTheCurrentBuffer);
+                                                                 fieldNameLengthInTheCurrentBuffer);
                             in.readBytes(fieldNameBuffer, fieldNameLengthInTheCurrentBuffer);
                         }
 
@@ -173,6 +167,9 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
                         try {
                             currentFieldType = readCurrentFieldTypeFromBuffer(fieldNameBuffer);
                         } finally {
+                            if (null == currentFieldType) {
+                                state = State.DiscardTillEOL; // Ignore this event completely.
+                            }
                             fieldNameBuffer.release();
                         }
                     }
@@ -276,8 +273,7 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
                         toReturn = ServerSentEvent.Type.Id;
                         break;
                     default:
-                        throw new IllegalArgumentException("Illegal Server Sent event field name: "
-                                                           + fieldNameBuffer.toString(sseEncodingCharset));
+                        return null;
                 }
             } else {
                 if (++actualFieldNameIndexToCheck >= fieldNameToVerify.length || charAtI != fieldNameToVerify[actualFieldNameIndexToCheck]) {
@@ -294,8 +290,7 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
         if (verified) {
             return toReturn;
         } else {
-            throw new IllegalArgumentException("Illegal Server Sent event field name: "
-                                               + fieldNameBuffer.toString(sseEncodingCharset));
+            return null;
         }
     }
 
@@ -321,21 +316,27 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
         return byteBuf.forEachByte(SCAN_EOL_PROCESSOR);
     }
 
-    protected static void skipLineDelimiters(ByteBuf byteBuf) {
-        skipTillMatching(byteBuf, SKIP_LINE_DELIMITERS_AND_SPACES_PROCESSOR);
+    protected static boolean skipLineDelimiters(ByteBuf byteBuf) {
+        return skipTillMatching(byteBuf, SKIP_LINE_DELIMITERS_AND_SPACES_PROCESSOR);
     }
 
-    protected static void skipColonAndWhiteSapaces(ByteBuf byteBuf) {
-        skipTillMatching(byteBuf, SKIP_COLON_AND_WHITE_SPACE_PROCESSOR);
+    protected static boolean skipColonAndWhiteSpaces(ByteBuf byteBuf) {
+        return skipTillMatching(byteBuf, SKIP_COLON_AND_WHITE_SPACE_PROCESSOR);
     }
 
-    protected static void skipTillMatching(ByteBuf byteBuf, ByteBufProcessor processor) {
-        int lastIndexProcessed = byteBuf.forEachByte(processor);
+    private static boolean skipTillEOL(ByteBuf in) {
+        return skipTillMatching(in, SKIP_TILL_LINE_DELIMITER_PROCESSOR);
+    }
+
+    protected static boolean skipTillMatching(ByteBuf byteBuf, ByteBufProcessor processor) {
+        final int lastIndexProcessed = byteBuf.forEachByte(processor);
         if (-1 == lastIndexProcessed) {
             byteBuf.readerIndex(byteBuf.readerIndex() + byteBuf.readableBytes()); // If all the remaining bytes are to be ignored, discard the buffer.
         } else {
             byteBuf.readerIndex(lastIndexProcessed);
         }
+
+        return -1 != lastIndexProcessed;
     }
 
     protected static boolean isLineDelimiter(char c) {

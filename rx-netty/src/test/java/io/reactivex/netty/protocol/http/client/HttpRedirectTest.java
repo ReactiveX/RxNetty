@@ -26,6 +26,7 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rx.Observable;
+import rx.functions.Action0;
 import rx.functions.Func1;
 
 import java.nio.charset.Charset;
@@ -33,6 +34,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 /**
  * @author Nitesh Kant
@@ -65,7 +68,7 @@ public class HttpRedirectTest {
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config).enableWireLogging(LogLevel.ERROR)
                 .build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirectLimited?redirectsRequested=6&port=" + port));
+        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirectLimited?redirectsRequested=6"));
         assertEquals("Hello world", content);
     }
 
@@ -77,8 +80,39 @@ public class HttpRedirectTest {
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config).enableWireLogging(LogLevel.ERROR)
                 .build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirectLoop?redirectsRequested=6&port=" + port));
+        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirectLoop?redirectsRequested=6"));
         assertEquals("Hello world", content);
+    }
+
+    @Test
+    public void testAbsoluteRedirect() throws Throwable {
+        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
+        HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
+                                                    .build();
+        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
+                .config(config).enableWireLogging(LogLevel.ERROR)
+                .build();
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("test/redirectAbsolute");
+        HttpClientResponse<ByteBuf> response = client.submit(request)
+                                                      .map(new Func1<HttpClientResponse<ByteBuf>, HttpClientResponse<ByteBuf>>() {
+                                                          @Override
+                                                          public HttpClientResponse<ByteBuf> call(
+                                                                  HttpClientResponse<ByteBuf> response) {
+                                                              response.ignoreContent();
+                                                              return response;
+                                                          }
+                                                      })
+                                                      .doOnCompleted(new Action0() {
+                                                          @Override
+                                                          public void call() {
+                                                              System.out.println("HttpRedirectTest.call");
+                                                          }
+                                                      })
+                                                      .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
+        assertEquals("Unexpected response code.", HttpResponseStatus.MOVED_PERMANENTLY, response.getStatus());
+        String locationHeader = response.getHeaders().get("Location");
+        assertNotNull("Location header not found.", locationHeader);
+        assertTrue("Location was not absolute.", locationHeader.startsWith("http"));
     }
 
     @Test
@@ -89,7 +123,7 @@ public class HttpRedirectTest {
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config).enableWireLogging(LogLevel.ERROR)
                 .build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirect?port=" + port));
+        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirect"));
         assertEquals("Hello world", content);
     }
 
@@ -100,14 +134,14 @@ public class HttpRedirectTest {
                                                     .build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config).enableWireLogging(LogLevel.ERROR).withMaxConnections(10).build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirect?port=" + port));
+        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirect"));
         assertEquals("Hello world", content);
     }
 
     @Test
     public void testNoRedirect() {
         HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null).setFollowRedirect(false);
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("test/redirect?port=" + port);
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("test/redirect");
         HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
                                                     .build();
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
@@ -122,7 +156,7 @@ public class HttpRedirectTest {
     public void testRedirectPost() throws Throwable {
         HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
         HttpClient.HttpClientConfig config = builder.setFollowRedirect(true).build();
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost?port=" + port)
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost")
                                                               .withContent("Hello world");
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config)
@@ -135,7 +169,7 @@ public class HttpRedirectTest {
     public void testNoRedirectPost() {
         HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
         HttpClient.HttpClientConfig config = builder.build();
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost?port=" + port)
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost")
                                                               .withContent("Hello world");
         HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
                 .config(config)

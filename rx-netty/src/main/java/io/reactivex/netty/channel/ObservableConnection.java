@@ -27,6 +27,8 @@ import io.reactivex.netty.util.NoOpSubscriber;
 import rx.Observable;
 import rx.Subscriber;
 import rx.subjects.PublishSubject;
+import rx.subjects.SerializedSubject;
+import rx.subjects.Subject;
 
 /**
  * An observable connection for connection oriented protocols.
@@ -36,7 +38,7 @@ import rx.subjects.PublishSubject;
  */
 public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
-    private PublishSubject<I> inputSubject;
+    private Subject<I, I> inputSubject;
     @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
     private final ChannelMetricEventProvider metricEventProvider;
     /* Guarded by closeIssued so that its only updated once*/ protected volatile long closeStartTimeMillis = -1;
@@ -46,7 +48,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         super(channel, eventsSubject, metricEventProvider);
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
-        inputSubject = PublishSubject.create();
+        inputSubject = new SerializedSubject<I, I>(PublishSubject.<I>create());
     }
 
     public Observable<I> getInput() {
@@ -94,7 +96,7 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
 
     @Override
     protected Observable<Void> _close(boolean flush) {
-        final PublishSubject<I> thisSubject = inputSubject;
+        final Subject<I, I> thisSubject = inputSubject;
         ReadTimeoutPipelineConfigurator.disableReadTimeout(getChannel().pipeline());
         if (flush) {
             Observable<Void> toReturn = flush().lift(new Observable.Operator<Void, Void>() {
@@ -179,8 +181,8 @@ public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
         });
     }
 
-    protected void updateInputSubject(PublishSubject<I> newSubject) {
-        inputSubject = newSubject;
+    protected void updateInputSubject(Subject<I, I> newSubject) {
+        inputSubject = new SerializedSubject<I, I>(newSubject);
     }
 
 }

@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.server;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.Observable;
 
 /**
@@ -22,10 +24,11 @@ import rx.Observable;
 */
 class DefaultErrorHandler implements ErrorHandler {
 
+    private static final Logger logger = LoggerFactory.getLogger(DefaultErrorHandler.class);
+
     @Override
     public Observable<Void> handleError(Throwable throwable) {
-        System.err.println("Unexpected error in RxNetty. Error: " + throwable.getMessage());
-        throwable.printStackTrace(System.err);
+        logger.error("Unexpected error in RxNetty.", throwable);
         return Observable.error(throwable); // If we do not return an error observable then the error is swallowed.
     }
 }
