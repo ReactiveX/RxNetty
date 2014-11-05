@@ -14,7 +14,7 @@
 
 * [Issue 270] (https://github.com/Netflix/RxNetty/issues/270) HttpClient should only do relative redirects.
 
-Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.16%22)
+Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22%20AND%20v%3A%220.3.18%22)
 
 ### Version 0.3.17 ###
 
