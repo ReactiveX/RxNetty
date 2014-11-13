@@ -7,12 +7,12 @@ Reactive Extension (Rx) Adaptor for Netty
 Getting Started
 ==========
 
-The best place to start exploring this library is to look at the class [RxNetty] (rx-netty/src/main/java/io/reactivex/netty/RxNetty.java)
+The best place to start exploring this library is to look at the class [RxNetty] (rxnetty/src/main/java/io/reactivex/netty/RxNetty.java)
 
 You can also find some common examples of clients and servers created using RxNetty in the [examples directory] (rx-netty-examples)
 
-A very simple HTTP server example can be found [here] (rx-netty-examples/src/main/java/io/reactivex/netty/examples/http/helloworld/HelloWorldServer.java)
-and the corresponding HTTP client is [here] (rx-netty-examples/src/test/java/io/reactivex/netty/examples/http/helloworld/HelloWorldTest.java)
+A very simple HTTP server example can be found [here] (rxnetty-examples/src/main/java/io/reactivex/netty/examples/http/helloworld/HelloWorldServer.java)
+and the corresponding HTTP client is [here] (rxnetty-examples/src/test/java/io/reactivex/netty/examples/http/helloworld/HelloWorldTest.java)
 
 
 Example
