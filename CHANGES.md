@@ -1,5 +1,13 @@
 # RxNetty Releases #
 
+### Version 0.4.0 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.0+is%3Aclosed)
+
+* [Pull 275] (https://github.com/ReactiveX/RxNetty/pull/275) Changing package and artifact org from netflix.rxjava -> io.reactivex.  
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.0%7C)
+
 ### Version 0.3.18 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.3.18+is%3Aclosed)
