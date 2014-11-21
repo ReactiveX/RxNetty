@@ -13,7 +13,7 @@ configure(subprojects) {
   apply plugin: 'rxjava-project'
 
   dependencies {
-    compile "io.reactivex:rxjava:$rxJavaVersion"
+    compile "io.reactivex:rxjava:1.0.0"
 
     testCompile 'junit:junit-dep:4.10'
   }
