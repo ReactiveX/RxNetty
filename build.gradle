@@ -5,4 +5,16 @@ buildscript {
 
 description = 'RxNetty: Reactive Extensions for Netty'
 
+
 apply plugin: 'rxjava-project'
+bintrayUpload.enabled = false
+
+configure(subprojects) {
+  apply plugin: 'rxjava-project'
+
+  dependencies {
+    compile "io.reactivex:rxjava:$rxJavaVersion"
+
+    testCompile 'junit:junit-dep:4.10'
+  }
+}
