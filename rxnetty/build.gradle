@@ -33,7 +33,6 @@ targetCompatibility = JavaVersion.VERSION_1_6
 dependencies {
     compile "io.netty:netty-codec-http:${netty_version}"
     compile "io.netty:netty-transport-native-epoll:${netty_version}"
-    compile "io.reactivex:rxjava:${rxjava_version}"
     compile "org.slf4j:slf4j-api:${slf4j_version}"
 
     testCompile 'junit:junit:4.10'
