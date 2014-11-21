@@ -85,26 +85,26 @@ Client => Path Requested =>: /data
 
 ## Binaries
 
-Binaries and dependency information for Maven, Ivy, Gradle and others can be found at [http://search.maven.org](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com.netflix.rxnetty%22).
+Binaries and dependency information for Maven, Ivy, Gradle and others can be found at [http://search.maven.org](http://search.maven.org/#search|ga|1|io.reactivex.rxnetty).
 
 Example for Maven:
 
 ```xml
-<dependency>
-    <groupId>com.netflix.rxnetty</groupId>
-    <artifactId>rx-netty</artifactId>
+dependency>
+    <groupId>io.reactivex</groupId>
+    <artifactId>rxnetty</artifactId>
     <version>x.y.z</version>
 </dependency>
 ```
 and for Ivy:
 
 ```xml
-<dependency org="com.netflix.rxnetty" name="rx-netty" rev="x.y.z" />
+<dependency org="io.reactivex" name="rxnetty" rev="x.y.z" />
 ```
 and for Gradle:
 
 ```groovy
-compile 'com.netflix.rxnetty:rx-netty:x.y.z'
+compile 'io.reactivex:rxnetty:x.y.z'
 ```
 
 ## Build
@@ -122,10 +122,10 @@ $ ./gradlew build
 
 For bugs, questions and discussions please use the [Github Issues](https://github.com/ReactiveX/RxNetty/issues).
 
- 
+
 ## LICENSE
 
-Copyright 2013 Netflix, Inc.
+Copyright 2014 Netflix, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
