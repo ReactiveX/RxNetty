@@ -111,7 +111,7 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
         EpollEventLoopGroup eventLoopGroup = nativeParentEventLoop.get();
         if (null == eventLoopGroup) {
             EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(parentEventLoopCount,
-                                                                            new RxDefaultThreadFactory("rx-netty-epoll-eventloop"));
+                                                                            new RxDefaultThreadFactory("rxnetty-epoll-eventloop"));
             if (!nativeParentEventLoop.compareAndSet(null, newEventLoopGroup)) {
                 newEventLoopGroup.shutdownGracefully();
             }
@@ -123,7 +123,7 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
         EpollEventLoopGroup eventLoopGroup = nativeEventLoop.get();
         if (null == eventLoopGroup) {
             EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(childEventLoopCount,
-                                                                            new RxDefaultThreadFactory("rx-netty-epoll-eventloop"));
+                                                                            new RxDefaultThreadFactory("rxnetty-epoll-eventloop"));
             if (!nativeEventLoop.compareAndSet(null, newEventLoopGroup)) {
                 newEventLoopGroup.shutdownGracefully();
             }
@@ -136,11 +136,11 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
         private final AtomicInteger refCount = new AtomicInteger();
 
         public SharedNioEventLoopGroup() {
-            super(0, new RxDefaultThreadFactory("rx-netty-nio-eventloop"));
+            super(0, new RxDefaultThreadFactory("rxnetty-nio-eventloop"));
         }
 
         public SharedNioEventLoopGroup(int threadCount) {
-            super(threadCount, new RxDefaultThreadFactory("rx-netty-nio-eventloop"));
+            super(threadCount, new RxDefaultThreadFactory("rxnetty-nio-eventloop"));
         }
 
         @Override

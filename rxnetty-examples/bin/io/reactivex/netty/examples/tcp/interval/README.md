@@ -30,13 +30,13 @@ Running
 To run the example execute:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runTcpIntervalServer -Pinterval=<sending_interval_in_ms>
 ```
 
 and in another console:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runTcpIntervalClient -P<events=no_of_events>
 ```

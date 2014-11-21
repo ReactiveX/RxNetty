@@ -10,14 +10,14 @@ Running
 To run the example execute:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runSimplePostServer
 ```
 
 and in another console:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runSimplePostClient
 ```
 

@@ -15,13 +15,13 @@ Running
 To run the example execute:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runTcpEventStreamServer
 ```
 
 and in another console:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runTcpEventStreamClient -Pdelay=<delay_in_ms> -Pevents=<no_of_events>
 ```

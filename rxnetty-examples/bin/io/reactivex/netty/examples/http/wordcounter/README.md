@@ -12,14 +12,14 @@ Running
 To run the example execute:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runWordCounterServer 
 ```
 
 and in another console:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runWordCounterClient -PtextFile=<some_text_file>
 ```
 

@@ -182,7 +182,7 @@ Artifacts: [Maven Central](http://search.maven.org/#search%7Cga%7C1%7Cg%3A%22com
 
 [Milestone](https://github.com/Netflix/RxNetty/issues?milestone=4&state=closed)
 
-* [Issue 98] (https://github.com/Netflix/RxNetty/issues/98) Added pluggable metrics infrastructure with rx-netty-servo implementation.
+* [Issue 98] (https://github.com/Netflix/RxNetty/issues/98) Added pluggable metrics infrastructure with rxnetty-servo implementation.
 * [Issue 106] (https://github.com/Netflix/RxNetty/issues/106) Added TLS support for TCP & HTTP (HTTPS)
 * [Issue 115] (https://github.com/Netflix/RxNetty/issues/115) ByteBuf leak fixed for both HTTP client and server.
 * [Issue 141] (https://github.com/Netflix/RxNetty/issues/141) ServerSentEventEncoder modified to match the specifications and the decoder.

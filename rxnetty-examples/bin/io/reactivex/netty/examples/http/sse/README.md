@@ -13,14 +13,14 @@ Running
 To run the example execute:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runSseServer
 ```
 
 and in another console:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runSseClient
 ```
 

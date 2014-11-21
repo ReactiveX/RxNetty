@@ -27,7 +27,7 @@ import io.reactivex.netty.servo.ServoEventsListenerFactory;
 public class ExamplesEnvironment {
 
     static {
-        RxNetty.useMetricListenersFactory(new ServoEventsListenerFactory("rx-netty-examples-client",
-                                                                         "rx-netty-examples-server"));
+        RxNetty.useMetricListenersFactory(new ServoEventsListenerFactory("rxnetty-examples-client",
+                                                                         "rxnetty-examples-server"));
     }
 }
