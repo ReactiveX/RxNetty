@@ -9,7 +9,7 @@ Getting Started
 
 The best place to start exploring this library is to look at the class [RxNetty] (rxnetty/src/main/java/io/reactivex/netty/RxNetty.java)
 
-You can also find some common examples of clients and servers created using RxNetty in the [examples directory] (rx-netty-examples)
+You can also find some common examples of clients and servers created using RxNetty in the [examples directory] (rxnetty-examples)
 
 A very simple HTTP server example can be found [here] (rxnetty-examples/src/main/java/io/reactivex/netty/examples/http/helloworld/HelloWorldServer.java)
 and the corresponding HTTP client is [here] (rxnetty-examples/src/test/java/io/reactivex/netty/examples/http/helloworld/HelloWorldTest.java)
