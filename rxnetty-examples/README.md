@@ -32,7 +32,7 @@ Build
 To build:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew build
 ```
 

@@ -12,7 +12,7 @@ Running
 You can run multiple log producers, but they have to have consecutive port numbers:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runLogTailProducer -Pport=<N> -Pinterval=<interval_in_ms> > logProducer1.log &
 $ ../gradlew runLogTailProducer -Pport=<N+1> -Pinterval=<interval_in_ms> > logProducer2.log &
 ...
@@ -22,13 +22,13 @@ $ ../gradlew runLogTailProducer -Pport=<N+M> -Pinterval=<interval_in_ms> > logPr
 next log aggregator has to be started:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runLogTailAggregator -PportFrom=<N> -PportTo=<N+M-1>
 ```
 
 and the last one is the client:
 
 ```
-$ cd RxNetty/rx-netty-examples
+$ cd RxNetty/rxnetty-examples
 $ ../gradlew runLogTailClient
 ```
