@@ -99,10 +99,17 @@ public class ServerSentEventEndToEndTest {
         Assert.assertEquals("Unexpected event data.", "0", result.contentAsString());
         Assert.assertNull("Unexpected event type.", result.getEventType());
         Assert.assertNull("Unexpected event id.", result.getEventId());
+        result.release();
     }
 
     protected ServerSentEvent receivesSingleEvent() {
-        return receiveSse().take(1).toBlocking().singleOrDefault(null);
+        return receiveSse().take(1).map(new Func1<ServerSentEvent, ServerSentEvent>() {
+            @Override
+            public ServerSentEvent call(ServerSentEvent serverSentEvent) {
+                serverSentEvent.retain();
+                return serverSentEvent;
+            }
+        }).toBlocking().singleOrDefault(null);
     }
 
     private Observable<ServerSentEvent> receiveSse() {

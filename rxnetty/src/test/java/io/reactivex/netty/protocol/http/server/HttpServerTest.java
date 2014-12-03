@@ -91,8 +91,7 @@ public class HttpServerTest {
                                      @Override
                                      public Observable<Void> call(Long aLong) {
                                          serverResponse.setStatus(HttpResponseStatus.NOT_FOUND);
-                                         return serverResponse.close(
-                                                 true); // Processing in a separate thread needs a flush.
+                                         return serverResponse.close(false);
                                      }
                                  });
             }
@@ -122,7 +121,7 @@ public class HttpServerTest {
                                   @Override
                                   public Observable<Void> call(HttpClientResponse<ByteBuf> response) {
                                       serverResponse.setStatus(response.getStatus());
-                                      return serverResponse.close(true); // Processing in a separate thread needs a flush.
+                                      return serverResponse.close();
                                   }
                               });
             }
@@ -139,5 +138,28 @@ public class HttpServerTest {
                                                       }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
         Assert.assertTrue("The returned observable did not finish.", finishLatch.await(10, TimeUnit.SECONDS));
         Assert.assertEquals("Request failed.", response.getStatus(), HttpResponseStatus.OK);
+    }
+
+    @Test
+    public void testFlushOnlyOnReadComplete() throws Exception {
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
+            @Override
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
+                response.flushOnlyOnChannelReadComplete(true);
+                response.setStatus(HttpResponseStatus.NOT_FOUND);
+                return Observable.empty();
+            }
+        }).enableWireLogging(LogLevel.ERROR).build().start();
+        final CountDownLatch finishLatch = new CountDownLatch(1);
+        HttpClientResponse<ByteBuf> response = RxNetty.createHttpClient("localhost", server.getServerPort())
+                                                      .submit(HttpClientRequest.createGet("/"))
+                                                      .finallyDo(new Action0() {
+                                                          @Override
+                                                          public void call() {
+                                                              finishLatch.countDown();
+                                                          }
+                                                      }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
+        Assert.assertTrue("The returned observable did not finish.", finishLatch.await(1, TimeUnit.MINUTES));
+        Assert.assertEquals("Request failed.", response.getStatus(), HttpResponseStatus.NOT_FOUND);
     }
 }
