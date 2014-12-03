@@ -20,6 +20,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -52,6 +53,7 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     private final AtomicBoolean headerWritten = new AtomicBoolean();
     private volatile boolean fullResponseWritten;
     private ChannelFuture headerWriteFuture;
+    private volatile boolean flushOnlyOnReadComplete;
 
     protected HttpServerResponse(Channel nettyChannel,
                                  MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
@@ -121,6 +123,25 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
     public void writeChunkedInput(HttpChunkedInput httpChunkedInput) {
         writeOnChannel(httpChunkedInput);
+    }
+
+    /**
+     * Flush semantics of a response are as follows:
+     * <ul>
+        <li>Flush immediately if {@link HttpServerResponse#flush()} is called.</li>
+        <li>Flush at the completion of {@link Observable} returned by
+     {@link RequestHandler#handle(HttpServerRequest, HttpServerResponse)} if and only if
+     {@link #flushOnlyOnChannelReadComplete(boolean)} is set to false (default is false).</li>
+        <li>Flush when {@link ChannelHandlerContext#fireChannelReadComplete()} event is fired by netty. This is done
+     unconditionally and is a no-op if there is nothing to flush.</li>
+     </ul>
+     */
+    public void flushOnlyOnChannelReadComplete(boolean flushOnlyOnReadComplete) {
+        this.flushOnlyOnReadComplete = flushOnlyOnReadComplete;
+    }
+
+    public boolean isFlushOnlyOnReadComplete() {
+        return flushOnlyOnReadComplete;
     }
 
     HttpResponse getNettyResponse() {

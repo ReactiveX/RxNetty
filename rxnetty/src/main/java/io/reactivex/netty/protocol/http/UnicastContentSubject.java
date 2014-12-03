@@ -333,6 +333,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
         // this assumes single threaded synchronous notifications (the Rx contract for a single Observer)
         private final ByteBufAwareBuffer<T> buffer; // Same buffer instance from the original BufferedObserver.
         private final State<T> state;
+        private volatile boolean draining; // Since all Observers in this Subject are serialized, this does not need a CAS operation.
 
         PassThruObserver(Observer<? super T> actual, State<T> state) {
             this.actual = actual;
@@ -359,6 +360,17 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
         }
 
         private void drainIfNeededAndSwitchToActual() {
+
+            /**
+             * Since, all Observers are serialized in this Subject, this does not use a CAS but a simple volatile boolean.
+             * Typically, the notifications would be from a single thread, so this would normally just ensure not draining
+             * on every re-entrant call. (Issue: https://github.com/ReactiveX/RxNetty/issues/277)
+             */
+            if (draining) {
+                return;
+            }
+
+            draining = true;
             buffer.sendAllNotifications(this);
             // now we can safely change over to the actual and get rid of the pass-thru
             // but only if not unsubscribed
