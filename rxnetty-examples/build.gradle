@@ -1,5 +1,6 @@
 // examples are in Java 8 while rest of projects are Java 6
 sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
     compile project(':rxnetty')
