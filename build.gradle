@@ -22,7 +22,6 @@ description = 'RxNetty: Reactive Extensions for Netty'
 
 
 apply plugin: 'rxjava-project'
-bintrayUpload.enabled = false
 
 configure(subprojects) {
   apply plugin: 'rxjava-project'
