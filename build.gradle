@@ -22,13 +22,13 @@ description = 'RxNetty: Reactive Extensions for Netty'
 
 
 apply plugin: 'rxjava-project'
-bintrayUpload.enabled = false
 
 configure(subprojects) {
   apply plugin: 'rxjava-project'
+  apply plugin: 'java'
 
   dependencies {
-    compile "io.reactivex:rxjava:1.0.1"
+    compile "io.reactivex:rxjava:1.0.+"
 
     testCompile 'junit:junit-dep:4.10'
   }
