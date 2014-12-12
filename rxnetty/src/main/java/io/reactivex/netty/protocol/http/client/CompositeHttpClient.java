@@ -101,8 +101,12 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
 
     @Override
     public void shutdown() {
-        for (HttpClient<I, O> client : httpClients.values()) { // This map also contains the default client, so we don't need to shut the default explicitly.
-            client.shutdown();
+        super.shutdown();
+        for (HttpClient<I, O> client : httpClients.values()) {
+            // Constructor adds 'this' as the default client; special-case it to avoid stack overflow.
+            if (client != this) {
+                client.shutdown();
+            }
         }
     }
 
