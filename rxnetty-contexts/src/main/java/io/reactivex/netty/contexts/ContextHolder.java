@@ -16,11 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.BiDirectional;
-import com.netflix.server.context.ContextSerializationException;
-import com.netflix.server.context.ContextSerializer;
-import com.netflix.server.context.DirectionAwareContextSerializer;
-
 /**
  * A holder of an contexts containing augmenting information about the context.
  *

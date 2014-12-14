@@ -16,10 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.ContextSerializationException;
-import com.netflix.server.context.ContextSerializer;
-import com.netflix.server.context.DirectionAwareContextSerializer;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;

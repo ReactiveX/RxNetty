@@ -16,8 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.ContextSerializationException;
-import com.netflix.server.context.ContextSerializer;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;

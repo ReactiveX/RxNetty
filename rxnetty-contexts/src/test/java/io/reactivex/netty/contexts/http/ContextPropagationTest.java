@@ -16,7 +16,7 @@
 
 package io.reactivex.netty.contexts.http;
 
-import com.netflix.server.context.ContextSerializationException;
+import io.reactivex.netty.contexts.ContextSerializationException;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.logging.LogLevel;

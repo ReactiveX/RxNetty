@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.server.context;
+package io.reactivex.netty.contexts;
 
 /**
  * Merge contract for {@link BiDirectional} contexts.

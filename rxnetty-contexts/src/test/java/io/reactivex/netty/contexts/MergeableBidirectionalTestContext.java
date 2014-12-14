@@ -16,9 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.BiDirectional;
-import com.netflix.server.context.MergeableContext;
-
 import java.util.ArrayList;
 import java.util.List;
 

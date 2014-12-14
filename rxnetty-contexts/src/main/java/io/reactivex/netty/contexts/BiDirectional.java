@@ -14,10 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.server.context;
-
-import io.reactivex.netty.contexts.ContextKeySupplier;
-import io.reactivex.netty.contexts.ContextsContainer;
+package io.reactivex.netty.contexts;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

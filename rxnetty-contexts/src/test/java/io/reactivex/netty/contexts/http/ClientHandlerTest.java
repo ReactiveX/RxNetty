@@ -15,7 +15,7 @@
  */
 package io.reactivex.netty.contexts.http;
 
-import com.netflix.server.context.ContextSerializationException;
+import io.reactivex.netty.contexts.ContextSerializationException;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;

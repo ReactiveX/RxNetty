@@ -16,9 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.ContextSerializationException;
-import com.netflix.server.context.DirectionAwareSerializerAdapter;
-
 /**
  * @author Nitesh Kant (nkant@netflix.com)
  */

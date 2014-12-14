@@ -14,9 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.server.context;
-
-import io.reactivex.netty.contexts.ContextsContainer;
+package io.reactivex.netty.contexts;
 
 /**
  * A serializer for serialization/de-serialization any arbitrary context objects added to {@link ContextsContainer}. <p/>

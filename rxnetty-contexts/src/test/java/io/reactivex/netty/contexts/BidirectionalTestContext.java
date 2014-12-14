@@ -16,8 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.BiDirectional;
-
 /**
  * @author Nitesh Kant
  */

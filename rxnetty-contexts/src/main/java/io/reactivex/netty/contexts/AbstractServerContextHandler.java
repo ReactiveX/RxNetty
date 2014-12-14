@@ -15,7 +15,6 @@
  */
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.BiDirectional;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import org.slf4j.Logger;

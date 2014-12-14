@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.server.context;
+package io.reactivex.netty.contexts;
 
 /**
  * Exception thrown for any errors during serialization/de-serialization of contexts.

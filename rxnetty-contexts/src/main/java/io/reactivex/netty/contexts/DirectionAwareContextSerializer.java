@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.server.context;
+package io.reactivex.netty.contexts;
 
 /**
  * A replacement for {@link ContextSerializer} for {@link BiDirectional} contexts that requires information about the

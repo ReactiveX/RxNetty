@@ -16,9 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.ContextSerializationException;
-import com.netflix.server.context.DirectionAwareContextSerializer;
-
 /**
  * A dumb serializer that does nothing. Its existence is to follow the pattern that a context always has a serializer.
  *

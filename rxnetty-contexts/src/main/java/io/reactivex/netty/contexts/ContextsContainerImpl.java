@@ -16,10 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.ContextSerializationException;
-import com.netflix.server.context.ContextSerializer;
-import com.netflix.server.context.DirectionAwareContextSerializer;
-import com.netflix.server.context.MergeableContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

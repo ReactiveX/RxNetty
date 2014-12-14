@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.netflix.server.context;
+package io.reactivex.netty.contexts;
 
 /**
  * An implementation of {@link DirectionAwareContextSerializer} to provide consistent behavior for callers who are

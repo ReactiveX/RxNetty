@@ -16,10 +16,6 @@
 
 package io.reactivex.netty.contexts;
 
-import com.netflix.server.context.BiDirectional;
-import com.netflix.server.context.ContextSerializationException;
-import com.netflix.server.context.ContextSerializer;
-
 import java.util.Map;
 
 /**
