@@ -69,14 +69,14 @@ execution was successful or not.
 
 RxNetty is fully asynchronous framework, but sometimes it is convenient to make execution synchronous. It can be
 accomplished by converting an Observable to BlockingObservable using toBlocking operator, like in the code
-snippet above. There are multiple methods to get value from a BlockingObservable (first, last, etc). 
-In this particular case we have just one value (HttpResponseStatus). 
+snippet above. There are multiple methods to get value from a BlockingObservable (first, last, etc).
+In this particular case we have just one value (HttpResponseStatus).
 
 
 HTTP server
 ===========
 
-Here is the snippet from [HelloWordClient](HelloWorldServer.java):
+Here is the snippet from [HelloWordServer](HelloWorldServer.java):
 
 ```java
 public HttpServer<ByteBuf, ByteBuf> createServer() {
