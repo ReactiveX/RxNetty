@@ -90,7 +90,7 @@ Binaries and dependency information for Maven, Ivy, Gradle and others can be fou
 Example for Maven:
 
 ```xml
-dependency>
+<dependency>
     <groupId>io.reactivex</groupId>
     <artifactId>rxnetty</artifactId>
     <version>x.y.z</version>
