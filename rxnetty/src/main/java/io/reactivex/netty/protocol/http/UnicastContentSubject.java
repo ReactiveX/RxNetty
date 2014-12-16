@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -144,16 +144,14 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
      */
     public boolean disposeIfNotSubscribed() {
         if (state.casState(State.STATES.UNSUBSCRIBED, State.STATES.DISPOSED)) {
-            Subscriber<T> noOpSub = new PassThruObserver<T>(Subscribers.empty(), state); // Any buffering post buffer draining must not be lying in the buffer
+            Subscriber<T> noOpSub = Subscribers.empty();
 
-            state.buffer.sendAllNotifications(noOpSub); // It is important to empty the buffer before setting the observer.
-                                                        // If not done, there can be two threads draining the buffer
-                                                        // (PassThroughObserver on any notification) and this thread.
-
+            state.buffer.sendAllNotifications(noOpSub);
             state.setObserverRef(noOpSub); // All future notifications are not sent anywhere.
             if (null != state.onUnsubscribe) {
                 state.onUnsubscribe.call(); // Since this is an inline/sync call, if this throws an error, it gets thrown to the caller.
             }
+            state.buffer.sendAllNotifications(state.observerRef);
             return true;
         }
         return false;
@@ -191,7 +189,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
         /** Following Observers are associated with the states:
          * UNSUBSCRIBED => {@link BufferedObserver}
-         * SUBSCRIBED => {@link PassThruObserver}
+         * SUBSCRIBED => actual observer
          * DISPOSED => {@link Subscribers#empty()}
          */
         private volatile Observer<? super T> observerRef = new BufferedObserver();
@@ -272,12 +270,9 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
             if (state.casState(State.STATES.UNSUBSCRIBED, State.STATES.SUBSCRIBED)) {
 
                 // drain queued notifications before subscription
-                // we do this here before PassThruObserver so the consuming thread can do this before putting itself in
-                // the line of the producer
                 state.buffer.sendAllNotifications(subscriber);
 
-                // register real observer for pass-thru ... and drain any further events received on first notification
-                state.setObserverRef(new PassThruObserver<T>(subscriber, state));
+                state.setObserverRef(subscriber);
                 subscriber.add(Subscriptions.create(new Action0() {
                     @Override
                     public void call() {
@@ -287,6 +282,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                         state.setObserverRef(Subscribers.empty());
                     }
                 }));
+                state.buffer.sendAllNotifications(state.observerRef);
             } else if(State.STATES.SUBSCRIBED.ordinal() == state.state) {
                 subscriber.onError(new IllegalStateException("Content can only have one subscription. Use Observable.publish() if you want to multicast."));
             } else if(State.STATES.DISPOSED.ordinal() == state.state) {
@@ -319,65 +315,6 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
         }
     }
 
-    /**
-     * This is a temporary observer between buffering and the actual that gets into the line of notifications
-     * from the producer and will drain the queue of any items received during the race of the initial drain and
-     * switching this.
-     *
-     * It will then immediately swap itself out for the actual (after a single notification), but since this is
-     * now being done on the same producer thread no further buffering will occur.
-     */
-    private static final class PassThruObserver<T> extends Subscriber<T> {
-
-        private final Observer<? super T> actual;
-        // this assumes single threaded synchronous notifications (the Rx contract for a single Observer)
-        private final ByteBufAwareBuffer<T> buffer; // Same buffer instance from the original BufferedObserver.
-        private final State<T> state;
-        private volatile boolean draining; // Since all Observers in this Subject are serialized, this does not need a CAS operation.
-
-        PassThruObserver(Observer<? super T> actual, State<T> state) {
-            this.actual = actual;
-            buffer = state.buffer;
-            this.state = state;
-        }
-
-        @Override
-        public void onCompleted() {
-            drainIfNeededAndSwitchToActual();
-            actual.onCompleted();
-        }
-
-        @Override
-        public void onError(Throwable e) {
-            drainIfNeededAndSwitchToActual();
-            actual.onError(e);
-        }
-
-        @Override
-        public void onNext(T t) {
-            drainIfNeededAndSwitchToActual();
-            actual.onNext(t);
-        }
-
-        private void drainIfNeededAndSwitchToActual() {
-
-            /**
-             * Since, all Observers are serialized in this Subject, this does not use a CAS but a simple volatile boolean.
-             * Typically, the notifications would be from a single thread, so this would normally just ensure not draining
-             * on every re-entrant call. (Issue: https://github.com/ReactiveX/RxNetty/issues/277)
-             */
-            if (draining) {
-                return;
-            }
-
-            draining = true;
-            buffer.sendAllNotifications(this);
-            // now we can safely change over to the actual and get rid of the pass-thru
-            // but only if not unsubscribed
-            state.casObserverRef(this, actual);
-        }
-    }
-
     private static final class ByteBufAwareBuffer<T> {
 
         private final ConcurrentLinkedQueue<Object> actual = new ConcurrentLinkedQueue<Object>();
@@ -388,11 +325,11 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
             actual.add(toAdd);
         }
 
-        public void sendAllNotifications(Subscriber<? super T> subscriber) {
+        public void sendAllNotifications(Observer<? super T> observer) {
             Object notification; // Can be onComplete notification, onError notification or just the actual "T".
             while ((notification = actual.poll()) != null) {
                 try {
-                    nl.accept(subscriber, notification);
+                    nl.accept(observer, notification);
                 } finally {
                     ReferenceCountUtil.release(notification); // If it is the actual T for onNext and is a ByteBuf, it will be released.
                 }
