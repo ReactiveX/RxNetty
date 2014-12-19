@@ -27,29 +27,16 @@ HTTP client
 Here is the snippet from [HelloWordClient](HelloWorldClient.java):
 
 ```java
-public HttpResponseStatus sendHelloRequest() {
-    HttpResponseStatus statusCode = RxNetty.createHttpGet("http://localhost:" + port + "/hello")
-            .mergeMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
-                @Override
-                public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
-                    return response.getContent();
-                }
-            }, new Func2<HttpClientResponse<ByteBuf>, ByteBuf, HttpResponseStatus>() {
-                @Override
-                public HttpResponseStatus call(HttpClientResponse<ByteBuf> response, ByteBuf content) {
-                    printResponseHeader(response);
-                    System.out.println(content.toString(Charset.defaultCharset()));
-                    return response.getStatus();
-                }
+public String sendHelloRequest() throws InterruptedException, ExecutionException, TimeoutException {
+    return RxNetty.createHttpGet("http://localhost:" + port + "/hello")
+            .flatMap(response -> {
+                printResponseHeader(response);
+                return response.getContent().<String> map(content -> {
+                    return content.toString(Charset.defaultCharset());
+                });
             })
-            .doOnTerminate(new Action0() {
-                @Override
-                public void call() {
-                    System.out.println("=======================");
-                }
-            }).toBlocking().last();
-
-    return statusCode;
+            .toBlocking()
+            .toFuture().get(1, TimeUnit.MINUTES);
 }
 ```
 
@@ -69,8 +56,8 @@ execution was successful or not.
 
 RxNetty is fully asynchronous framework, but sometimes it is convenient to make execution synchronous. It can be
 accomplished by converting an Observable to BlockingObservable using toBlocking operator, like in the code
-snippet above. There are multiple methods to get value from a BlockingObservable (first, last, etc).
-In this particular case we have just one value (HttpResponseStatus).
+snippet above. There are multiple methods to get value from a BlockingObservable (first, last, etc). 
+In this particular case we have just one value (HttpResponseStatus). 
 
 
 HTTP server
@@ -80,23 +67,11 @@ Here is the snippet from [HelloWordServer](HelloWorldServer.java):
 
 ```java
 public HttpServer<ByteBuf, ByteBuf> createServer() {
-    HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(port, new RequestHandler<ByteBuf, ByteBuf>() {
-        @Override
-        public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-            printRequestHeader(request);
-            response.writeString("Welcome!!");
-            return response.close();
-        }
-    }).pipelineConfigurator(PipelineConfigurators.<ByteBuf, ByteBuf>httpServerConfigurator()).build();
-
-    System.out.println("HTTP hello world server started...");
-    return server;
+    return RxNetty.createHttpServer(port, (request, response) -> {
+        printRequestHeader(request);
+        return response.writeStringAndFlush("Hello World!");
+    });
 }
-```
-RxNetty.newHttpServerBuilder static method creates an instance of HttpServerBuilder object, that following the builder 
-pattern, allows for flexible HTTP server configuration. The request handler object is analogous to the its client
-side counter part, and does not require any additional explanation.
 
-The PipelineConfigurator is a wrapper for Netty channel pipeline. In this particular case, a predefined
-HTTP server pipeline is used which decodes/encodes HTTP request/response objects, and additionally performs
-request content aggregation.
+```
+

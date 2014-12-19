@@ -52,7 +52,7 @@ public class CpuIntensiveServerTest extends ExamplesEnvironment {
     @Test
     public void testRequestReplySequence() throws InterruptedException, ExecutionException, TimeoutException {
         HelloWorldClient client = new HelloWorldClient(DEFAULT_PORT); // The client is no different than hello world.
-        HttpResponseStatus statusCode = client.sendHelloRequest().getStatus();
-        Assert.assertEquals(HttpResponseStatus.OK, statusCode);
+        String response = client.sendHelloRequest();
+        Assert.assertEquals("Welcome!!", response);
     }
 }

@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.http.helloworld.HelloWorldClient;
 import io.reactivex.netty.protocol.http.server.HttpServer;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -52,7 +53,7 @@ public class PlainTextServerTest extends ExamplesEnvironment {
     @Test
     public void testRequestReplySequence() throws InterruptedException, ExecutionException, TimeoutException {
         HelloWorldClient client = new HelloWorldClient(DEFAULT_PORT); // The client is no different than hello world.
-        HttpResponseStatus statusCode = client.sendHelloRequest().getStatus();
-        Assert.assertEquals(HttpResponseStatus.OK, statusCode);
+        String response = client.sendHelloRequest();
+        Assert.assertEquals("Welcome!!", response);
     }
 }

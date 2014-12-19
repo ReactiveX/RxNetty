@@ -20,6 +20,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -51,7 +52,7 @@ public class HelloWorldTest extends ExamplesEnvironment {
     @Test
     public void testRequestReplySequence() throws InterruptedException, ExecutionException, TimeoutException {
         HelloWorldClient client = new HelloWorldClient(DEFAULT_PORT);
-        HttpResponseStatus statusCode = client.sendHelloRequest().getStatus();
-        Assert.assertEquals(HttpResponseStatus.OK, statusCode);
+        String response = client.sendHelloRequest();
+        Assert.assertEquals("Hello World!", response);
     }
 }
