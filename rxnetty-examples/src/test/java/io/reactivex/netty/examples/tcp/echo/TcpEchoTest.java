@@ -16,16 +16,14 @@
 
 package io.reactivex.netty.examples.tcp.echo;
 
+import java.util.List;
+
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.List;
-
-import static io.reactivex.netty.examples.tcp.echo.TcpEchoServer.DEFAULT_PORT;
 
 /**
  * @author Tomasz Bak
@@ -36,7 +34,7 @@ public class TcpEchoTest extends ExamplesEnvironment {
 
     @Before
     public void setupServer() {
-        server = new TcpEchoServer(DEFAULT_PORT).createServer();
+        server = new TcpEchoServer(0).createServer();
         server.start();
     }
 
@@ -47,7 +45,7 @@ public class TcpEchoTest extends ExamplesEnvironment {
 
     @Test
     public void testRequestReplySequence() {
-        TcpEchoClient client = new TcpEchoClient(DEFAULT_PORT);
+        TcpEchoClient client = new TcpEchoClient(server.getServerPort());
         List<String> reply = client.sendEchos();
         Assert.assertEquals(10, reply.size());
     }

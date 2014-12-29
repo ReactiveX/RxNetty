@@ -23,8 +23,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.reactivex.netty.examples.tcp.event.TcpEventStreamServer.DEFAULT_PORT;
-
 /**
  * @author Tomasz Bak
  */
@@ -36,7 +34,7 @@ public class TcpEventStreamTest extends ExamplesEnvironment {
 
     @Before
     public void setupServer() {
-        server = new TcpEventStreamServer(DEFAULT_PORT).createServer();
+        server = new TcpEventStreamServer(0).createServer();
         server.start();
     }
 
@@ -47,7 +45,7 @@ public class TcpEventStreamTest extends ExamplesEnvironment {
 
     @Test
     public void testEventStreamForFastClient() {
-        TcpEventStreamClient client = new TcpEventStreamClient(DEFAULT_PORT, NO_DELAY, NO_OF_EVENTS);
+        TcpEventStreamClient client = new TcpEventStreamClient(server.getServerPort(), NO_DELAY, NO_OF_EVENTS);
         int count = client.readEvents();
         Assert.assertEquals(NO_OF_EVENTS, count);
     }

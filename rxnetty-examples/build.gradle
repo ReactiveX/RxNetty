@@ -158,7 +158,7 @@ task runLogTailAggregator (dependsOn: [classes], type: JavaExec) {
     group = "Examples"
     description = "Run log tail aggregator"
 
-    main = "io.reactivex.netty.examples.http.logtail.LogsAggregator"
+    main = "io.reactivex.netty.examples.http.logtail.LogAggregator"
     classpath = sourceSets.main.runtimeClasspath
 
     if ( project.hasProperty("portFrom") && project.hasProperty("portTo") ) {

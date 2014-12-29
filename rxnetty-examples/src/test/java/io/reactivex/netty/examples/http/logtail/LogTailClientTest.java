@@ -28,7 +28,6 @@ import org.junit.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.reactivex.netty.examples.http.logtail.LogAggregator.DEFAULT_AG_PORT;
 import static io.reactivex.netty.examples.http.logtail.LogTailClient.DEFAULT_TAIL_SIZE;
 
 /**
@@ -36,29 +35,30 @@ import static io.reactivex.netty.examples.http.logtail.LogTailClient.DEFAULT_TAI
  */
 public class LogTailClientTest extends ExamplesEnvironment {
 
-    private static final int PR_FROM_PORT = 8092;
-    private static final int PR_TO_PORT = 8095;
+    private static final int NUM_OF_PRODUCERS = 4;
     private static final int PR_INTERVAL = 50;
 
     private HttpServer<ByteBuf, ServerSentEvent> aggregationServer;
-    private final List<HttpServer<ByteBuf, ServerSentEvent>> producerServers = new ArrayList<HttpServer<ByteBuf, ServerSentEvent>>();
+    private final List<HttpServer<ByteBuf, ServerSentEvent>> producerServers = new ArrayList<>();
+    private final List<Integer> producerPorts = new ArrayList<>();
 
     @Before
     public void setupServers() {
-        for (int i = PR_FROM_PORT; i <= PR_TO_PORT; i++) {
-            startProducer(i);
+        for (int i = 0; i <= NUM_OF_PRODUCERS; i++) {
+            startProducer();
         }
         startAggregator();
     }
 
-    private void startProducer(final int port) {
-        HttpServer<ByteBuf, ServerSentEvent> server = new LogProducer(port, PR_INTERVAL).createServer();
+    private void startProducer() {
+        HttpServer<ByteBuf, ServerSentEvent> server = new LogProducer(0, PR_INTERVAL).createServer();
         server.start();
         producerServers.add(server);
+        producerPorts.add(server.getServerPort());
     }
 
     private void startAggregator() {
-        aggregationServer = new LogAggregator(DEFAULT_AG_PORT, PR_FROM_PORT, PR_TO_PORT).createAggregationServer();
+        aggregationServer = new LogAggregator(0, producerPorts).createAggregationServer();
         aggregationServer.start();
     }
 
@@ -72,7 +72,7 @@ public class LogTailClientTest extends ExamplesEnvironment {
 
     @Test
     public void testLogTailClient() throws Exception {
-        LogTailClient client = new LogTailClient(DEFAULT_AG_PORT, DEFAULT_TAIL_SIZE);
+        LogTailClient client = new LogTailClient(aggregationServer.getServerPort(), DEFAULT_TAIL_SIZE);
         List<LogEvent> logs = client.collectEventLogs();
         Assert.assertEquals(25, logs.size());
     }
