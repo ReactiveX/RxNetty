@@ -127,27 +127,27 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     }
 
     public B withMaxConnections(int maxConnections) {
-        getPoolBuilder(true).withMaxConnections(maxConnections);
+        poolBuilder = getPoolBuilder(true).withMaxConnections(maxConnections);
         return returnBuilder();
     }
 
     public B withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
-        getPoolBuilder(true).withIdleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis);
+        poolBuilder = getPoolBuilder(true).withIdleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis);
         return returnBuilder();
     }
 
     public B withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
-        getPoolBuilder(true).withConnectionPoolLimitStrategy(limitDeterminationStrategy);
+        poolBuilder = getPoolBuilder(true).withConnectionPoolLimitStrategy(limitDeterminationStrategy);
         return returnBuilder();
     }
 
     public B withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
-        getPoolBuilder(true).withPoolIdleCleanupScheduler(poolIdleCleanupScheduler);
+        poolBuilder = getPoolBuilder(true).withPoolIdleCleanupScheduler(poolIdleCleanupScheduler);
         return returnBuilder();
     }
 
     public B withNoIdleConnectionCleanup() {
-        getPoolBuilder(true).withNoIdleConnectionCleanup();
+        poolBuilder = getPoolBuilder(true).withNoIdleConnectionCleanup();
         return returnBuilder();
     }
 
@@ -163,7 +163,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
     public B withChannelFactory(ClientChannelFactory<O, I> factory) {
         ConnectionPoolBuilder<O, I> builder = getPoolBuilder(false);
         if (null != builder) {
-            builder.withChannelFactory(factory);
+            poolBuilder = builder.withChannelFactory(factory);
         } else {
             channelFactory = factory;
         }

@@ -34,21 +34,34 @@ public class ConnectionPoolBuilder<I, O> {
 
     private final RxClient.ServerInfo serverInfo;
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
-    private ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory;
-    private ClientChannelFactory<I, O> channelFactory; // Nullable
-    private PoolLimitDeterminationStrategy limitDeterminationStrategy = new MaxConnectionsBasedStrategy();
-    private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
-    private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
+    private final ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory;
+    private final ClientChannelFactory<I, O> channelFactory; // Nullable
+    private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
+    private final ScheduledExecutorService poolIdleCleanupScheduler;
+    private final long idleConnectionsTimeoutMillis;
 
-    public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
+    public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo,
+                                 ClientChannelFactory<I, O> channelFactory,
                                  MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this(serverInfo, channelFactory, new PooledConnectionFactory<I, O>(PoolConfig.DEFAULT_CONFIG, eventsSubject),
              eventsSubject);
     }
 
-    public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
+    public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo,
+                                 ClientChannelFactory<I, O> channelFactory,
                                  ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory,
                                  MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this(serverInfo, channelFactory, connectionFactory, eventsSubject, new MaxConnectionsBasedStrategy(),
+                SHARED_IDLE_CLEANUP_SCHEDULER, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis());
+    }
+
+    protected ConnectionPoolBuilder(RxClient.ServerInfo serverInfo,
+                                    ClientChannelFactory<I, O> channelFactory,
+                                    ClientConnectionFactory<I, O, PooledConnection<I, O>> connectionFactory,
+                                    MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                                    PoolLimitDeterminationStrategy limitDeterminationStrategy,
+                                    ScheduledExecutorService poolIdleCleanupScheduler,
+                                    long idleConnectionsTimeoutMillis) {
         if (null == serverInfo) {
             throw new NullPointerException("Server info can not be null.");
         }
@@ -58,45 +71,51 @@ public class ConnectionPoolBuilder<I, O> {
         if (null == connectionFactory) {
             throw new NullPointerException("Connection factory can not be null.");
         }
-        this.eventsSubject = eventsSubject;
         this.serverInfo = serverInfo;
-        this.connectionFactory = connectionFactory;
         this.channelFactory = channelFactory;
+        this.connectionFactory = connectionFactory;
+        this.eventsSubject = eventsSubject;
+        this.limitDeterminationStrategy = limitDeterminationStrategy;
+        this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
+        this.idleConnectionsTimeoutMillis = idleConnectionsTimeoutMillis;
     }
 
     public ConnectionPoolBuilder<I, O> withMaxConnections(int maxConnections) {
-        limitDeterminationStrategy = new MaxConnectionsBasedStrategy(maxConnections);
-        return this;
+        return new ConnectionPoolBuilder<I, O>(this.serverInfo, this.channelFactory, this.connectionFactory,
+                this.eventsSubject, new MaxConnectionsBasedStrategy(maxConnections), this.poolIdleCleanupScheduler,
+                this.idleConnectionsTimeoutMillis);
     }
 
     public ConnectionPoolBuilder<I, O> withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
-        this.idleConnectionsTimeoutMillis = idleConnectionsTimeoutMillis;
-        return this;
+        return new ConnectionPoolBuilder<I, O>(this.serverInfo, this.channelFactory, this.connectionFactory,
+                this.eventsSubject, this.limitDeterminationStrategy, this.poolIdleCleanupScheduler,
+                idleConnectionsTimeoutMillis);
     }
 
     public ConnectionPoolBuilder<I, O> withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy) {
-        limitDeterminationStrategy = strategy;
-        return this;
+        return new ConnectionPoolBuilder<I, O>(this.serverInfo, this.channelFactory, this.connectionFactory,
+                this.eventsSubject, strategy, this.poolIdleCleanupScheduler, this.idleConnectionsTimeoutMillis);
     }
 
     public ConnectionPoolBuilder<I, O> withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
-        this.poolIdleCleanupScheduler = poolIdleCleanupScheduler;
-        return this;
+        return new ConnectionPoolBuilder<I, O>(this.serverInfo, this.channelFactory, this.connectionFactory,
+                this.eventsSubject, this.limitDeterminationStrategy, poolIdleCleanupScheduler,
+                this.idleConnectionsTimeoutMillis);
     }
 
     public ConnectionPoolBuilder<I, O> withNoIdleConnectionCleanup() {
-        poolIdleCleanupScheduler = null;
-        return this;
+        return new ConnectionPoolBuilder<I, O>(this.serverInfo, this.channelFactory, this.connectionFactory,
+                this.eventsSubject, this.limitDeterminationStrategy, null, this.idleConnectionsTimeoutMillis);
     }
 
     public ConnectionPoolBuilder<I, O> withChannelFactory(ClientChannelFactory<I, O> factory) {
-        channelFactory = factory;
-        return this;
+        return new ConnectionPoolBuilder<I, O>(this.serverInfo, factory, this.connectionFactory, this.eventsSubject,
+                this.limitDeterminationStrategy, this.poolIdleCleanupScheduler, this.idleConnectionsTimeoutMillis);
     }
 
     public ConnectionPoolBuilder<I, O> withConnectionFactory(ClientConnectionFactory<I, O, PooledConnection<I, O>> factory) {
-        connectionFactory = factory;
-        return this;
+        return new ConnectionPoolBuilder<I, O>(this.serverInfo, this.channelFactory, factory, this.eventsSubject,
+                this.limitDeterminationStrategy, this.poolIdleCleanupScheduler, this.idleConnectionsTimeoutMillis);
     }
 
     public ClientChannelFactory<I, O> getChannelFactory() {
@@ -120,13 +139,9 @@ public class ConnectionPoolBuilder<I, O> {
     }
 
     public ConnectionPoolBuilder<I, O> copy(RxClient.ServerInfo serverInfo) {
-        ConnectionPoolBuilder<I, O> copy = new ConnectionPoolBuilder<I, O>(serverInfo, channelFactory, connectionFactory,
-                                                                           eventsSubject);
-        copy.withIdleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis)
-            .withPoolIdleCleanupScheduler(poolIdleCleanupScheduler)
-            .withConnectionPoolLimitStrategy(limitDeterminationStrategy);
-
-        return copy;
+        return new ConnectionPoolBuilder<I, O>(serverInfo, this.channelFactory, this.connectionFactory,
+                this.eventsSubject, this.limitDeterminationStrategy, this.poolIdleCleanupScheduler,
+                this.idleConnectionsTimeoutMillis);
     }
 
     public long getIdleConnectionsTimeoutMillis() {
