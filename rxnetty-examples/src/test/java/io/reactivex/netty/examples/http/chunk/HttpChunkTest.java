@@ -24,8 +24,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.reactivex.netty.examples.http.chunk.HttpChunkServer.DEFAULT_PORT;
-
 /**
  * @author Tomasz Bak
  */
@@ -39,7 +37,7 @@ public class HttpChunkTest extends ExamplesEnvironment {
 
     @Before
     public void setupServer() {
-        server = new HttpChunkServer(DEFAULT_PORT, TEXT_FILE).createServer();
+        server = new HttpChunkServer(0, TEXT_FILE).createServer();
         server.start();
     }
 
@@ -50,7 +48,7 @@ public class HttpChunkTest extends ExamplesEnvironment {
 
     @Test
     public void testHttpChunk() throws Exception {
-        int count = new HttpChunkClient(DEFAULT_PORT).filterWords(FILTERED_WORD);
+        int count = new HttpChunkClient(server.getServerPort()).filterWords(FILTERED_WORD);
         Assert.assertEquals(WORD_COUNT, count);
     }
 }

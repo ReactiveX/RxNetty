@@ -25,7 +25,6 @@ import org.junit.Before;
 import org.junit.Test;
 
 import static io.reactivex.netty.examples.http.post.SimplePostClient.MESSAGE;
-import static io.reactivex.netty.examples.http.post.SimplePostServer.DEFAULT_PORT;
 
 /**
  * @author Tomasz Bak
@@ -36,7 +35,7 @@ public class SimplePostTest extends ExamplesEnvironment {
 
     @Before
     public void setupServer() {
-        server = new SimplePostServer(DEFAULT_PORT).createServer();
+        server = new SimplePostServer(0).createServer();
         server.start();
     }
 
@@ -47,7 +46,7 @@ public class SimplePostTest extends ExamplesEnvironment {
 
     @Test
     public void testSimplePost() {
-        SimplePostClient client = new SimplePostClient(DEFAULT_PORT);
+        SimplePostClient client = new SimplePostClient(server.getServerPort());
         String replyMessage = client.postMessage();
         Assert.assertEquals(MESSAGE.toUpperCase(), replyMessage);
     }
