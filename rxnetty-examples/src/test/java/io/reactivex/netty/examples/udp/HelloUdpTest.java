@@ -24,8 +24,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.reactivex.netty.examples.udp.HelloUdpServer.DEFAULT_PORT;
-
 /**
  * @author Tomasz Bak
  */
@@ -35,7 +33,7 @@ public class HelloUdpTest extends ExamplesEnvironment {
 
     @Before
     public void setupServer() {
-        server = new HelloUdpServer(DEFAULT_PORT).createServer();
+        server = new HelloUdpServer(0).createServer();
         server.start();
     }
 
@@ -46,7 +44,7 @@ public class HelloUdpTest extends ExamplesEnvironment {
 
     @Test
     public void testRequestReplySequence() {
-        HelloUdpClient client = new HelloUdpClient(DEFAULT_PORT);
+        HelloUdpClient client = new HelloUdpClient(server.getServerPort());
         String reply = client.sendHello();
         Assert.assertEquals(HelloUdpServer.WELCOME_MSG, reply);
     }

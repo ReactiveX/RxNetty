@@ -1,12 +1,12 @@
 /*
  * Copyright 2014 Netflix, Inc.
- *
+ * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
+ * 
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.examples.http.chunk;
 
+import static io.reactivex.netty.examples.http.chunk.HttpChunkServer.DEFAULT_PORT;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -23,18 +24,15 @@ import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientPipelineConfigurator;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import rx.Observable;
-import rx.Subscriber;
-import rx.functions.Func1;
-import rx.functions.Func2;
 
 import java.nio.charset.Charset;
 import java.util.regex.Pattern;
 
-import static io.reactivex.netty.examples.http.chunk.HttpChunkServer.DEFAULT_PORT;
+import rx.Observable;
+import rx.Subscriber;
 
 /**
- * @author Tomasz Bak
+ * This reads a stream of data and splits it into a stream of words across HTTP chunks.
  */
 public class HttpChunkClient {
 
@@ -51,32 +49,17 @@ public class HttpChunkClient {
         HttpClient<ByteBuf, ByteBuf> client =
                 RxNetty.createHttpClient("localhost", port, configurator);
 
-        int count = client.submit(HttpClientRequest.createGet("/chunkedResponse"))
-                .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
-                    @Override
-                    public Observable<String> call(HttpClientResponse<ByteBuf> response) {
-                        return response.getContent().map(new Func1<ByteBuf, String>() {
-                            @Override
-                            public String call(ByteBuf content) {
-                                return content.toString(Charset.defaultCharset());
-                            }
-                        });
-                    }
+        return client.submit(HttpClientRequest.createGet("/chunkedResponse"))
+                .flatMap(response -> {
+                    return response.getContent().map((ByteBuf content) -> {
+                        return content.toString(Charset.defaultCharset());
+                    });
                 })
                 .lift(new WordSplitOperator())
-                .map(new Func1<String, Integer>() {
-                    @Override
-                    public Integer call(String someWord) {
-                        return someWord.equals(word) ? 1 : 0;
-                    }
-                })
-                .reduce(new Func2<Integer, Integer, Integer>() {
-                    @Override
-                    public Integer call(Integer accumulator, Integer value) {
-                        return accumulator + value;
-                    }
+                .map(someWord -> someWord.equals(word) ? 1 : 0)
+                .reduce((Integer accumulator, Integer value) -> {
+                    return accumulator + value;
                 }).toBlocking().last();
-        return count;
     }
 
     static class WordSplitOperator implements Observable.Operator<String, String> {

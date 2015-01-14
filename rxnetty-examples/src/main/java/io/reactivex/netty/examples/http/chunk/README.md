@@ -28,37 +28,23 @@ Here is the snippet from [HttpChunkClient](HttpChunkClient.java):
 
 ```java
 public int filterWords(final String word) {
-    PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> configurator = new HttpClientPipelineConfigurator();
+    PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> configurator =
+            new HttpClientPipelineConfigurator<ByteBuf, ByteBuf>();
 
     HttpClient<ByteBuf, ByteBuf> client =
             RxNetty.createHttpClient("localhost", port, configurator);
 
-    int count = client.submit(HttpClientRequest.createGet("/chunkedResponse"))
-            .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
-                @Override
-                public Observable<String> call(HttpClientResponse<ByteBuf> response) {
-                    return response.getContent().map(new Func1<ByteBuf, String>() {
-                        @Override
-                        public String call(ByteBuf content) {
-                            return content.toString(Charset.defaultCharset());
-                        }
-                    });
-                }
+    return client.submit(HttpClientRequest.createGet("/chunkedResponse"))
+            .flatMap(response -> {
+                return response.getContent().map((ByteBuf content) -> {
+                    return content.toString(Charset.defaultCharset());
+                });
             })
             .lift(new WordSplitOperator())
-            .map(new Func1<String, Integer>() {
-                @Override
-                public Integer call(String someWord) {
-                    return someWord.equals(word) ? 1 : 0;
-                }
-            })
-            .reduce(new Func2<Integer, Integer, Integer>() {
-                @Override
-                public Integer call(Integer accumulator, Integer value) {
-                    return accumulator + value;
-                }
+            .map(someWord -> someWord.equals(word) ? 1 : 0)
+            .reduce((Integer accumulator, Integer value) -> {
+                return accumulator + value;
             }).toBlocking().last();
-    return count;
 }
 ```
 
@@ -79,25 +65,10 @@ Here is the snippet from [HttpChunkServer](HttpChunkServer.java):
 
 ```java
 public HttpServer<ByteBuf, ByteBuf> createServer() {
-    HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(port, new RequestHandler<ByteBuf, ByteBuf>() {
-        @Override
-        public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-            try {
-                final Reader fileReader = new BufferedReader(new FileReader(textFile));
-                return createFileObservable(fileReader)
-                        .flatMap(new Func1<String, Observable<Void>>() {
-                            @Override
-                            public Observable<Void> call(String text) {
-                                return response.writeStringAndFlush(text);
-                            }
-                        }).finallyDo(new ReaderCloseAction(fileReader));
-            } catch (IOException e) {
-                return Observable.error(e);
-            }
-        }
+    return RxNetty.createHttpServer(port, (request, response) -> {
+        return StringObservable.using(() -> new FileReader(textFile), (reader) -> StringObservable.from(reader))
+                .flatMap(text -> response.writeStringAndFlush(text));
     });
-    System.out.println("HTTP chunk server started...");
-    return server;
 }
 ```
 

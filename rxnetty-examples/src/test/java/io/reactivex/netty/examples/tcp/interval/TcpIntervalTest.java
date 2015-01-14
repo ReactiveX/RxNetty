@@ -23,8 +23,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.reactivex.netty.examples.tcp.interval.TcpIntervalServer.DEFAULT_PORT;
-
 /**
  * @author Tomasz Bak
  */
@@ -36,7 +34,7 @@ public class TcpIntervalTest extends ExamplesEnvironment {
 
     @Before
     public void setupServer() {
-        server = new TcpIntervalServer(DEFAULT_PORT, INTERVAL).createServer();
+        server = new TcpIntervalServer(0, INTERVAL).createServer();
         server.start();
     }
 
@@ -47,7 +45,7 @@ public class TcpIntervalTest extends ExamplesEnvironment {
 
     @Test
     public void testRequestReplySequence() {
-        int count = new TcpIntervalClientTakeN(DEFAULT_PORT, NO_OF_MSG).collectMessages();
+        int count = new TcpIntervalClientTakeN(server.getServerPort(), NO_OF_MSG).collectMessages();
         Assert.assertEquals(NO_OF_MSG, count);
     }
 }

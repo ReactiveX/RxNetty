@@ -16,6 +16,8 @@
 
 package io.reactivex.netty.examples.http.sse;
 
+import java.util.List;
+
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -24,10 +26,6 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.List;
-
-import static io.reactivex.netty.examples.http.sse.HttpSseServer.DEFAULT_PORT;
 
 /**
  * @author Tomasz Bak
@@ -40,7 +38,7 @@ public class HttpSseTest extends ExamplesEnvironment {
 
     @Before
     public void setupHttpSseServer() {
-        server = new HttpSseServer(DEFAULT_PORT, INTERVAL).createServer();
+        server = new HttpSseServer(0, INTERVAL).createServer();
         server.start();
     }
 
@@ -51,7 +49,7 @@ public class HttpSseTest extends ExamplesEnvironment {
 
     @Test
     public void testRequestReplySequence() {
-        HttpSseClient client = new HttpSseClient(DEFAULT_PORT, NO_OF_EVENTS);
+        HttpSseClient client = new HttpSseClient(server.getServerPort(), NO_OF_EVENTS);
         List<ServerSentEvent> events = client.readServerSideEvents();
         Assert.assertEquals(NO_OF_EVENTS, events.size());
     }

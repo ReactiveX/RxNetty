@@ -17,10 +17,10 @@
 package io.reactivex.netty.examples.http.plaintext;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.http.helloworld.HelloWorldClient;
 import io.reactivex.netty.protocol.http.server.HttpServer;
+
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -28,8 +28,6 @@ import org.junit.Test;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
-
-import static io.reactivex.netty.examples.http.plaintext.PlainTextServer.DEFAULT_PORT;
 
 /**
  * @author Tomasz Bak
@@ -40,7 +38,7 @@ public class PlainTextServerTest extends ExamplesEnvironment {
 
     @Before
     public void setupHttpHelloServer() {
-        server = new PlainTextServer(DEFAULT_PORT).createServer();
+        server = new PlainTextServer(0).createServer();
         server.start();
     }
 
@@ -51,8 +49,8 @@ public class PlainTextServerTest extends ExamplesEnvironment {
 
     @Test
     public void testRequestReplySequence() throws InterruptedException, ExecutionException, TimeoutException {
-        HelloWorldClient client = new HelloWorldClient(DEFAULT_PORT); // The client is no different than hello world.
-        HttpResponseStatus statusCode = client.sendHelloRequest().getStatus();
-        Assert.assertEquals(HttpResponseStatus.OK, statusCode);
+        HelloWorldClient client = new HelloWorldClient(server.getServerPort()); // The client is no different than hello world.
+        String response = client.sendHelloRequest();
+        Assert.assertEquals("Welcome!!", response);
     }
 }
