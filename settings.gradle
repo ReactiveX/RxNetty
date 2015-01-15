@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 rootProject.name='RxNetty'
-include 'rxnetty', 'rxnetty-remote-observable', 'rxnetty-contexts', 'rxnetty-examples', 'rxnetty-servo'
+include 'rxnetty', 'rxnetty-remote-observable', 'rxnetty-contexts', 'rxnetty-examples', 'rxnetty-servo', 'rxnetty-spectator'
 
