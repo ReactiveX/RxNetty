@@ -128,7 +128,7 @@ public class UnicastContentSubjectTest {
     }
 
     @Test
-    public void testByteBufRelease() throws Exception {
+    public void testByteBufReleaseWithNoTimeout() throws Exception {
         UnicastContentSubject<ByteBuf> subject = UnicastContentSubject.createWithoutNoSubscriptionTimeout();
         ByteBuf buffer = Unpooled.buffer();
         Assert.assertEquals("Created byte buffer not retained.", 1, buffer.refCnt());
@@ -147,6 +147,18 @@ public class UnicastContentSubjectTest {
         Assert.assertEquals("Unexpected ByteBuf ref count when received.", 2, byteBufRefCnt.get());
         Assert.assertSame("Unexpected byte buffer received.", buffer, last);
         Assert.assertEquals("Byte buffer not released.", 0, last.refCnt());
+    }
+
+    @Test
+    public void testByteBufReleaseWithTimeout() throws Exception {
+        UnicastContentSubject<ByteBuf> subject = UnicastContentSubject.create(100, TimeUnit.MILLISECONDS);
+        ByteBuf buffer = Unpooled.buffer();
+
+        subject.onNext(buffer);
+        subject.onCompleted();
+
+        Thread.sleep(500);
+        Assert.assertEquals("Byte buffer not fully released", 0, buffer.refCnt());
     }
 
     private static class OnUnsubscribeAction implements Action0 {
