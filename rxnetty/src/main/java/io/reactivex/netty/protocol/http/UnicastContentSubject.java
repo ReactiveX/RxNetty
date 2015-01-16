@@ -270,10 +270,13 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
     @Override
     public void onNext(T t) {
-        ReferenceCountUtil.retain(t); // Retain so that post-buffer, the ByteBuf does not get released. Release will be done after reading from the subject.
+        // Retain so that post-buffer, the ByteBuf does not get released.
+        // Release will be done after reading from the subject.
+        ReferenceCountUtil.retain(t);
         state.bufferedSubject.onNext(t);
 
-        if (state.casTimeoutScheduled()) {// Schedule timeout once.
+        // Schedule timeout once and when not subscribed yet.
+        if (state.casTimeoutScheduled() && state.state == State.STATES.UNSUBSCRIBED.ordinal()) {
             timeoutScheduler.subscribe(new Action1<Long>() { // Schedule timeout after the first content arrives.
                 @Override
                 public void call(Long aLong) {
