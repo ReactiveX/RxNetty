@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,13 +22,11 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.ssl.SslHandler;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
+import io.reactivex.netty.pipeline.ssl.SslCompletionHandler;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
@@ -73,31 +71,39 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
 
         connectFuture.addListener(new ChannelFutureListener() {
             @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
+            public void operationComplete(final ChannelFuture future) throws Exception {
                 try {
                     if (!future.isSuccess()) {
-                        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(startTimeMillis),
-                                              future.cause());
-                        subscriber.onError(future.cause());
+                        _onConnectFailed(future.cause(), subscriber, startTimeMillis);
                     } else {
-                        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
                         ChannelPipeline pipeline = future.channel().pipeline();
-                        final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(future.channel());
                         ChannelHandler lifecycleHandler = pipeline.get(RxRequiredConfigurator.CONN_LIFECYCLE_HANDLER_NAME);
                         if (null == lifecycleHandler) {
-                            onNewConnection(newConnection, subscriber);
+                            _newConnection(connectionFactory, future.channel(), subscriber, startTimeMillis);
                         } else {
                             @SuppressWarnings("unchecked")
                             ConnectionLifecycleHandler<I, O> handler = (ConnectionLifecycleHandler<I, O>) lifecycleHandler;
-                            SslHandler sslHandler = pipeline.get(SslHandler.class);
+                            SslCompletionHandler sslHandler = pipeline.get(SslCompletionHandler.class);
                             if (null == sslHandler) {
-                                handler.setConnection(newConnection);
-                                onNewConnection(newConnection, subscriber);
+                                ObservableConnection<I, O> conn = _newConnection(connectionFactory, future.channel(),
+                                                                                 subscriber, startTimeMillis);
+                                handler.setConnection(conn);
                             } else {
-                                sslHandler.handshakeFuture().addListener(new GenericFutureListener<Future<? super Channel>>() {
+                                sslHandler.sslCompletionStatus().subscribe(new Subscriber<Void>() {
                                     @Override
-                                    public void operationComplete(Future<? super Channel> future) throws Exception {
-                                        onNewConnection(newConnection, subscriber);
+                                    public void onCompleted() {
+                                        _newConnection(connectionFactory, future.channel(), subscriber,
+                                                       startTimeMillis);
+                                    }
+
+                                    @Override
+                                    public void onError(Throwable e) {
+                                        _onConnectFailed(e, subscriber, startTimeMillis);
+                                    }
+
+                                    @Override
+                                    public void onNext(Void aVoid) {
+                                        // No Op.
                                     }
                                 });
                             }
@@ -121,5 +127,21 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
     @Override
     public void useMetricEventsSubject(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
+    }
+
+    private ObservableConnection<I, O> _newConnection(ClientConnectionFactory<I, O, ? extends ObservableConnection<I, O>> connectionFactory,
+                                                      Channel channel,
+                                                      Subscriber<? super ObservableConnection<I, O>> subscriber,
+                                                      long startTimeMillis) {
+        final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(channel);
+        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
+        onNewConnection(newConnection, subscriber);
+        return newConnection;
+    }
+
+    private void _onConnectFailed(Throwable cause, Subscriber<? super ObservableConnection<I, O>> subscriber,
+                                  long startTimeMillis) {
+        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(startTimeMillis), cause);
+        subscriber.onError(cause);
     }
 }
