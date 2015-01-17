@@ -17,6 +17,7 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -70,28 +71,29 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
 
         connectFuture.addListener(new ChannelFutureListener() {
             @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
+            public void operationComplete(final ChannelFuture future) throws Exception {
                 try {
                     if (!future.isSuccess()) {
                         _onConnectFailed(future.cause(), subscriber, startTimeMillis);
                     } else {
                         ChannelPipeline pipeline = future.channel().pipeline();
-                        final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(future.channel());
                         ChannelHandler lifecycleHandler = pipeline.get(RxRequiredConfigurator.CONN_LIFECYCLE_HANDLER_NAME);
                         if (null == lifecycleHandler) {
-                            _onNewConnection(newConnection, subscriber, startTimeMillis);
+                            _newConnection(connectionFactory, future.channel(), subscriber, startTimeMillis);
                         } else {
                             @SuppressWarnings("unchecked")
                             ConnectionLifecycleHandler<I, O> handler = (ConnectionLifecycleHandler<I, O>) lifecycleHandler;
                             SslCompletionHandler sslHandler = pipeline.get(SslCompletionHandler.class);
                             if (null == sslHandler) {
-                                handler.setConnection(newConnection);
-                                _onNewConnection(newConnection, subscriber, startTimeMillis);
+                                ObservableConnection<I, O> conn = _newConnection(connectionFactory, future.channel(),
+                                                                                 subscriber, startTimeMillis);
+                                handler.setConnection(conn);
                             } else {
                                 sslHandler.sslCompletionStatus().subscribe(new Subscriber<Void>() {
                                     @Override
                                     public void onCompleted() {
-                                        _onNewConnection(newConnection, subscriber, startTimeMillis);
+                                        _newConnection(connectionFactory, future.channel(), subscriber,
+                                                       startTimeMillis);
                                     }
 
                                     @Override
@@ -127,10 +129,14 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
         this.eventsSubject = eventsSubject;
     }
 
-    private void _onNewConnection(ObservableConnection<I, O> newConnection,
-                                  Subscriber<? super ObservableConnection<I, O>> subscriber, long startTimeMillis) {
+    private ObservableConnection<I, O> _newConnection(ClientConnectionFactory<I, O, ? extends ObservableConnection<I, O>> connectionFactory,
+                                                      Channel channel,
+                                                      Subscriber<? super ObservableConnection<I, O>> subscriber,
+                                                      long startTimeMillis) {
+        final ObservableConnection<I, O> newConnection = connectionFactory.newConnection(channel);
         eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
         onNewConnection(newConnection, subscriber);
+        return newConnection;
     }
 
     private void _onConnectFailed(Throwable cause, Subscriber<? super ObservableConnection<I, O>> subscriber,
