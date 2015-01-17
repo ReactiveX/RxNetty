@@ -32,7 +32,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * @author Nitesh Kant
  */
-public class ClientSslTest {
+public class SslClientTest {
 
     @Test
     public void testReleaseOnSslFailure() throws Exception {
