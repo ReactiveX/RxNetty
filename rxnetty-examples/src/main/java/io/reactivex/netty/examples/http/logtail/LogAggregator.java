@@ -16,6 +16,9 @@
 
 package io.reactivex.netty.examples.http.logtail;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
@@ -32,9 +35,6 @@ import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func1;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /**
  * @author Tomasz Bak
  */
@@ -43,14 +43,21 @@ public class LogAggregator {
     static final int DEFAULT_AG_PORT = 8091;
 
     private final int port;
-    private final int producerPortFrom;
-    private final int producerPortTo;
+    private final List<Integer> producerPorts;
     HttpServer<ByteBuf, ServerSentEvent> server;
+
+    public LogAggregator(int port, List<Integer> producerPorts) {
+        this.port = port;
+        this.producerPorts = producerPorts;
+    }
 
     public LogAggregator(int port, int producerPortFrom, int producerPortTo) {
         this.port = port;
-        this.producerPortFrom = producerPortFrom;
-        this.producerPortTo = producerPortTo;
+        int producerCount = producerPortTo - producerPortFrom + 1;
+        producerPorts = new ArrayList<>(producerCount);
+        for (int i = 0; i < producerCount; i++) {
+            producerPorts.add(producerPortFrom + i);
+        }
     }
 
     public HttpServer<ByteBuf, ServerSentEvent> createAggregationServer() {
@@ -73,9 +80,9 @@ public class LogAggregator {
     }
 
     private Observable<ServerSentEvent> connectToLogProducers() {
-        List<Observable<ServerSentEvent>> oList = new ArrayList<Observable<ServerSentEvent>>(producerPortTo - producerPortFrom + 1);
-        for (int i = producerPortFrom; i <= producerPortTo; i++) {
-            oList.add(connectToLogProducer(i));
+        List<Observable<ServerSentEvent>> oList = new ArrayList<Observable<ServerSentEvent>>(producerPorts.size());
+        for (int producerPort : producerPorts) {
+            oList.add(connectToLogProducer(producerPort));
         }
         return Observable.merge(oList);
     }
@@ -88,12 +95,12 @@ public class LogAggregator {
             @Override
             public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> response) {
                 return response.getContent()
-                               .doOnNext(new Action1<ServerSentEvent>() {
-                                   @Override
-                                   public void call(ServerSentEvent serverSentEvent) {
-                                       serverSentEvent.retain();
-                                   }
-                               });
+                        .doOnNext(new Action1<ServerSentEvent>() {
+                            @Override
+                            public void call(ServerSentEvent serverSentEvent) {
+                                serverSentEvent.retain();
+                            }
+                        });
             }
         });
     }

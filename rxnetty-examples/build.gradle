@@ -5,6 +5,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 dependencies {
     compile project(':rxnetty')
     compile project(':rxnetty-servo')
+    compile "io.reactivex:rxjava-string:1.0.0"
     compile "org.slf4j:slf4j-log4j12:${slf4j_version}"
 }
 
@@ -157,7 +158,7 @@ task runLogTailAggregator (dependsOn: [classes], type: JavaExec) {
     group = "Examples"
     description = "Run log tail aggregator"
 
-    main = "io.reactivex.netty.examples.http.logtail.LogsAggregator"
+    main = "io.reactivex.netty.examples.http.logtail.LogAggregator"
     classpath = sourceSets.main.runtimeClasspath
 
     if ( project.hasProperty("portFrom") && project.hasProperty("portTo") ) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -324,6 +324,12 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                 @Override
                 public void call() {
                     if (null != connection) {
+                        if (isWaitingForResponse) {// If the response was not completed, the connection is not usable any further.
+                            // It is important to do this here before closing the connection. Not doing so will return
+                            // the pooled connection to the pool, before discarding the connection. This will cause,
+                            // reuse of connections which are supposed to be discarded.
+                            connection.getChannel().attr(DISCARD_CONNECTION).set(true);
+                        }
                         connection.close();
                     }
                 }

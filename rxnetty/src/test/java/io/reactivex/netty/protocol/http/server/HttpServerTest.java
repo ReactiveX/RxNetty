@@ -91,6 +91,34 @@ public class HttpServerTest {
                                      @Override
                                      public Observable<Void> call(Long aLong) {
                                          serverResponse.setStatus(HttpResponseStatus.NOT_FOUND);
+                                         return serverResponse.writeStringAndFlush("Invalid URI.");
+                                     }
+                                 });
+            }
+        }).enableWireLogging(LogLevel.ERROR).build().start();
+        final CountDownLatch finishLatch = new CountDownLatch(1);
+        HttpClientResponse<ByteBuf> response = RxNetty.createHttpClient("localhost", server.getServerPort())
+                                                      .submit(HttpClientRequest.createGet("/"))
+                                                      .finallyDo(new Action0() {
+                                                          @Override
+                                                          public void call() {
+                                                              finishLatch.countDown();
+                                                          }
+                                                      }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
+        Assert.assertTrue("The returned observable did not finish.", finishLatch.await(1, TimeUnit.MINUTES));
+        Assert.assertEquals("Request failed.", response.getStatus(), HttpResponseStatus.NOT_FOUND);
+    }
+
+    @Test
+    public void testProcessingInADifferentThreadWithNoWrite() throws Exception {
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
+            @Override
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> serverResponse) {
+                return Observable.just(1L).subscribeOn(Schedulers.computation())
+                                 .flatMap(new Func1<Long, Observable<Void>>() {
+                                     @Override
+                                     public Observable<Void> call(Long aLong) {
+                                         serverResponse.setStatus(HttpResponseStatus.NOT_FOUND);
                                          return serverResponse.close(false);
                                      }
                                  });

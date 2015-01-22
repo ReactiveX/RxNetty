@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,6 +24,8 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
  */
 public class SslPipelineConfigurator<I, O> implements PipelineConfigurator<I, O> {
 
+    public static final String SSL_HANDLER_NAME = "ssl-handler";
+    public static final String SSL_COMPLETION_HANDLER_NAME = "ssl-completion-handler";
     private final SSLEngineFactory sslEngineFactory;
 
     public SslPipelineConfigurator(SSLEngineFactory sslEngineFactory) {
@@ -32,6 +34,9 @@ public class SslPipelineConfigurator<I, O> implements PipelineConfigurator<I, O>
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        pipeline.addFirst(new SslHandler(sslEngineFactory.createSSLEngine(pipeline.channel().alloc())));
+        final SslHandler sslHandler = new SslHandler(sslEngineFactory.createSSLEngine(pipeline.channel().alloc()));
+        pipeline.addFirst(SSL_HANDLER_NAME, sslHandler);
+        pipeline.addAfter(SSL_HANDLER_NAME, SSL_COMPLETION_HANDLER_NAME,
+                          new SslCompletionHandler(sslHandler.handshakeFuture()));
     }
 }
