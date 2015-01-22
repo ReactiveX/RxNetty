@@ -50,6 +50,18 @@ public abstract class TcpClient<I, O> {
     public abstract ConnectionRequest<I, O> createConnectionRequest();
 
     /**
+     * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
+     * This method overrides the default host and port configured for this client.
+     *
+     * @param host Target host to connect.
+     * @param port Port on the host to connect.
+     *
+     * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
+     * before subscription.
+     */
+    public abstract ConnectionRequest<I, O> createConnectionRequest(String host, int port);
+
+    /**
      * Creates a new client instances, inheriting all configurations from this client and adding a
      * {@link ChannelOption} for the connections created by the newly created client instance.
      *
