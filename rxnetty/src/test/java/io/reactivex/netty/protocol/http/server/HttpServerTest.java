@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,11 +28,14 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 import rx.Observable;
 import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import static io.reactivex.netty.protocol.http.AbstractHttpConfigurator.*;
 
 /**
  * @author Nitesh Kant
@@ -79,6 +82,39 @@ public class HttpServerTest {
                                                       }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
         Assert.assertTrue("The returned observable did not finish.", finishLatch.await(1, TimeUnit.MINUTES));
         Assert.assertEquals("Request failed.", response.getStatus(), HttpResponseStatus.NOT_FOUND);
+    }
+
+    @Test
+    public void testInvalidRequest() throws Exception {
+        HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
+            @Override
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
+                return Observable.empty();
+            }
+        }).pipelineConfigurator(new HttpServerPipelineConfigurator<ByteBuf, ByteBuf>(10, MAX_CHUNK_SIZE_DEFAULT,
+                                                                                     MAX_HEADER_SIZE_DEFAULT))
+                                                     .enableWireLogging(LogLevel.ERROR).build().start();
+        final CountDownLatch finishLatch = new CountDownLatch(1);
+        HttpClientRequest<ByteBuf> req = HttpClientRequest.createGet("/abckdeeeeeeeeeeeeee"); // URI larger than 10 bytes.
+        HttpClientResponse<ByteBuf> response = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", server.getServerPort())
+                                                      //.pipelineConfigurator(new HttpClientPipelineConfigurator<ByteBuf, ByteBuf>())
+                                                      .enableWireLogging(LogLevel.ERROR)
+                                                      .build()
+                                                      .submit(req)
+                                                      .doOnNext(new Action1<HttpClientResponse<ByteBuf>>() {
+                                                          @Override
+                                                          public void call(HttpClientResponse<ByteBuf> response) {
+                                                              System.out.println("response = " + response);
+                                                          }
+                                                      })
+                                                      .finallyDo(new Action0() {
+                                                          @Override
+                                                          public void call() {
+                                                              finishLatch.countDown();
+                                                          }
+                                                      }).toBlocking().toFuture().get(10, TimeUnit.SECONDS);
+        Assert.assertTrue("The returned observable did not finish.", finishLatch.await(1, TimeUnit.MINUTES));
+        Assert.assertEquals("Request failed.", HttpResponseStatus.REQUEST_HEADER_FIELDS_TOO_LARGE, response.getStatus());
     }
 
     @Test

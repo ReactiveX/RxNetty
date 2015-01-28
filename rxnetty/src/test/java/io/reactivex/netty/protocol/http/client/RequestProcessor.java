@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@ import rx.Observable;
 import rx.functions.Func1;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +45,12 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
 
     public static final long KEEP_ALIVE_TIMEOUT_SECONDS = 1;
 
+    public static final String ONE_KB_VALUE;
+
     static {
+        final byte[] onekb = new byte[1024];
+        Arrays.fill(onekb, (byte) 'c');
+        ONE_KB_VALUE = new String(onekb);
 
         List<String> smallStreamListLocal = new ArrayList<String>();
         for (int i = 0; i < 3; i++) {
@@ -60,6 +66,11 @@ public class RequestProcessor implements RequestHandler<ByteBuf, ByteBuf> {
     }
 
     public static final String SINGLE_ENTITY_BODY = "Hello world";
+
+    public Observable<Void> handleLargeHeaders(HttpServerResponse<ByteBuf> response) {
+        response.getHeaders().add("LargeHeader", ONE_KB_VALUE);
+        return response.writeBytesAndFlush(SINGLE_ENTITY_BODY.getBytes());
+    }
 
     public Observable<Void> handleSingleEntity(HttpServerResponse<ByteBuf> response) {
         byte[] responseBytes = SINGLE_ENTITY_BODY.getBytes();
