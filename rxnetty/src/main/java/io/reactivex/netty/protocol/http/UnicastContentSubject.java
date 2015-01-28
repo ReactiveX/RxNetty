@@ -18,6 +18,7 @@ package io.reactivex.netty.protocol.http;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.ReferenceCounted;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import rx.Observable;
@@ -26,11 +27,9 @@ import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.internal.operators.BufferUntilSubscriber;
-import rx.observers.Subscribers;
 import rx.schedulers.Schedulers;
 import rx.subjects.Subject;
 import rx.subscriptions.Subscriptions;
-
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -138,7 +137,14 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
      */
     public boolean disposeIfNotSubscribed() {
         if (state.casState(State.STATES.UNSUBSCRIBED, State.STATES.DISPOSED)) {
-            state.bufferedSubject.subscribe(Subscribers.empty()); // Drain all items so that ByteBuf gets released.
+            state.bufferedSubject.subscribe(new Action1<T>() {
+                @Override
+                public void call(T t) {
+                    if (t instanceof ReferenceCounted) {
+                        ReferenceCountUtil.release(t, ((ReferenceCounted) t).refCnt());
+                    }
+                }
+            }); // Drain all items so that ByteBuf gets released.
 
             if (null != state.onUnsubscribe) {
                 state.onUnsubscribe.call(); // Since this is an inline/sync call, if this throws an error, it gets thrown to the caller.
