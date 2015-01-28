@@ -23,6 +23,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpContent;
@@ -109,21 +110,26 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         if (HttpResponse.class.isAssignableFrom(recievedMsgClass)) {
             stateToUse.responseReceiveStartTimeMillis = Clock.newStartTimeMillis();
             eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_HEADER_RECEIVED);
-            @SuppressWarnings({"rawtypes", "unchecked"})
             HttpResponse response = (HttpResponse) msg;
+            DecoderResult decoderResult = response.getDecoderResult();
+            if (decoderResult.isFailure()) {
+                ctx.channel().attr(DISCARD_CONNECTION).set(true); // Netty rejects all data after decode failure.
+                                                                  // Issue: https://github.com/netty/netty/issues/3362
+                stateToUse.sendOnError(decoderResult.cause());
+            } else {
+                @SuppressWarnings({"rawtypes", "unchecked"})
+                HttpClientResponse rxResponse = new HttpClientResponse(response, stateToUse.contentSubject);
+                Long keepAliveTimeoutSeconds = rxResponse.getKeepAliveTimeoutSeconds();
+                if (null != keepAliveTimeoutSeconds) {
+                    ctx.channel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).set(keepAliveTimeoutSeconds * 1000);
+                }
 
-            @SuppressWarnings({"rawtypes", "unchecked"})
-            HttpClientResponse rxResponse = new HttpClientResponse(response, stateToUse.contentSubject);
-            Long keepAliveTimeoutSeconds = rxResponse.getKeepAliveTimeoutSeconds();
-            if (null != keepAliveTimeoutSeconds) {
-                ctx.channel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).set(keepAliveTimeoutSeconds * 1000);
+                if (!rxResponse.getHeaders().isKeepAlive()) {
+                    ctx.channel().attr(DISCARD_CONNECTION).set(true);
+                }
+                super.channelRead(ctx, rxResponse); // For FullHttpResponse, this assumes that after this call returns,
+                                                    // someone has subscribed to the content observable, if not the content will be lost.
             }
-
-            if (!rxResponse.getHeaders().isKeepAlive()) {
-                ctx.channel().attr(DISCARD_CONNECTION).set(true);
-            }
-            super.channelRead(ctx, rxResponse); // For FullHttpResponse, this assumes that after this call returns,
-                                                // someone has subscribed to the content observable, if not the content will be lost.
         }
 
         if (HttpContent.class.isAssignableFrom(recievedMsgClass)) {// This will be executed if the incoming message is a FullHttpResponse or only HttpContent.
@@ -334,6 +340,17 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                     }
                 }
             });// Timeout handling is done dynamically by the client.
+        }
+
+        private void sendOnError(Throwable error) {
+            responseReceiveComplete();
+            eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_FAILED,
+                                  Clock.onEndMillis(responseReceiveStartTimeMillis));
+
+            contentSubject.onError(error);
+            connInputObsrvr.onError(error);
+            connection.close(); // Close before sending on complete results in more predictable behavior for clients
+                                // listening for response complete and expecting connection close.
         }
 
         private void sendOnComplete() {

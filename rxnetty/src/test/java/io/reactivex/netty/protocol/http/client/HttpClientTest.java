@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ConnectTimeoutException;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.handler.codec.TooLongFrameException;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.logging.LogLevel;
@@ -37,7 +38,6 @@ import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import io.reactivex.netty.server.RxServerThreadFactory;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import rx.Observable;
@@ -54,11 +54,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 
 public class HttpClientTest {
     private static HttpServer<ByteBuf, ByteBuf> server;
@@ -96,7 +92,7 @@ public class HttpClientTest {
                                   }
                               });
         ObservableConnection<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> conn = connectionObservable.toBlocking().last();
-        Assert.assertFalse("Connection already closed.", conn.isCloseIssued());
+        assertFalse("Connection already closed.", conn.isCloseIssued());
 
         final CountDownLatch responseCompleteLatch = new CountDownLatch(1);
         content.finallyDo(new Action0() {
@@ -415,6 +411,33 @@ public class HttpClientTest {
         }
         assertEquals(200, status[0]);
         assertNull(exceptionHolder.get());
+    }
+
+    @Test(expected = TooLongFrameException.class)
+    public void testLargeHeaders() throws Exception {
+        HttpClient<ByteBuf, ByteBuf> client = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", port)
+                                                     .pipelineConfigurator(
+                                                             new HttpClientPipelineConfigurator<ByteBuf, ByteBuf>(1024, 10, 1024))
+                                                     .enableWireLogging(LogLevel.ERROR).build();
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"));
+        final List<String> result = new ArrayList<String>();
+        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
+            @Override
+            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
+                return response.getContent().map(new Func1<ByteBuf, String>() {
+                    @Override
+                    public String call(ByteBuf byteBuf) {
+                        return byteBuf.toString(Charset.defaultCharset());
+                    }
+                });
+            }
+        }).toBlocking().forEach(new Action1<String>() {
+
+            @Override
+            public void call(String t1) {
+                result.add(t1);
+            }
+        });
     }
 
     private static void readResponseContent(Observable<HttpClientResponse<ServerSentEvent>> response,
