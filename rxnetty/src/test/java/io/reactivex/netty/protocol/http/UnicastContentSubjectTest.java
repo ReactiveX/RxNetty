@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -128,7 +128,7 @@ public class UnicastContentSubjectTest {
     }
 
     @Test
-    public void testByteBufRelease() throws Exception {
+    public void testByteBufReleaseWithNoTimeout() throws Exception {
         UnicastContentSubject<ByteBuf> subject = UnicastContentSubject.createWithoutNoSubscriptionTimeout();
         ByteBuf buffer = Unpooled.buffer();
         Assert.assertEquals("Created byte buffer not retained.", 1, buffer.refCnt());
@@ -147,6 +147,24 @@ public class UnicastContentSubjectTest {
         Assert.assertEquals("Unexpected ByteBuf ref count when received.", 2, byteBufRefCnt.get());
         Assert.assertSame("Unexpected byte buffer received.", buffer, last);
         Assert.assertEquals("Byte buffer not released.", 0, last.refCnt());
+    }
+
+    @Test
+    public void testByteBufReleaseWithTimeout() throws Exception {
+        TestScheduler testScheduler = Schedulers.test();
+        UnicastContentSubject<ByteBuf> subject = UnicastContentSubject.create(100, TimeUnit.MILLISECONDS,
+                                                                              testScheduler);
+        ByteBuf buffer = Unpooled.buffer();
+
+        subject.onNext(buffer);
+        buffer.release(); // Simulatimg auto-release behavior in rxnetty today. (Issue: https://github.com/ReactiveX/RxNetty/issues/264)
+        Assert.assertEquals("Byte buffer not retained on buffering by subject.", 1, buffer.refCnt());
+
+        subject.onCompleted();
+
+
+        testScheduler.advanceTimeBy(100, TimeUnit.MILLISECONDS);
+        Assert.assertEquals("Byte buffer not fully released", 0, buffer.refCnt());
     }
 
     private static class OnUnsubscribeAction implements Action0 {

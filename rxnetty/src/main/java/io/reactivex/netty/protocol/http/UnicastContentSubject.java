@@ -21,6 +21,7 @@ import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import rx.Observable;
+import rx.Observer;
 import rx.Scheduler;
 import rx.Subscriber;
 import rx.functions.Action0;
@@ -138,7 +139,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
      */
     public boolean disposeIfNotSubscribed() {
         if (state.casState(State.STATES.UNSUBSCRIBED, State.STATES.DISPOSED)) {
-            state.bufferedSubject.subscribe(Subscribers.empty()); // Drain all items so that ByteBuf gets released.
+            state.bufferedObservable.subscribe(Subscribers.empty()); // Drain all items so that ByteBuf gets released.
 
             if (null != state.onUnsubscribe) {
                 state.onUnsubscribe.call(); // Since this is an inline/sync call, if this throws an error, it gets thrown to the caller.
@@ -165,6 +166,9 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
         public State(Action0 onUnsubscribe) {
             this.onUnsubscribe = onUnsubscribe;
+            final BufferUntilSubscriber<T> bufferedSubject = BufferUntilSubscriber.create();
+            bufferedObservable = bufferedSubject.lift(new AutoReleaseByteBufOperator<T>()); // Always auto-release
+            bufferedObserver = bufferedSubject;
         }
 
         /**
@@ -178,7 +182,8 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
         private volatile int state = STATES.UNSUBSCRIBED.ordinal(); /*Values are the ordinals of STATES enum*/
 
-        private final BufferUntilSubscriber<T> bufferedSubject = BufferUntilSubscriber.create();
+        private final Observer<T> bufferedObserver;
+        private final Observable<T> bufferedObservable;
 
         @SuppressWarnings("unused")private volatile int timeoutScheduled; // Boolean
 
@@ -222,7 +227,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                     }
                 }));
 
-                state.bufferedSubject.lift(new AutoReleaseByteBufOperator()).subscribe(subscriber);
+                state.bufferedObservable.subscribe(subscriber);
 
             } else if(State.STATES.SUBSCRIBED.ordinal() == state.state) {
                 subscriber.onError(new IllegalStateException("Content can only have one subscription. Use Observable.publish() if you want to multicast."));
@@ -230,42 +235,42 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                 subscriber.onError(new IllegalStateException("Content stream is already disposed."));
             }
         }
+    }
 
-        private class AutoReleaseByteBufOperator implements Operator<T, T> {
-            @Override
-            public Subscriber<? super T> call(final Subscriber<? super T> subscriber) {
-                return new Subscriber<T>() {
-                    @Override
-                    public void onCompleted() {
-                        subscriber.onCompleted();
-                    }
+    private static class AutoReleaseByteBufOperator<I> implements Operator<I, I> {
+        @Override
+        public Subscriber<? super I> call(final Subscriber<? super I> subscriber) {
+            return new Subscriber<I>() {
+                @Override
+                public void onCompleted() {
+                    subscriber.onCompleted();
+                }
 
-                    @Override
-                    public void onError(Throwable e) {
-                        subscriber.onError(e);
-                    }
+                @Override
+                public void onError(Throwable e) {
+                    subscriber.onError(e);
+                }
 
-                    @Override
-                    public void onNext(T t) {
-                        try {
-                            subscriber.onNext(t);
-                        } finally {
-                            ReferenceCountUtil.release(t);
-                        }
+                @Override
+                public void onNext(I t) {
+                    try {
+                        subscriber.onNext(t);
+                    } finally {
+                        ReferenceCountUtil.release(t);
                     }
-                };
-            }
+                }
+            };
         }
     }
 
     @Override
     public void onCompleted() {
-        state.bufferedSubject.onCompleted();
+        state.bufferedObserver.onCompleted();
     }
 
     @Override
     public void onError(Throwable e) {
-        state.bufferedSubject.onError(e);
+        state.bufferedObserver.onError(e);
     }
 
     @Override
@@ -273,7 +278,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
         // Retain so that post-buffer, the ByteBuf does not get released.
         // Release will be done after reading from the subject.
         ReferenceCountUtil.retain(t);
-        state.bufferedSubject.onNext(t);
+        state.bufferedObserver.onNext(t);
 
         // Schedule timeout once and when not subscribed yet.
         if (state.casTimeoutScheduled() && state.state == State.STATES.UNSUBSCRIBED.ordinal()) {
@@ -288,6 +293,6 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
     @Override
     public boolean hasObservers() {
-        return state.bufferedSubject.hasObservers();
+        return state.state == State.STATES.SUBSCRIBED.ordinal();
     }
 }
