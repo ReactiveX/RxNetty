@@ -20,12 +20,7 @@ import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.client.ClientChannelFactory;
-import io.reactivex.netty.client.ClientConnectionFactory;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.client.ConnectionPool;
-import io.reactivex.netty.client.ConnectionPoolBuilder;
-import io.reactivex.netty.client.RxClientImpl;
+import io.reactivex.netty.client.*;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -33,9 +28,12 @@ import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import rx.Observable;
 import rx.functions.Action0;
 
+import java.util.concurrent.ScheduledExecutorService;
+
 public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
 
     private final String hostHeaderValue;
+    private final ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder;
 
     public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
                           PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
@@ -46,6 +44,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                           MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory,
               eventsSubject);
+        poolBuilder = null;
         hostHeaderValue = prepareHostHeaderValue();
     }
 
@@ -55,6 +54,7 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
                           ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder,
                           MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder, eventsSubject);
+        this.poolBuilder = poolBuilder;
         hostHeaderValue = prepareHostHeaderValue();
     }
 
@@ -68,10 +68,62 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
         return submit(request, connect(), config);
     }
 
+    @Override
+    public HttpClient<I, O> maxConnections(int maxConnections) {
+        ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> builder = getConnectionPoolBuilder();
+
+        return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig,
+                builder.withMaxConnections(maxConnections), eventsSubject);
+    }
+
+    @Override
+    public HttpClient<I, O> withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
+        ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> builder = getConnectionPoolBuilder();
+
+        return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig,
+                builder.withIdleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis), eventsSubject);
+    }
+
+    @Override
+    public HttpClient<I, O> withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
+        ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> builder = getConnectionPoolBuilder();
+
+        return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig,
+                builder.withConnectionPoolLimitStrategy(limitDeterminationStrategy), eventsSubject);
+    }
+
+    @Override
+    public HttpClient<I, O> withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
+        ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> builder = getConnectionPoolBuilder();
+
+        return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig,
+                builder.withPoolIdleCleanupScheduler(poolIdleCleanupScheduler), eventsSubject);
+    }
+
+    @Override
+    public HttpClient<I, O> withNoIdleConnectionCleanup() {
+        ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> builder = getConnectionPoolBuilder();
+
+        return new HttpClientImpl<I, O>(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig,
+                builder.withNoIdleConnectionCleanup(), eventsSubject);
+    }
+
+    protected ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> getConnectionPoolBuilder(){
+        if (null == poolBuilder){
+            return new ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>>(serverInfo, channelFactory,
+                    eventsSubject);
+        }
+        return poolBuilder;
+    }
+
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
                                                        Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable) {
         return submit(request, connectionObservable, null == clientConfig
                                                      ? HttpClientConfig.Builder.newDefaultConfig() : clientConfig);
+    }
+
+    /*visible for testing*/ ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> getConnectionPool() {
+        return pool;
     }
 
     protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
@@ -126,10 +178,6 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
             default:
                 return false;
         }
-    }
-
-    /*visible for testing*/ ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> getConnectionPool() {
-        return pool;
     }
 
     private void enrichRequest(HttpClientRequest<I> request, ClientConfig config) {

@@ -16,9 +16,11 @@
 
 package io.reactivex.netty.protocol.http.client;
 
+import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.RxClient;
 import rx.Observable;
 
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -31,6 +33,58 @@ public interface HttpClient<I, O> extends RxClient<HttpClientRequest<I>, HttpCli
     Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request);
 
     Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request, ClientConfig config);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and using the passed
+     * {@code maxConnections} as the maximum number of concurrent connections created by the newly created client instance.
+     *
+     * @param maxConnections Maximum number of concurrent connections to be created by this client.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> maxConnections(int maxConnections);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and using the passed
+     * {@code idleConnectionsTimeoutMillis} as the time elapsed before an idle connections will be closed by the newly
+     * created client instance.
+     *
+     * @param idleConnectionsTimeoutMillis Time elapsed before an idle connections will be closed by the newly
+     * created client instance
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and using the passed
+     * {@code limitDeterminationStrategy} as the strategy to control the maximum concurrent connections created by the
+     * newly created client instance.
+     *
+     * @param limitDeterminationStrategy Strategy to control the maximum concurrent connections created by the
+     * newly created client instance.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and using the passed
+     * {@code poolIdleCleanupScheduler} for detecting and cleaning idle connections by the newly created client instance.
+     *
+     * @param poolIdleCleanupScheduler Scheduled to schedule idle connections cleanup.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and disabling idle connection
+     * cleanup for the newly created client instance.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> withNoIdleConnectionCleanup();
 
     /**
      * A configuration to be used for this client.
