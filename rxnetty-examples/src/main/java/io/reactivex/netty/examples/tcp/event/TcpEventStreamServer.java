@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,17 +16,14 @@
 
 package io.reactivex.netty.examples.tcp.event;
 
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.channel.ConnectionHandler;
-import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.server.RxServer;
-import rx.Notification;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.codec.string.StringDecoder;
+import io.netty.handler.codec.string.StringEncoder;
+import io.netty.handler.logging.LogLevel;
+import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import io.reactivex.netty.protocol.tcp.server.TcpServerImpl;
 import rx.Observable;
-import rx.functions.Action0;
-import rx.functions.Func1;
-
-import java.util.concurrent.TimeUnit;
 
 /**
  * @author Nitesh Kant
@@ -41,56 +38,20 @@ public final class TcpEventStreamServer {
         this.port = port;
     }
 
-    public RxServer<String, String> createServer() {
-        RxServer<String, String> server = RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
-                new ConnectionHandler<String, String>() {
-                    @Override
-                    public Observable<Void> handle(ObservableConnection<String, String> newConnection) {
-                        return startEventStream(newConnection);
-                    }
-                });
-        System.out.println("TCP event stream server started...");
+    public TcpServer<String, String> startServer() {
+        TcpServer<String, String> server = new TcpServerImpl<ByteBuf, ByteBuf>(port)
+                .<ByteBuf, String>addChannelHandlerLast("encoder", StringEncoder::new)
+                .<String, String>addChannelHandlerLast("decoder", StringDecoder::new)
+                .clientChannelOption(ChannelOption.SO_SNDBUF, 100)
+                .enableWireLogging(LogLevel.ERROR)
+                .start(connection -> connection.writeAndFlushOnEach(Observable.range(1, 10000)
+                                                                              .map(aLong -> "data: {\"requestCount\":"
+                                                                                            + aLong + "}\n")));
+
         return server;
     }
 
-    private static Observable<Void> startEventStream(final ObservableConnection<String, String> connection) {
-        return Observable.interval(10, TimeUnit.MILLISECONDS)
-                .flatMap(new Func1<Long, Observable<Notification<Void>>>() {
-                    @Override
-                    public Observable<Notification<Void>> call(
-                            Long interval) {
-                        System.out.println(
-                                "Writing event: "
-                                        + interval);
-                        return connection.writeAndFlush(
-                                "data: {\"type\":\"Command\",\"name\":\"GetAccount\",\"currentTime\":1376957348166,\"errorPercentage\":0,\"errorCount\":0,\"requestCount\":"
-                                        + interval + "}\n")
-                                .materialize();
-                    }
-                })
-                .takeWhile(new Func1<Notification<Void>, Boolean>() {
-                    @Override
-                    public Boolean call(
-                            Notification<Void> notification) {
-                        return !notification
-                                .isOnError();
-                    }
-                })
-                .finallyDo(new Action0() {
-                    @Override
-                    public void call() {
-                        System.out.println(" --> Closing connection and stream");
-                    }
-                })
-                .map(new Func1<Notification<Void>, Void>() {
-                    @Override
-                    public Void call(Notification<Void> notification) {
-                        return null;
-                    }
-                });
-    }
-
     public static void main(String[] args) {
-        new TcpEventStreamServer(DEFAULT_PORT).createServer().startAndWait();
+        new TcpEventStreamServer(DEFAULT_PORT).startServer().waitTillShutdown();
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -135,9 +135,7 @@ public class CompositeHttpClient<I, O> extends HttpClientImpl<I, O> {
     private ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> clonePoolBuilder(ServerInfo serverInfo,
                                                                                                 ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder) {
         ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> toReturn = poolBuilder.copy(serverInfo);
-        toReturn.withConnectionPoolLimitStrategy(
-                ((CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy) poolBuilder
-                        .getLimitDeterminationStrategy()).copy());
+        toReturn.withConnectionPoolLimitStrategy(poolBuilder.getLimitDeterminationStrategy().copy());
         return toReturn;
     }
 }

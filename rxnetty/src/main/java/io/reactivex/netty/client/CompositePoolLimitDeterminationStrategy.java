@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,6 +69,16 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
             minPermits = Math.min(minPermits, availablePermits);
         }
         return minPermits; // If will atleast be one strategy (invariant in constructor) and hence this should be the value provided by that strategy.
+    }
+
+    @Override
+    public PoolLimitDeterminationStrategy copy() {
+        PoolLimitDeterminationStrategy[] newStrategies = new PoolLimitDeterminationStrategy[strategies.length];
+        for (int i = 0; i < strategies.length; i++) {
+            PoolLimitDeterminationStrategy strategy = strategies[i];
+            newStrategies[i] = strategy.copy();
+        }
+        return new CompositePoolLimitDeterminationStrategy(newStrategies);
     }
 
     @Override

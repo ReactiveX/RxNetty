@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,11 +19,9 @@ package io.reactivex.netty.channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.util.concurrent.Future;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
 
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -34,10 +32,12 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class SingleNioLoopProvider extends RxEventLoopProvider {
 
-    private final SharedNioEventLoopGroup eventLoop;
-    private final SharedNioEventLoopGroup parentEventLoop;
-    private final AtomicReference<EpollEventLoopGroup> nativeEventLoop;
-    private final AtomicReference<EpollEventLoopGroup> nativeParentEventLoop;
+    private final EventLoopGroup eventLoop;
+    private final EventLoopGroup clientEventLoop;
+    private final EventLoopGroup parentEventLoop;
+    private final AtomicReference<EventLoopGroup> nativeEventLoop;
+    private final AtomicReference<EventLoopGroup> nativeClientEventLoop;
+    private final AtomicReference<EventLoopGroup> nativeParentEventLoop;
     private final int parentEventLoopCount;
     private final int childEventLoopCount;
 
@@ -46,31 +46,34 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
     }
 
     public SingleNioLoopProvider(int threadCount) {
-        eventLoop = new SharedNioEventLoopGroup(threadCount);
+        eventLoop = new NioEventLoopGroup(threadCount, new RxDefaultThreadFactory("rxnetty-nio-eventloop"));
+        clientEventLoop = new PreferCurrentEventLoopGroup(eventLoop);
         parentEventLoop = eventLoop;
         parentEventLoopCount = childEventLoopCount = threadCount;
-        nativeEventLoop = new AtomicReference<EpollEventLoopGroup>();
+        nativeEventLoop = new AtomicReference<EventLoopGroup>();
+        nativeClientEventLoop = new AtomicReference<EventLoopGroup>();
         nativeParentEventLoop = nativeEventLoop;
     }
 
     public SingleNioLoopProvider(int parentEventLoopCount, int childEventLoopCount) {
         this.parentEventLoopCount = parentEventLoopCount;
         this.childEventLoopCount = childEventLoopCount;
-        parentEventLoop = new SharedNioEventLoopGroup(parentEventLoopCount);
-        eventLoop = new SharedNioEventLoopGroup(childEventLoopCount);
-        nativeParentEventLoop = new AtomicReference<EpollEventLoopGroup>();
-        nativeEventLoop = new AtomicReference<EpollEventLoopGroup>();
+        parentEventLoop = new NioEventLoopGroup(parentEventLoopCount,
+                                                new RxDefaultThreadFactory("rxnetty-nio-eventloop"));
+        eventLoop = new NioEventLoopGroup(childEventLoopCount, new RxDefaultThreadFactory("rxnetty-nio-eventloop"));
+        clientEventLoop = new PreferCurrentEventLoopGroup(eventLoop);
+        nativeParentEventLoop = new AtomicReference<EventLoopGroup>();
+        nativeEventLoop = new AtomicReference<EventLoopGroup>();
+        nativeClientEventLoop = new AtomicReference<EventLoopGroup>();
     }
 
     @Override
     public EventLoopGroup globalClientEventLoop() {
-        eventLoop.retain();
-        return eventLoop;
+        return clientEventLoop;
     }
 
     @Override
     public EventLoopGroup globalServerEventLoop() {
-        eventLoop.retain();
         return eventLoop;
     }
 
@@ -82,7 +85,7 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
     @Override
     public EventLoopGroup globalClientEventLoop(boolean nativeTransport) {
         if (nativeTransport && RxNetty.isUsingNativeTransport()) {
-            return getNativeEventLoop();
+            return getNativeClientEventLoop();
         }
         return globalClientEventLoop();
     }
@@ -103,15 +106,15 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
         return globalServerParentEventLoop();
     }
 
-    private EpollEventLoopGroup getNativeParentEventLoop() {
+    private EventLoopGroup getNativeParentEventLoop() {
         if (nativeParentEventLoop == nativeEventLoop) { // Means using same event loop for acceptor and worker pool.
             return getNativeEventLoop();
         }
 
-        EpollEventLoopGroup eventLoopGroup = nativeParentEventLoop.get();
+        EventLoopGroup eventLoopGroup = nativeParentEventLoop.get();
         if (null == eventLoopGroup) {
-            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(parentEventLoopCount,
-                                                                            new RxDefaultThreadFactory("rxnetty-epoll-eventloop"));
+            EventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(parentEventLoopCount,
+                                                                       new RxDefaultThreadFactory( "rxnetty-epoll-eventloop"));
             if (!nativeParentEventLoop.compareAndSet(null, newEventLoopGroup)) {
                 newEventLoopGroup.shutdownGracefully();
             }
@@ -119,11 +122,11 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
         return nativeParentEventLoop.get();
     }
 
-    private EpollEventLoopGroup getNativeEventLoop() {
-        EpollEventLoopGroup eventLoopGroup = nativeEventLoop.get();
+    private EventLoopGroup getNativeEventLoop() {
+        EventLoopGroup eventLoopGroup = nativeEventLoop.get();
         if (null == eventLoopGroup) {
-            EpollEventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(childEventLoopCount,
-                                                                            new RxDefaultThreadFactory("rxnetty-epoll-eventloop"));
+            EventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(childEventLoopCount,
+                                                                       new RxDefaultThreadFactory( "rxnetty-epoll-eventloop"));
             if (!nativeEventLoop.compareAndSet(null, newEventLoopGroup)) {
                 newEventLoopGroup.shutdownGracefully();
             }
@@ -131,41 +134,16 @@ public class SingleNioLoopProvider extends RxEventLoopProvider {
         return nativeEventLoop.get();
     }
 
-    public static class SharedNioEventLoopGroup extends NioEventLoopGroup {
-
-        private final AtomicInteger refCount = new AtomicInteger();
-
-        public SharedNioEventLoopGroup() {
-            super(0, new RxDefaultThreadFactory("rxnetty-nio-eventloop"));
-        }
-
-        public SharedNioEventLoopGroup(int threadCount) {
-            super(threadCount, new RxDefaultThreadFactory("rxnetty-nio-eventloop"));
-        }
-
-        @Override
-        public Future<?> shutdownGracefully(long quietPeriod, long timeout, TimeUnit unit) {
-            if (0 == release()) {
-                return super.shutdownGracefully(quietPeriod, timeout, unit);
-            } else {
-                return terminationFuture();
+    private EventLoopGroup getNativeClientEventLoop() {
+        EventLoopGroup eventLoopGroup = nativeClientEventLoop.get();
+        if (null == eventLoopGroup) {
+            EventLoopGroup newEventLoopGroup = new EpollEventLoopGroup(childEventLoopCount,
+                                                                       new RxDefaultThreadFactory( "rxnetty-epoll-eventloop"));
+            newEventLoopGroup = new PreferCurrentEventLoopGroup(newEventLoopGroup);
+            if (!nativeClientEventLoop.compareAndSet(null, newEventLoopGroup)) {
+                newEventLoopGroup.shutdownGracefully();
             }
         }
-
-        @Override
-        @Deprecated
-        public void shutdown() {
-            if (0 == release()) {
-                super.shutdown();
-            }
-        }
-
-        public int retain() {
-            return refCount.incrementAndGet();
-        }
-
-        public int release() {
-            return refCount.decrementAndGet();
-        }
+        return nativeClientEventLoop.get();
     }
 }

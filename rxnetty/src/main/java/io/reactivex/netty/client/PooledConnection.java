@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -145,7 +145,7 @@ public class PooledConnection<I, O> extends ObservableConnection<I, O> {
     public static <I, O> PooledConnection<I, O> create(Channel channel,
                                                        ChannelMetricEventProvider metricEventProvider,
                                                        MetricEventsSubject<?> eventsSubject) {
-        return create(channel, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), metricEventProvider, eventsSubject);
+        return create(channel, 30000, metricEventProvider, eventsSubject);
     }
 
     /*Visible for testing*/ void setLastReturnToPoolTimeMillis(long lastReturnToPoolTimeMillis) {

@@ -33,10 +33,10 @@ import java.util.concurrent.TimeUnit;
  * Semantically, the operations here are exactly the same as those in {@link ConnectionRequest}, the updates are applied
  * (by invoking {@link #update()}) as a single batch to create a new {@link ConnectionRequest} instance.
  *
- * @param <I> The type of the objects that are read from this connection.
- * @param <O> The type of objects that are written to this connection.
+ * @param <W> The type of the objects that are written to the connection created by this request.
+ * @param <R> The type of objects that are read from the connection created by this request.
  */
-public abstract class ConnectionRequestUpdater<I, O> {
+public abstract class ConnectionRequestUpdater<W, R> {
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -46,7 +46,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
      * Enables read timeout for all the connection created by this request.
@@ -56,7 +56,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract ConnectionRequestUpdater<I, O> readTimeOut(int timeOut, TimeUnit timeUnit);
+    public abstract ConnectionRequestUpdater<W, R> readTimeOut(int timeOut, TimeUnit timeUnit);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
@@ -67,7 +67,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract ConnectionRequestUpdater<I, O> enableWireLogging(LogLevel wireLogginLevel);
+    public abstract ConnectionRequestUpdater<W, R> enableWireLogging(LogLevel wireLogginLevel);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -78,7 +78,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract ConnectionRequestUpdater<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory);
+    public abstract ConnectionRequestUpdater<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -90,7 +90,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> addChannelHandlerFirst(String name, ChannelHandler handler);
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> addChannelHandlerFirst(String name, ChannelHandler handler);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -104,7 +104,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> addChannelHandlerFirst(EventExecutorGroup group,
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> addChannelHandlerFirst(EventExecutorGroup group,
                                                                                      String name,
                                                                                      ChannelHandler handler);
 
@@ -118,7 +118,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO>  addChannelHandlerLast(String name, ChannelHandler handler);
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR>  addChannelHandlerLast(String name, ChannelHandler handler);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -132,7 +132,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                                              ChannelHandler handler);
 
     /**
@@ -146,7 +146,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> addChannelHandlerBefore(String baseName, String name,
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> addChannelHandlerBefore(String baseName, String name,
                                                                                ChannelHandler handler);
 
     /**
@@ -162,7 +162,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
                                                                                String name, ChannelHandler handler);
 
     /**
@@ -176,7 +176,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> addChannelHandlerAfter(String baseName, String name,
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> addChannelHandlerAfter(String baseName, String name,
                                                                                      ChannelHandler handler);
 
     /**
@@ -192,7 +192,7 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return This updater.
      */
-    public abstract <II, OO> ConnectionRequestUpdater<II, OO> addChannelHandlerAfter(EventExecutorGroup group,
+    public abstract <WW, RR> ConnectionRequestUpdater<WW, RR> addChannelHandlerAfter(EventExecutorGroup group,
                                                                                      String baseName,
                                                                                      String name,
                                                                                      ChannelHandler handler);
@@ -203,5 +203,5 @@ public abstract class ConnectionRequestUpdater<I, O> {
      *
      * @return New instance of {@link ConnectionRequest} with all changes done via this updater.
      */
-    public abstract ConnectionRequest<I, O> update();
+    public abstract ConnectionRequest<W, R> update();
 }

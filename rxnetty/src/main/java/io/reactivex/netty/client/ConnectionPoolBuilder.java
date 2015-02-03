@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,9 +18,11 @@ package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.RxDefaultThreadFactory;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import rx.Observable;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A builder for creating instances of {@link ConnectionPool}
@@ -38,11 +40,11 @@ public class ConnectionPoolBuilder<I, O> {
     private ClientChannelFactory<I, O> channelFactory; // Nullable
     private PoolLimitDeterminationStrategy limitDeterminationStrategy = new MaxConnectionsBasedStrategy();
     private ScheduledExecutorService poolIdleCleanupScheduler = SHARED_IDLE_CLEANUP_SCHEDULER;
-    private long idleConnectionsTimeoutMillis = PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis();
+    private long idleConnectionsTimeoutMillis = 30000;
 
     public ConnectionPoolBuilder(RxClient.ServerInfo serverInfo, ClientChannelFactory<I, O> channelFactory,
                                  MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
-        this(serverInfo, channelFactory, new PooledConnectionFactory<I, O>(PoolConfig.DEFAULT_CONFIG, eventsSubject),
+        this(serverInfo, channelFactory, new PooledConnectionFactory<I, O>(null/*TODO: FIx me*/, eventsSubject),
              eventsSubject);
     }
 
@@ -113,7 +115,9 @@ public class ConnectionPoolBuilder<I, O> {
      * @return A new instance of {@link ConnectionPool} if configured, else {@code null}
      */
     public ConnectionPool<I, O> build() {
-        PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis);
+        PoolConfig poolConfig = new PoolConfig(idleConnectionsTimeoutMillis,
+                                               Observable.timer(idleConnectionsTimeoutMillis, TimeUnit.MILLISECONDS),
+                                               limitDeterminationStrategy, null);
 
         return new ConnectionPoolImpl<I, O>(serverInfo, poolConfig, limitDeterminationStrategy, poolIdleCleanupScheduler,
                                             connectionFactory, channelFactory, eventsSubject);

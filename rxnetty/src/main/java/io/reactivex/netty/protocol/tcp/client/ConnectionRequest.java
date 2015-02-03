@@ -18,11 +18,13 @@ package io.reactivex.netty.protocol.tcp.client;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import rx.Observable;
 import rx.functions.Action1;
+import rx.functions.Func0;
 
 import java.util.concurrent.TimeUnit;
 
@@ -47,12 +49,12 @@ import java.util.concurrent.TimeUnit;
  * A new connection is initiated every time {@link ConnectionRequest#subscribe()} is called and is the only way of
  * creating connections.
  *
- * @param <I> The type of the objects that are read from this connection.
- * @param <O> The type of objects that are written to this connection.
+ * @param <W> The type of the objects that are written to the connection created by this request.
+ * @param <R> The type of objects that are read from the connection created by this request.
  */
-public abstract class ConnectionRequest<I, O> extends Observable<ObservableConnection<I, O>> {
+public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W>> {
 
-    protected ConnectionRequest(OnSubscribe<ObservableConnection<I, O>> f) {
+    protected ConnectionRequest(OnSubscribe<Connection<R, W>> f) {
         super(f);
     }
 
@@ -66,20 +68,20 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract ConnectionRequest<I, O> readTimeOut(int timeOut, TimeUnit timeUnit);
+    public abstract ConnectionRequest<W, R> readTimeOut(int timeOut, TimeUnit timeUnit);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
      * passed level for the newly created client instance.
      *
      * @param wireLogginLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
-     *                        logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
+     *                        logging is enabled at this level for {@link LoggingHandler}
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract ConnectionRequest<I, O> enableWireLogging(LogLevel wireLogginLevel);
+    public abstract ConnectionRequest<W, R> enableWireLogging(LogLevel wireLogginLevel);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -92,7 +94,7 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract ConnectionRequest<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory);
+    public abstract ConnectionRequest<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by
@@ -103,13 +105,13 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      * convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> addChannelHandlerFirst(String name, ChannelHandler handler);
+    public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -122,15 +124,15 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
      *                 methods
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> addChannelHandlerFirst(EventExecutorGroup group,
+    public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(EventExecutorGroup group,
                                                                               String name,
-                                                                              ChannelHandler handler);
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -141,13 +143,14 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      * convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO>  addChannelHandlerLast(String name, ChannelHandler handler);
+    public abstract <WW, RR> ConnectionRequest<WW, RR>  addChannelHandlerLast(String name,
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -160,14 +163,14 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
      *                 methods
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                                             ChannelHandler handler);
+    public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                                             Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -179,14 +182,14 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      *
      * @param baseName  the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> addChannelHandlerBefore(String baseName, String name,
-                                                                               ChannelHandler handler);
+    public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(String baseName, String name,
+                                                                               Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -200,15 +203,15 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      *                 methods
      * @param baseName  the name of the existing handler
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> addChannelHandlerBefore(EventExecutorGroup group,
+    public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(EventExecutorGroup group,
                                                                                String baseName,
-                                                                               String name, ChannelHandler handler);
+                                                                               String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -220,14 +223,14 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      *
      * @param baseName  the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> addChannelHandlerAfter(String baseName, String name,
-                                                                              ChannelHandler handler);
+    public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(String baseName, String name,
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by this request. The specified
@@ -241,30 +244,16 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      *                 methods
      * @param baseName  the name of the existing handler
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> addChannelHandlerAfter(EventExecutorGroup group,
+    public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(EventExecutorGroup group,
                                                                               String baseName,
                                                                               String name,
-                                                                              ChannelHandler handler);
-    /**
-     * Removes the {@link ChannelHandler} with the passed {@code name} from the {@link ChannelPipeline} for all
-     * connections created by this request.
-     *
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be more
-     * convenient.</em>
-     *
-     * @param name Name of the handler.
-     *
-     * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
-     */
-    public abstract <II, OO> ConnectionRequest<II, OO> removeHandler(String name);
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -276,7 +265,7 @@ public abstract class ConnectionRequest<I, O> extends Observable<ObservableConne
      * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
      * intermediary {@link ConnectionRequest} objects.
      */
-    public abstract <II, OO> ConnectionRequest<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
+    public abstract <WW, RR> ConnectionRequest<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
-    public abstract ConnectionRequestUpdater<I, O> newUpdater();
+    public abstract ConnectionRequestUpdater<W, R> newUpdater();
 }

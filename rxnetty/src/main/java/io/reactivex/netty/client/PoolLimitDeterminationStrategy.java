@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,4 +38,11 @@ public interface PoolLimitDeterminationStrategy extends MetricEventsListener<Cli
     boolean acquireCreationPermit(long acquireStartTime, TimeUnit timeUnit);
 
     int getAvailablePermits();
+
+    /**
+     * Creates a copy of this strategy without copying any state.
+     *
+     * @return A copy of this strategy without copying any state.
+     */
+    PoolLimitDeterminationStrategy copy();
 }

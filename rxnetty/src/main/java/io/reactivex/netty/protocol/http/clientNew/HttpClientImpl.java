@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,15 +15,16 @@
  */
 package io.reactivex.netty.protocol.http.clientNew;
 
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import rx.functions.Action1;
 
-import java.net.InetAddress;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -36,7 +37,7 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     private final int port;
 
     public HttpClientImpl() {
-        this(InetAddress.getLoopbackAddress().getHostName(), 80);
+        this(null, 80);
     }
 
     public HttpClientImpl(String host, int port) {
@@ -118,6 +119,64 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public <T> HttpClient<I, O> channelOption(ChannelOption<T> option, T value) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                              ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(String name, ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                             ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(String baseName, String name, ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
+                                                               ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(String baseName, String name, ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
+                                                              ChannelHandler handler) {
+        // TODO: Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> removeHandler(String name) {
         // TODO: Auto-generated method stub
         return null;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,22 +14,25 @@
  * limitations under the License.
  */
 buildscript {
-  repositories { jcenter() }
-  dependencies { classpath 'com.netflix.nebula:gradle-rxjava-project-plugin:2.+' }
+    repositories { jcenter() }
+    dependencies { classpath 'com.netflix.nebula:gradle-rxjava-project-plugin:2.+' }
 }
 
 description = 'RxNetty: Reactive Extensions for Netty'
 
-
 apply plugin: 'rxjava-project'
 
 configure(subprojects) {
-  apply plugin: 'rxjava-project'
-  apply plugin: 'java'
+    apply plugin: 'rxjava-project'
+    apply plugin: 'java'
 
-  dependencies {
-    compile "io.reactivex:rxjava:1.0.+"
+    sourceCompatibility = JavaVersion.VERSION_1_7
+    targetCompatibility = JavaVersion.VERSION_1_7
 
-    testCompile 'junit:junit-dep:4.10'
-  }
+    dependencies {
+        compile "io.reactivex:rxjava:1.0.+"
+
+        testCompile 'junit:junit:4.12'
+        testCompile "org.hamcrest:hamcrest-library:1.3"
+    }
 }

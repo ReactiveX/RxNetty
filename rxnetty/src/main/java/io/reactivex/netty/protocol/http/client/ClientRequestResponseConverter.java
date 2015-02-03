@@ -34,15 +34,16 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.channel.AbstractConnectionEvent;
+import io.reactivex.netty.channel.FlushObservable;
 import io.reactivex.netty.channel.NewRxConnectionEvent;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionReuseEvent;
 import io.reactivex.netty.client.PooledConnectionReleasedEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.UnicastContentSubject;
-import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
@@ -156,7 +157,9 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
         if (HttpClientRequest.class.isAssignableFrom(recievedMsgClass)) {
             HttpClientRequest<?> rxRequest = (HttpClientRequest<?>) msg;
-            MultipleFutureListener allWritesListener = new MultipleFutureListener(promise);
+            FlushObservable allWritesListener = FlushObservable.create(eventsSubject,
+                                                                       ClientChannelMetricEventProvider.INSTANCE,
+                                                                       ctx.channel());
 
             Observable<?> contentSource = null;
 
@@ -198,7 +201,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         }
     }
 
-    protected void writeLastHttpContent(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener,
+    protected void writeLastHttpContent(ChannelHandlerContext ctx, FlushObservable allWritesListener,
                                         HttpClientRequest<?> rxRequest,
                                         final ResponseState responseState) {
         writeAContentChunk(ctx, allWritesListener, new DefaultLastHttpContent())
@@ -242,16 +245,16 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     }
 
     private void writeHttpHeaders(ChannelHandlerContext ctx, HttpClientRequest<?> rxRequest,
-                                  MultipleFutureListener allWritesListener) {
+                                  FlushObservable allWritesListener) {
         final long startTimeMillis = Clock.newStartTimeMillis();
         eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_HEADERS_WRITE_START);
         ChannelFuture writeFuture = ctx.write(rxRequest.getNettyRequest());
         addWriteCompleteEvents(writeFuture, startTimeMillis, HttpClientMetricsEvent.REQUEST_HEADERS_WRITE_SUCCESS,
                                HttpClientMetricsEvent.REQUEST_HEADERS_WRITE_FAILED);
-        allWritesListener.listen(writeFuture);
+        allWritesListener.add(writeFuture);
     }
 
-    private void writeContent(final ChannelHandlerContext ctx, final MultipleFutureListener allWritesListener,
+    private void writeContent(final ChannelHandlerContext ctx, final FlushObservable allWritesListener,
                               final Observable<?> contentSource, final ChannelPromise promise,
                               final HttpClientRequest<?> rxRequest, final ResponseState responseState) {
         contentSource.subscribe(new Subscriber<Object>() {
@@ -274,14 +277,14 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         });
     }
 
-    private ChannelFuture writeAContentChunk(ChannelHandlerContext ctx, MultipleFutureListener allWritesListener,
+    private ChannelFuture writeAContentChunk(ChannelHandlerContext ctx, FlushObservable allWritesListener,
                                              Object chunk) {
         eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_START);
         final long startTimeMillis = Clock.newStartTimeMillis();
         ChannelFuture writeFuture = ctx.write(chunk);
         addWriteCompleteEvents(writeFuture, startTimeMillis, HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_SUCCESS,
                                HttpClientMetricsEvent.REQUEST_CONTENT_WRITE_FAILED);
-        allWritesListener.listen(writeFuture);
+        allWritesListener.add(writeFuture);
         return writeFuture;
     }
 

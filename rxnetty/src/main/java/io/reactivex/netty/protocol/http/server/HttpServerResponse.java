@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -254,7 +253,7 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         }
 
         @Override
-        public HttpContent duplicate() {
+        public FullHttpResponse duplicate() {
             DefaultFullHttpResponse dup = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(),
                                                                       content.duplicate());
             dup.headers().set(headers());
@@ -271,6 +270,18 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         @Override
         public FullHttpResponse retain() {
             content.retain();
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse touch() {
+            content.touch();
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse touch(Object hint) {
+            content.touch(hint);
             return this;
         }
 
@@ -297,8 +308,18 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         }
 
         @Override
+        public HttpResponseStatus status() {
+            return headers.status();
+        }
+
+        @Override
         public HttpVersion getProtocolVersion() {
             return headers.getProtocolVersion();
+        }
+
+        @Override
+        public HttpVersion protocolVersion() {
+            return headers.protocolVersion();
         }
 
         @Override
@@ -314,6 +335,11 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         @Override
         public DecoderResult getDecoderResult() {
             return DecoderResult.SUCCESS;
+        }
+
+        @Override
+        public DecoderResult decoderResult() {
+            return getDecoderResult();
         }
 
         @Override

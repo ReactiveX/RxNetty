@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,7 +25,7 @@ import java.util.List;
  * A decoder that breaks an incoming {@link ByteBuf} into a list of strings delimited by a new line as specified by
  * {@link #isLineDelimiter(char)}
  */
-class StringLineDecoder extends ReplayingDecoder<StringLineDecoder.State> {
+public class StringLineDecoder extends ReplayingDecoder<StringLineDecoder.State> {
 
     public enum State {
         NEW_LINE,

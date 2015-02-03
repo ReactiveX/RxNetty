@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,25 @@
 
 package io.reactivex.netty.examples.tcp.echo;
 
-import java.util.List;
-
 import io.reactivex.netty.examples.ExamplesEnvironment;
-import io.reactivex.netty.server.RxServer;
+import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+
+import java.util.List;
 
 /**
  * @author Tomasz Bak
  */
 public class TcpEchoTest extends ExamplesEnvironment {
 
-    private RxServer<String, String> server;
+    private TcpServer<String, String> server;
 
     @Before
     public void setupServer() {
-        server = new TcpEchoServer(0).createServer();
-        server.start();
+        server = new TcpEchoServer(0).startServer();
     }
 
     @After

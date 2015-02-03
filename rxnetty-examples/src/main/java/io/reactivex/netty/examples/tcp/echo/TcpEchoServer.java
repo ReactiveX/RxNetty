@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,11 @@
 
 package io.reactivex.netty.examples.tcp.echo;
 
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.channel.ConnectionHandler;
-import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.pipeline.PipelineConfigurators;
-import io.reactivex.netty.server.RxServer;
-import rx.Observable;
-import rx.functions.Func1;
+import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.string.StringEncoder;
+import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import io.reactivex.netty.protocol.tcp.server.TcpServerImpl;
+import io.reactivex.netty.protocol.text.StringLineDecoder;
 
 /**
  * @author Nitesh Kant
@@ -37,33 +35,17 @@ public final class TcpEchoServer {
         this.port = port;
     }
 
-    public RxServer<String, String> createServer() {
-        RxServer<String, String> server = RxNetty.createTcpServer(port, PipelineConfigurators.textOnlyConfigurator(),
-                new ConnectionHandler<String, String>() {
-                    @Override
-                    public Observable<Void> handle(
-                            final ObservableConnection<String, String> connection) {
-                        System.out.println("New client connection established.");
-                        connection.writeAndFlush("Welcome! \n\n");
-                        return connection.getInput().flatMap(new Func1<String, Observable<Void>>() {
-                            @Override
-                            public Observable<Void> call(String msg) {
-                                System.out.println("onNext: " + msg);
-                                msg = msg.trim();
-                                if (!msg.isEmpty()) {
-                                    return connection.writeAndFlush("echo => " + msg + '\n');
-                                } else {
-                                    return Observable.empty();
-                                }
-                            }
-                        });
-                    }
-                });
-        System.out.println("TCP echo server started...");
+    public TcpServer<String, String> startServer() {
+        TcpServer<String, String> server = new TcpServerImpl<ByteBuf, ByteBuf>(port)
+                .<ByteBuf, String>addChannelHandlerLast("encoder", StringEncoder::new)
+                .<String, String>addChannelHandlerLast("decoder", StringLineDecoder::new)
+                .start(connection -> connection.writeAndFlushOnEach(connection.getInput()
+                                                                              .map(msg -> "echo => " + msg + '\n')));
+
         return server;
     }
 
     public static void main(final String[] args) {
-        new TcpEchoServer(DEFAULT_PORT).createServer().startAndWait();
+        new TcpEchoServer(DEFAULT_PORT).startServer().waitTillShutdown();
     }
 }

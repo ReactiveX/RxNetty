@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -22,11 +24,17 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import rx.Observable;
 import rx.functions.Action1;
+import rx.functions.Func0;
 
-import java.util.concurrent.ScheduledExecutorService;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 /**
  * A TCP client for creating TCP connections.
@@ -36,10 +44,12 @@ import java.util.concurrent.ScheduledExecutorService;
  * recommended that the mutations are done during client creation and not during connection creation to avoid repeated
  * object creation overhead.
  *
- * @param <I> The type of objects written to this client.
- * @param <O> The type of objects read from this client.
+ * @param <W> The type of objects written to this client.
+ * @param <R> The type of objects read from this client.
  */
-public abstract class TcpClient<I, O> {
+public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMetricsEvent<?>> {
+
+    public static final String TCP_CLIENT_NO_NAME = "TcpClient-no-name";
 
     /**
      * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
@@ -47,7 +57,7 @@ public abstract class TcpClient<I, O> {
      * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
      * before subscription.
      */
-    public abstract ConnectionRequest<I, O> createConnectionRequest();
+    public abstract ConnectionRequest<W, R> createConnectionRequest();
 
     /**
      * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
@@ -59,7 +69,30 @@ public abstract class TcpClient<I, O> {
      * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
      * before subscription.
      */
-    public abstract ConnectionRequest<I, O> createConnectionRequest(String host, int port);
+    public abstract ConnectionRequest<W, R> createConnectionRequest(String host, int port);
+
+    /**
+     * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
+     * This method overrides the default host and port configured for this client.
+     *
+     * @param host Target host to connect.
+     * @param port Port on the host to connect.
+     *
+     * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
+     * before subscription.
+     */
+    public abstract ConnectionRequest<W, R> createConnectionRequest(InetAddress host, int port);
+
+    /**
+     * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
+     * This method overrides the default remote address configured for this client.
+     *
+     * @param remoteAddress Remote address to connect.
+     *
+     * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
+     * before subscription.
+     */
+    public abstract ConnectionRequest<W, R> createConnectionRequest(SocketAddress remoteAddress);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and adding a
@@ -70,7 +103,7 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <T> TcpClient<I, O> channelOption(ChannelOption<T> option, T value);
+    public abstract <T> TcpClient<W, R> channelOption(ChannelOption<T> option, T value);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -81,11 +114,11 @@ public abstract class TcpClient<I, O> {
      * convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> addChannelHandlerFirst(String name, ChannelHandler handler);
+    public abstract <WW, RR> TcpClient<WW, RR> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -98,12 +131,12 @@ public abstract class TcpClient<I, O> {
      * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
      *                 methods
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
-                                                                      ChannelHandler handler);
+    public abstract <WW, RR> TcpClient<WW, RR> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                                      Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -114,11 +147,11 @@ public abstract class TcpClient<I, O> {
      * convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO>  addChannelHandlerLast(String name, ChannelHandler handler);
+    public abstract <WW, RR> TcpClient<WW, RR>  addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -131,12 +164,12 @@ public abstract class TcpClient<I, O> {
      * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
      *                 methods
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                                     ChannelHandler handler);
+    public abstract <WW, RR> TcpClient<WW, RR> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                                     Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -148,12 +181,12 @@ public abstract class TcpClient<I, O> {
      *
      * @param baseName  the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> addChannelHandlerBefore(String baseName, String name,
-                                                                       ChannelHandler handler);
+    public abstract <WW, RR> TcpClient<WW, RR> addChannelHandlerBefore(String baseName, String name,
+                                                                       Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -167,12 +200,12 @@ public abstract class TcpClient<I, O> {
      *                 methods
      * @param baseName  the name of the existing handler
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
-                                                                       String name, ChannelHandler handler);
+    public abstract <WW, RR> TcpClient<WW, RR> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
+                                                                       String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -184,12 +217,12 @@ public abstract class TcpClient<I, O> {
      *
      * @param baseName  the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> addChannelHandlerAfter(String baseName, String name,
-                                                                      ChannelHandler handler);
+    public abstract <WW, RR> TcpClient<WW, RR> addChannelHandlerAfter(String baseName, String name,
+                                                                      Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -203,25 +236,12 @@ public abstract class TcpClient<I, O> {
      *                 methods
      * @param baseName  the name of the existing handler
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
-                                                                      String name, ChannelHandler handler);
-
-    /**
-     * Removes the {@link ChannelHandler} with the passed {@code name} from the {@link ChannelPipeline} for all
-     * connections created by this client.
-     *
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be more
-     * convenient.</em>
-     *
-     * @param name Name of the handler.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract <II, OO> TcpClient<II, OO> removeHandler(String name);
+    public abstract <WW, RR> TcpClient<WW, RR> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
+                                                                      String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -231,17 +251,7 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract <II, OO> TcpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * eventLoopGroup for all the connections created by the newly created client instance.
-     *
-     * @param eventLoopGroup {@link EventLoopGroup} to use.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<I, O> eventLoop(EventLoopGroup eventLoopGroup);
+    public abstract <WW, RR> TcpClient<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -251,7 +261,7 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> maxConnections(int maxConnections);
+    public abstract TcpClient<W, R> maxConnections(int maxConnections);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -263,7 +273,7 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis);
+    public abstract TcpClient<W, R> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -275,17 +285,19 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy);
+    public abstract TcpClient<W, R> connectionPoolLimitStrategy(
+            PoolLimitDeterminationStrategy limitDeterminationStrategy);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code poolIdleCleanupScheduler} for detecting and cleaning idle connections by the newly created client instance.
+     * {@code idleConnectionCleanupTimer} for trigerring detection and cleanup of idle connections by the newly created
+     * client instance.
      *
-     * @param poolIdleCleanupScheduler Scheduled to schedule idle connections cleanup.
+     * @param idleConnectionCleanupTimer Timer to trigger idle connections cleanup.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler);
+    public abstract TcpClient<W, R> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and disabling idle connection
@@ -293,7 +305,7 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> withNoIdleConnectionCleanup();
+    public abstract TcpClient<W, R> noIdleConnectionCleanup();
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and disabling connection
@@ -301,7 +313,7 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> withNoConnectionPooling();
+    public abstract TcpClient<W, R> noConnectionPooling();
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
@@ -312,7 +324,7 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
+    public abstract TcpClient<W, R> enableWireLogging(LogLevel wireLoggingLevel);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -323,5 +335,44 @@ public abstract class TcpClient<I, O> {
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<I, O> withSslEngineFactory(SSLEngineFactory sslEngineFactory);
+    public abstract TcpClient<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory);
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
+        return newClient(TCP_CLIENT_NO_NAME, host, port);
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(String name, String host, int port) {
+        return new TcpClientImpl<>(name, new InetSocketAddress(host, port));
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String host, int port) {
+        return newClient(eventLoopGroup, channelClass, TCP_CLIENT_NO_NAME, host, port);
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String name, String host,
+                                                        int port) {
+        return new TcpClientImpl<>(name, eventLoopGroup, channelClass, new InetSocketAddress(host, port));
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress remoteAddress) {
+        return newClient(TCP_CLIENT_NO_NAME, remoteAddress);
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(String name, SocketAddress remoteAddress) {
+        return new TcpClientImpl<>(name, remoteAddress);
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass,
+                                                        SocketAddress remoteAddress) {
+        return newClient(eventLoopGroup, channelClass, TCP_CLIENT_NO_NAME, remoteAddress);
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String name,
+                                                        SocketAddress remoteAddress) {
+        return new TcpClientImpl<>(name, eventLoopGroup, channelClass, remoteAddress);
+    }
 }
