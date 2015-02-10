@@ -56,7 +56,6 @@ public class UnicastContentSubjectTest {
                                                                              onUnsub);
         subject.onNext("Start the timeout now."); // Since the timeout is scheduled only after content arrival.
         testScheduler.advanceTimeBy(1, TimeUnit.DAYS);
-        Assert.assertTrue("On unsubscribe action not called on dispose.", onUnsub.isCalled());
         subject.toBlocking().last(); // Should immediately throw an error.
     }
 
