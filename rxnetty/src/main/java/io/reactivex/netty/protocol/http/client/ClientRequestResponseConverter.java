@@ -307,6 +307,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         });
     }
 
+    private enum ResponseStateProcessingStage { Created, WaitingForResponse, ResponseReceived, Finished }
+
     /**
      * All state for this handler. At any point we need to invoke any method outside of this handler, this state should
      * be stored in a local variable and used after the external call finishes. Failure to do so will cause race
@@ -318,10 +320,10 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
      */
     private final class ResponseState {
 
+        private ResponseStateProcessingStage stage = ResponseStateProcessingStage.Created;
         @SuppressWarnings("rawtypes") private final UnicastContentSubject contentSubject; // The type of this subject can change at runtime because a user can convert the content at runtime.
         @SuppressWarnings("rawtypes") private Observer connInputObsrvr;
         @SuppressWarnings("rawtypes") private ObservableConnection connection;
-        private boolean isWaitingForResponse;
 
         private long responseReceiveStartTimeMillis; // Reset every time we receive a header.
 
@@ -329,8 +331,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(new Action0() {
                 @Override
                 public void call() {
-                    if (null != connection) {
-                        if (isWaitingForResponse) {// If the response was not completed, the connection is not usable any further.
+                    if (ResponseStateProcessingStage.Finished != stage && null != connection) {
+                        if (ResponseStateProcessingStage.WaitingForResponse == stage) {// If the response was not completed, the connection is not usable any further.
                             // It is important to do this here before closing the connection. Not doing so will return
                             // the pooled connection to the pool, before discarding the connection. This will cause,
                             // reuse of connections which are supposed to be discarded.
@@ -369,15 +371,15 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         }
 
         private void nowWaitingForResponse() {
-            isWaitingForResponse = true;
+            stage = ResponseStateProcessingStage.WaitingForResponse;
         }
 
         private void responseReceiveComplete() {
-            isWaitingForResponse = false;
+            stage = ResponseStateProcessingStage.ResponseReceived;
         }
 
         private void onConnectionClose() {
-            if (isWaitingForResponse) {
+            if (ResponseStateProcessingStage.WaitingForResponse == stage) {
                 if (null != connection) {
                     // If the response was not completed, the connection is not usable any further.
                     connection.getChannel().attr(DISCARD_CONNECTION).set(true);
@@ -386,6 +388,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                     connInputObsrvr.onError(CONN_CLOSE_BEFORE_RESPONSE);
                 }
             }
+            stage = ResponseStateProcessingStage.Finished;
         }
     }
 }
