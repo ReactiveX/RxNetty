@@ -1,5 +1,16 @@
 # RxNetty Releases #
 
+### Version 0.4.5 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.5+is%3Aclosed)
+
+* [Pull 315] (https://github.com/ReactiveX/RxNetty/pull/315) Fixes connection leak for SSL failures.
+* [Pull 313] (https://github.com/ReactiveX/RxNetty/pull/313) Only trigger the timeoutScheduler when not yet subscribed.
+* [Pull 310] (https://github.com/ReactiveX/RxNetty/pull/310) Fixed race in UnicastContentSubject and discard of connection.
+* [Pull 302] (https://github.com/ReactiveX/RxNetty/pull/302) Added module rxnetty-spectator. This will replace rxnetty-servo.
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.5%7C)
+
 ### Version 0.4.1 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.1+is%3Aclosed)

@@ -84,6 +84,16 @@ public class HttpServerRequestUriTest {
         Assert.assertEquals("Unexpected query string", "", request.getQueryString());
     }
 
+    @Test
+    public void testAbsolute() throws Exception {
+        String uri = "http://localhost:54321/a/b|c?foo=bar|baz";
+        DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
+        HttpServerRequest<ByteBuf> request = newServerRequest(nettyRequest);
+        Assert.assertEquals("Unexpected uri string", uri, request.getUri());
+        Assert.assertEquals("Unexpected query string", "foo=bar|baz", request.getQueryString());
+        Assert.assertEquals("Unexpected path string", "/a/b|c", request.getPath());
+    }
+
     protected HttpServerRequest<ByteBuf> newServerRequest(DefaultHttpRequest nettyRequest) {
         Channel noOpChannel = new NoOpChannelHandlerContext().channel();
         return new HttpServerRequest<ByteBuf>(noOpChannel, nettyRequest,

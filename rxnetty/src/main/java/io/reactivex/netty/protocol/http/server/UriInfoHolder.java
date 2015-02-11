@@ -31,13 +31,36 @@ public class UriInfoHolder {
 
     public UriInfoHolder(String uri) {
         this.uri = uri;
+
+        // java.net.URI doesn't support a relaxed mode and fails for many URIs that get used
+        // in practice
         int indexOfStartOfQP = uri.indexOf('?');
         if (-1 != indexOfStartOfQP && uri.length() >= indexOfStartOfQP) {
             queryString = uri.substring(indexOfStartOfQP + 1);
         } else {
             queryString = "";
         }
-        decoder = new QueryStringDecoder(uri);
+
+        decoder = new QueryStringDecoder(getPath(uri));
+    }
+
+    // If it is a relative URI then just pass it to the decoder. Otherwise we need to remove
+    // everything before the path. This method assumes the first '/' after the scheme is the
+    // start of the path.
+    private String getPath(String uri) {
+        int offset = 0;
+        if (uri.startsWith("http://")) {
+            offset = "http://".length();
+        } else if (uri.startsWith("https://")) {
+            offset = "https://".length();
+        }
+
+        if (offset == 0) {
+            return uri;
+        } else {
+            int firstSlash = uri.indexOf("/", offset);
+            return (firstSlash != -1) ? uri.substring(firstSlash) : uri;
+        }
     }
 
     public String getRawUriString() {
