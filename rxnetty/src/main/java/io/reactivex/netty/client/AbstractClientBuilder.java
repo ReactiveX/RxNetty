@@ -35,15 +35,12 @@ import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * @author Nitesh Kant
  */
 @SuppressWarnings("rawtypes")
 public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilder, C extends RxClient<I, O>> {
-
-    private static final AtomicInteger clientUniqueNameCounter = new AtomicInteger();
 
     private String name;
     protected final RxClientImpl.ServerInfo serverInfo;
