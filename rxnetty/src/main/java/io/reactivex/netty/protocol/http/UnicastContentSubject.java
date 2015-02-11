@@ -140,10 +140,6 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
     public boolean disposeIfNotSubscribed() {
         if (state.casState(State.STATES.UNSUBSCRIBED, State.STATES.DISPOSED)) {
             state.bufferedObservable.subscribe(Subscribers.empty()); // Drain all items so that ByteBuf gets released.
-
-            if (null != state.onUnsubscribe) {
-                state.onUnsubscribe.call(); // Since this is an inline/sync call, if this throws an error, it gets thrown to the caller.
-            }
             return true;
         }
         return false;
