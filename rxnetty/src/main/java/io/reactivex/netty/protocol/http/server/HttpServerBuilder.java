@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,14 +31,14 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A convenience builder to create instances of {@link HttpServer}
+ * A convenience builder to create instances of {@link HttpServer}.
  *
  * @author Nitesh Kant
  */
 public class HttpServerBuilder<I, O>
         extends ConnectionBasedServerBuilder<HttpServerRequest<I>, HttpServerResponse<O>, HttpServerBuilder<I, O>> {
 
-    private long contentSubscriptionTimeoutMs;
+    protected long contentSubscriptionTimeoutMs;
 
     public HttpServerBuilder(int port, RequestHandler<I, O> requestHandler, boolean send10ResponseFor10Request) {
         super(port, new HttpConnectionHandler<I, O>(requestHandler, send10ResponseFor10Request));

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,9 +26,11 @@ import rx.Observable;
 import rx.Subscriber;
 
 /**
-* @author Nitesh Kant
-*/
-class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest<I>, HttpServerResponse<O>> {
+ * Default implementation of {@link io.reactivex.netty.channel.ConnectionHandler} for HTTP protocol.
+ *
+ * @author Nitesh Kant
+ */
+public class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest<I>, HttpServerResponse<O>> {
 
     private ErrorResponseGenerator<O> responseGenerator = new DefaultErrorResponseGenerator<O>();
 
@@ -36,11 +38,11 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
     private final boolean send10ResponseFor10Request;
     @SuppressWarnings("rawtypes")private MetricEventsSubject eventsSubject;
 
-    public HttpConnectionHandler(RequestHandler<I, O> requestHandler) {
+    protected HttpConnectionHandler(RequestHandler<I, O> requestHandler) {
         this(requestHandler, false);
     }
 
-    public HttpConnectionHandler(RequestHandler<I, O> requestHandler, boolean send10ResponseFor10Request) {
+    protected HttpConnectionHandler(RequestHandler<I, O> requestHandler, boolean send10ResponseFor10Request) {
         this.requestHandler = requestHandler;
         this.send10ResponseFor10Request = send10ResponseFor10Request;
     }
