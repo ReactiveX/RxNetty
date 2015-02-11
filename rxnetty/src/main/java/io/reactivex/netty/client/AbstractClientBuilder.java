@@ -297,7 +297,7 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
             return name;
         }
 
-        name = generatedNamePrefix() + clientUniqueNameCounter.incrementAndGet();
+        name = generatedNamePrefix() + "-no-name";
         return name;
     }
 
