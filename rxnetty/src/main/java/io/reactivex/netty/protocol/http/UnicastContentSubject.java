@@ -24,6 +24,7 @@ import rx.Observable;
 import rx.Observer;
 import rx.Scheduler;
 import rx.Subscriber;
+import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.internal.operators.BufferUntilSubscriber;
@@ -155,6 +156,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
     private static final class State<T> {
 
         private final Action0 onUnsubscribe;
+        private volatile Subscription releaseSubscription;
 
         public State() {
             this(null);
@@ -200,6 +202,16 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
         public boolean casTimeoutScheduled() {
             return TIMEOUT_SCHEDULED_UPDATER.compareAndSet(this, 0, 1);
         }
+
+        public void setReleaseSubscription(final Subscription releaseSubscription) {
+            this.releaseSubscription = releaseSubscription;
+        }
+
+        public void unsubscribeReleaseSubscription() {
+            if(releaseSubscription != null) {
+                releaseSubscription.unsubscribe();
+            }
+        }
     }
 
     private static final class OnSubscribeAction<T> implements OnSubscribe<T> {
@@ -224,6 +236,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                 }));
 
                 state.bufferedObservable.subscribe(subscriber);
+                state.unsubscribeReleaseSubscription();
 
             } else if(State.STATES.SUBSCRIBED.ordinal() == state.state) {
                 subscriber.onError(new IllegalStateException("Content can only have one subscription. Use Observable.publish() if you want to multicast."));
@@ -278,12 +291,13 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
         // Schedule timeout once and when not subscribed yet.
         if (state.casTimeoutScheduled() && state.state == State.STATES.UNSUBSCRIBED.ordinal()) {
-            timeoutScheduler.subscribe(new Action1<Long>() { // Schedule timeout after the first content arrives.
+            // Schedule timeout after the first content arrives.
+            state.setReleaseSubscription(timeoutScheduler.subscribe(new Action1<Long>() {
                 @Override
                 public void call(Long aLong) {
                     disposeIfNotSubscribed();
                 }
-            });
+            }));
         }
     }
 
