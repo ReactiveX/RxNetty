@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -28,7 +29,6 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpChunkedInput;
-import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -52,6 +52,7 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
     private final AtomicBoolean headerWritten = new AtomicBoolean();
     private volatile boolean fullResponseWritten;
     private ChannelFuture headerWriteFuture;
+    private volatile boolean flushOnlyOnReadComplete;
 
     protected HttpServerResponse(Channel nettyChannel,
                                  MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
@@ -121,6 +122,25 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
     public void writeChunkedInput(HttpChunkedInput httpChunkedInput) {
         writeOnChannel(httpChunkedInput);
+    }
+
+    /**
+     * Flush semantics of a response are as follows:
+     * <ul>
+        <li>Flush immediately if {@link HttpServerResponse#flush()} is called.</li>
+        <li>Flush at the completion of {@link Observable} returned by
+     {@link RequestHandler#handle(HttpServerRequest, HttpServerResponse)} if and only if
+     {@link #flushOnlyOnChannelReadComplete(boolean)} is set to false (default is false).</li>
+        <li>Flush when {@link ChannelHandlerContext#fireChannelReadComplete()} event is fired by netty. This is done
+     unconditionally and is a no-op if there is nothing to flush.</li>
+     </ul>
+     */
+    public void flushOnlyOnChannelReadComplete(boolean flushOnlyOnReadComplete) {
+        this.flushOnlyOnReadComplete = flushOnlyOnReadComplete;
+    }
+
+    public boolean isFlushOnlyOnReadComplete() {
+        return flushOnlyOnReadComplete;
     }
 
     HttpResponse getNettyResponse() {
@@ -233,7 +253,7 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         }
 
         @Override
-        public HttpContent duplicate() {
+        public FullHttpResponse duplicate() {
             DefaultFullHttpResponse dup = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(),
                                                                       content.duplicate());
             dup.headers().set(headers());
@@ -250,6 +270,18 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         @Override
         public FullHttpResponse retain() {
             content.retain();
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse touch() {
+            content.touch();
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse touch(Object hint) {
+            content.touch(hint);
             return this;
         }
 
@@ -276,8 +308,18 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         }
 
         @Override
+        public HttpResponseStatus status() {
+            return headers.status();
+        }
+
+        @Override
         public HttpVersion getProtocolVersion() {
             return headers.getProtocolVersion();
+        }
+
+        @Override
+        public HttpVersion protocolVersion() {
+            return headers.protocolVersion();
         }
 
         @Override
@@ -293,6 +335,11 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         @Override
         public DecoderResult getDecoderResult() {
             return DecoderResult.SUCCESS;
+        }
+
+        @Override
+        public DecoderResult decoderResult() {
+            return getDecoderResult();
         }
 
         @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -171,6 +171,17 @@ public class ServerSentEvent implements ByteBufHolder {
             eventType.retain(increment);
         }
         data.retain(increment);
+        return this;
+    }
+
+    @Override
+    public ByteBufHolder touch() {
+        return touch(null);
+    }
+
+    @Override
+    public ByteBufHolder touch(Object hint) {
+        data.touch(hint);
         return this;
     }
 

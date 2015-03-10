@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,6 +41,10 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
 
     public MetricEventsSubject() {
         listeners = new CopyOnWriteArrayList<SafeListener<? extends E>>();
+    }
+
+    protected MetricEventsSubject(MetricEventsSubject<E> toCopy) {
+        listeners = new CopyOnWriteArrayList<SafeListener<? extends E>>(toCopy.listeners);
     }
 
     @Override
@@ -153,6 +157,10 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
             exception.finish();
             throw exception;
         }
+    }
+
+    public MetricEventsSubject<E> copy() {
+        return new MetricEventsSubject<>();
     }
 
     private static class SafeListener<E extends MetricsEvent<?>> implements MetricEventsListener<E> {

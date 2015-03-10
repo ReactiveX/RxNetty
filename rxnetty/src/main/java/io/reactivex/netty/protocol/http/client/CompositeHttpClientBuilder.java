@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ import io.reactivex.netty.client.ClientChannelFactoryImpl;
 import io.reactivex.netty.client.ClientConnectionFactory;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ConnectionPoolBuilder;
-import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.RxClient;
 import io.reactivex.netty.client.UnpooledClientConnectionFactory;
 import io.reactivex.netty.metrics.MetricEventsListener;
@@ -74,21 +73,6 @@ public class CompositeHttpClientBuilder<I, O>
     }
 
     @Override
-    public CompositeHttpClientBuilder<I, O> withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy) {
-        if (strategy instanceof CloneablePoolLimitDeterminationStrategy) {
-            return withConnectionPoolLimitStrategy((CloneablePoolLimitDeterminationStrategy) strategy);
-        } else {
-            throw new IllegalArgumentException("Only " + CloneablePoolLimitDeterminationStrategy.class.getName() +
-                                               " strategy implementations are allowed.");
-        }
-    }
-
-    public CompositeHttpClientBuilder<I, O> withConnectionPoolLimitStrategy(CloneablePoolLimitDeterminationStrategy strategy) {
-        super.withConnectionPoolLimitStrategy(strategy);
-        return this;
-    }
-
-    @Override
     public CompositeHttpClientBuilder<I, O> withMaxConnections(int maxConnections) {
         return super.withMaxConnections(maxConnections);
     }
@@ -126,10 +110,5 @@ public class CompositeHttpClientBuilder<I, O>
     protected MetricEventsListener<? extends ClientMetricsEvent<?>>
     newMetricsListener(MetricEventsListenerFactory factory, CompositeHttpClient<I, O> client) {
         return factory.forHttpClient(client);
-    }
-
-    public interface CloneablePoolLimitDeterminationStrategy extends PoolLimitDeterminationStrategy {
-
-        CloneablePoolLimitDeterminationStrategy copy();
     }
 }

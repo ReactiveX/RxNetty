@@ -57,17 +57,8 @@ public abstract class AbstractMetricsEvent<T extends Enum> implements MetricsEve
 
         AbstractMetricsEvent that = (AbstractMetricsEvent) o;
 
-        if (isError != that.isError) {
-            return false;
-        }
-        if (isTimed != that.isTimed) {
-            return false;
-        }
-        if (name != that.name) {
-            return false;
-        }
+        return isError == that.isError && isTimed == that.isTimed && name == that.name;
 
-        return true;
     }
 
     @Override

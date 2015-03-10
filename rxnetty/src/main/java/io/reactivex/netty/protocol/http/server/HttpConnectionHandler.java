@@ -114,7 +114,11 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                             public void onCompleted() {
                                 eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
                                                       Clock.onEndMillis(startTimeMillis));
-                                response.close(false);
+                                response.close(false); // Since close() can be called only once, the flush is separated from close.
+                                // Close will write the last HTTP content and hence the flush must be done post close.
+                                if (!response.isFlushOnlyOnReadComplete()) {
+                                    response.flush();
+                                }
                             }
 
                             @Override
@@ -124,7 +128,9 @@ class HttpConnectionHandler<I, O> implements ConnectionHandler<HttpServerRequest
                                 if (!response.isHeaderWritten()) {
                                     responseGenerator.updateResponse(response, throwable);
                                 }
-                                response.close(true); // Response should be flushed for errors: https://github.com/ReactiveX/RxNetty/issues/226
+                                response.close(false); // Since close() can be called only once, the flush is separated from close.
+                                // Close will write the last HTTP content and hence the flush must be done post close.
+                                response.flush(); // Response should be flushed for errors: https://github.com/ReactiveX/RxNetty/issues/226
                             }
 
                             @Override

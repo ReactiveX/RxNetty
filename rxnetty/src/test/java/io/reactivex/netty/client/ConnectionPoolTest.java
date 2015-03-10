@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -47,7 +47,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
-import static io.reactivex.netty.client.RxClient.ClientConfig.Builder.newDefaultConfig;
+import static io.reactivex.netty.client.RxClient.ClientConfig.Builder.*;
 
 /**
  * @author Nitesh Kant
@@ -104,7 +104,7 @@ public class ConnectionPoolTest {
             }
         });
 
-        poolConfig = new PoolConfig(MAX_IDLE_TIME_MILLIS);
+        poolConfig = /*new PoolConfig(MAX_IDLE_TIME_MILLIS)*/null/*TODO: Fix me*/;
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
         pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, factory, eventsSubject);
@@ -176,7 +176,7 @@ public class ConnectionPoolTest {
         serverConnHandler.closeNewConnectionsOnReceive(false);
         PooledConnection<String, String> connection = (PooledConnection<String, String>) acquireAndTestStats();
 
-        connection.setLastReturnToPoolTimeMillis(System.currentTimeMillis() - PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis());
+        connection.setLastReturnToPoolTimeMillis(System.currentTimeMillis() - 30000);
 
         connection.close();
 
@@ -355,7 +355,7 @@ public class ConnectionPoolTest {
         pool.shutdown();
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory.useMetricEventsSubject(eventsSubject);
-        pool = new ConnectionPoolImpl<String, String>(serverInfo, PoolConfig.DEFAULT_CONFIG, strategy,
+        pool = new ConnectionPoolImpl<String, String>(serverInfo, /*new PoolConfig(30000)*/null/*TODO: Fix me*/, strategy,
                                                       Executors.newScheduledThreadPool(1), factory, eventsSubject);
 
         stats = new PoolStats();

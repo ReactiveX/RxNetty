@@ -25,8 +25,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.reactivex.netty.examples.http.ssl.SslHelloWorldServer.DEFAULT_PORT;
-
 
 /**
  * @author Tomasz Bak
@@ -38,7 +36,7 @@ public class SslHelloWorldTest extends ExamplesEnvironment {
 
     @Before
     public void setupHttpHelloServer() throws Exception {
-        server = new SslHelloWorldServer(DEFAULT_PORT).createServer();
+        server = new SslHelloWorldServer(0).createServer();
         server.start();
     }
 
@@ -49,7 +47,7 @@ public class SslHelloWorldTest extends ExamplesEnvironment {
 
     @Test
     public void testRequestReplySequence() throws Exception {
-        SslHelloWorldClient client = new SslHelloWorldClient(DEFAULT_PORT);
+        SslHelloWorldClient client = new SslHelloWorldClient(server.getServerPort());
         HttpResponseStatus responseStatus = client.sendHelloRequest();
         Assert.assertEquals(HttpResponseStatus.OK, responseStatus);
     }

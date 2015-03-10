@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,12 @@
 
 package io.reactivex.netty.examples.tcp.event;
 
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.pipeline.PipelineConfigurators;
-import rx.Observable;
-import rx.functions.Func1;
+import io.netty.handler.logging.LogLevel;
+import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.protocol.text.StringLineDecoder;
 
-import static io.reactivex.netty.examples.tcp.event.TcpEventStreamServer.DEFAULT_PORT;
+import static io.reactivex.netty.examples.tcp.event.TcpEventStreamServer.*;
 
 /**
  * @author Nitesh Kant
@@ -30,47 +29,24 @@ import static io.reactivex.netty.examples.tcp.event.TcpEventStreamServer.DEFAULT
 public final class TcpEventStreamClient {
 
     private final int port;
-    private final int delay;
     private final int noOfEvents;
 
-    public TcpEventStreamClient(int port, int delay, int noOfEvents) {
+    public TcpEventStreamClient(int port, int noOfEvents) {
         this.port = port;
-        this.delay = delay;
         this.noOfEvents = noOfEvents;
     }
 
     public int readEvents() {
-        Observable<ObservableConnection<String, String>> connectionObservable =
-                RxNetty.createTcpClient("localhost", port, PipelineConfigurators.stringMessageConfigurator()).connect();
-        Iterable<Object> eventIterable = connectionObservable.flatMap(new Func1<ObservableConnection<String, String>, Observable<?>>() {
-            @Override
-            public Observable<?> call(ObservableConnection<String, String> connection) {
-                return connection.getInput().map(new Func1<String, String>() {
-                    @Override
-                    public String call(String msg) {
-                        delayProcessing();
-                        return msg.trim();
-                    }
-                });
-            }
-        }).take(noOfEvents).toBlocking().toIterable();
-
-        int count = 0;
-        for (Object e : eventIterable) {
-            System.out.println("onNext event => " + e);
-            count++;
-        }
-        return count;
-    }
-
-    private void delayProcessing() {
-        if (delay > 0) {
-            try {
-                Thread.sleep(delay);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        }
+        return TcpClient.newClient("127.0.0.1", port)
+                 .addChannelHandlerLast("decoder", StringLineDecoder::new)
+                 .enableWireLogging(LogLevel.ERROR)
+                 .createConnectionRequest()
+                 .switchMap(Connection::getInput)
+                 .take(noOfEvents)
+                 .doOnNext(System.out::println)
+                 .toList()
+                 .toBlocking()
+                 .single().size();
     }
 
     public static void main(String[] args) {
@@ -80,6 +56,6 @@ public final class TcpEventStreamClient {
             delay = Integer.valueOf(args[0]);
             noOfEvents = Integer.valueOf(args[1]);
         }
-        new TcpEventStreamClient(DEFAULT_PORT, delay, noOfEvents).readEvents();
+        new TcpEventStreamClient(DEFAULT_PORT, noOfEvents).readEvents();
     }
 }

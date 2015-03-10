@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,8 +16,6 @@
 
 package io.reactivex.netty.client;
 
-import io.reactivex.netty.protocol.http.client.CompositeHttpClientBuilder;
-
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -27,7 +25,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author Nitesh Kant
  */
-public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy {
+public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrategy {
 
     public static final int DEFAULT_MAX_CONNECTIONS = 1000;
 
@@ -96,7 +94,7 @@ public class MaxConnectionsBasedStrategy implements CompositeHttpClientBuilder.C
     }
 
     @Override
-    public CompositeHttpClientBuilder.CloneablePoolLimitDeterminationStrategy copy() {
+    public MaxConnectionsBasedStrategy copy() {
         return new MaxConnectionsBasedStrategy(originalMaxConnLimit);
     }
 

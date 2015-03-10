@@ -48,6 +48,7 @@ public final class PlainTextServer {
                                              @Override
                                              public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
                                                                             final HttpServerResponse<ByteBuf> response) {
+                                                 response.flushOnlyOnChannelReadComplete(true); // Leverage gathering writes for HTTP pipelined requests.
                                                  response.getHeaders().set(HttpHeaders.Names.CONTENT_LENGTH,
                                                                            CONTENT_LENGTH_HEADER_VAL); // This makes RxNetty write a single Full response as opposed to writing header, content & lastHttpContent.
                                                  ByteBuf content = response.getAllocator()

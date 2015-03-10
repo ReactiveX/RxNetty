@@ -1,5 +1,16 @@
 # RxNetty Releases #
 
+### Version 0.4.1 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.1+is%3Aclosed)
+
+* [Issue 277] (https://github.com/ReactiveX/RxNetty/issue/277) StackOverflow while draining`UnicastContentSubject`
+* [Issue 287] (https://github.com/ReactiveX/RxNetty/issue/287) Flush HTTP response on completion of `RequestHandler.handle()`
+* [Issue 288] (https://github.com/ReactiveX/RxNetty/issue/288) Upgrade to rx-java 1.0.1
+
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.1%7C)
+
 ### Version 0.4.0 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.0+is%3Aclosed)

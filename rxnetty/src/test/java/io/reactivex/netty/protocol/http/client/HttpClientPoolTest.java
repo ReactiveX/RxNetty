@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,7 +22,6 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.timeout.ReadTimeoutException;
 import io.reactivex.netty.ChannelCloseListener;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolStats;
 import io.reactivex.netty.client.TrackableMetricEventsListener;
 import io.reactivex.netty.metrics.HttpClientMetricEventsListener;
@@ -83,7 +82,7 @@ public class HttpClientPoolTest {
     @Test
     public void testBasicAcquireRelease() throws Exception {
 
-        client = newHttpClient(2, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), null);
+        client = newHttpClient(2, 30000, null);
 
         HttpClientResponse<ByteBuf> response = submitAndWaitForCompletion(client, HttpClientRequest.createGet("/"), null
         );
@@ -97,7 +96,7 @@ public class HttpClientPoolTest {
     @Test
     public void testBasicAcquireReleaseWithServerClose() throws Exception {
 
-        client = newHttpClient(2, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), null);
+        client = newHttpClient(2, 30000, null);
 
         final long[] idleCountOnComplete = {0};
         final long[] inUseCountOnComplete = {0};
@@ -130,7 +129,7 @@ public class HttpClientPoolTest {
     @Test
     public void testReadtimeoutCloseConnection() throws Exception {
         HttpClient.HttpClientConfig conf = new HttpClient.HttpClientConfig.Builder().readTimeout(1, TimeUnit.SECONDS).build();
-        client = newHttpClient(1, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), conf);
+        client = newHttpClient(1, 30000, conf);
         try {
             submitAndWaitForCompletion(client, HttpClientRequest.createGet("test/timeout?timeout=60000"), null);
             throw new AssertionError("Expected read timeout error.");
@@ -145,7 +144,7 @@ public class HttpClientPoolTest {
 
     @Test
     public void testCloseOnKeepAliveTimeout() throws Exception {
-        client = newHttpClient(2, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), null);
+        client = newHttpClient(2, 30000, null);
 
         HttpClientResponse<ByteBuf> response = submitAndWaitForCompletion(client,
                                                                           HttpClientRequest.createGet("test/keepAliveTimeout"),

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,30 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-buildscript {
-  repositories { jcenter() }
-  dependencies {
-    classpath 'com.netflix.nebula:gradle-rxjava-project-plugin:1.12.+'
-    classpath 'com.netflix.nebula:gradle-extra-configurations-plugin:1.12.+'
-  }
-}
 
-apply plugin: 'rxjava-project'
-
-// Multi-module modules aren't really supported
-version = rootProject.version
-
-sourceCompatibility = JavaVersion.VERSION_1_6
-targetCompatibility = JavaVersion.VERSION_1_6
+// examples are in Java 8 while rest of projects is Java 7
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
     compile project(':rxnetty')
     compile project(':rxnetty-servo')
+    compile "io.reactivex:rxjava-string:1.0.0"
     compile "org.slf4j:slf4j-log4j12:${slf4j_version}"
-    
-    testCompile 'junit:junit:4.10'
 }
-
 
 /**
  * Tasks to run examples.
@@ -187,7 +174,7 @@ task runLogTailAggregator (dependsOn: [classes], type: JavaExec) {
     group = "Examples"
     description = "Run log tail aggregator"
 
-    main = "io.reactivex.netty.examples.http.logtail.LogsAggregator"
+    main = "io.reactivex.netty.examples.http.logtail.LogAggregator"
     classpath = sourceSets.main.runtimeClasspath
 
     if ( project.hasProperty("portFrom") && project.hasProperty("portTo") ) {

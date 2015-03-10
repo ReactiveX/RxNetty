@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,15 +21,10 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.FileRegion;
-import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
-import rx.functions.Action0;
-import rx.functions.Action1;
 
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * @author Nitesh Kant
@@ -41,23 +36,15 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     protected final AtomicBoolean closeIssued = new AtomicBoolean();
 
     private final Channel nettyChannel;
-
-    /**
-     * A listener for all pending writes before a flush.
-     */
-    private final AtomicReference<MultipleFutureListener> unflushedWritesListener;
-    @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
-    private final ChannelMetricEventProvider metricEventProvider;
+    private final FlushObservable flushObservable;
 
     protected DefaultChannelWriter(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
                                    ChannelMetricEventProvider metricEventProvider) {
-        this.eventsSubject = eventsSubject;
-        this.metricEventProvider = metricEventProvider;
         if (null == nettyChannel) {
             throw new NullPointerException("Channel can not be null.");
         }
         this.nettyChannel = nettyChannel;
-        unflushedWritesListener = new AtomicReference<MultipleFutureListener>(new MultipleFutureListener(nettyChannel.newPromise()));
+        flushObservable = FlushObservable.create(eventsSubject, metricEventProvider, nettyChannel);
     }
 
     @Override
@@ -124,36 +111,12 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     @Override
     @SuppressWarnings("unchecked")
     public Observable<Void> flush() {
-        final long startTimeMillis = Clock.newStartTimeMillis();
-        eventsSubject.onEvent(metricEventProvider.getFlushStartEvent());
-        MultipleFutureListener existingListener =
-                unflushedWritesListener.getAndSet(new MultipleFutureListener(nettyChannel.newPromise()));
-        /**
-         * Do flush() after getting the last listener so that we do not wait for a write which is not flushed.
-         * If we do it before getting the existingListener then the write that happens after the flush() from the user
-         * will be contained in the retrieved listener and hence we will wait till the next flush() finish.
-         */
-        nettyChannel.flush();
-        return existingListener.asObservable()
-                               .doOnCompleted(new Action0() {
-                                   @Override
-                                   public void call() {
-                                       eventsSubject.onEvent(metricEventProvider.getFlushSuccessEvent(),
-                                                             Clock.onEndMillis(startTimeMillis));
-                                   }
-                               })
-                               .doOnError(new Action1<Throwable>() {
-                                   @Override
-                                   public void call(Throwable throwable) {
-                                       eventsSubject.onEvent(metricEventProvider.getFlushFailedEvent(),
-                                                             Clock.onEndMillis(startTimeMillis), throwable);
-                                   }
-                               });
+        return flushObservable;
     }
 
     @Override
     public void cancelPendingWrites(boolean mayInterruptIfRunning) {
-        unflushedWritesListener.get().cancelPendingFutures(mayInterruptIfRunning);
+        flushObservable.cancelPendingFutures(mayInterruptIfRunning);
     }
 
     @Override
@@ -163,7 +126,7 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
 
     protected ChannelFuture writeOnChannel(Object msg) {
         ChannelFuture writeFuture = getChannel().write(msg); // Calling write on context will be wrong as the context will be of a component not necessarily, the tail of the pipeline.
-        unflushedWritesListener.get().listen(writeFuture);
+        flushObservable.add(writeFuture);
         return writeFuture;
     }
 

@@ -24,8 +24,6 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
-import static io.reactivex.netty.examples.http.wordcounter.WordCounterServer.DEFAULT_PORT;
-
 /**
  * @author Tomasz Bak
  */
@@ -38,7 +36,7 @@ public class WordCounterTest extends ExamplesEnvironment {
 
     @Before
     public void startServer() {
-        server = new WordCounterServer(DEFAULT_PORT).createServer();
+        server = new WordCounterServer(0).createServer();
         server.start();
     }
 
@@ -49,7 +47,7 @@ public class WordCounterTest extends ExamplesEnvironment {
 
     @Test
     public void testWordCounter() throws Exception {
-        WordCounterClient client = new WordCounterClient(DEFAULT_PORT, TEXT_FILE);
+        WordCounterClient client = new WordCounterClient(server.getServerPort(), TEXT_FILE);
         int amount = client.countWords();
         Assert.assertEquals(EXPECTED_N_OF_WORDS, amount);
     }

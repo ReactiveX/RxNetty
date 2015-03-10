@@ -116,7 +116,7 @@ public class RxMetricEventsTest {
         testServerEventFired(listener, ServerMetricsEvent.EventType.ConnectionCloseSuccess, 1);
         testServerEventFired(listener, ServerMetricsEvent.EventType.WriteStart);
         testServerEventFired(listener, ServerMetricsEvent.EventType.WriteSuccess);
-        testServerEventFired(listener, ServerMetricsEvent.EventType.FlushStart, 1);
+        testServerEventFired(listener, ServerMetricsEvent.EventType.FlushStart, 2); // Auto-flush on request handling complete.
         testServerEventFired(listener, ServerMetricsEvent.EventType.FlushSuccess, 1);
         testServerEventFired(listener, ServerMetricsEvent.EventType.BytesRead);
 

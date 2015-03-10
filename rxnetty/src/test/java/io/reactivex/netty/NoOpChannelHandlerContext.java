@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -134,6 +134,11 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
     @Override
     public <T> Attribute<T> attr(AttributeKey<T> key) {
         return attributeMap.attr(key);
+    }
+
+    @Override
+    public <T> boolean hasAttr(AttributeKey<T> key) {
+        return attributeMap.hasAttr(key);
     }
 
     @Override
