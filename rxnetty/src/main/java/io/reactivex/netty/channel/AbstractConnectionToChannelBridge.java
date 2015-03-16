@@ -28,11 +28,14 @@ import io.reactivex.netty.metrics.MetricEventsSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
+import rx.Producer;
 import rx.Subscriber;
+import rx.exceptions.MissingBackpressureException;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * A bridge between a {@link Connection} instance and the associated {@link Channel}.
@@ -46,15 +49,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * if {@link Connection#getInput()} is subscribed lazily, the subscriber always recieves an error. The content
  * in this case is disposed upon reading.
  *
- * <h2>Backpressure</h2>
- *
- * Rx backpressure is built-in into this handler by using {@link CollaboratedReadInputSubscriber} for all
- * {@link Connection#getInput()} subscriptions.
- *
  * @param <R> Type read from the connection held by this handler.
  * @param <W> Type written to the connection held by this handler.
  */
-public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDuplexHandler {
+public abstract class AbstractConnectionToChannelBridge<R, W> extends BackpressureManagingHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractConnectionToChannelBridge.class);
 
@@ -66,16 +64,12 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
     private static final IllegalStateException LAZY_CONN_INPUT_SUB =
             new IllegalStateException("Channel is set to auto-read but the subscription was lazy.");
 
-    private static final byte[] BYTE_ARR_TO_FIND_W_TYPE = new byte[0];
-
     @SuppressWarnings("rawtypes")
-    private final MetricEventsSubject eventsSubject;
-    private final ChannelMetricEventProvider metricEventProvider;
+    protected final MetricEventsSubject eventsSubject;
+    protected final ChannelMetricEventProvider metricEventProvider;
     private final BytesWriteInterceptor bytesWriteInterceptor;
-    private final boolean convertStringToBB;
-    private final boolean convertByteArrToBB;
     private Subscriber<? super Connection<R, W>> newConnectionSub;
-    private CollaboratedReadInputSubscriber<? super R> connInputSub;
+    private ReadProducer<R> readProducer;
     private boolean raiseErrorOnInputSubscription;
     private boolean connectionEmitted;
 
@@ -84,9 +78,13 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
         bytesWriteInterceptor = new BytesWriteInterceptor();
-        //TypeParameterMatcher matcher = TypeParameterMatcher.find(this, AbstractConnectionToChannelBridge.class, "W");
-        convertStringToBB = false;
-        convertByteArrToBB = false;
+    }
+
+    protected AbstractConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
+                                                MetricEventsSubject<?> eventsSubject,
+                                                ChannelMetricEventProvider metricEventProvider) {
+        this(eventsSubject, metricEventProvider);
+        newConnectionSub = connSub;
     }
 
     @Override
@@ -112,8 +110,9 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
 
     @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
-        if (isValidToEmit(connInputSub)) {
-            connInputSub.onCompleted();
+
+        if (isValidToEmitToReadSubscriber(readProducer)) {
+            readProducer.sendOnComplete();
         }
 
         super.channelUnregistered(ctx);
@@ -133,8 +132,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
             newConnectionInputSubscriber(ctx.channel(), event.getSubscriber());
         } else if (evt instanceof ConnectionInputSubscriberResetEvent) {
             resetConnectionInputSubscriber();
-        } else if (evt == DrainInputSubscriberBuffer.INSTANCE) {
-            drainInputSubscriberBuffer();
         }
 
         super.userEventTriggered(ctx, evt);
@@ -142,33 +139,34 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
 
     @SuppressWarnings("unchecked")
     @Override
-    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (isValidToEmit(connInputSub)) {
+    public void newMessage(ChannelHandlerContext ctx, Object msg) {
+        if (isValidToEmitToReadSubscriber(readProducer)) {
             try {
-                connInputSub.onNext((R) msg);
+                readProducer.sendOnNext((R) msg);
             } catch (ClassCastException e) {
                 ReferenceCountUtil.release(msg); // Since, this was not sent to the subscriber, release the msg.
-                connInputSub.onError(e);
+                readProducer.sendOnError(e);
             }
         } else {
+            if (logger.isWarnEnabled()) {
+                logger.warn("Data received on channel, but no subscriber registered. Discarding data. Message class: "
+                            + msg.getClass().getName());
+            }
             ReferenceCountUtil.release(msg); // No consumer of the message, so discard.
         }
     }
 
     @Override
-    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
-        super.channelReadComplete(ctx);
-        if (!ctx.channel().config().isAutoRead() && connInputSub.shouldReadMore()) {
-            ctx.read();
-        }
+    public boolean shouldReadMore(ChannelHandlerContext ctx) {
+        return null != readProducer && readProducer.shouldReadMore(ctx);
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (!connectionEmitted && isValidToEmit(newConnectionSub)) {
             newConnectionSub.onError(cause);
-        } else if (isValidToEmit(connInputSub)) {
-            connInputSub.onError(cause);
+        } else if (isValidToEmitToReadSubscriber(readProducer)) {
+            readProducer.sendOnError(cause);
         } else {
             super.exceptionCaught(ctx, cause);
         }
@@ -194,27 +192,53 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
      */
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (convertStringToBB && msg instanceof String) {
-            /*If the charset is important, the user must convert the string to BB directly.*/
-            byte[] msgAsBytes = ((String) msg).getBytes();
-            ctx.write(ctx.alloc().buffer(msgAsBytes.length).writeBytes(msgAsBytes), promise);
-        } else if(convertByteArrToBB && msg instanceof byte[]) {
-            byte[] msgAsBytes = (byte[]) msg;
-            ctx.write(ctx.alloc().buffer(msgAsBytes.length).writeBytes(msgAsBytes), promise);
-        } else if (msg instanceof Observable) {
-            @SuppressWarnings("unchecked")
-            Observable<W> observable = (Observable<W>) msg;
-            final WriteStreamSubscriber<W> subscriber = new WriteStreamSubscriber<W>(ctx, promise);
+        if (msg instanceof Observable) {
+            @SuppressWarnings("rawtypes")
+            Observable observable = (Observable) msg; /*One can write heterogneous objects on a channel.*/
+            final WriteStreamSubscriber subscriber = new WriteStreamSubscriber(ctx, promise);
             bytesWriteInterceptor.addSubscriber(subscriber);
-            observable.subscribe(subscriber);
+            subscriber.subscribeTo(observable);
         } else {
             ctx.write(msg, promise);
         }
     }
 
+    protected static boolean isValidToEmit(Subscriber<?> subscriber) {
+        return null != subscriber && !subscriber.isUnsubscribed();
+    }
+
+    private static boolean isValidToEmitToReadSubscriber(ReadProducer<?> readProducer) {
+        return null != readProducer && !readProducer.subscriber.isUnsubscribed();
+    }
+
+    protected void onNewReadSubscriber(Channel channel, Subscriber<? super R> subscriber) {
+        // NOOP
+    }
+
+    protected final void checkEagerSubscriptionIfConfigured(Connection<R, W> connection, Channel channel) {
+        if (channel.config().isAutoRead() && null == readProducer) {
+            // If the channel is set to auto-read and there is no eager subscription then, we should raise errors
+            // when a subscriber arrives.
+            raiseErrorOnInputSubscription = true;
+            final Subscriber<? super R> discardAll = ConnectionInputSubscriberEvent.discardAllInput(connection)
+                                                                                   .getSubscriber();
+            final ReadProducer<R> producer = new ReadProducer<>(discardAll, channel);
+            discardAll.setProducer(producer);
+            readProducer = producer;
+        }
+    }
+
+    protected final Subscriber<? super Connection<R, W>> getNewConnectionSub() {
+        return newConnectionSub;
+    }
+
+    protected final boolean isConnectionEmitted() {
+        return connectionEmitted;
+    }
+
     private void createNewConnection(Channel channel) {
         if (null != newConnectionSub && !newConnectionSub.isUnsubscribed()) {
-            Connection<R, W> connection = new ConnectionImpl<>(channel, eventsSubject, metricEventProvider);
+            Connection<R, W> connection = ConnectionImpl.create(channel, eventsSubject, metricEventProvider);
             newConnectionSub.onNext(connection);
             connectionEmitted = true;
             checkEagerSubscriptionIfConfigured(connection, channel);
@@ -224,51 +248,27 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
         }
     }
 
-    protected boolean isValidToEmit(Subscriber<?> subscriber) {
-        return null != subscriber && !subscriber.isUnsubscribed();
-    }
-
-    protected void checkEagerSubscriptionIfConfigured(Connection<R, W> connection, Channel channel) {
-        if (channel.config().isAutoRead() && null == connInputSub) {
-            // If the channel is set to auto-read and there is no eager subscription then, we should raise errors
-            // when a subscriber arrives.
-            raiseErrorOnInputSubscription = true;
-            final Subscriber<? super R> discardAll = ConnectionInputSubscriberEvent.discardAllInput(connection)
-                                                                                   .getSubscriber();
-            connInputSub = new CollaboratedReadInputSubscriber<R>(channel, discardAll) { };
-        }
-    }
-
-    protected Subscriber<? super Connection<R, W>> getNewConnectionSub() {
-        return newConnectionSub;
-    }
-
-    protected boolean isConnectionEmitted() {
-        return connectionEmitted;
-    }
-
-    private void drainInputSubscriberBuffer() {
-        /*
-         * Drain unconditionally (even if unsubscribed) or else it will leak any ByteBuf contained in the buffer.
-         * discard() checks if the subscriber is unsubscribed, then does not emit the notification.
-         */
-        connInputSub.drain();
-    }
-
     private void resetConnectionInputSubscriber() {
+        final Subscriber<? super R> connInputSub = null == readProducer? null : readProducer.subscriber;
         if (isValidToEmit(connInputSub)) {
             connInputSub.onCompleted();
         }
-        connInputSub = null; // A subsequent event should set it to the desired subscriber.
+        raiseErrorOnInputSubscription = false;
+        readProducer = null; // A subsequent event should set it to the desired subscriber.
     }
 
     private void newConnectionInputSubscriber(final Channel channel, final Subscriber<? super R> subscriber) {
-        if (null != connInputSub) {
+        final Subscriber<? super R> connInputSub = null == readProducer? null : readProducer.subscriber;
+        if (isValidToEmit(connInputSub)) {
+            /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
             subscriber.onError(ONLY_ONE_CONN_INPUT_SUB_ALLOWED);
         } else if (raiseErrorOnInputSubscription) {
             subscriber.onError(LAZY_CONN_INPUT_SUB);
         } else {
-            connInputSub = new CollaboratedReadInputSubscriber<R>(channel, subscriber) { };
+            final ReadProducer<R> producer = new ReadProducer<>(subscriber, channel);
+            subscriber.setProducer(producer);
+            onNewReadSubscriber(channel, subscriber);
+            readProducer = producer;
         }
     }
 
@@ -280,14 +280,71 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
         }
     }
 
-    static final class DrainInputSubscriberBuffer {
+    private static final class ReadProducer<T> extends RequestReadIfRequiredEvent implements Producer {
 
-        public static final DrainInputSubscriberBuffer INSTANCE = new DrainInputSubscriberBuffer();
+        @SuppressWarnings("rawtypes")
+        private static final AtomicLongFieldUpdater<ReadProducer> REQUEST_UPDATER =
+                AtomicLongFieldUpdater.newUpdater(ReadProducer.class, "requested");/*Updater for requested*/
+        private volatile long requested; // Updated by REQUEST_UPDATER, required to be volatile.
 
-        private DrainInputSubscriberBuffer() {
-            // No state, no instance.
+        private final Subscriber<? super T> subscriber;
+        private final Channel channel;
+
+        private ReadProducer(Subscriber<? super T> subscriber, Channel channel) {
+            this.subscriber = subscriber;
+            this.channel = channel;
         }
 
+        @Override
+        public void request(long n) {
+            if (Long.MAX_VALUE != requested) {
+                if (Long.MAX_VALUE == n) {
+                    // Now turning off backpressure
+                    REQUEST_UPDATER.set(this, Long.MAX_VALUE);
+                } else {
+                    // add n to field but check for overflow
+                    while (true) {
+                        final long current = requested;
+                        long next = current + n;
+                        // check for overflow
+                        if (next < 0) {
+                            next = Long.MAX_VALUE;
+                        }
+                        if (REQUEST_UPDATER.compareAndSet(this, current, next)) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (!channel.config().isAutoRead()) {
+                channel.pipeline().fireUserEventTriggered(this);
+            }
+        }
+
+        public void sendOnError(Throwable throwable) {
+            subscriber.onError(throwable);
+        }
+
+        public void sendOnComplete() {
+            subscriber.onCompleted();
+        }
+
+        public void sendOnNext(T nextItem) {
+            if (requested > 0) {
+                if (REQUEST_UPDATER.get(this) != Long.MAX_VALUE) {
+                    REQUEST_UPDATER.decrementAndGet(this);
+                }
+                subscriber.onNext(nextItem);
+            } else {
+                subscriber.onError(new MissingBackpressureException("Received more data on the channel than demanded by the subscriber."));
+            }
+        }
+
+        @Override
+        protected boolean shouldReadMore(ChannelHandlerContext ctx) {
+            return !subscriber.isUnsubscribed() && REQUEST_UPDATER.get(this) > 0;
+        }
     }
 
     /**
@@ -307,11 +364,21 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
         /*
          * Since, unsubscribes can happen on a different thread, this has to be thread-safe.
          */
-        private final ConcurrentLinkedQueue<WriteStreamSubscriber<W>> subscribers = new ConcurrentLinkedQueue<>();
+        private final ConcurrentLinkedQueue<WriteStreamSubscriber> subscribers = new ConcurrentLinkedQueue<>();
 
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            ctx.write(msg, promise);
+        public void write(ChannelHandlerContext ctx, final Object msg, ChannelPromise promise) throws Exception {
+            Object msgToWrite = msg;
+
+            /*Support for writing an Observable<String> or Observable<byte[]> directly*/
+            if (msg instanceof String) {
+                msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
+            } else if (msg instanceof byte[]) {
+                msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
+            }
+
+            ctx.write(msgToWrite, promise);
+
             requestMoreIfWritable(ctx);
         }
 
@@ -323,7 +390,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
             super.channelWritabilityChanged(ctx);
         }
 
-        public void addSubscriber(final WriteStreamSubscriber<W> streamSubscriber) {
+        public void addSubscriber(final WriteStreamSubscriber streamSubscriber) {
             streamSubscriber.add(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {
@@ -340,7 +407,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
              * Predicting which subscriber is going to give the next item isn't possible, so all subscribers are
              * requested an item. This means that we buffer a max of one item per subscriber.
              */
-            for (WriteStreamSubscriber<W> subscriber: subscribers) {
+            for (WriteStreamSubscriber subscriber: subscribers) {
                 if (!subscriber.isUnsubscribed() && ctx.channel().isWritable()) {
                     subscriber.requestMore(1);
                 }
@@ -351,16 +418,14 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
     /**
      * Backpressure enabled subscriber to an Observable written on this channel. This connects the promise for writing
      * the Observable to all the promises created per write (per onNext).
-     *
-     * @param <W> Type of Objects received by this subscriber.
      */
-    private static final class WriteStreamSubscriber<W> extends Subscriber<W> {
+    private static final class WriteStreamSubscriber extends Subscriber<Object> {
 
         private final ChannelHandlerContext ctx;
         private final ChannelPromise overarchingWritePromise;
         private final Object guard = new Object();
         private boolean isDone; /*Guarded by guard*/
-        private boolean isPromiseCompletedOnWriteComplete; /*Guarded by guard. Only transition is false->true*/
+        private boolean isPromiseCompletedOnWriteComplete; /*Guarded by guard. Only transition should be false->true*/
 
         private int listeningTo;
 
@@ -382,10 +447,11 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
         @Override
         public void onError(Throwable e) {
             onTermination();
+            overarchingWritePromise.tryFailure(e);
         }
 
         @Override
-        public void onNext(W nextItem) {
+        public void onNext(Object nextItem) {
 
             final ChannelFuture channelFuture = ctx.write(nextItem);
             synchronized (guard) {
@@ -439,6 +505,11 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
                      */
                     if (!future.isSuccess()) {
                         overarchingWritePromise.tryFailure(future.cause());
+                        /*
+                         * Unsubscribe this subscriber when write fails as we are completing the promise which is
+                         * attached to the listener of the write results.
+                         */
+                        unsubscribe();
                     } else if (isPromiseCompletedOnWriteComplete) { /*Once set to true, never goes back to false.*/
                         /*Complete only when no more items will arrive and all writes are completed*/
                         overarchingWritePromise.trySuccess();
@@ -472,13 +543,17 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends ChannelDup
             }
 
             if (_shouldCompletePromise) {
-                /* The co-ordination is for */
                 overarchingWritePromise.trySuccess();
             }
         }
 
         private void requestMore(long more) {
             request(more);
+        }
+
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        public void subscribeTo(Observable observable) {
+            observable.subscribe(this);
         }
     }
 }

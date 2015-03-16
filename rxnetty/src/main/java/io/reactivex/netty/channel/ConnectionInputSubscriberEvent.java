@@ -16,18 +16,13 @@
 package io.reactivex.netty.channel;
 
 import io.netty.util.ReferenceCountUtil;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import rx.Subscriber;
-import rx.functions.Action0;
 import rx.functions.Action1;
-import rx.functions.Actions;
 import rx.observers.Subscribers;
-import rx.subscriptions.Subscriptions;
 
 /**
  * An event to communicate the subscriber of the associated connection input stream created by
- * {@link io.reactivex.netty.channel.AbstractConnectionToChannelBridge}.
+ * {@link AbstractConnectionToChannelBridge}.
  *
  * <h2>Multiple events on the same channel</h2>
  *
@@ -39,33 +34,26 @@ import rx.subscriptions.Subscriptions;
  */
 public final class ConnectionInputSubscriberEvent<R, W> {
 
-    private static final Logger logger = LoggerFactory.getLogger(ConnectionInputSubscriberEvent.class);
-
     private final Subscriber<? super R> subscriber;
+    private final Connection<R, W> connection;
 
     public ConnectionInputSubscriberEvent(Subscriber<? super R> subscriber, final Connection<R, W> connection) {
+        if (null == subscriber) {
+            throw new NullPointerException("Subscriber can not be null");
+        }
+        if (null == connection) {
+            throw new NullPointerException("Connection can not be null");
+        }
         this.subscriber = subscriber;
-        this.subscriber.add(Subscriptions.create(new Action0() {
-            @Override
-            public void call() {
-                // Unsubscribe from the input closes the connection as there can only be one subscriber to the
-                // input and, if nothing is read, it means, nobody is using the connection.
-                // For fire-and-forget usecases, one should explicitly ignore content on the connection which
-                // adds a discard all subscriber that never unsubscribes. For this case, then, the close becomes
-                // explicit.
-                connection.close()
-                          .subscribe(Actions.empty(), new Action1<Throwable>() {
-                              @Override
-                              public void call(Throwable throwable) {
-                                  logger.error("Failed to close the connection.", throwable);
-                              }
-                          });
-            }
-        }));
+        this.connection = connection;
     }
 
     public Subscriber<? super R> getSubscriber() {
         return subscriber;
+    }
+
+    public Connection<R, W> getConnection() {
+        return connection;
     }
 
     public static <II, OO> ConnectionInputSubscriberEvent<II, OO> discardAllInput(Connection<II, OO> connection) {

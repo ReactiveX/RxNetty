@@ -16,12 +16,8 @@
 package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 
 /**
@@ -89,23 +85,6 @@ public abstract class ClientConnectionFactory<W, R> {
      * @return The future for the connection.
      */
     protected final ChannelFuture doConnect() {
-        final long startTimeMillis = Clock.newStartTimeMillis();
-        final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = clientState.getEventsSubject();
-        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_START);
-
-        return clientState.getBootstrap().connect(clientState.getRemoteAddress())
-                          .addListener(new ChannelFutureListener() {
-                              @Override
-                              public void operationComplete(ChannelFuture future) throws Exception {
-                                  if (!future.isSuccess()) {
-                                      clientState.getEventsSubject().onEvent(ClientMetricsEvent.CONNECT_FAILED,
-                                                                             Clock.onEndMillis(startTimeMillis),
-                                                                             future.cause());
-                                  } else {
-                                      clientState.getEventsSubject().onEvent(ClientMetricsEvent.CONNECT_SUCCESS,
-                                                                             Clock.onEndMillis(startTimeMillis));
-                                  }
-                              }
-                          });
+        return clientState.getBootstrap().connect(clientState.getRemoteAddress());
     }
 }

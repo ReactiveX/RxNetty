@@ -41,26 +41,14 @@ public class Proxy {
                                  .createConnectionRequest();
 
         return new TcpServerImpl<ByteBuf, ByteBuf>(0)
-                .start(in -> {
-                    System.out.println("Server thread conn callback: " + Thread.currentThread().getName());
-                    return in.writeAndFlushOnEach(req.switchMap(out -> {
-                        System.out.println("Client thread conn callback: " + Thread.currentThread().getName());
-                        return out.writeAndFlushOnEach(in.getInput()
-                                                         .doOnNext(bb -> System.out.println(
-                                                                 "Server thread input callback: " +
-                                                                 Thread.currentThread().getName())))
-                                  .ignoreElements()
-                                  .cast(ByteBuf.class)
-                                  .mergeWith(out.getInput()
-                                                .doOnNext(bb -> System.out.println("Client thread input callback: "
-                                                                                   + Thread.currentThread().getName())));
-                    }));
-                });
+                .start(in -> in.writeAndFlushOnEach(req.switchMap(out -> out.writeAndFlushOnEach(in.getInput())
+                                                                            .ignoreElements()
+                                                                            .cast(ByteBuf.class)
+                                                                            .mergeWith(out.getInput()))));
     }
 
     public static void main(String[] args) {
         Proxy proxy = new Proxy();
         proxy.startProxy(proxy.startTarget().getServerPort()).waitTillShutdown();
-
     }
 }

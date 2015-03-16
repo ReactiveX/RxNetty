@@ -15,8 +15,6 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -37,9 +35,7 @@ public class FIFOIdleConnectionsHolder<W, R> extends IdleConnectionsHolder<W, R>
     private final Observable<PooledConnection<R, W>> pollObservable;
     private final Observable<PooledConnection<R, W>> peekObservable;
 
-    public FIFOIdleConnectionsHolder(MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject) {
-        super(metricEventsSubject);
-
+    public FIFOIdleConnectionsHolder() {
         idleConnections = new ConcurrentLinkedQueue<>();
 
         pollObservable = Observable.create(new OnSubscribe<PooledConnection<R, W>>() {
@@ -85,6 +81,6 @@ public class FIFOIdleConnectionsHolder<W, R> extends IdleConnectionsHolder<W, R>
 
     @Override
     protected <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState) {
-        return new FIFOIdleConnectionsHolder<>(newState.getEventsSubject());
+        return new FIFOIdleConnectionsHolder<>();
     }
 }

@@ -22,10 +22,15 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.http.TrailingHeaders;
 import rx.Observable;
+import rx.annotations.Experimental;
 import rx.functions.Action1;
+import rx.functions.Func0;
+import rx.functions.Func1;
+import rx.functions.Func2;
 
 import java.util.Date;
 import java.util.List;
@@ -52,82 +57,220 @@ import java.util.concurrent.TimeUnit;
  * order to optimize these multiple mutations, one can use {@link HttpClientRequestUpdater} obtained via
  * {@link HttpClientRequest#newUpdater()}. There is no semantic difference between these two approaches of mutations,
  * this approach, optimizes for lesser object creation.
+
+ * <h2>Trailing headers</h2>
+ *
+ * One can write HTTP trailing headers by using
  *
  * <h2> Executing request</h2>
  *
- * The request is executed every time {@link HttpClientRequest#subscribe()} is called and is the only way of executing
- * the request.
+ * The request is executed every time {@link HttpClientRequest}, or {@link Observable} returned by
+ * {@code write*Content} is subscribed and is the only way of executing the request.
  *
- * @param <I>
- * @param <O>
+ * @param <I> The type of objects read from the request content.
+ * @param <O> The type of objects read from the response content.
  */
-public abstract class HttpClientRequest<I, O> extends Observable<HttpClientResponse<O>>
-        implements HttpClientRequestOperations<I, HttpClientRequest<I, O>> {
+public abstract class HttpClientRequest<I, O> extends Observable<HttpClientResponse<O>> {
 
     protected HttpClientRequest(OnSubscribe<HttpClientResponse<O>> onSubscribe) {
         super(onSubscribe);
     }
 
     /**
-     * Uses the passed {@link Observable} as the content source for the newly created and returned
-     * {@link HttpClientRequest}.
+     * Uses the passed {@link Observable} as the source of content for this request.
      *
      * @param contentSource Content source for the request.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
-    @Override
-    public abstract HttpClientRequest<I, O> setContentSource(Observable<I> contentSource);
+    public abstract Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource);
 
     /**
-     * Uses the passed {@code content} as the content for the newly created and returned
-     * {@link HttpClientRequest}. This is equivalent to calling
-     * {@code
-     *      setContentSource(Observable.just(content));
-     * }
+     * Uses the passed {@link Observable} as the source of content for this request. Every item is written and flushed
+     * immediately.
      *
-     * @param content Content for the request.
+     * @param contentSource Content source for the request.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
-    @Override
-    public abstract HttpClientRequest<I, O> setContent(I content);
+    public abstract Observable<HttpClientResponse<O>> writeContentAndFlushOnEach(Observable<I> contentSource);
 
     /**
-     * Uses the passed {@code content} as the content for the newly created and returned
-     * {@link HttpClientRequest}. This is equivalent to calling
-     * {@code
-     *      setContent(content.getBytes(Charset.defaultCharset()));
-     * }
+     * Uses the passed {@link Observable} as the source of content for this request.
      *
-     * @param content Content for the request.
+     * @param contentSource Content source for the request.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
-    @Override
-    public abstract HttpClientRequest<I, O> setStringContent(String content);
+    public abstract Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                   Func1<I, Boolean> flushSelector);
 
     /**
-     * Uses the passed {@code content} as the content for the newly created and returned
-     * {@link HttpClientRequest}. This is equivalent to calling
-     * {@code
-     *      setRawContentSource(Observable.just(content), ByteTransformer.DEFAULT_INSTANCE);
-     * }
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
      *
-     * @param content Content for the request.
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
-    @Override
-    public abstract HttpClientRequest<I, O> setBytesContent(byte[] content);
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                                               Func0<T> trailerFactory,
+                                                                                               Func2<T, I, T> trailerMutator);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                                               Func0<T> trailerFactory,
+                                                                                               Func2<T, I, T> trailerMutator,
+                                                                                               Func1<I, Boolean> flushSelector);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request.
+     *
+     * @param contentSource Content source for the request.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    public abstract Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request.
+     *
+     * @param contentSource Content source for the request.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    public abstract Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                         Func1<String, Boolean> flushSelector);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                                                     Func0<T> trailerFactory,
+                                                                                                     Func2<T, String, T> trailerMutator);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                                                     Func0<T> trailerFactory,
+                                                                                                     Func2<T, String, T> trailerMutator,
+                                                                                                     Func1<String, Boolean> flushSelector);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request.
+     *
+     * @param contentSource Content source for the request.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    public abstract Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request.
+     *
+     * @param contentSource Content source for the request.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    public abstract Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
+                                                                        Func1<byte[], Boolean> flushSelector);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
+                                                                                                    Func0<T> trailerFactory,
+                                                                                                    Func2<T, byte[], T> trailerMutator);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
+                                                                                                    Func0<T> trailerFactory,
+                                                                                                    Func2<T, byte[], T> trailerMutator,
+                                                                                                    Func1<byte[], Boolean> flushSelector);
 
     /**
      * Enables read timeout for the response of the newly created and returned request.
@@ -135,11 +278,10 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param timeOut Read timeout duration.
      * @param timeUnit Read timeout time unit.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> readTimeOut(int timeOut, TimeUnit timeUnit);
 
     /**
@@ -147,11 +289,10 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param maxRedirects Maximum number of redirects allowed.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> followRedirects(int maxRedirects);
 
     /**
@@ -159,11 +300,10 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param follow {@code true} for enabling redirects, {@code false} to disable.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> followRedirects(boolean follow);
 
     /**
@@ -172,11 +312,10 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param value Value for the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> addHeader(CharSequence name, Object value);
 
     /**
@@ -184,45 +323,42 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param cookie Cookie to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> addCookie(Cookie cookie);
 
     /**
-     * Adds the passed header as a date value to this request. The date is formatted using netty's
-     * {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date as per the
-     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
-     *
-     <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     * Adds the passed header as a date value to this request. The date is formatted using netty's {@link
+     * HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date as per the <a
+     * href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
+     * <p/>
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
      *
      * @param name Name of the header.
      * @param value Value of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> addDateHeader(CharSequence name, Date value);
 
     /**
      * Adds multiple date values for the passed header name to this request. The date values are formatted using netty's
-     * {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date as per the
-     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
-     *
-     <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     * {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date as per the <a
+     * href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
+     * <p/>
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
      *
      * @param name Name of the header.
      * @param values Values for the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values);
 
     /**
@@ -231,29 +367,27 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param values Values for the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> addHeader(CharSequence name, Iterable<Object> values);
 
     /**
-     * Overwrites the current value, if any, of the passed header to the passed date value for this request.
-     * The date is formatted using netty's {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which
-     * formats the date as per the
-     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
-     *
-     <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     * Overwrites the current value, if any, of the passed header to the passed date value for this request. The date is
+     * formatted using netty's {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date
+     * as per the <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into
+     * the format:
+     * <p/>
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
      *
      * @param name Name of the header.
      * @param value Value of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> setDateHeader(CharSequence name, Date value);
 
     /**
@@ -262,29 +396,27 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param value Value of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> setHeader(CharSequence name, Object value);
 
     /**
-     * Overwrites the current value, if any, of the passed header to the passed date values for this request.
-     * The date is formatted using netty's {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which
-     * formats the date as per the
-     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
-     *
-     <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     * Overwrites the current value, if any, of the passed header to the passed date values for this request. The date
+     * is formatted using netty's {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the
+     * date as per the <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a>
+     * into the format:
+     * <p/>
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
      *
      * @param name Name of the header.
      * @param values Values of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> setDateHeader(CharSequence name, Iterable<Date> values);
 
     /**
@@ -293,177 +425,202 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param values Values of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> setHeader(CharSequence name, Iterable<Object> values);
 
     /**
-     * Sets HTTP Connection header to the appropriate value for HTTP keep-alive.
-     * This delegates to {@link HttpHeaders#setKeepAlive(HttpMessage, boolean)}
+     * Removes the passed header from this request.
+     *
+     * @param name Name of the header.
+     *
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
+     */
+    public abstract HttpClientRequest<I, O> removeHeader(CharSequence name);
+
+    /**
+     * Sets HTTP Connection header to the appropriate value for HTTP keep-alive. This delegates to {@link
+     * HttpHeaders#setKeepAlive(HttpMessage, boolean)}
      *
      * @param keepAlive {@code true} to enable keep alive.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> setKeepAlive(boolean keepAlive);
 
     /**
-     * Sets the HTTP transfer encoding to chunked for this request.
-     * This delegates to {@link HttpHeaders#setTransferEncodingChunked(HttpMessage)}
+     * Sets the HTTP transfer encoding to chunked for this request. This delegates to {@link
+     * HttpHeaders#setTransferEncodingChunked(HttpMessage)}
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
+     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
+     * {@link HttpClientRequest} objects.
      */
-    @Override
     public abstract HttpClientRequest<I, O> setTransferEncodingChunked();
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added at the first position of the pipeline as specified by
-     * {@link ChannelPipeline#addFirst(String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added at the first position of the pipeline as specified by {@link
+     * ChannelPipeline#addFirst(String, ChannelHandler)}
+     * <p/>
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClient} instance.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerFirst(String name, ChannelHandler handler);
+    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerFirst(String name,
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added at the first position of the pipeline as specified by
-     * {@link ChannelPipeline#addFirst(EventExecutorGroup, String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added at the first position of the pipeline as specified by {@link
+     * ChannelPipeline#addFirst(EventExecutorGroup, String, ChannelHandler)}
+     * <p/>
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
      *
-     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
-     *                 methods
-     * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param group the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
+     * @param name the name of the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
     public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
-                                                                              ChannelHandler handler);
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added at the last position of the pipeline as specified by
-     * {@link ChannelPipeline#addLast(String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added at the last position of the pipeline as specified by {@link
+     * ChannelPipeline#addLast(String, ChannelHandler)}
+     * <p/>
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO>  addChannelHandlerLast(String name, ChannelHandler handler);
+    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerLast(String name,
+                                                                             Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added at the last position of the pipeline as specified by
-     * {@link ChannelPipeline#addLast(EventExecutorGroup, String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added at the last position of the pipeline as specified by {@link
+     * ChannelPipeline#addLast(EventExecutorGroup, String, ChannelHandler)}
+     * <p/>
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
      *
-     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
-     *                 methods
-     * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param group the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
+     * @param name the name of the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
     public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                                             ChannelHandler handler);
+                                                                             Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added before an existing handler with the passed {@code baseName} in the pipeline as specified by
-     * {@link ChannelPipeline#addBefore(String, String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addBefore(String, String, ChannelHandler)}
+     * <p/>
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
      *
-     * @param baseName  the name of the existing handler
+     * @param baseName the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
     public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(String baseName, String name,
-                                                                               ChannelHandler handler);
+                                                                               Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added before an existing handler with the passed {@code baseName} in the pipeline as specified by
-     * {@link ChannelPipeline#addBefore(EventExecutorGroup, String, String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addBefore(EventExecutorGroup, String, String, ChannelHandler)}
+     * <p/>
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
      *
-     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
-     *                 methods
-     * @param baseName  the name of the existing handler
-     * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param group the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
+     * @param baseName the name of the existing handler
+     * @param name the name of the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
-                                                                               String name, ChannelHandler handler);
+    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(EventExecutorGroup group,
+                                                                               String baseName,
+                                                                               String name,
+                                                                               Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added after an existing handler with the passed {@code baseName} in the pipeline as specified by
-     * {@link ChannelPipeline#addAfter(String, String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addAfter(String, String, ChannelHandler)}
      *
-     * @param baseName  the name of the existing handler
+     * @param baseName the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO>  addChannelHandlerAfter(String baseName, String name,
-                                                                               ChannelHandler handler);
+    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerAfter(String baseName, String name,
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connection used by this request. The specified
-     * handler is added after an existing handler with the passed {@code baseName} in the pipeline as specified by
-     * {@link ChannelPipeline#addAfter(EventExecutorGroup, String, String, ChannelHandler)}
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
+     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addAfter(EventExecutorGroup, String, String, ChannelHandler)}
+     * <p/>
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
      *
-     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
-     *                 methods
-     * @param baseName  the name of the existing handler
-     * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param group the {@link io.netty.util.concurrent.EventExecutorGroup} which will be used to execute the {@link
+     * io.netty.channel.ChannelHandler} methods
+     * @param baseName the name of the existing handler
+     * @param name the name of the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO>  addChannelHandlerAfter(EventExecutorGroup group, String baseName,
-                                                                               String name, ChannelHandler handler);
+    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
+                                                                              String name,
+                                                                              Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Configures an action to configure the {@link ChannelPipeline} for the connection used by this request.
+     * Creates a new request instance, inheriting all configurations from this request and using the passed action to
+     * configure all the connections created by the newly created request instance.
      *
-     * @param configurator Action that will be used to configure the pipeline.
+     * @param configurator Action to configure {@link ChannelPipeline}.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link HttpClientRequest} objects.
+     * @return A new {@link HttpClientRequest} instance.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO> withPipelineConfigurator(Action1<ChannelPipeline> configurator);
+    public abstract <II, OO> HttpClientRequest<II, OO> pipelineConfigurator(Action1<ChannelPipeline> configurator);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
+     * passed level for the newly created client instance.
+     *
+     * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
+     *                        logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClientRequest<I, O> enableWireLogging(LogLevel wireLoggingLevel);
 
     /**
      * Checks whether a header with the passed name exists for this request.
@@ -472,13 +629,12 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return {@code true} if the header exists.
      */
-    @Override
     public abstract boolean containsHeader(CharSequence name);
 
     /**
      * Captures the current state of this request instance and creates a new {@link HttpClientRequestUpdater} to be used
-     * for performing multiple mutations to this request. Using {@link HttpClientRequestUpdater} avoids creating multiple
-     * intermediate and unused {@link HttpClientRequest} objects for each mutation.
+     * for performing multiple mutations to this request. Using {@link HttpClientRequestUpdater} avoids creating
+     * multiple intermediate and unused {@link HttpClientRequest} objects for each mutation.
      *
      * @return A new instance of {@link HttpClientRequestUpdater}
      */
@@ -493,8 +649,8 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return {@code true} if the header with the passed value exists.
      */
-    @Override
-    public abstract boolean containsHeaderWithValue(CharSequence name, CharSequence value, boolean caseInsensitiveValueMatch);
+    public abstract boolean containsHeaderWithValue(CharSequence name, CharSequence value,
+                                                    boolean caseInsensitiveValueMatch);
 
     /**
      * Fetches the value of a header, if exists, for this request.
@@ -504,7 +660,6 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @return The value of the header, if it exists, {@code null} otherwise. If there are multiple values for this
      * header, the first value is returned.
      */
-    @Override
     public abstract String getHeader(CharSequence name);
 
     /**
@@ -514,7 +669,6 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return All values of the header, if it exists, {@code null} otherwise.
      */
-    @Override
     public abstract List<String> getAllHeaders(CharSequence name);
 
     /**
@@ -522,7 +676,6 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return The HTTP version of this request.
      */
-    @Override
     public abstract HttpVersion getHttpVersion();
 
     /**
@@ -530,24 +683,15 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return The HTTP method for this request.
      */
-    @Override
     public abstract HttpMethod getMethod();
 
     /**
-     * Returns the URI for this request.
-     * The returned URI does <em>not</em> contain the scheme, host and port portion of the URI. In case, it is required,
-     * {@link #getAbsoluteUri()} must be used.
+     * Returns the URI for this request. The returned URI does <em>not</em> contain the scheme, host and port portion of
+     * the URI.
      *
      * @return The URI for this request.
      */
-    @Override
     public abstract String getUri();
 
-    /**
-     * Returns the absolute URI for this request including the scheme, host and port portion of the URI.
-     *
-     * @return The absolute URI for this request.
-     */
-    @Override
-    public abstract String getAbsoluteUri();
 }
+

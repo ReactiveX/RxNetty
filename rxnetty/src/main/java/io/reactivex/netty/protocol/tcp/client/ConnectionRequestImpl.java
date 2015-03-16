@@ -20,22 +20,80 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.client.ServerPool;
+import io.reactivex.netty.client.ServerPool.Server;
 import io.reactivex.netty.codec.SSLCodec;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.functions.Actions;
 import rx.functions.Func0;
 
+import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
 
     private final ClientState<W, R> clientState;
 
+    ConnectionRequestImpl(final ClientState<W, R> clientState,
+                          final ConcurrentMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> serverVsState) {
+        super(new OnSubscribe<Connection<R, W>>() {
+            @Override
+            public void call(Subscriber<? super Connection<R, W>> subscriber) {
+
+                if (!clientState.hasServerPool()) {
+                    subscriber.onError(new IllegalArgumentException("Connection request created with no server pool but state map."));
+                }
+
+                ClientState<W, R> stateToUse;
+
+                ServerPool<ClientMetricsEvent<?>> serverPool = clientState.getServerPool();
+                try {
+                    final Server<ClientMetricsEvent<?>> server = serverPool.next();
+                    final ClientState<W, R> serverClientState = clientState.remoteAddress(server.getAddress());
+                    ClientState<W, R> existing = serverVsState.putIfAbsent(server, serverClientState);
+                    if (null == existing) {
+                        stateToUse = serverClientState;
+                        clientState.getEventsSubject().subscribe(server);
+                        server.getLifecycle().subscribe(Actions.empty(), new Action1<Throwable>() {
+                            @Override
+                            public void call(Throwable throwable) {
+                                serverVsState.remove(server);
+                            }
+                        }, new Action0() {
+                            @Override
+                            public void call() {
+                                serverVsState.remove(server);
+                            }
+                        });
+                    } else {
+                        stateToUse = existing;
+                    }
+                } catch (NoSuchElementException e) {
+                    subscriber.onError(e);
+                    return;
+                }
+
+                stateToUse.getConnectionFactory()
+                          .connect()
+                          .subscribe(subscriber);
+            }
+        });
+        this.clientState = clientState;
+    }
+
     ConnectionRequestImpl(final ClientState<W, R> clientState) {
         super(new OnSubscribe<Connection<R, W>>() {
             @Override
             public void call(Subscriber<? super Connection<R, W>> subscriber) {
+                if (clientState.hasServerPool()) {
+                    subscriber.onError(new IllegalArgumentException("Connection request created with a server pool but not provided a state map."));
+                }
+
                 clientState.getConnectionFactory()
                            .connect()
                            .subscribe(subscriber);

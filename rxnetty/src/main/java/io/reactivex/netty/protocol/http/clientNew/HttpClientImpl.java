@@ -15,17 +15,26 @@
  */
 package io.reactivex.netty.protocol.http.clientNew;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
+import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import rx.Observable;
+import rx.Subscription;
 import rx.functions.Action1;
+import rx.functions.Func0;
 
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,70 +42,60 @@ import java.util.concurrent.TimeUnit;
  */
 public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
-    private final String host;
-    private final int port;
+    private final TcpClient<?, HttpClientResponse<O>> client;
 
-    public HttpClientImpl() {
-        this(null, 80);
-    }
-
-    public HttpClientImpl(String host, int port) {
-        this.host = host;
-        this.port = port;
+    protected HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client) {
+        this.client = client;
     }
 
     @Override
     public HttpClientRequest<I, O> createGet(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.GET, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createPost(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.POST, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createPut(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.PUT, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createDelete(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.DELETE, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createHead(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.HEAD, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createOptions(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.OPTIONS, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createPatch(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.PATCH, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createTrace(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.TRACE, uri, client);
     }
 
     @Override
     public HttpClientRequest<I, O> createConnect(String uri) {
-        // TODO: Auto-generated method stub
-        return null;
+        return HttpClientRequestImpl.create(HttpMethod.CONNECT, uri, client);
+    }
+
+    @Override
+    public HttpClientRequest<I, O> createRequest(HttpMethod method, String uri) {
+        return HttpClientRequestImpl.create(method, uri, client);
     }
 
     @Override
@@ -119,125 +118,125 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public <T> HttpClient<I, O> channelOption(ChannelOption<T> option, T value) {
-        // TODO: Auto-generated method stub
-        return null;
+        return _copy(client.channelOption(option, value));
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
+    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory)));
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
-                                                              ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
+                                                              Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(group, name, handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(String name, ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
+    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory)));
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                             ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
+                                                             Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(group, name, handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(String baseName, String name, ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
+    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(String baseName, String name,
+                                                               Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(baseName, name, handlerFactory)));
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
-                                                               ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
+                                                               Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(group, baseName, name,
+                                                                                      handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(String baseName, String name, ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
+    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(String baseName, String name,
+                                                              Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(baseName, name, handlerFactory)));
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
-                                                              ChannelHandler handler) {
-        // TODO: Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public <II, OO> HttpClient<II, OO> removeHandler(String name) {
-        // TODO: Auto-generated method stub
-        return null;
+                                                              Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(group, baseName, name,
+                                                                                     handlerFactory)));
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        // TODO: Auto-generated method stub
-        return null;
-    }
-
-    @Override
-    public HttpClient<I, O> eventLoop(EventLoopGroup eventLoopGroup) {
-        // TODO: Auto-generated method stub
-        return null;
+        return _copy(HttpClientImpl.<OO>castClient(client.pipelineConfigurator(pipelineConfigurator)));
     }
 
     @Override
     public HttpClient<I, O> maxConnections(int maxConnections) {
-        // TODO: Auto-generated method stub
-        return null;
+        return _copy(client.maxConnections(maxConnections));
     }
 
     @Override
-    public HttpClient<I, O> withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpClient<I, O> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
+        return _copy(client.idleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis));
     }
 
     @Override
-    public HttpClient<I, O> withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpClient<I, O> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
+        return _copy(client.connectionPoolLimitStrategy(limitDeterminationStrategy));
     }
 
     @Override
-    public HttpClient<I, O> withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler) {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpClient<I, O> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer) {
+        return _copy(client.idleConnectionCleanupTimer(idleConnectionCleanupTimer));
     }
 
     @Override
-    public HttpClient<I, O> withNoIdleConnectionCleanup() {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpClient<I, O> noIdleConnectionCleanup() {
+        return _copy(client.noIdleConnectionCleanup());
     }
 
     @Override
-    public HttpClient<I, O> withNoConnectionPooling() {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpClient<I, O> noConnectionPooling() {
+        return _copy(client.noConnectionPooling());
     }
 
     @Override
-    public HttpClient<I, O> enableWireLogging(LogLevel wireLogginLevel) {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
+        return _copy(client.enableWireLogging(wireLoggingLevel));
     }
 
     @Override
-    public HttpClient<I, O> withSslEngineFactory(SSLEngineFactory sslEngineFactory) {
-        // TODO: Auto-generated method stub
-        return null;
+    public HttpClient<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory) {
+        return _copy(client.sslEngineFactory(sslEngineFactory));
+    }
+
+    @Override
+    public Subscription subscribe(MetricEventsListener<? extends HttpClientMetricsEvent<?>> listener) {
+        return client.subscribe(listener);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> create(TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        return new HttpClientImpl<>(
+                tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
+                    @Override
+                    public void call(ChannelPipeline pipeline) {
+                        // TODO: Fix events subject
+                        pipeline.addLast(new HttpClientCodec());
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(new MetricEventsSubject<ClientMetricsEvent<?>>()));
+                    }
+                }));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <OO> TcpClient<?, HttpClientResponse<OO>> castClient(TcpClient<?, ?> rawTypes) {
+        return (TcpClient<?, HttpClientResponse<OO>>) rawTypes;
+    }
+
+    private static <II, OO> HttpClient<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient) {
+        return new HttpClientImpl<>(newClient);
     }
 }

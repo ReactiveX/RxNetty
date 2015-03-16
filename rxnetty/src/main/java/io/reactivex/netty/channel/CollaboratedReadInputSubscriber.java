@@ -19,18 +19,13 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelConfig;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
-import io.netty.util.ReferenceCountUtil;
-import io.reactivex.netty.channel.AbstractConnectionToChannelBridge.DrainInputSubscriberBuffer;
 import rx.Producer;
 import rx.Subscriber;
 import rx.annotations.Beta;
 import rx.exceptions.MissingBackpressureException;
 import rx.functions.Action0;
 import rx.internal.operators.NotificationLite;
-import rx.internal.util.RxRingBuffer;
 import rx.subscriptions.Subscriptions;
-
-import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
  * A subscriber for {@link Connection} input.
@@ -42,7 +37,6 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  <li>{@link #onCompleted()}</li>
  <li>{@link #onNext(Object)}</li>
  <li>{@link #onError(Throwable)}</li>
- <li>{@link #drain()}</li>
  </ul>
  *
  * The following methods can be called concurrently with any other method:
@@ -57,35 +51,23 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  * <ul>
  <li>If the requested items from downstream are more than the items emitted, then invoke the original
  {@link Subscriber}</li>
- <li>If the requested items from downstream are less than the items emitted, then use an {@link RxRingBuffer} to store
- the items which can not be sent to the original {@link Subscriber}.</li>
- <li>Whenever an item is buffered, turn off {@link ChannelConfig#isAutoRead()}.</li>
- <li>For every call to {@link Producer#request(long)} trigger a buffer drain, if buffered.</li>
+ <li>If the requested items from downstream are less than the items emitted, then throw
+ {@link MissingBackpressureException}.</li>
+ <li>Whenever supply increases demand, turn off {@link ChannelConfig#isAutoRead()}.</li>
  <li>For every call to {@link Producer#request(long)} if the downstream subscriber requires more data and channel does
  not have {@link ChannelConfig#isAutoRead()} set to {@code true}, then trigger a {@link Channel#read()}</li>
  <li>The data producer of this subscriber (one calling {@link #onNext(Object)}) must make sure to call
  {@link Channel#read()} on receiving {@link ChannelInboundHandler#channelReadComplete(ChannelHandlerContext)} event and
  if {@link #shouldReadMore()} returns {@code true} </li>
- <li>If the {@link RxRingBuffer} fills up at any point in time, send a {@link MissingBackpressureException} to the
- original {@link Subscriber}</li>
  </ul>
  *
  * @author Nitesh Kant
  */
 @Beta
-public abstract class CollaboratedReadInputSubscriber<I> extends Subscriber<I> {
+public final class CollaboratedReadInputSubscriber<I> extends Subscriber<I> {
 
-    @SuppressWarnings("rawtypes")
-    /*Updater for requested*/
-    private static final AtomicLongFieldUpdater<CollaboratedReadInputSubscriber> REQUEST_UPDATER =
-            AtomicLongFieldUpdater.newUpdater(CollaboratedReadInputSubscriber.class, "requested");
     private final Channel channel;
-    private volatile long requested; // Updated by REQUEST_UPDATER, required to be volatile.
 
-    /**
-     * This will always be accessed by a single thread.
-     */
-    private RxRingBuffer ringBuffer;
     /**
      * This is to protect agains duplicate terminal notifications, this will not necessarily mean original subsciber is
      * unsubscribed.
@@ -99,7 +81,7 @@ public abstract class CollaboratedReadInputSubscriber<I> extends Subscriber<I> {
     private final Runnable fireDrainOnRequestMoreTask;
 
 
-    protected CollaboratedReadInputSubscriber(final Channel channel, Subscriber<? super I> op) {
+    private CollaboratedReadInputSubscriber(final Channel channel, Subscriber<? super I> op) {
         super(op);
         this.channel = channel;
 
@@ -112,9 +94,9 @@ public abstract class CollaboratedReadInputSubscriber<I> extends Subscriber<I> {
                  * handler.
                  */
                 if (channel.isRegistered()) {
-                    channel.pipeline().fireUserEventTriggered(DrainInputSubscriberBuffer.INSTANCE);
+                    //channel.pipeline().fireUserEventTriggered(DrainInputSubscriberBuffer.INSTANCE);
                 } else {
-                    drain();
+                    //drain();
                 }
 
                 /*
@@ -136,40 +118,14 @@ public abstract class CollaboratedReadInputSubscriber<I> extends Subscriber<I> {
                 channel.eventLoop().execute(fireDrainOnRequestMoreTask);
             }
         }));
+    }
 
-        op.setProducer(new Producer() {
-            @Override
-            public void request(long n) {
-                if (Long.MAX_VALUE == requested) {
-                    // No backpressure.
-                    return;
-                }
-
-                if (Long.MAX_VALUE == n) {
-                    // Now turning off backpressure
-                    REQUEST_UPDATER.set(CollaboratedReadInputSubscriber.this, Long.MAX_VALUE);
-                } else {
-                    // add n to field but check for overflow
-                    while (true) {
-                        long current = REQUEST_UPDATER.get(CollaboratedReadInputSubscriber.this);
-                        long next = current + n;
-                        // check for overflow
-                        if (next < 0) {
-                            next = Long.MAX_VALUE;
-                        }
-                        if (REQUEST_UPDATER.compareAndSet(CollaboratedReadInputSubscriber.this, current, next)) {
-                            break;
-                        }
-                    }
-                }
-
-                /*
-                 * Executing on the eventloop as it needs to check whether the channel is registered or not,
-                 * which introduces a race-condition.
-                 */
-                channel.eventLoop().execute(fireDrainOnRequestMoreTask);
-            }
-        });
+    @Override
+    public void setProducer(Producer producer) {
+        /*
+         * Delegate all backpressure request logic to the actual subscriber.
+         */
+        original.setProducer(producer);
     }
 
     @Override
@@ -178,12 +134,7 @@ public abstract class CollaboratedReadInputSubscriber<I> extends Subscriber<I> {
             return;
         }
         terminated = true;
-        if (null != ringBuffer) {
-            ringBuffer.onCompleted();
-            drain(); // Drains the terminal event too.
-        } else {
-            original.onCompleted();
-        }
+        original.onCompleted();
     }
 
     @Override
@@ -192,103 +143,92 @@ public abstract class CollaboratedReadInputSubscriber<I> extends Subscriber<I> {
             return;
         }
         terminated = true;
-        if (null != ringBuffer) {
-            ringBuffer.onError(e);
-            drain(); // Drains the terminal event too.
-        } else {
-            original.onError(e);
-        }
+        original.onError(e);
     }
 
     @Override
     public void onNext(I item) {
+/*
         if (terminated) {
             ReferenceCountUtil.release(item); // discard item if no one is subscribed.
         } else if (requested > 0) {
-            drain();
             invokeOnNext(item);
         } else {
             if (channel.config().isAutoRead()) {
-                /*
+                */
+/*
                  * If auto-read was on then turn it off on buffer start as there is no reason to read and buffer data.
                  * If, it is desired to not turn off auto-read then the downstream subscriber should request larger
                  * number of items.
-                 */
+                 *//*
+
                 channel.config().setAutoRead(false);
             }
-            if (null == ringBuffer) {
-                ringBuffer = RxRingBuffer.getSpscInstance();
-            }
-            try {
-                ringBuffer.onNext(nl.next(item));
-            } catch (MissingBackpressureException e) {
-                /**
-                 * If the queue blows up, there is no need to send any items to the subscriber.
-                 * A subscriber will unsubscribe on error, which will discard the left over messages.
-                 */
-                original.onError(e);
-            }
+            original.onError(new MissingBackpressureException("Received more data on the channel than demanded by the subscriber."));
         }
+*/
     }
 
-    /**
-     * Drains the buffer, if any. This should NOT be called concurrently with {@link #onNext(Object)},
-     * {@link #onError(Throwable)} and {@link #onCompleted()}
-     */
-    public void drain() {
-        if (draining /*Do not drain on re-entrant.*/ || null == ringBuffer || ringBuffer.isUnsubscribed()) {
-            return;
-        }
-
-        if (original.isUnsubscribed()) {
-            /* Clear the buffer & release items*/
-            Object nextNotification;
-            while ((nextNotification = ringBuffer.poll()) != null) {
-                ReferenceCountUtil.release(nextNotification);
-            }
-            ringBuffer.unsubscribe();
-            return; // Since, the subscriber is unsubscribed, there isn't anything else to do.
-        }
-
-        draining = true;
-        try {
-            /* Clear the buffer & send notifications*/
-            Object nextNotification;
-            while ((requested > 0 || isTerminalNotificationFromBuffer(ringBuffer.peek()))
-                     && (nextNotification = ringBuffer.poll()) != null) {
-                /*If the subscriber is still requesting more or the next notification is terminal*/
-                ringBuffer.accept(nextNotification, original);
-                /*Decrement requested if this is an onNext and backpressure is requested.*/
-                if (!isTerminalNotificationFromBuffer(nextNotification)
-                            && REQUEST_UPDATER.get(this) != Long.MAX_VALUE) {
-                    REQUEST_UPDATER.decrementAndGet(this);
-                }
-            }
-        } finally {
-            draining = false;
-        }
-    }
-
-    private boolean isTerminalNotificationFromBuffer(Object nextNotification) {
-        return ringBuffer.isCompleted(nextNotification) || ringBuffer.isError(nextNotification);
+    public static <I> CollaboratedReadInputSubscriber<I> create(final Channel channel, Subscriber<? super I> original) {
+        final CollaboratedReadInputSubscriber<I> toReturn = new CollaboratedReadInputSubscriber<I>(channel, original);
+        toReturn.setProducer(new CRIProducer<I>(toReturn));
+        return toReturn;
     }
 
     public boolean shouldReadMore() {
-        return !terminated && REQUEST_UPDATER.get(this) > 0;
+        return !terminated /*&& REQUEST_UPDATER.get(this) > 0*/;
     }
 
     /*Visible for testing*/ long getRequested() {
-        return requested;
-    }
-
-    /*Visible for testing*/ int getItemsCountInBuffer() {
-        return null != ringBuffer ? ringBuffer.count() : 0;
+        return 0;
     }
 
     private void invokeOnNext(I item) {
         original.onNext(item);
-        if (REQUEST_UPDATER.get(this) != Long.MAX_VALUE) {
+        /*if (REQUEST_UPDATER.get(this) != Long.MAX_VALUE) {
             REQUEST_UPDATER.decrementAndGet(this);
+        }*/
+    }
+
+    private static class CRIProducer<T> implements Producer {
+
+        private final CollaboratedReadInputSubscriber<T> cri;
+
+        private CRIProducer(CollaboratedReadInputSubscriber<T> cri) {
+            this.cri = cri;
+        }
+
+        @Override
+        public void request(long n) {
+/*
+            if (Long.MAX_VALUE != cri.requested) {
+                if (Long.MAX_VALUE == n) {
+                    // Now turning off backpressure
+                    REQUEST_UPDATER.set(cri, Long.MAX_VALUE);
+                } else {
+                    // add n to field but check for overflow
+                    while (true) {
+                        long current = REQUEST_UPDATER.get(cri);
+                        long next = current + n;
+                        // check for overflow
+                        if (next < 0) {
+                            next = Long.MAX_VALUE;
+                        }
+                        if (REQUEST_UPDATER.compareAndSet(cri, current, next)) {
+                            break;
+                        }
+                    }
+                }
+            }
+
+            */
+/*
+             * Executing on the eventloop as it needs to check whether the channel is registered or not,
+             * which introduces a race-condition.
+             *//*
+
+            cri.channel.eventLoop().execute(cri.fireDrainOnRequestMoreTask);
+*/
         }
     }
 }

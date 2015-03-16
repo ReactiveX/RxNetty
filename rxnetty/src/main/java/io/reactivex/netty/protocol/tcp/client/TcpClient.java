@@ -26,6 +26,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import rx.Observable;
@@ -337,12 +338,20 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
      */
     public abstract TcpClient<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory);
 
+    public static TcpClient<ByteBuf, ByteBuf> newClient(ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return newClient(TCP_CLIENT_NO_NAME, serverPool);
+    }
+
     public static TcpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
         return newClient(TCP_CLIENT_NO_NAME, host, port);
     }
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(String name, String host, int port) {
         return new TcpClientImpl<>(name, new InetSocketAddress(host, port));
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(String name, ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return new TcpClientImpl<ByteBuf, ByteBuf>(name, serverPool);
     }
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
@@ -354,6 +363,18 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
                                                         Class<? extends Channel> channelClass, String name, String host,
                                                         int port) {
         return new TcpClientImpl<>(name, eventLoopGroup, channelClass, new InetSocketAddress(host, port));
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass,
+                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return newClient(eventLoopGroup, channelClass, TCP_CLIENT_NO_NAME, serverPool);
+    }
+
+    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String name,
+                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return new TcpClientImpl<>(name, eventLoopGroup, channelClass, serverPool);
     }
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress remoteAddress) {

@@ -47,7 +47,7 @@ public final class TcpEchoClient {
                                          .<String, ByteBuf>addChannelHandlerLast("encoder", StringEncoder::new)
                                          .<String, String>addChannelHandlerLast("decoder", StringLineDecoder::new)
                                          .switchMap(connection ->
-                                                            connection.writeAndFlush(
+                                                            connection.write(
                                                                     Observable.interval(1, TimeUnit.SECONDS)
                                                                               .map(aLong -> "Interval: " + aLong + '\n')
                                                                               .take(10))

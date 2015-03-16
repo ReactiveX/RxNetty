@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,7 @@ package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.ExamplesEnvironment;
-import io.reactivex.netty.protocol.http.server.HttpServer;
-
+import io.reactivex.netty.protocol.http.serverNew.HttpServer;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -37,8 +36,7 @@ public class HelloWorldTest extends ExamplesEnvironment {
 
     @Before
     public void setupHttpHelloServer() {
-        server = new HelloWorldServer(0).createServer();
-        server.start();
+        server = new HelloWorldServer(0).startServer();
     }
 
     @After

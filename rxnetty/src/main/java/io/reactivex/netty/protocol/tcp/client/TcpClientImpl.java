@@ -26,6 +26,8 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.client.ServerPool;
+import io.reactivex.netty.client.ServerPool.Server;
 import io.reactivex.netty.codec.SSLCodec;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
@@ -44,22 +46,35 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     private final ClientState<W, R> state;
     private final String name;
-    private final ConcurrentMap<SocketAddress, ConnectionRequest<W, R>> remoteAddrVsConnRequest;
+    private final ConcurrentMap<SocketAddress, ConnectionRequest<W, R>> remoteAddrVsConnRequest; //TODO: Weak reference
     private final ConnectionRequestImpl<W, R> thisConnectionRequest;
 
-    public TcpClientImpl(String name, SocketAddress remoteAddress) {
+    protected TcpClientImpl(String name, SocketAddress remoteAddress) {
         this(name, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class, remoteAddress);
     }
 
-    public TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
-                         SocketAddress remoteAddress) {
+    protected TcpClientImpl(String name, ServerPool<ClientMetricsEvent<?>> serverPool) {
+        this(name, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class, serverPool);
+    }
+
+    protected TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
+                            SocketAddress remoteAddress) {
         this.name = name;
         state = ClientState.create(eventLoopGroup, channelClass, remoteAddress);
         remoteAddrVsConnRequest = new ConcurrentHashMap<>();
         thisConnectionRequest = new ConnectionRequestImpl<>(state);
     }
 
-    public TcpClientImpl(String name, ClientState<W, R> state) {
+    protected TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
+                            ServerPool<ClientMetricsEvent<?>> serverPool) {
+        this.name = name;
+        state = ClientState.create(eventLoopGroup, channelClass, serverPool);
+        remoteAddrVsConnRequest = new ConcurrentHashMap<>();
+        ConcurrentHashMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> stateMap = new ConcurrentHashMap<>();
+        thisConnectionRequest = new ConnectionRequestImpl<>(state, stateMap);
+    }
+
+    protected TcpClientImpl(String name, ClientState<W, R> state) {
         this.name = name;
         this.state = state;
         remoteAddrVsConnRequest = new ConcurrentHashMap<>();
@@ -70,7 +85,12 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
         this.state = state;
         name = client.name;
         remoteAddrVsConnRequest = new ConcurrentHashMap<>(); // Since, the state has changed, no existing requests are valid.
-        thisConnectionRequest = new ConnectionRequestImpl<>(this.state);
+        if (state.hasServerPool()) {
+            ConcurrentHashMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> stateMap = new ConcurrentHashMap<>();
+            thisConnectionRequest = new ConnectionRequestImpl<>(this.state, stateMap);
+        } else {
+            thisConnectionRequest = new ConnectionRequestImpl<W, R>(this.state);
+        }
     }
 
     @Override

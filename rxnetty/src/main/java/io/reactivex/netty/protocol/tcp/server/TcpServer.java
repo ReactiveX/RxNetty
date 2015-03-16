@@ -15,9 +15,12 @@
  */
 package io.reactivex.netty.protocol.tcp.server;
 
+import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
@@ -282,4 +285,44 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      * @param timeUnit Timeunit for the duration to wait for shutdown.
      */
     public abstract void waitTillShutdown(long duration, TimeUnit timeUnit);
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param port Port for the server. {@code 0} to use ephemeral port.
+     * @return A new {@link TcpServer}
+     */
+    public static TcpServer<ByteBuf, ByteBuf> newServer(int port) {
+        return new TcpServerImpl<ByteBuf, ByteBuf>(port);
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param port Port for the server. {@code 0} to use ephemeral port.
+     * @param eventLoopGroup Eventloop group to be used for server as well as client sockets.
+     * @param channelClass The class to be used for server channel.
+     *
+     * @return A new {@link TcpServer}
+     */
+    public static TcpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup eventLoopGroup,
+                                                         Class<? extends ServerChannel> channelClass) {
+        return new TcpServerImpl<ByteBuf, ByteBuf>(port, eventLoopGroup, eventLoopGroup, channelClass);
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param port Port for the server. {@code 0} to use ephemeral port.
+     * @param serverGroup Eventloop group to be used for server sockets.
+     * @param clientGroup Eventloop group to be used for client sockets.
+     * @param channelClass The class to be used for server channel.
+     *
+     * @return A new {@link TcpServer}
+     */
+    public static TcpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup serverGroup,
+                                                         EventLoopGroup clientGroup,
+                                                         Class<? extends ServerChannel> channelClass) {
+        return new TcpServerImpl<ByteBuf, ByteBuf>(port, serverGroup, clientGroup, channelClass);
+    }
 }
