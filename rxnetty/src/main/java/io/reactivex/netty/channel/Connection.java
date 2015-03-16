@@ -19,6 +19,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -33,8 +34,6 @@ import rx.Subscriber;
  * In case, the input data is not required to be consumed, one should call {@link #ignoreInput()}, otherwise, data will
  * never be read from the channel.
  *
- * <h2>Backpressure</h2>
- *
  * @param <R> Type of object that is read from this connection.
  * @param <W> Type of object that is written to this connection.
  *
@@ -43,18 +42,24 @@ import rx.Subscriber;
 public abstract class Connection<R, W> implements ChannelOperations<W> {
 
     private final Channel nettyChannel;
+    @SuppressWarnings("rawtypes")
+    private final MetricEventsSubject eventsSubject;
+    private final ChannelMetricEventProvider metricEventProvider;
 
-    protected Connection(final Channel nettyChannel) {
+    protected Connection(final Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
+                         ChannelMetricEventProvider metricEventProvider) {
+        this.eventsSubject = eventsSubject;
+        this.metricEventProvider = metricEventProvider;
         if (null == nettyChannel) {
             throw new IllegalArgumentException("Channel can not be null");
         }
         this.nettyChannel = nettyChannel;
-        this.nettyChannel.closeFuture().addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                close(false); // Close this connection when the channel is closed.
-            }
-        });
+    }
+
+    protected Connection(Connection<R, W> toCopy) {
+        eventsSubject = toCopy.eventsSubject;
+        metricEventProvider = toCopy.metricEventProvider;
+        nettyChannel = toCopy.nettyChannel;
     }
 
     /**
@@ -90,5 +95,29 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
 
     public Channel getNettyChannel() {
         return nettyChannel;
+    }
+
+    @SuppressWarnings("rawtypes")
+    protected MetricEventsSubject getEventsSubject() {
+        return eventsSubject;
+    }
+
+    protected ChannelMetricEventProvider getMetricEventProvider() {
+        return metricEventProvider;
+    }
+
+    /*
+     * In order to make sure that the connection is correctly initialized, the listener needs to be added post
+     * constructor. Otherwise, there is a race-condition of the channel closed before the connection is completely
+     * created and the Connection.close() call on channel close can access the Connection object which isn't
+     * constructed completely. IOW, "this" escapes from the constructor if the listener is added in the constructor.
+     */
+    protected void connectCloseToChannelClose() {
+        nettyChannel.closeFuture().addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                close(false); // Close this connection when the channel is closed.
+            }
+        });
     }
 }

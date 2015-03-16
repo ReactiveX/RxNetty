@@ -33,6 +33,7 @@ import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
+import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
@@ -62,9 +63,10 @@ public final class ClientState<W, R> {
     private final Bootstrap clientBootstrap;
     private final PoolConfig<W, R> poolConfig;
     private final DetachedChannelPipeline detachedPipeline;
-    private final SocketAddress remoteAddress;
+    private final ServerPool<ClientMetricsEvent<?>> serverPool;
 
-    private ClientState(EventLoopGroup group, Class<? extends Channel> channelClass, SocketAddress remoteAddress) {
+    private ClientState(EventLoopGroup group, Class<? extends Channel> channelClass,
+                        ServerPool<ClientMetricsEvent<?>> serverPool) {
         clientBootstrap = new Bootstrap();
         clientBootstrap.option(ChannelOption.AUTO_READ, false); // by default do not read content unless asked.
         clientBootstrap.group(group);
@@ -78,7 +80,7 @@ public final class ClientState<W, R> {
             }
         });
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
-        this.remoteAddress = remoteAddress;
+        this.serverPool = serverPool;
     }
 
     private ClientState(ClientState<W, R> toCopy, Bootstrap newBootstrap) {
@@ -87,7 +89,7 @@ public final class ClientState<W, R> {
         detachedPipeline = toCopy.detachedPipeline;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopy.eventsSubject.copy();
-        remoteAddress = toCopy.remoteAddress;
+        serverPool = toCopy.serverPool;
     }
 
     private ClientState(ClientState<W, R> toCopy, PoolConfig<W, R> poolConfig) {
@@ -96,7 +98,7 @@ public final class ClientState<W, R> {
         detachedPipeline = toCopy.detachedPipeline;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopy.eventsSubject.copy();
-        remoteAddress = toCopy.remoteAddress;
+        serverPool = toCopy.serverPool;
     }
 
     private ClientState(ClientState<?, ?> toCopy, DetachedChannelPipeline newPipeline) {
@@ -106,16 +108,16 @@ public final class ClientState<W, R> {
         detachedPipeline = newPipeline;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopyCast.eventsSubject.copy();
-        remoteAddress = toCopy.remoteAddress;
+        serverPool = toCopy.serverPool;
     }
 
-    private ClientState(ClientState<?, ?> toCopy, SocketAddress newAddress) {
+    private ClientState(ClientState<?, ?> toCopy, ServerPool<ClientMetricsEvent<?>> newServerPool) {
         final ClientState<W, R> toCopyCast = toCopy.cast();
         clientBootstrap = toCopyCast.clientBootstrap;
         poolConfig = toCopyCast.poolConfig;
         detachedPipeline = toCopy.detachedPipeline;
         eventsSubject = toCopyCast.eventsSubject.copy();
-        remoteAddress = newAddress;
+        serverPool = newServerPool;
     }
 
     public <T> ClientState<W, R> channelOption(ChannelOption<T> option, T value) {
@@ -180,7 +182,7 @@ public final class ClientState<W, R> {
 
     public <WW, RR> ClientState<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         ClientState<WW, RR> copy = copy();
-        copy.pipelineConfigurator(pipelineConfigurator);
+        copy.detachedPipeline.configure(pipelineConfigurator);
         return copy;
     }
 
@@ -254,20 +256,6 @@ public final class ClientState<W, R> {
         return toReturn;
     }
 
-    public ClientState<W, R> idleConnectionsHolder(IdleConnectionsHolder<W, R> holder) {
-        PoolConfig<W, R> newPoolConfig;
-        if (null != poolConfig) {
-            newPoolConfig = poolConfig.idleConnectionsHolder(holder);
-        } else {
-            newPoolConfig = new PoolConfig<W, R>(DEFAULT_MAX_IDLE_TIME_MILLIS,
-                                                 Observable.timer(DEFAULT_MAX_IDLE_TIME_MILLIS, TimeUnit.MILLISECONDS),
-                                                 new MaxConnectionsBasedStrategy(), holder);
-        }
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
-        copyOrCreatePooledConnectionFactory(toReturn);
-        return toReturn;
-    }
-
     public ClientState<W, R> noIdleConnectionCleanup() {
         return idleConnectionCleanupTimer(Observable.<Long>never());
     }
@@ -279,11 +267,21 @@ public final class ClientState<W, R> {
     }
 
     public ClientState<W, R> remoteAddress(SocketAddress newAddress) {
-        return new ClientState<W, R>(this, newAddress);
+        final ClientState<W, R> toReturn = new ClientState<W, R>(this, new IdentityServerPool(newAddress));
+        toReturn.connectionFactory = connectionFactory.copy(toReturn);
+        return toReturn;
     }
 
     public SocketAddress getRemoteAddress() {
-        return remoteAddress;
+        return serverPool.next().getAddress();
+    }
+
+    public boolean hasServerPool() {
+        return !(serverPool instanceof IdentityServerPool);
+    }
+
+    public ServerPool<ClientMetricsEvent<?>> getServerPool() {
+        return serverPool;
     }
 
     public ClientConnectionFactory<W, R> getConnectionFactory() {
@@ -317,7 +315,15 @@ public final class ClientState<W, R> {
 
     public static <WW, RR> ClientState<WW, RR> create(EventLoopGroup group, Class<? extends Channel> channelClass,
                                                       SocketAddress remoteAddress) {
-        final ClientState<WW, RR> toReturn = new ClientState<WW, RR>(group, channelClass, remoteAddress);
+        final ClientState<WW, RR> toReturn = new ClientState<WW, RR>(group, channelClass,
+                                                                     new IdentityServerPool(remoteAddress));
+        toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
+        return toReturn;
+    }
+
+    public static <WW, RR> ClientState<WW, RR> create(EventLoopGroup group, Class<? extends Channel> channelClass,
+                                                      ServerPool<ClientMetricsEvent<?>> serverPool) {
+        final ClientState<WW, RR> toReturn = new ClientState<WW, RR>(group, channelClass, serverPool);
         toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
         return toReturn;
     }
@@ -335,10 +341,10 @@ public final class ClientState<W, R> {
     private IdleConnectionsHolder<W, R> newDefaultIdleConnectionsHolder(final IdleConnectionsHolder<W, R> template) {
         if (clientBootstrap.group() instanceof PreferCurrentEventLoopGroup) {
             PreferCurrentEventLoopGroup pGroup = (PreferCurrentEventLoopGroup) clientBootstrap.group();
-            return new PreferCurrentEventLoopHolder<W, R>(pGroup, eventsSubject,
+            return new PreferCurrentEventLoopHolder<W, R>(pGroup,
                                                           new IdleConnectionsHolderFactoryImpl<>(template));
         } else {
-            return new FIFOIdleConnectionsHolder<>(eventsSubject);
+            return new FIFOIdleConnectionsHolder<>();
         }
     }
 
@@ -385,10 +391,52 @@ public final class ClientState<W, R> {
         @Override
         public IdleConnectionsHolder<WW, RR> call() {
             if (null == template) {
-                return new FIFOIdleConnectionsHolder<>(eventsSubject);
+                return new FIFOIdleConnectionsHolder<>();
             } else {
                 return template.copy(ClientState.this.<WW, RR>cast());
             }
+        }
+    }
+
+    private static class IdentityServerPool implements ServerPool<ClientMetricsEvent<?>> {
+
+        private final Server<ClientMetricsEvent<?>> theServer;
+
+        private IdentityServerPool(final SocketAddress socketAddress) {
+
+            theServer = new Server<ClientMetricsEvent<?>>() {
+
+                @Override
+                public SocketAddress getAddress() {
+                    return socketAddress;
+                }
+
+                @Override
+                public Observable<Void> getLifecycle() {
+                    return Observable.never();
+                }
+
+                @Override
+                public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
+                                    Object value) {
+                    // No actions
+                }
+
+                @Override
+                public void onCompleted() {
+                    // No actions
+                }
+
+                @Override
+                public void onSubscribe() {
+                    // No actions
+                }
+            };
+        }
+
+        @Override
+        public Server<ClientMetricsEvent<?>> next() {
+            return theServer;
         }
     }
 }

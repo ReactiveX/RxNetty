@@ -21,6 +21,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.ClientConnectionToChannelBridge.ConnectionResueEvent;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
 import rx.Observable;
@@ -50,8 +51,8 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     private volatile long maxIdleTimeMillis;
     private final Observable<Void> releaseObservable;
 
-    protected PooledConnection(Owner<R, W> owner, PoolConfig<W, R> poolConfig, Connection<R, W> unpooledDelegate) {
-        super(unpooledDelegate.getNettyChannel());
+    private PooledConnection(Owner<R, W> owner, PoolConfig<W, R> poolConfig, Connection<R, W> unpooledDelegate) {
+        super(unpooledDelegate);
         if (null == owner) {
             throw new IllegalArgumentException("Pooled connection owner can not be null");
         }
@@ -64,6 +65,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         this.owner = owner;
         this.unpooledDelegate = unpooledDelegate;
         maxIdleTimeMillis = poolConfig.getMaxIdleTimeMillis();
+        lastReturnToPoolTimeMillis = System.currentTimeMillis();
         releaseObservable = Observable.create(new OnSubscribe<Void>() {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
@@ -194,7 +196,13 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      * on the underlying {@link Connection}.
      */
     public Observable<Void> discard() {
-        return unpooledDelegate.close();
+        return unpooledDelegate.close().finallyDo(new Action0() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public void call() {
+                getEventsSubject().onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION);
+            }
+        });
     }
 
     /**
@@ -226,6 +234,12 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         getNettyChannel().pipeline().fireUserEventTriggered(new ConnectionResueEvent<R, W>(connectionSubscriber, this));
     }
 
+    public static <R, W> PooledConnection<R, W> create(Owner<R, W> owner, PoolConfig<W, R> poolConfig,
+                                                       Connection<R, W> unpooledDelegate) {
+        final PooledConnection<R, W> toReturn = new PooledConnection<>(owner, poolConfig, unpooledDelegate);
+        toReturn.connectCloseToChannelClose();
+        return toReturn;
+    }
     /**
      * A contract for the owner of the {@link PooledConnection} to which any instance of {@link PooledConnection} must
      * be returned after use.

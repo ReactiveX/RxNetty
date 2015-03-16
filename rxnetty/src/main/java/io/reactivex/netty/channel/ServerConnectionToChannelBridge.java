@@ -103,6 +103,7 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 public void onError(Throwable e) {
                     eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_FAILED,
                                           Clock.onEndMillis(startTimeMillis), e);
+                    logger.error("Error processing connection.", e);
                     closeConnectionNow();
                 }
 

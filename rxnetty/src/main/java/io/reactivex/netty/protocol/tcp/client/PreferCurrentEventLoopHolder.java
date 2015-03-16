@@ -17,9 +17,7 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.EventLoop;
 import io.netty.util.concurrent.FastThreadLocal;
-import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -51,20 +49,17 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
     private final FastThreadLocal<IdleConnectionsHolder<W, R>> perElHolder = new FastThreadLocal<>();
     private final IdleConnectionsHolder<W, R>[] allElHolders;
-    private final Observable<PooledConnection<R, W>> nonElCallerPollObservable;
-    private final Observable<PooledConnection<R, W>> nonElCallerPeekObservable;
+    private final Observable<PooledConnection<R, W>> pollObservable;
+    private final Observable<PooledConnection<R, W>> peekObservable;
     private final PreferCurrentEventLoopGroup eventLoopGroup;
     private final IdleConnectionsHolderFactory<W, R> holderFactory;
 
-    PreferCurrentEventLoopHolder(PreferCurrentEventLoopGroup eventLoopGroup,
-                                 final MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject) {
-        this(eventLoopGroup, metricEventsSubject, new FIFOIdleConnectionsHolderFactory<W, R>(metricEventsSubject));
+    PreferCurrentEventLoopHolder(PreferCurrentEventLoopGroup eventLoopGroup) {
+        this(eventLoopGroup, new FIFOIdleConnectionsHolderFactory<W, R>());
     }
 
     PreferCurrentEventLoopHolder(PreferCurrentEventLoopGroup eventLoopGroup,
-                                 final MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject,
                                  final IdleConnectionsHolderFactory<W, R> holderFactory) {
-        super(metricEventsSubject);
         this.eventLoopGroup = eventLoopGroup;
         this.holderFactory = holderFactory;
         Set<EventLoop> children = eventLoopGroup.children();
@@ -89,22 +84,16 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
         for (IdleConnectionsHolder<W, R> anElHolder : allElHolders) {
             pollOverAllHolders = pollOverAllHolders.concatWith(anElHolder.poll());
-            peekOverAllHolders = peek().concatWith(anElHolder.peek());
+            peekOverAllHolders = peekOverAllHolders.concatWith(anElHolder.peek());
         }
 
-        nonElCallerPollObservable = pollOverAllHolders;
-        nonElCallerPeekObservable = peekOverAllHolders;
+        pollObservable = pollOverAllHolders;
+        peekObservable = peekOverAllHolders;
     }
 
     @Override
     public Observable<PooledConnection<R, W>> poll() {
-        final IdleConnectionsHolder<W, R> holderForThisEL = perElHolder.get();
-        if (null == holderForThisEL) {
-            /*Caller is not an eventloop*/
-            return nonElCallerPollObservable;
-        } else {
-            return holderForThisEL.poll();
-        }
+        return pollObservable;
     }
 
     @Override
@@ -120,13 +109,7 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
     @Override
     public Observable<PooledConnection<R, W>> peek() {
-        final IdleConnectionsHolder<W, R> holderForThisEL = perElHolder.get();
-        if (null == holderForThisEL) {
-            /*Caller is not an eventloop*/
-            return nonElCallerPeekObservable;
-        } else {
-            return holderForThisEL.peek();
-        }
+        return peekObservable;
     }
 
     @Override
@@ -152,6 +135,8 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
                                 logger.error("Failed to discard connection.", throwable);
                             }
                         });
+                    } else {
+                        holderForThisEl.add(toAdd);
                     }
                 }
             });
@@ -170,7 +155,7 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
     @Override
     protected <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState) {
-        return new PreferCurrentEventLoopHolder<WW, RR>(eventLoopGroup, newState.getEventsSubject(),
+        return new PreferCurrentEventLoopHolder<WW, RR>(eventLoopGroup,
                                                         holderFactory.copy(newState));
     }
 
@@ -190,20 +175,14 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
     private static class FIFOIdleConnectionsHolderFactory<W, R> implements IdleConnectionsHolderFactory<W, R> {
 
-        private final MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject;
-
-        public FIFOIdleConnectionsHolderFactory(MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject) {
-            this.metricEventsSubject = metricEventsSubject;
-        }
-
         @Override
         public IdleConnectionsHolder<W, R> call() {
-            return new FIFOIdleConnectionsHolder<W, R>(metricEventsSubject);
+            return new FIFOIdleConnectionsHolder<W, R>();
         }
 
         @Override
         public <WW, RR> IdleConnectionsHolderFactory<WW, RR> copy(ClientState<WW, RR> newState) {
-            return new FIFOIdleConnectionsHolderFactory<>(newState.getEventsSubject());
+            return new FIFOIdleConnectionsHolderFactory<>();
         }
     }
 }

@@ -33,9 +33,9 @@ public final class ConnectionImpl<I, O> extends Connection<I, O> {
 
     private final ChannelOperations<O> delegate;
 
-    public ConnectionImpl(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
-                          ChannelMetricEventProvider metricEventProvider) {
-        super(nettyChannel);
+    private ConnectionImpl(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
+                           ChannelMetricEventProvider metricEventProvider) {
+        super(nettyChannel, eventsSubject, metricEventProvider);
         delegate = new DefaultChannelOperations<>(nettyChannel, eventsSubject, metricEventProvider);
     }
 
@@ -132,5 +132,12 @@ public final class ConnectionImpl<I, O> extends Connection<I, O> {
     @Override
     public Observable<Void> close(boolean flush) {
         return delegate.close(flush);
+    }
+
+    public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
+                                                     ChannelMetricEventProvider metricEventProvider) {
+        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventsSubject, metricEventProvider);
+        toReturn.connectCloseToChannelClose();
+        return toReturn;
     }
 }

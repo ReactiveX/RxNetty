@@ -1,12 +1,12 @@
 /*
- * Copyright 2014 Netflix, Inc.
- * 
+ * Copyright 2015 Netflix, Inc.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,19 +17,15 @@
 package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.client.FlatResponseOperator;
-import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.ResponseHolder;
-import rx.functions.Func1;
+import io.reactivex.netty.protocol.http.clientNew.HttpClient;
+import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
 
 import java.nio.charset.Charset;
-import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
-import static io.reactivex.netty.examples.http.helloworld.HelloWorldServer.DEFAULT_PORT;
+import static io.reactivex.netty.examples.http.helloworld.HelloWorldServer.*;
 
 public class HelloWorldClient {
 
@@ -40,25 +36,15 @@ public class HelloWorldClient {
     }
 
     public String sendHelloRequest() throws InterruptedException, ExecutionException, TimeoutException {
-        return RxNetty.createHttpGet("http://localhost:" + port + "/hello")
-                .flatMap(response -> {
-                    printResponseHeader(response);
-                    return response.getContent().<String> map(content -> {
-                        return content.toString(Charset.defaultCharset());
-                    });
-                })
-                .toBlocking()
-                .toFuture().get(1, TimeUnit.MINUTES);
-    }
-
-    public void printResponseHeader(HttpClientResponse<ByteBuf> response) {
-        System.out.println("New response received.");
-        System.out.println("========================");
-        System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()
-                + ' ' + response.getStatus().reasonPhrase());
-        for (Map.Entry<String, String> header : response.getHeaders().entries()) {
-            System.out.println(header.getKey() + ": " + header.getValue());
-        }
+        return HttpClient.newClient("localhost", port)
+                         .createGet("/hello")
+                         .switchMap((HttpClientResponse<ByteBuf> resp) -> {
+                             System.out.println(resp);
+                             return resp.getContent()
+                                        .map(bb -> bb.toString(Charset.defaultCharset()));
+                         })
+                         .toBlocking()
+                         .toFuture().get(1, TimeUnit.MINUTES);
     }
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
@@ -68,6 +54,5 @@ public class HelloWorldClient {
         }
         String value = new HelloWorldClient(port).sendHelloRequest();
         System.out.println(value);
-        System.out.println("========================");
     }
 }

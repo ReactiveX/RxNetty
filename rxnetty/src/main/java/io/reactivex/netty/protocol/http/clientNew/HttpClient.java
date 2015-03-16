@@ -16,6 +16,8 @@
 
 package io.reactivex.netty.protocol.http.clientNew;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -23,11 +25,19 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.client.ServerPool;
+import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
+import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import rx.Observable;
 import rx.functions.Action1;
+import rx.functions.Func0;
 
-import java.util.concurrent.ScheduledExecutorService;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,7 +51,9 @@ import java.util.concurrent.TimeUnit;
  * @param <I> The type of the content of request.
  * @param <O> The type of the content of response.
  */
-public abstract class HttpClient<I, O> {
+public abstract class HttpClient<I, O> implements MetricEventsPublisher<HttpClientMetricsEvent<?>> {
+
+    public static final String HTTP_CLIENT_NO_NAME = "TcpClient-no-name";
 
     /**
      * Creates a GET request for the passed URI.
@@ -193,11 +205,11 @@ public abstract class HttpClient<I, O> {
      * convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, ChannelHandler handler);
+    public abstract <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -210,12 +222,12 @@ public abstract class HttpClient<I, O> {
      * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
      *                 methods
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
-                                                                       ChannelHandler handler);
+                                                                       Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -226,11 +238,11 @@ public abstract class HttpClient<I, O> {
      * convenient.</em>
      *
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract <II, OO> HttpClient<II, OO>  addChannelHandlerLast(String name, ChannelHandler handler);
+    public abstract <II, OO> HttpClient<II, OO>  addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -243,12 +255,12 @@ public abstract class HttpClient<I, O> {
      * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
      *                 methods
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                                      ChannelHandler handler);
+                                                                      Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -260,12 +272,12 @@ public abstract class HttpClient<I, O> {
      *
      * @param baseName  the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO> addChannelHandlerBefore(String baseName, String name,
-                                                                        ChannelHandler handler);
+                                                                        Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -279,12 +291,12 @@ public abstract class HttpClient<I, O> {
      *                 methods
      * @param baseName  the name of the existing handler
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
-                                                                        String name, ChannelHandler handler);
+                                                                        String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -293,12 +305,12 @@ public abstract class HttpClient<I, O> {
      *
      * @param baseName  the name of the existing handler
      * @param name Name of the handler.
-     * @param handler Handler instance to add.
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO>  addChannelHandlerAfter(String baseName, String name,
-                                                                               ChannelHandler handler);
+                                                                        Func0<ChannelHandler> handlerFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified
@@ -308,29 +320,16 @@ public abstract class HttpClient<I, O> {
      * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be more
      * convenient.</em>
      *
-     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     * @param group   the {@link io.netty.util.concurrent.EventExecutorGroup} which will be used to execute the {@link io.netty.channel.ChannelHandler}
      *                 methods
      * @param baseName  the name of the existing handler
      * @param name     the name of the handler to append
-     * @param handler  the handler to append
+     * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
-                                                                       String name, ChannelHandler handler);
-
-    /**
-     * Removes the {@link ChannelHandler} with the passed {@code name} from the {@link ChannelPipeline} for all
-     * connections created by this client.
-     *
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be more
-     * convenient.</em>
-     *
-     * @param name Name of the handler.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract <II, OO> HttpClient<II, OO> removeHandler(String name);
+                                                                       String name, Func0<ChannelHandler> handlerFactory);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -341,16 +340,6 @@ public abstract class HttpClient<I, O> {
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * eventLoopGroup for all the connections created by the newly created client instance.
-     *
-     * @param eventLoopGroup {@link EventLoopGroup} to use.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> eventLoop(EventLoopGroup eventLoopGroup);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -372,7 +361,7 @@ public abstract class HttpClient<I, O> {
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> withIdleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis);
+    public abstract HttpClient<I, O> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -384,17 +373,18 @@ public abstract class HttpClient<I, O> {
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> withConnectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy);
+    public abstract HttpClient<I, O> connectionPoolLimitStrategy(
+            PoolLimitDeterminationStrategy limitDeterminationStrategy);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
      * {@code poolIdleCleanupScheduler} for detecting and cleaning idle connections by the newly created client instance.
      *
-     * @param poolIdleCleanupScheduler Scheduled to schedule idle connections cleanup.
+     * @param idleConnectionCleanupTimer Timer to trigger idle connections cleanup.
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> withPoolIdleCleanupScheduler(ScheduledExecutorService poolIdleCleanupScheduler);
+    public abstract HttpClient<I, O> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and disabling idle connection
@@ -402,7 +392,7 @@ public abstract class HttpClient<I, O> {
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> withNoIdleConnectionCleanup();
+    public abstract HttpClient<I, O> noIdleConnectionCleanup();
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and disabling connection
@@ -410,18 +400,18 @@ public abstract class HttpClient<I, O> {
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> withNoConnectionPooling();
+    public abstract HttpClient<I, O> noConnectionPooling();
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
      * passed level for the newly created client instance.
      *
-     * @param wireLogginLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
+     * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
      *                        logging is enabled at this level for {@link LoggingHandler}
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLogginLevel);
+    public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
@@ -432,5 +422,68 @@ public abstract class HttpClient<I, O> {
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> withSslEngineFactory(SSLEngineFactory sslEngineFactory);
+    public abstract HttpClient<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory);
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return newClient(HTTP_CLIENT_NO_NAME, serverPool);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
+        return newClient(HTTP_CLIENT_NO_NAME, host, port);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(String name, String host, int port) {
+        return _newClient(TcpClient.newClient(name, new InetSocketAddress(host, port)));
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(String name, ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return _newClient(TcpClient.newClient(name, serverPool));
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String host, int port) {
+        return newClient(eventLoopGroup, channelClass, HTTP_CLIENT_NO_NAME, host, port);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String name, String host,
+                                                        int port) {
+        return _newClient(TcpClient.newClient(eventLoopGroup, channelClass, name, new InetSocketAddress(host, port)));
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass,
+                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return newClient(eventLoopGroup, channelClass, HTTP_CLIENT_NO_NAME, serverPool);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String name,
+                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
+        return _newClient(TcpClient.newClient(eventLoopGroup, channelClass, name, serverPool));
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(SocketAddress remoteAddress) {
+        return newClient(HTTP_CLIENT_NO_NAME, remoteAddress);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(String name, SocketAddress remoteAddress) {
+        return _newClient(TcpClient.newClient(name, remoteAddress));
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass,
+                                                        SocketAddress remoteAddress) {
+        return newClient(eventLoopGroup, channelClass, HTTP_CLIENT_NO_NAME, remoteAddress);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass, String name,
+                                                        SocketAddress remoteAddress) {
+        return _newClient(TcpClient.newClient(eventLoopGroup, channelClass, name, remoteAddress));
+    }
+
+    private static HttpClient<ByteBuf, ByteBuf> _newClient(TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        return HttpClientImpl.create(tcpClient);
+    }
 }

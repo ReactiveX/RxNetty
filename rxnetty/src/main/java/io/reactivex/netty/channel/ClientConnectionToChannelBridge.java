@@ -19,8 +19,10 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.PooledConnection;
 import org.slf4j.Logger;
@@ -29,6 +31,8 @@ import rx.Subscriber;
 import rx.functions.Action0;
 import rx.observers.SafeSubscriber;
 import rx.subscriptions.Subscriptions;
+
+import java.net.SocketAddress;
 
 /**
  * An implementation of {@link AbstractConnectionToChannelBridge} for clients.
@@ -55,6 +59,11 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         super(eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
     }
 
+    public ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
+                                           MetricEventsSubject<?> eventsSubject) {
+        super(connSub, eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+    }
+
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
 
@@ -73,6 +82,40 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
             newConnectionReuseEvent(ctx.channel(), event);
         }
+    }
+
+    @Override
+    public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
+                        ChannelPromise promise) throws Exception {
+        final long startTimeMillis = Clock.newStartTimeMillis();
+        promise.addListener(new ChannelFutureListener() {
+            @SuppressWarnings("unchecked")
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                if (!future.isSuccess()) {
+                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(startTimeMillis),
+                                          future.cause());
+                } else {
+                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
+                }
+            }
+        });
+        super.connect(ctx, remoteAddress, localAddress, promise);
+    }
+
+    @Override
+    protected void onNewReadSubscriber(final Channel channel, Subscriber<? super R> subscriber) {
+        subscriber.add(Subscriptions.create(new Action0() {
+            @Override
+            public void call() {
+                // Unsubscribe from the input closes the connection as there can only be one subscriber to the
+                // input and, if nothing is read, it means, nobody is using the connection.
+                // For fire-and-forget usecases, one should explicitly ignore content on the connection which
+                // adds a discard all subscriber that never unsubscribes. For this case, then, the close becomes
+                // explicit.
+                channel.close();
+            }
+        }));
     }
 
     private void connectSubscriberToFuture(final Subscriber<? super Connection<R, W>> subscriber,
@@ -168,6 +211,17 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
         public PooledConnection<I, O> getPooledConnection() {
             return pooledConnection;
+        }
+    }
+
+    /**
+     * An event to indicate release of a {@link PooledConnection}.
+     */
+    public static final class PooledConnectionReleaseEvent {
+
+        public static final PooledConnectionReleaseEvent INSTANCE = new PooledConnectionReleaseEvent();
+
+        private PooledConnectionReleaseEvent() {
         }
     }
 }

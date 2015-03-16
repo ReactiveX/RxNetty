@@ -29,6 +29,7 @@ import rx.Observable.Operator;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Func1;
+import rx.subscriptions.Subscriptions;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -139,6 +140,7 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
     @Override
     public Observable<Void> writeAndFlush(Observable<W> msgs, final Func1<W, Boolean> flushSelector) {
+
         /**
          * This is trading correctness of the flush of pending messages just when the first time flushSelector returns
          * true with simplicity of just being able to do a channel.flush() instead of flatmap of FlushObservable on
@@ -225,9 +227,20 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
             @Override
             public void call(final Subscriber<? super Void> subscriber) {
                 final ChannelFuture writeFuture = nettyChannel.write(msg);
+                subscriber.add(Subscriptions.create(new Action0() {
+                    @Override
+                    public void call() {
+                        writeFuture.cancel(false); // cancel write on unsubscribe.
+                    }
+                }));
                 writeFuture.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
+                        if (subscriber.isUnsubscribed()) {
+                            /*short-circuit if subscriber is unsubscribed*/
+                            return;
+                        }
+
                         if (future.isSuccess()) {
                             subscriber.onCompleted();
                         } else {
