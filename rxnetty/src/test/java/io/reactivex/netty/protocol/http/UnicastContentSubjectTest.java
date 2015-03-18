@@ -20,9 +20,11 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import org.junit.Assert;
 import org.junit.Test;
+import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Actions;
+import rx.functions.Func1;
 import rx.observers.Subscribers;
 import rx.schedulers.Schedulers;
 import rx.schedulers.TestScheduler;
@@ -30,7 +32,9 @@ import rx.schedulers.TestScheduler;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -161,9 +165,51 @@ public class UnicastContentSubjectTest {
 
         subject.onCompleted();
 
-
         testScheduler.advanceTimeBy(100, TimeUnit.MILLISECONDS);
         Assert.assertEquals("Byte buffer not fully released", 0, buffer.refCnt());
+    }
+
+    @Test
+    public void testUnsubscribe() throws Exception {
+        final TestScheduler testScheduler = Schedulers.test();
+        UnicastContentSubject<Long> subject = UnicastContentSubject.createWithoutNoSubscriptionTimeout();
+        subject.onNext(1l);
+        subject.onCompleted();
+
+        final AtomicBoolean outerUnsubscribe = new AtomicBoolean();
+        final AtomicBoolean innerUnsubscribe = new AtomicBoolean();
+        final AtomicBoolean sourceCompleted = new AtomicBoolean();
+
+        subject.doOnCompleted(new Action0() {
+            @Override
+            public void call() {
+                sourceCompleted.set(true);
+            }
+        }).flatMap(new Func1<Long, Observable<Long>>() {
+            @Override
+            public Observable<Long> call(Long aLong) {
+                return Observable.interval(1, TimeUnit.SECONDS, testScheduler)
+                                 .doOnUnsubscribe(new Action0() {
+                                     @Override
+                                     public void call() {
+                                         innerUnsubscribe.set(true);
+                                     }
+                                 });
+            }
+        }).take(1).doOnUnsubscribe(new Action0() {
+            @Override
+            public void call() {
+                outerUnsubscribe.set(true);
+            }
+        }).toBlocking().toFuture(); // This subscribes to the subject
+
+        Assert.assertTrue("Source did not complete on subscription.", sourceCompleted.get());
+        Assert.assertFalse("Inner flatmap got unsubscribed on source completion.", innerUnsubscribe.get());
+
+        testScheduler.advanceTimeBy(1, TimeUnit.SECONDS);
+
+        Assert.assertTrue("Outer subscriber did not unsubscribe on inner completion.", outerUnsubscribe.get());
+        Assert.assertTrue("Inner subscriber did not unsubscribe on inner completion.", innerUnsubscribe.get());
     }
 
     private static class OnUnsubscribeAction implements Action0 {

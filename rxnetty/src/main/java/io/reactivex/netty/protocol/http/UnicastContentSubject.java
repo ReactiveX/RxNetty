@@ -156,11 +156,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
         private final Action0 onUnsubscribe;
 
-        public State() {
-            this(null);
-        }
-
-        public State(Action0 onUnsubscribe) {
+        private State(Action0 onUnsubscribe) {
             this.onUnsubscribe = onUnsubscribe;
             final BufferUntilSubscriber<T> bufferedSubject = BufferUntilSubscriber.create();
             bufferedObservable = bufferedSubject.lift(new AutoReleaseByteBufOperator<T>()); // Always auto-release
@@ -223,7 +219,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
                     }
                 }));
 
-                state.bufferedObservable.subscribe(subscriber);
+                state.bufferedObservable.unsafeSubscribe(subscriber);
 
             } else if(State.STATES.SUBSCRIBED.ordinal() == state.state) {
                 subscriber.onError(new IllegalStateException("Content can only have one subscription. Use Observable.publish() if you want to multicast."));
