@@ -1,5 +1,25 @@
 # RxNetty Releases #
 
+### Version 0.4.7 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.7+is%3Aclosed)
+
+* [Pull 341] (https://github.com/ReactiveX/RxNetty/pull/341) UnicastContentSubject unsubscribes eagerly.
+* [Pull 334] (https://github.com/ReactiveX/RxNetty/pull/334) Unsubscribe from auto release timeout if a subscriber comes along.
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.7%7C)
+
+### Version 0.4.6 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.6+is%3Aclosed)
+
+* [Pull 327] (https://github.com/ReactiveX/RxNetty/pull/327) HttpServerRequest.getPath should only return path.
+* [Pull 328] (https://github.com/ReactiveX/RxNetty/pull/328) Race condition in ClientRequestResponseConverter.
+* [Pull 329] (https://github.com/ReactiveX/RxNetty/pull/329) Removing client name uniqueness.
+* [Pull 330] (https://github.com/ReactiveX/RxNetty/pull/330) Updating netty to 4.0.25.Final.
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.6%7C)
+
 ### Version 0.4.5 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.5+is%3Aclosed)
