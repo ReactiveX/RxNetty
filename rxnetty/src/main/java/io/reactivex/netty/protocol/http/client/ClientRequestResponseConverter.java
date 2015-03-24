@@ -236,6 +236,12 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         super.channelInactive(ctx);
     }
 
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        responseState.sendOnError(cause);
+        super.exceptionCaught(ctx, cause);
+    }
+
     @SuppressWarnings("unchecked")
     private static void invokeContentOnNext(Object nextObject, ResponseState stateToUse) {
         try {
