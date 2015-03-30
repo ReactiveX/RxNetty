@@ -144,6 +144,23 @@ public class HttpClientPoolTest {
     }
 
     @Test
+    public void testReadSuccessThenReadtimeoutCloseConnection() throws Exception {
+        HttpClient.HttpClientConfig conf = new HttpClient.HttpClientConfig.Builder().readTimeout(1, TimeUnit.SECONDS).build();
+        client = newHttpClient(1, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), conf);
+        try {
+            submitAndConsumeContent(client, HttpClientRequest.createGet("/"));
+            submitAndWaitForCompletion(client, HttpClientRequest.createGet("test/timeout?timeout=60000"), null);
+            throw new AssertionError("Expected read timeout error.");
+        } catch (ReadTimeoutException e) {
+            waitForClose();
+            Assert.assertEquals("Unexpected Idle connection count.", 0, stats.getIdleCount());
+            Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
+            Assert.assertEquals("Unexpected total connection count.", 0, stats.getTotalConnectionCount());
+            Assert.assertEquals("Unexpected connection eviction count.", 1, stateChangeListener.getEvictionCount());
+        }
+    }
+
+    @Test
     public void testCloseOnKeepAliveTimeout() throws Exception {
         client = newHttpClient(2, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), null);
 

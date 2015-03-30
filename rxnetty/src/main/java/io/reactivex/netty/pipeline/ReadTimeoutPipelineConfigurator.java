@@ -19,12 +19,14 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.concurrent.EventExecutor;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -116,17 +118,98 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
             promise.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
-                    ChannelHandler timeoutHandler = ctx.pipeline().get(READ_TIMEOUT_HANDLER_NAME);
+                    @SuppressWarnings("unchecked")
+                    final DelegatingHandler<ReadTimeoutHandler> timeoutHandler = (DelegatingHandler<ReadTimeoutHandler>) ctx
+                            .pipeline().get(READ_TIMEOUT_HANDLER_NAME);
                     if (null == timeoutHandler) {
-                        ctx.pipeline().addFirst(READ_TIMEOUT_HANDLER_NAME, new ReadTimeoutHandler(timeout, timeUnit));
+                        ctx.pipeline().addFirst(
+                                READ_TIMEOUT_HANDLER_NAME,
+                                new DelegatingHandler<ReadTimeoutHandler>(new ReadTimeoutHandler(
+                                        timeout, timeUnit)));
                     } else {
                         // This will always be invoked from the eventloop as it is a future listener callback.
                         ChannelHandlerContext handlerContext = ctx.pipeline().context(timeoutHandler);
+                        timeoutHandler.swap(new ReadTimeoutHandler(timeout, timeUnit))
+                                .handlerRemoved(handlerContext);
                         timeoutHandler.handlerAdded(handlerContext);
                     }
                 }
             });
             super.write(ctx, msg, promise);
         }
+    }
+
+    private class DelegatingHandler<T extends ChannelInboundHandler> implements
+            ChannelInboundHandler {
+
+        private volatile T delegate;
+
+        public DelegatingHandler(final T delegate) {
+            this.delegate = delegate;
+        }
+
+        public T swap(final T newDelegate) {
+            T oldCopy = delegate;
+            delegate = newDelegate;
+            return oldCopy;
+        }
+
+        @Override
+        public void channelRegistered(final ChannelHandlerContext ctx) throws Exception {
+            delegate.channelRegistered(ctx);
+        }
+
+        @Override
+        public void channelUnregistered(final ChannelHandlerContext ctx) throws Exception {
+            delegate.channelUnregistered(ctx);
+        }
+
+        @Override
+        public void channelActive(final ChannelHandlerContext ctx) throws Exception {
+            delegate.channelActive(ctx);
+        }
+
+        @Override
+        public void channelInactive(final ChannelHandlerContext ctx) throws Exception {
+            delegate.channelInactive(ctx);
+        }
+
+        @Override
+        public void channelRead(final ChannelHandlerContext ctx, Object msg) throws Exception {
+            delegate.channelRead(ctx, msg);
+        }
+
+        @Override
+        public void channelReadComplete(final ChannelHandlerContext ctx) throws Exception {
+            delegate.channelReadComplete(ctx);
+        }
+
+        @Override
+        public void userEventTriggered(final ChannelHandlerContext ctx, Object evt)
+                throws Exception {
+            delegate.userEventTriggered(ctx, evt);
+        }
+
+        @Override
+        public void channelWritabilityChanged(final ChannelHandlerContext ctx) throws Exception {
+            delegate.channelWritabilityChanged(ctx);
+        }
+
+        @Override
+        public void exceptionCaught(final ChannelHandlerContext ctx, Throwable cause)
+                throws Exception {
+            delegate.exceptionCaught(ctx, cause);
+        }
+
+        @Override
+        public void handlerAdded(final ChannelHandlerContext ctx) throws Exception {
+            delegate.handlerAdded(ctx);
+        }
+
+        @Override
+        public void handlerRemoved(final ChannelHandlerContext ctx) throws Exception {
+            delegate.handlerRemoved(ctx);
+        }
+
     }
 }
