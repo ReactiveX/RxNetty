@@ -82,7 +82,12 @@ public final class PipelineConfigurators {
 
     public static <I, O> PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpClientConfigurator() {
         return new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(new HttpClientPipelineConfigurator<I, O>(),
-                                                                                  new HttpObjectAggregationConfigurator());
+                new HttpObjectAggregationConfigurator());
+    }
+
+    public static <I, O> PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpClientConfigurator(int maxChunkSize) {
+        return new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(new HttpClientPipelineConfigurator<I, O>(),
+                new HttpObjectAggregationConfigurator(maxChunkSize));
     }
 
     public static <I> PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>> clientSseConfigurator() {
