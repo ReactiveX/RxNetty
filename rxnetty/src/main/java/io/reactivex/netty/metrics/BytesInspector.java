@@ -79,6 +79,9 @@ public class BytesInspector extends ChannelDuplexHandler {
 
     @SuppressWarnings("unchecked")
     protected void publishBytesWritten(final long bytesToWrite, ChannelPromise promise) {
+        if (bytesToWrite <= 0) {
+            return;
+        }
         final long startTimeMillis = Clock.newStartTimeMillis();
         eventsSubject.onEvent(metricEventProvider.getWriteStartEvent(), (Object) bytesToWrite);
         promise.addListener(new ChannelFutureListener() {
