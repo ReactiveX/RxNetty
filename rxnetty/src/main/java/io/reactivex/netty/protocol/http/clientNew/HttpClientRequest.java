@@ -26,8 +26,10 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import rx.Observable;
+import rx.annotations.Experimental;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 import rx.functions.Func2;
 
 import java.util.Date;
@@ -84,6 +86,69 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
     public abstract Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource);
 
     /**
+     * Uses the passed {@link Observable} as the source of content for this request. Every item is written and flushed
+     * immediately.
+     *
+     * @param contentSource Content source for the request.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    public abstract Observable<HttpClientResponse<O>> writeContentAndFlushOnEach(Observable<I> contentSource);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request.
+     *
+     * @param contentSource Content source for the request.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    public abstract Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                   Func1<I, Boolean> flushSelector);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                                               Func0<T> trailerFactory,
+                                                                                               Func2<T, I, T> trailerMutator);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                                               Func0<T> trailerFactory,
+                                                                                               Func2<T, I, T> trailerMutator,
+                                                                                               Func1<I, Boolean> flushSelector);
+
+    /**
      * Uses the passed {@link Observable} as the source of content for this request.
      *
      * @param contentSource Content source for the request.
@@ -96,28 +161,75 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * Uses the passed {@link Observable} as the source of content for this request.
      *
      * @param contentSource Content source for the request.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    public abstract Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                         Func1<String, Boolean> flushSelector);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                                                     Func0<T> trailerFactory,
+                                                                                                     Func2<T, String, T> trailerMutator);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                                                     Func0<T> trailerFactory,
+                                                                                                     Func2<T, String, T> trailerMutator,
+                                                                                                     Func1<String, Boolean> flushSelector);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request.
+     *
+     * @param contentSource Content source for the request.
      *
      * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
     public abstract Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource);
 
     /**
-     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
-     * write trailing headers.
-     *
-     * A new instance of {@link io.reactivex.netty.protocol.http.TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
-     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
-     * the trailing headers instance.
+     * Uses the passed {@link Observable} as the source of content for this request.
      *
      * @param contentSource Content source for the request.
-     * @param trailerFactory A factory function to create a new {@link io.reactivex.netty.protocol.http.TrailingHeaders} per subscription of the content.
-     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
      *
      * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
-    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
-                                                                                       Func0<T> trailerFactory,
-                                                                                       Func2<T, I, T> trailerMutator);
+    public abstract Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
+                                                                        Func1<byte[], Boolean> flushSelector);
 
     /**
      * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
@@ -133,27 +245,32 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
-    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
-                                                                                             Func0<T> trailerFactory,
-                                                                                             Func2<T, String, T> trailerMutator);
-
-    /**
-     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
-     * write trailing headers.
-     *
-     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
-     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
-     * the trailing headers instance.
-     *
-     * @param contentSource Content source for the request.
-     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
-     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
-     *
-     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
-     */
+    @Experimental
     public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
-                                                                                            Func0<T> trailerFactory,
-                                                                                            Func2<T, byte[], T> trailerMutator);
+                                                                                                    Func0<T> trailerFactory,
+                                                                                                    Func2<T, byte[], T> trailerMutator);
+
+    /**
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
+     * write trailing headers.
+     *
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
+     * the trailing headers instance.
+     *
+     * @param contentSource Content source for the request.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
+     * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. All pending
+     * writes are flushed, iff this function returns, {@code true}.
+     *
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
+     */
+    @Experimental
+    public abstract <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
+                                                                                                    Func0<T> trailerFactory,
+                                                                                                    Func2<T, byte[], T> trailerMutator,
+                                                                                                    Func1<byte[], Boolean> flushSelector);
 
     /**
      * Enables read timeout for the response of the newly created and returned request.

@@ -17,6 +17,11 @@ package io.reactivex.netty.protocol.http.clientNew;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.channel.ClientConnectionToChannelBridge.ConnectionResueEvent;
@@ -42,6 +47,21 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     public HttpClientToConnectionBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
+    }
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        if (msg instanceof HttpRequest) {
+            HttpRequest request = (HttpRequest) msg;
+            if (!HttpHeaders.isContentLengthSet(request)) {
+                // If there is no content length we need to specify the transfer encoding as chunked as we always
+                // send data in multiple HttpContent.
+                // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
+                // as expected.
+                request.headers().set(Names.TRANSFER_ENCODING, Values.CHUNKED);
+            }
+        }
+        super.write(ctx, msg, promise);
     }
 
     @Override

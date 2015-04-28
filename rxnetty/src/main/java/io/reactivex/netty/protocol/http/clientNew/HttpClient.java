@@ -22,6 +22,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -154,6 +155,16 @@ public abstract class HttpClient<I, O> implements MetricEventsPublisher<HttpClie
      */
     public abstract HttpClientRequest<I, O> createConnect(String uri);
 
+    /**
+     * Creates a request for the passed HTTP method and URI.
+     *
+     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
+     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
+     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     *
+     * @return New {@link HttpClientRequest}.
+     */
+    public abstract HttpClientRequest<I, O> createRequest(HttpMethod method, String uri);
     /**
      * Creates a new client instances, inheriting all configurations from this client and adding the passed read timeout
      * for all requests created by the newly created client instance.

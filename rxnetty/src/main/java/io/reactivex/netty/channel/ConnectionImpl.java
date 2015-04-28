@@ -15,8 +15,6 @@
  */
 package io.reactivex.netty.channel;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -40,53 +38,13 @@ public final class ConnectionImpl<I, O> extends Connection<I, O> {
     }
 
     @Override
-    public Observable<Void> write(O msg) {
-        return delegate.write(msg);
-    }
-
-    @Override
     public Observable<Void> write(Observable<O> msgs) {
         return delegate.write(msgs);
     }
 
     @Override
-    public Observable<Void> writeBytes(ByteBuf msg) {
-        return delegate.writeBytes(msg);
-    }
-
-    @Override
-    public Observable<Void> writeBytes(byte[] msg) {
-        return delegate.writeBytes(msg);
-    }
-
-    @Override
-    public Observable<Void> writeString(String msg) {
-        return delegate.writeString(msg);
-    }
-
-    @Override
-    public Observable<Void> writeFileRegion(FileRegion region) {
-        return delegate.writeFileRegion(region);
-    }
-
-    @Override
-    public Observable<Void> flush() {
-        return delegate.flush();
-    }
-
-    @Override
-    public Observable<Void> writeAndFlush(O msg) {
-        return delegate.writeAndFlush(msg);
-    }
-
-    @Override
-    public Observable<Void> writeAndFlush(Observable<O> msgs) {
-        return delegate.writeAndFlush(msgs);
-    }
-
-    @Override
-    public Observable<Void> writeAndFlush(Observable<O> msgs, Func1<O, Boolean> flushSelector) {
-        return delegate.writeAndFlush(msgs, flushSelector);
+    public Observable<Void> write(Observable<O> msgs, Func1<O, Boolean> flushSelector) {
+        return delegate.write(msgs, flushSelector);
     }
 
     @Override
@@ -95,33 +53,56 @@ public final class ConnectionImpl<I, O> extends Connection<I, O> {
     }
 
     @Override
-    public Observable<Void> writeBytesAndFlush(ByteBuf msg) {
-        return delegate.writeBytesAndFlush(msg);
+    public Observable<Void> writeString(Observable<String> msgs) {
+        return delegate.writeString(msgs);
     }
 
     @Override
-    public Observable<Void> writeBytesAndFlush(byte[] msg) {
-        return delegate.writeBytesAndFlush(msg);
+    public Observable<Void> writeString(Observable<String> msgs,
+                                        Func1<String, Boolean> flushSelector) {
+        return delegate.writeString(msgs, flushSelector);
     }
 
     @Override
-    public Observable<Void> writeStringAndFlush(String msg) {
-        return delegate.writeStringAndFlush(msg);
+    public Observable<Void> writeStringAndFlushOnEach(Observable<String> msgs) {
+        return delegate.writeStringAndFlushOnEach(msgs);
     }
 
     @Override
-    public Observable<Void> writeFileRegionAndFlush(FileRegion fileRegion) {
-        return delegate.writeFileRegionAndFlush(fileRegion);
+    public Observable<Void> writeBytes(Observable<byte[]> msgs) {
+        return delegate.writeBytes(msgs);
     }
 
     @Override
-    public void cancelPendingWrites(boolean mayInterruptIfRunning) {
-        delegate.cancelPendingWrites(mayInterruptIfRunning);
+    public Observable<Void> writeBytes(Observable<byte[]> msgs,
+                                       Func1<byte[], Boolean> flushSelector) {
+        return delegate.writeBytes(msgs, flushSelector);
     }
 
     @Override
-    public ByteBufAllocator getAllocator() {
-        return delegate.getAllocator();
+    public Observable<Void> writeBytesAndFlushOnEach(Observable<byte[]> msgs) {
+        return delegate.writeBytesAndFlushOnEach(msgs);
+    }
+
+    @Override
+    public Observable<Void> writeFileRegion(Observable<FileRegion> msgs) {
+        return delegate.writeFileRegion(msgs);
+    }
+
+    @Override
+    public Observable<Void> writeFileRegion(Observable<FileRegion> msgs,
+                                            Func1<FileRegion, Boolean> flushSelector) {
+        return delegate.writeFileRegion(msgs, flushSelector);
+    }
+
+    @Override
+    public Observable<Void> writeFileRegionAndFlushOnEach(Observable<FileRegion> msgs) {
+        return delegate.writeFileRegionAndFlushOnEach(msgs);
+    }
+
+    @Override
+    public void flush() {
+        delegate.flush();
     }
 
     @Override

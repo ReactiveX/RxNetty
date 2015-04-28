@@ -50,7 +50,7 @@ public final class ServerPoolClient {
             int port = ((InetSocketAddress) server.getAddress()).getPort();
             new TcpServerImpl<ByteBuf, ByteBuf>(port)
                     .<ByteBuf, String>addChannelHandlerLast("encoder", StringEncoder::new)
-                    .start(conn -> conn.writeAndFlush("Hello from port: " + port));
+                    .start(conn -> conn.writeString(Observable.just("Hello from port: " + port)));
         }
 
         final ServerPool<ClientMetricsEvent<?>> pool = new ServerPool<ClientMetricsEvent<?>>() {

@@ -15,8 +15,6 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.ClientConnectionToChannelBridge.ConnectionResueEvent;
@@ -76,7 +74,6 @@ public class PooledConnection<R, W> extends Connection<R, W> {
                     if (null != keepAliveTimeout) {
                         maxIdleTimeMillis = keepAliveTimeout;
                     }
-                    cancelPendingWrites(false);// Cancel pending writes before releasing to the pool.
                     PooledConnection.this.owner.release(PooledConnection.this)
                          .finallyDo(new Action0() {
                              @Override
@@ -90,54 +87,13 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     }
 
     @Override
-    public Observable<Void> write(W msg) {
-        return unpooledDelegate.write(msg);
-    }
-
-    @Override
     public Observable<Void> write(Observable<W> msgs) {
         return unpooledDelegate.write(msgs);
     }
 
     @Override
-    public Observable<Void> writeBytes(ByteBuf msg) {
-        return unpooledDelegate.writeBytes(msg);
-    }
-
-    @Override
-    public Observable<Void> writeBytes(byte[] msg) {
-        return unpooledDelegate.writeBytes(msg);
-    }
-
-    @Override
-    public Observable<Void> writeString(String msg) {
-        return unpooledDelegate.writeString(msg);
-    }
-
-    @Override
-    public Observable<Void> writeFileRegion(FileRegion region) {
-        return unpooledDelegate.writeFileRegion(region);
-    }
-
-    @Override
-    public Observable<Void> flush() {
-        return unpooledDelegate.flush();
-    }
-
-    @Override
-    public Observable<Void> writeAndFlush(W msg) {
-        return unpooledDelegate.writeAndFlush(msg);
-    }
-
-    @Override
-    public Observable<Void> writeAndFlush(Observable<W> msgs) {
-        return unpooledDelegate.writeAndFlush(msgs);
-    }
-
-    @Override
-    public Observable<Void> writeAndFlush(Observable<W> msgs,
-                                          Func1<W, Boolean> flushSelector) {
-        return unpooledDelegate.writeAndFlush(msgs, flushSelector);
+    public Observable<Void> write(Observable<W> msgs, Func1<W, Boolean> flushSelector) {
+        return unpooledDelegate.write(msgs, flushSelector);
     }
 
     @Override
@@ -146,33 +102,56 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     }
 
     @Override
-    public Observable<Void> writeBytesAndFlush(ByteBuf msg) {
-        return unpooledDelegate.writeBytesAndFlush(msg);
+    public Observable<Void> writeString(Observable<String> msgs) {
+        return unpooledDelegate.writeString(msgs);
     }
 
     @Override
-    public Observable<Void> writeBytesAndFlush(byte[] msg) {
-        return unpooledDelegate.writeBytesAndFlush(msg);
+    public Observable<Void> writeString(Observable<String> msgs,
+                                        Func1<String, Boolean> flushSelector) {
+        return unpooledDelegate.writeString(msgs, flushSelector);
     }
 
     @Override
-    public Observable<Void> writeStringAndFlush(String msg) {
-        return unpooledDelegate.writeStringAndFlush(msg);
+    public Observable<Void> writeStringAndFlushOnEach(Observable<String> msgs) {
+        return unpooledDelegate.writeStringAndFlushOnEach(msgs);
     }
 
     @Override
-    public Observable<Void> writeFileRegionAndFlush(FileRegion fileRegion) {
-        return unpooledDelegate.writeFileRegionAndFlush(fileRegion);
+    public Observable<Void> writeBytes(Observable<byte[]> msgs) {
+        return unpooledDelegate.writeBytes(msgs);
     }
 
     @Override
-    public void cancelPendingWrites(boolean mayInterruptIfRunning) {
-        unpooledDelegate.cancelPendingWrites(mayInterruptIfRunning);
+    public Observable<Void> writeBytes(Observable<byte[]> msgs,
+                                       Func1<byte[], Boolean> flushSelector) {
+        return unpooledDelegate.writeBytes(msgs, flushSelector);
     }
 
     @Override
-    public ByteBufAllocator getAllocator() {
-        return unpooledDelegate.getAllocator();
+    public Observable<Void> writeBytesAndFlushOnEach(Observable<byte[]> msgs) {
+        return unpooledDelegate.writeBytesAndFlushOnEach(msgs);
+    }
+
+    @Override
+    public Observable<Void> writeFileRegion(Observable<FileRegion> msgs) {
+        return unpooledDelegate.writeFileRegion(msgs);
+    }
+
+    @Override
+    public Observable<Void> writeFileRegion(Observable<FileRegion> msgs,
+                                            Func1<FileRegion, Boolean> flushSelector) {
+        return unpooledDelegate.writeFileRegion(msgs, flushSelector);
+    }
+
+    @Override
+    public Observable<Void> writeFileRegionAndFlushOnEach(Observable<FileRegion> msgs) {
+        return unpooledDelegate.writeFileRegionAndFlushOnEach(msgs);
+    }
+
+    @Override
+    public void flush() {
+        unpooledDelegate.flush();
     }
 
     @Override
@@ -183,7 +162,12 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     @Override
     public Observable<Void> close(boolean flush) {
         if (flush) {
-            return flush().concatWith(releaseObservable);
+            return releaseObservable.doOnSubscribe(new Action0() {
+                @Override
+                public void call() {
+                    unpooledDelegate.flush();
+                }
+            });
         } else {
             return releaseObservable;
         }

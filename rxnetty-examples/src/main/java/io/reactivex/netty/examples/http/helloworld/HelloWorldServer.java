@@ -17,10 +17,10 @@
 package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.protocol.http.serverNew.HttpServer;
 import rx.Observable;
+
+import java.nio.charset.Charset;
 
 public final class HelloWorldServer {
 
@@ -34,13 +34,20 @@ public final class HelloWorldServer {
 
     public HttpServer<ByteBuf, ByteBuf> startServer() {
         return HttpServer.newServer(port)
-                         .enableWireLogging(LogLevel.ERROR)
+                         //.enableWireLogging(LogLevel.ERROR)
                          .start((req, resp) -> {
+                             System.out.println("====================");
                              System.out.println(req);
-                             return req.discardContent()
+                             return req.getContent()
+                                       .doOnNext(bb -> {
+                                           System.out.println(bb.toString(Charset.defaultCharset()));
+                                           bb.release();
+                                       })
+                                       .doOnTerminate(() -> System.out.println("===================="))
+                                       .ignoreElements()
+                                       .cast(Void.class)
                                        .concatWith(resp.sendHeaders()
-                                                       .write(Observable.just(Unpooled.buffer()
-                                                                                      .writeBytes("HelloWorld!".getBytes()))));
+                                                       .writeString(Observable.just("HelloWorld!")));
                          });
     }
 

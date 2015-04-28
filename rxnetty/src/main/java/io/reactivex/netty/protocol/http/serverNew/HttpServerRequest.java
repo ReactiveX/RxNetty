@@ -424,7 +424,7 @@ public abstract class HttpServerRequest<T> {
                    .append(next.getValue())
                    .append('\n');
         }
-        builder.append("\n\n");
+        builder.append('\n');
 
         return builder.toString();
     }

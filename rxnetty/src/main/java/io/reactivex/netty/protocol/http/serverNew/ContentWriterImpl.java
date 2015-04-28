@@ -17,9 +17,10 @@ package io.reactivex.netty.protocol.http.serverNew;
 
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
 import io.netty.handler.codec.http.HttpResponse;
+import io.reactivex.netty.channel.ChannelOperations;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.FlushSelectorOperator;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
 import io.reactivex.netty.protocol.http.serverNew.HttpServerResponse.ContentWriter;
@@ -55,7 +56,7 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
             public void call(Subscriber<? super Void> subscriber) {
                 /*We are never sending content as the subscription is to the headers only writer.*/
                 headers.headers().set(Names.CONTENT_LENGTH, 0);
-                connection.writeAndFlush(headers).subscribe(subscriber);
+                connection.write(Observable.just(headers)).subscribe(subscriber);
             }
         });
         this.connection = connection;
@@ -70,8 +71,7 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
             @SuppressWarnings("unchecked")
             @Override
             public void call(Subscriber<? super Void> subscriber) {
-                setTransferEncodingIfNoContentLength(parent.headers);
-                parent.connection.writeAndFlush(getHttpStream(parent, content, appendTrailer))
+                parent.connection.write(getHttpStream(parent, content, appendTrailer))
                                  .subscribe(subscriber);
             }
         });
@@ -103,16 +103,18 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
     }
 
     @Override
+    public <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource, Func0<T> trailerFactory,
+                                                              Func2<T, C, T> trailerMutator,
+                                                              Func1<C, Boolean> flushSelector) {
+        return write(contentSource.lift(new FlushSelectorOperator<C>(flushSelector, connection.getNettyChannel())),
+                     trailerFactory, trailerMutator);
+    }
+
+    @Override
     public ContentWriter<C> write(Observable<C> msgs, final Func1<C, Boolean> flushSelector) {
-        return new ContentWriterImpl<>(this, msgs.map(new Func1<C, C>() {
-            @Override
-            public C call(C nextItem) {
-                if (flushSelector.call(nextItem)) {
-                    connection.getNettyChannel().flush();
-                }
-                return nextItem;
-            }
-        }), true);
+        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<C>(flushSelector,
+                                                                                    connection.getNettyChannel())),
+                                       true);
     }
 
     @Override
@@ -120,14 +122,82 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
         return write(msgs, flushOnEachSelector);
     }
 
-    private static void setTransferEncodingIfNoContentLength(HttpResponse headers) {
-        if (!headers.headers().contains(Names.CONTENT_LENGTH)) {
-            // If there is no content length we need to specify the transfer encoding as chunked as we always
-            // send data in multiple HttpContent.
-            // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
-            // as expected.
-            headers.headers().set(Names.TRANSFER_ENCODING, Values.CHUNKED);
-        }
+    @Override
+    public ContentWriter<C> writeString(Observable<String> msgs) {
+        return new ContentWriterImpl<>(this, msgs, true);
+    }
+
+    @Override
+    public <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
+                                                                    Func0<T> trailerFactory,
+                                                                    Func2<T, String, T> trailerMutator) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
+                                       false);
+    }
+
+    @Override
+    public <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
+                                                                    Func0<T> trailerFactory,
+                                                                    Func2<T, String, T> trailerMutator,
+                                                                    Func1<String, Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource.lift(new FlushSelectorOperator<String>(flushSelector,
+                                                                                        connection.getNettyChannel()));
+        return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
+                                       false);
+    }
+
+    @Override
+    public ContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
+        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<String>(flushSelector,
+                                                                                         connection.getNettyChannel())),
+                                       true);
+    }
+
+    @Override
+    public ContentWriter<C> writeStringAndFlushOnEach(Observable<String> msgs) {
+        return writeString(msgs, ChannelOperations.FLUSH_ON_EACH_STRING);
+    }
+
+    @Override
+    public ContentWriter<C> writeBytes(Observable<byte[]> msgs) {
+        return new ContentWriterImpl<>(this, msgs, true);
+    }
+
+    @Override
+    public <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
+                                                                   Func0<T> trailerFactory,
+                                                                   Func2<T, byte[], T> trailerMutator) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
+                                       false);
+    }
+
+    @Override
+    public <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
+                                                                   Func0<T> trailerFactory,
+                                                                   Func2<T, byte[], T> trailerMutator,
+                                                                   Func1<byte[], Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource.lift(new FlushSelectorOperator<byte[]>(flushSelector,
+                                                                                        connection.getNettyChannel()));
+        return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
+                                       false);
+    }
+
+    @Override
+    public ContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector) {
+        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<byte[]>(flushSelector,
+                                                                                         connection.getNettyChannel())),
+                                       true);
+    }
+
+    @Override
+    public ContentWriter<C> writeBytesAndFlushOnEach(Observable<byte[]> msgs) {
+        return writeBytes(msgs, ChannelOperations.FLUSH_ON_EACH_BYTES);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

@@ -375,7 +375,7 @@ public abstract class HttpClientResponse<T> {
                    .append(": ")
                    .append(next.getValue());
         }
-        builder.append("\n\n");
+        builder.append('\n');
 
         return builder.toString();
     }

@@ -22,6 +22,7 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
@@ -63,6 +64,19 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     protected AbstractHttpConnectionBridge() {
         emptyContentSubscriber = new UnsafeEmptySubscriber<>("Error while waiting for HTTP content.");
         emptyTrailerSubscriber = new UnsafeEmptySubscriber<>("Error while waiting for HTTP trailing headers.");
+    }
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        Object msgToWrite = msg;
+
+        if (msg instanceof String) {
+            msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
+        } else if (msg instanceof byte[]) {
+            msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
+        }
+
+        super.write(ctx, msgToWrite, promise);
     }
 
     @Override

@@ -232,12 +232,79 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
         }
 
         @Override
+        public <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource, Func0<T> trailerFactory,
+                                                                  Func2<T, C, T> trailerMutator,
+                                                                  Func1<C, Boolean> flushSelector) {
+            return this;
+        }
+
+        @Override
         public ContentWriter<C> write(Observable<C> msgs, Func1<C, Boolean> flushSelector) {
             return this;
         }
 
         @Override
         public ContentWriter<C> writeAndFlushOnEach(Observable<C> msgs) {
+            return this;
+        }
+
+        @Override
+        public ContentWriter<C> writeString(Observable<String> msgs) {
+            return this;
+        }
+
+        @Override
+        public <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
+                                                                        Func0<T> trailerFactory,
+                                                                        Func2<T, String, T> trailerMutator) {
+            return this;
+        }
+
+        @Override
+        public <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
+                                                                        Func0<T> trailerFactory,
+                                                                        Func2<T, String, T> trailerMutator,
+                                                                        Func1<String, Boolean> flushSelector) {
+            return this;
+        }
+
+        @Override
+        public ContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
+            return this;
+        }
+
+        @Override
+        public ContentWriter<C> writeStringAndFlushOnEach(Observable<String> msgs) {
+            return this;
+        }
+
+        @Override
+        public ContentWriter<C> writeBytes(Observable<byte[]> msgs) {
+            return this;
+        }
+
+        @Override
+        public <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
+                                                                       Func0<T> trailerFactory,
+                                                                       Func2<T, byte[], T> trailerMutator) {
+            return this;
+        }
+
+        @Override
+        public <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
+                                                                       Func0<T> trailerFactory,
+                                                                       Func2<T, byte[], T> trailerMutator,
+                                                                       Func1<byte[], Boolean> flushSelector) {
+            return this;
+        }
+
+        @Override
+        public ContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector) {
+            return this;
+        }
+
+        @Override
+        public ContentWriter<C> writeBytesAndFlushOnEach(Observable<byte[]> msgs) {
             return this;
         }
     }

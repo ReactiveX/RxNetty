@@ -20,6 +20,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultHttpRequest;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
@@ -27,6 +28,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.FlushSelectorOperator;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -50,6 +52,13 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     private final Request request;
     private final TcpClient<?, HttpClientResponse<O>> client;
 
+    private final Func1<I, Boolean> flushOnEachSelector = new Func1<I, Boolean>() {
+        @Override
+        public Boolean call(I next) {
+            return true;
+        }
+    };
+
     private HttpClientRequestImpl(final Request request,
                                   final TcpClient<?, HttpClientResponse<O>> client) {
         super(new OnSubscribeFuncImpl<>(client, request));
@@ -61,21 +70,50 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     public Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(rawObservable);
+        return _writeContentRaw(rawObservable, false);
+    }
+
+    @Override
+    public Observable<HttpClientResponse<O>> writeContentAndFlushOnEach(Observable<I> contentSource) {
+        return writeContent(contentSource, flushOnEachSelector);
     }
 
     @Override
     public Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(rawObservable);
+        return _writeContentRaw(rawObservable, false);
     }
 
     @Override
     public Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(rawObservable);
+        return _writeContentRaw(rawObservable, false);
+    }
+
+    @Override
+    public Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                          Func1<I, Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return _writeContentRaw(rawObservable, flushSelector, false);
+    }
+
+    @Override
+    public Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                Func1<String, Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return _writeContentRaw(rawObservable, flushSelector, false);
+    }
+
+    @Override
+    public Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
+                                                               Func1<byte[], Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return _writeContentRaw(rawObservable, flushSelector, false);
     }
 
     @Override
@@ -84,7 +122,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                                               final Func2<T, I, T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator));
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
     }
 
     @Override
@@ -93,7 +131,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                                                     Func2<T, String, T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator));
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
     }
 
     @Override
@@ -102,7 +140,38 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                                                    Func2<T, byte[], T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator));
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
+    }
+
+    @Override
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                                      Func0<T> trailerFactory,
+                                                                                      Func2<T, I, T> trailerMutator,
+                                                                                      Func1<I, Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
+                                true);
+    }
+
+    @Override
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(
+            Observable<String> contentSource, Func0<T> trailerFactory, Func2<T, String, T> trailerMutator,
+            Func1<String, Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
+                                true);
+    }
+
+    @Override
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(
+            Observable<byte[]> contentSource, Func0<T> trailerFactory, Func2<T, byte[], T> trailerMutator,
+            Func1<byte[], Boolean> flushSelector) {
+        @SuppressWarnings("rawtypes")
+        Observable rawObservable = contentSource;
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
+                                true);
     }
 
     @Override
@@ -212,7 +281,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     public <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(String baseName, String name,
                                                                       Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerBefore(baseName, name,
-                                                                                             handlerFactory)));    }
+                                                                                         handlerFactory)));    }
 
     @Override
     public <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
@@ -226,7 +295,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     public <II, OO> HttpClientRequest<II, OO> addChannelHandlerAfter(String baseName, String name,
                                                                      Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerAfter(baseName, name,
-                                                                                            handlerFactory)));
+                                                                                        handlerFactory)));
     }
 
     @Override
@@ -305,37 +374,44 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @SuppressWarnings("rawtypes")
-    private Observable<HttpClientResponse<O>> _writeContentRaw(Observable rawContent) {
-        final Request r = Request.create(request.headers, rawContent);
+    private Observable<HttpClientResponse<O>> _writeContentRaw(Observable rawContent, boolean hasTrailers) {
+        final Request r = Request.create(request.headers, rawContent, hasTrailers);
         return new HttpClientRequestImpl<>(r, client);
     }
 
-    /*package private, not a public contract*/ static class Request {
+    @SuppressWarnings("rawtypes")
+    private Observable<HttpClientResponse<O>> _writeContentRaw(Observable rawContent,
+                                                               Func1<?, Boolean> flushSelector, boolean hasTrailers) {
+        final Request r = Request.create(request.headers, rawContent, flushSelector, hasTrailers);
+        return new HttpClientRequestImpl<>(r, client);
+    }
+
+    private static class Request {
 
         private final HttpRequest headers;
         @SuppressWarnings("rawtypes")
         private final Observable content;
-        @SuppressWarnings("rawtypes")
-        private final Observable asObservable;
+        private final Func1<?, Boolean> flushSelector;
+        private final boolean hasTrailers;
 
         @SuppressWarnings("rawtypes")
-        Request(HttpRequest headers, Observable content) {
+        private Request(HttpRequest headers, Observable content, Func1<?, Boolean> flushSelector, boolean hasTrailers) {
             this.headers = headers;
             this.content = content;
-            asObservable = null != content ? Observable.<Object>just(headers).concatWith(content)
-                                           : Observable.<Object>just(headers);
+            this.flushSelector = flushSelector;
+            this.hasTrailers = hasTrailers;
         }
 
         public Request addHeader(CharSequence name, Object value) {
             HttpRequest headersCopy = _copyHeaders();
             headersCopy.headers().add(name, value);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request addHeader(CharSequence name, Iterable<Object> values) {
             HttpRequest headersCopy = _copyHeaders();
             headersCopy.headers().add(name, values);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request addCookie(Cookie cookie) {
@@ -346,7 +422,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         public Request addDateHeader(CharSequence name, Date value) {
             HttpRequest headersCopy = _copyHeaders();
             HttpHeaders.addDateHeader(headersCopy, name, value);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request addDateHeader(CharSequence name, Iterable<Date> values) {
@@ -354,25 +430,25 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             for (Date value : values) {
                 HttpHeaders.addDateHeader(headersCopy, name, value);
             }
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request setDateHeader(CharSequence name, Date value) {
             HttpRequest headersCopy = _copyHeaders();
             HttpHeaders.setDateHeader(headersCopy, name, value);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request setHeader(CharSequence name, Object value) {
             HttpRequest headersCopy = _copyHeaders();
             headersCopy.headers().set(name, value);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request setHeader(CharSequence name, Iterable<Date> values) {
             HttpRequest headersCopy = _copyHeaders();
             headersCopy.headers().set(name, values);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request setDateHeader(CharSequence name, Iterable<Date> values) {
@@ -380,30 +456,45 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             for (Date value : values) {
                 HttpHeaders.setDateHeader(headersCopy, name, value);
             }
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request setKeepAlive(boolean keepAlive) {
             HttpRequest headersCopy = _copyHeaders();
             HttpHeaders.setKeepAlive(headersCopy, keepAlive);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request setTransferEncodingChunked() {
             HttpRequest headersCopy = _copyHeaders();
             HttpHeaders.setTransferEncodingChunked(headersCopy);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
         public Request removeHeader(CharSequence name) {
             HttpRequest headersCopy = _copyHeaders();
             HttpHeaders.removeHeader(headersCopy, name);
-            return create(headersCopy, content);
+            return create(headersCopy, content, hasTrailers);
         }
 
-        @SuppressWarnings("rawtypes")
-        /*Package private, to be used by channel writer*/ Observable asObservable() {
-            return asObservable;
+        @SuppressWarnings({"rawtypes", "unchecked"})
+        private Observable asObservable(Connection connection) {
+            Observable toReturn = Observable.just(headers);
+
+            if (null != content) {
+                if (null == flushSelector) {
+                    toReturn = toReturn.concatWith(content);
+                } else {
+                    toReturn = toReturn.concatWith(content.lift(new FlushSelectorOperator(flushSelector,
+                                                                                          connection.getNettyChannel())));
+                }
+            }
+
+            if (!hasTrailers) {
+                toReturn = toReturn.concatWith(Observable.just(new DefaultLastHttpContent()));
+            }
+
+            return toReturn;
         }
 
         private HttpRequest _copyHeaders() {
@@ -418,12 +509,18 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
         private static Request create(HttpMethod httpMethod, String uri) {
             final HttpRequest headers = new DefaultHttpRequest(HttpVersion.HTTP_1_1, httpMethod, uri);
-            return new Request(headers, null);
+            return new Request(headers, null, null, false);
         }
 
         @SuppressWarnings("rawtypes")
-        private static Request create(HttpRequest headers, Observable content) {
-            return new Request(headers, content);
+        private static Request create(HttpRequest headers, Observable content, boolean hasTrailers) {
+            return new Request(headers, content, null, hasTrailers);
+        }
+
+        @SuppressWarnings("rawtypes")
+        private static Request create(HttpRequest headers, Observable content, Func1<?, Boolean> flushSelector,
+                                      boolean hasTrailers) {
+            return new Request(headers, content, flushSelector, hasTrailers);
         }
     }
 
@@ -445,7 +542,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                @SuppressWarnings("rawtypes")
                                                @Override
                                                public Observable<HttpClientResponse> call(Connection c) {
-                                                   return c.writeAndFlush(OnSubscribeFuncImpl.this.request.asObservable())
+                                                   return c.write(OnSubscribeFuncImpl.this.request.asObservable(c))
                                                            .ignoreElements()
                                                            .cast(HttpClientResponse.class)
                                                            .concatWith(c.getInput().take(1));

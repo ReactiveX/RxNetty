@@ -19,6 +19,7 @@ package io.reactivex.netty.examples.http.helloworld;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.protocol.http.clientNew.HttpClient;
 import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
+import rx.Observable;
 
 import java.nio.charset.Charset;
 import java.util.concurrent.ExecutionException;
@@ -38,13 +39,14 @@ public class HelloWorldClient {
     public String sendHelloRequest() throws InterruptedException, ExecutionException, TimeoutException {
         return HttpClient.newClient("localhost", port)
                          .createGet("/hello")
+                         .writeStringContent(Observable.just("Say Hello!"))
                          .switchMap((HttpClientResponse<ByteBuf> resp) -> {
                              System.out.println(resp);
                              return resp.getContent()
                                         .map(bb -> bb.toString(Charset.defaultCharset()));
                          })
                          .toBlocking()
-                         .toFuture().get(1, TimeUnit.MINUTES);
+                         .toFuture().get(1, TimeUnit.HOURS);
     }
 
     public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {

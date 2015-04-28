@@ -29,7 +29,6 @@ import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
-import io.reactivex.netty.protocol.http.clientNew.HttpClientRequestImpl.Request;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
 import rx.Subscription;
@@ -92,6 +91,11 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     @Override
     public HttpClientRequest<I, O> createConnect(String uri) {
         return HttpClientRequestImpl.create(HttpMethod.CONNECT, uri, client);
+    }
+
+    @Override
+    public HttpClientRequest<I, O> createRequest(HttpMethod method, String uri) {
+        return HttpClientRequestImpl.create(method, uri, client);
     }
 
     @Override
@@ -228,8 +232,8 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @SuppressWarnings("unchecked")
-    private static <OO> TcpClient<Request, HttpClientResponse<OO>> castClient(TcpClient<?, ?> rawTypes) {
-        return (TcpClient<Request, HttpClientResponse<OO>>) rawTypes;
+    private static <OO> TcpClient<?, HttpClientResponse<OO>> castClient(TcpClient<?, ?> rawTypes) {
+        return (TcpClient<?, HttpClientResponse<OO>>) rawTypes;
     }
 
     private static <II, OO> HttpClient<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient) {

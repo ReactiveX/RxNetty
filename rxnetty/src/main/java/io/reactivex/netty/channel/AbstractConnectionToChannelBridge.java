@@ -64,14 +64,10 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     private static final IllegalStateException LAZY_CONN_INPUT_SUB =
             new IllegalStateException("Channel is set to auto-read but the subscription was lazy.");
 
-    private static final byte[] BYTE_ARR_TO_FIND_W_TYPE = new byte[0];
-
     @SuppressWarnings("rawtypes")
     protected final MetricEventsSubject eventsSubject;
     protected final ChannelMetricEventProvider metricEventProvider;
     private final BytesWriteInterceptor bytesWriteInterceptor;
-    private final boolean convertStringToBB;
-    private final boolean convertByteArrToBB;
     private Subscriber<? super Connection<R, W>> newConnectionSub;
     private ReadProducer<R> readProducer;
     private boolean raiseErrorOnInputSubscription;
@@ -82,9 +78,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
         bytesWriteInterceptor = new BytesWriteInterceptor();
-        //TypeParameterMatcher matcher = TypeParameterMatcher.find(this, AbstractConnectionToChannelBridge.class, "W");
-        convertStringToBB = false;
-        convertByteArrToBB = false;
     }
 
     protected AbstractConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
@@ -199,14 +192,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
      */
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (convertStringToBB && msg instanceof String) {
-            /*If the charset is important, the user must convert the string to BB directly.*/
-            byte[] msgAsBytes = ((String) msg).getBytes();
-            ctx.write(ctx.alloc().buffer(msgAsBytes.length).writeBytes(msgAsBytes), promise);
-        } else if(convertByteArrToBB && msg instanceof byte[]) {
-            byte[] msgAsBytes = (byte[]) msg;
-            ctx.write(ctx.alloc().buffer(msgAsBytes.length).writeBytes(msgAsBytes), promise);
-        } else if (msg instanceof Observable) {
+        if (msg instanceof Observable) {
             @SuppressWarnings("rawtypes")
             Observable observable = (Observable) msg; /*One can write heterogneous objects on a channel.*/
             final WriteStreamSubscriber subscriber = new WriteStreamSubscriber(ctx, promise);
@@ -381,8 +367,18 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         private final ConcurrentLinkedQueue<WriteStreamSubscriber> subscribers = new ConcurrentLinkedQueue<>();
 
         @Override
-        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            ctx.write(msg, promise);
+        public void write(ChannelHandlerContext ctx, final Object msg, ChannelPromise promise) throws Exception {
+            Object msgToWrite = msg;
+
+            /*Support for writing an Observable<String> or Observable<byte[]> directly*/
+            if (msg instanceof String) {
+                msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
+            } else if (msg instanceof byte[]) {
+                msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
+            }
+
+            ctx.write(msgToWrite, promise);
+
             requestMoreIfWritable(ctx);
         }
 
