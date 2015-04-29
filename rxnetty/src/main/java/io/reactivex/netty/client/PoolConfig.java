@@ -84,4 +84,16 @@ public class PoolConfig<W, R> {
         return new PoolConfig<W, R>(maxIdleTimeMillis, idleConnCleanupTicker, limitDeterminationStrategy.copy(),
                                     idleConnectionsHolder);
     }
+
+    /*visible for testing*/Observable<Long> getIdleConnCleanupTicker() {
+        return idleConnCleanupTicker;
+    }
+
+    /*visible for testing*/PoolLimitDeterminationStrategy getLimitDeterminationStrategy() {
+        return limitDeterminationStrategy;
+    }
+
+    /*visible for testing*/IdleConnectionsHolder<W, R> getIdleConnectionsHolder() {
+        return idleConnectionsHolder;
+    }
 }

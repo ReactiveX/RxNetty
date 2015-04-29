@@ -26,15 +26,13 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.junit.rules.TestWatcher;
+import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
-import rx.functions.Action0;
-import rx.functions.Action1;
-import rx.observers.Subscribers;
+import rx.observers.TestSubscriber;
 import rx.schedulers.Schedulers;
 import rx.schedulers.TestScheduler;
 
@@ -42,9 +40,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.net.InetSocketAddress;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static java.lang.annotation.ElementType.*;
 import static org.hamcrest.MatcherAssert.*;
@@ -197,7 +193,7 @@ public class PooledClientConnectionFactoryImplTest {
         return connIdle;
     }
 
-    public static class PooledFactoryRule extends TestWatcher {
+    public static class PooledFactoryRule extends ExternalResource {
 
         private PooledClientConnectionFactoryImpl<String, String> factory;
         private TestableClientConnectionFactory<String, String> delegateFactory;
@@ -246,33 +242,17 @@ public class PooledClientConnectionFactoryImplTest {
         }
 
         public void closeAndAwait(Connection<String, String> toClose) throws Throwable {
-            final CountDownLatch latch = new CountDownLatch(1);
-            final AtomicReference<Throwable> error = new AtomicReference<>();
-
             EmbeddedChannel embeddedChannel= (EmbeddedChannel) toClose.getNettyChannel();
 
-            toClose.close()
-                   .doOnTerminate(new Action0() {
-                       @Override
-                       public void call() {
-                           latch.countDown();
-                       }
-                   })
-                   .doOnError(new Action1<Throwable>() {
-                       @Override
-                       public void call(Throwable throwable) {
-                           error.set(throwable);
-                       }
-                   })
-                   .subscribe(Subscribers.empty());
+            final TestSubscriber<Void> testSubscriber = new TestSubscriber<>();
+
+            toClose.close().subscribe(testSubscriber);
 
             embeddedChannel.runPendingTasks();
 
-            latch.await(1, TimeUnit.MINUTES);
+            testSubscriber.awaitTerminalEvent(1, TimeUnit.MINUTES);
 
-            if (error.get() != null) {
-                throw error.get();
-            }
+            testSubscriber.assertNoErrors();
         }
 
         private static class TestableClientConnectionFactory<W, R> extends ClientConnectionFactory<W, R> {

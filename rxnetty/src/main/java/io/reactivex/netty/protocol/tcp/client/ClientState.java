@@ -43,6 +43,7 @@ import rx.functions.Func0;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.EnumMap;
 import java.util.concurrent.TimeUnit;
 
 import static io.reactivex.netty.client.PoolConfig.*;
@@ -66,19 +67,16 @@ public final class ClientState<W, R> {
     private final ServerPool<ClientMetricsEvent<?>> serverPool;
 
     private ClientState(EventLoopGroup group, Class<? extends Channel> channelClass,
+                        MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                        DetachedChannelPipeline detachedPipeline,
                         ServerPool<ClientMetricsEvent<?>> serverPool) {
         clientBootstrap = new Bootstrap();
         clientBootstrap.option(ChannelOption.AUTO_READ, false); // by default do not read content unless asked.
         clientBootstrap.group(group);
         clientBootstrap.channel(channelClass);
         poolConfig = null;
-        eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
-        detachedPipeline = new DetachedChannelPipeline(new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ClientConnectionToChannelBridge<W, R>(eventsSubject);
-            }
-        });
+        this.eventsSubject = eventsSubject;
+        this.detachedPipeline = detachedPipeline;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         this.serverPool = serverPool;
     }
@@ -187,12 +185,8 @@ public final class ClientState<W, R> {
     }
 
     public ClientState<W, R> enableWireLogging(final LogLevel wireLogginLevel) {
-        return addChannelHandlerFirst(HandlerNames.WireLogging.getName(), new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new LoggingHandler(wireLogginLevel);
-            }
-        });
+        return addChannelHandlerFirst(HandlerNames.WireLogging.getName(),
+                                      LoggingHandlerFactory.factories.get(wireLogginLevel));
     }
 
     public ClientState<W, R> maxConnections(int maxConnections) {
@@ -216,9 +210,8 @@ public final class ClientState<W, R> {
         if (null != poolConfig) {
             newPoolConfig = poolConfig.maxIdleTimeoutMillis(maxIdleTimeoutMillis);
         } else {
-            long maxIdleTimeMillis = DEFAULT_MAX_IDLE_TIME_MILLIS;
-            newPoolConfig = new PoolConfig<W, R>(maxIdleTimeMillis,
-                                                 Observable.timer(maxIdleTimeMillis, TimeUnit.MILLISECONDS),
+            newPoolConfig = new PoolConfig<W, R>(maxIdleTimeoutMillis,
+                                                 Observable.timer(maxIdleTimeoutMillis, TimeUnit.MILLISECONDS),
                                                  new MaxConnectionsBasedStrategy(),
                                                  newDefaultIdleConnectionsHolder(null));
         }
@@ -315,17 +308,21 @@ public final class ClientState<W, R> {
 
     public static <WW, RR> ClientState<WW, RR> create(EventLoopGroup group, Class<? extends Channel> channelClass,
                                                       SocketAddress remoteAddress) {
-        final ClientState<WW, RR> toReturn = new ClientState<WW, RR>(group, channelClass,
-                                                                     new IdentityServerPool(remoteAddress));
-        toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
-        return toReturn;
+        return create(group, channelClass, new IdentityServerPool(remoteAddress));
     }
 
     public static <WW, RR> ClientState<WW, RR> create(EventLoopGroup group, Class<? extends Channel> channelClass,
                                                       ServerPool<ClientMetricsEvent<?>> serverPool) {
-        final ClientState<WW, RR> toReturn = new ClientState<WW, RR>(group, channelClass, serverPool);
-        toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
-        return toReturn;
+        final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<>();
+
+        DetachedChannelPipeline detachedPipeline = new DetachedChannelPipeline(new Func0<ChannelHandler>() {
+            @Override
+            public ChannelHandler call() {
+                return new ClientConnectionToChannelBridge<WW, RR>(eventsSubject);
+            }
+        });
+
+        return create(detachedPipeline, eventsSubject, group, channelClass, serverPool);
     }
 
     public static <WW, RR> ClientState<WW, RR> create(ClientState<WW, RR> state,
@@ -334,8 +331,24 @@ public final class ClientState<W, R> {
         return state;
     }
 
+    /*Visible for testing*/ static <WW, RR> ClientState<WW, RR> create(DetachedChannelPipeline detachedPipeline,
+                                                                       MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                                                                       EventLoopGroup group,
+                                                                       Class<? extends Channel> channelClass,
+                                                                       ServerPool<ClientMetricsEvent<?>> serverPool) {
+        final ClientState<WW, RR> toReturn = new ClientState<WW, RR>(group, channelClass, eventsSubject,
+                                                                     detachedPipeline, serverPool);
+        toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
+        return toReturn;
+
+    }
+
     /*package private. Should not leak as it is mutable*/ Bootstrap getBootstrap() {
         return clientBootstrap;
+    }
+
+    /*Visible for testing*/ DetachedChannelPipeline getDetachedPipeline() {
+        return detachedPipeline;
     }
 
     private IdleConnectionsHolder<W, R> newDefaultIdleConnectionsHolder(final IdleConnectionsHolder<W, R> template) {
@@ -375,6 +388,34 @@ public final class ClientState<W, R> {
         return (ClientState<WW, RR>) this;
     }
 
+    /**
+     * {@link LoggingHandler} is a shaerable handler and hence need not be created for every client. This factory
+     * manages a static map of log level -> instance which can be used directly instead of creating a new factoru per
+     * client.
+     */
+    /*visible for testing*/static class LoggingHandlerFactory implements Func0<ChannelHandler> {
+
+        /*visible for testing*/ static final EnumMap<LogLevel, LoggingHandlerFactory> factories =
+                new EnumMap<LogLevel, LoggingHandlerFactory>(LogLevel.class);
+
+        static {
+            for (LogLevel logLevel : LogLevel.values()) {
+                factories.put(logLevel, new LoggingHandlerFactory(logLevel));
+            }
+        }
+
+        private final LoggingHandler loggingHandler;
+
+        private LoggingHandlerFactory(LogLevel wireLogginLevel) {
+            loggingHandler = new LoggingHandler(wireLogginLevel);
+        }
+
+        @Override
+        public ChannelHandler call() {
+            return loggingHandler;/*logging handler is shareable.*/
+        }
+    }
+
     private class IdleConnectionsHolderFactoryImpl<WW, RR> implements IdleConnectionsHolderFactory<WW, RR> {
 
         private final IdleConnectionsHolder<WW, RR> template;
@@ -398,11 +439,11 @@ public final class ClientState<W, R> {
         }
     }
 
-    private static class IdentityServerPool implements ServerPool<ClientMetricsEvent<?>> {
+    /*Visible for testing*/static class IdentityServerPool implements ServerPool<ClientMetricsEvent<?>> {
 
         private final Server<ClientMetricsEvent<?>> theServer;
 
-        private IdentityServerPool(final SocketAddress socketAddress) {
+        IdentityServerPool(final SocketAddress socketAddress) {
 
             theServer = new Server<ClientMetricsEvent<?>>() {
 

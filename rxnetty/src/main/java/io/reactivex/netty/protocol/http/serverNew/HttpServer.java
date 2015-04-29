@@ -27,7 +27,6 @@ import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
-import io.reactivex.netty.protocol.tcp.server.TcpServerImpl;
 import rx.functions.Action1;
 import rx.functions.Func0;
 
@@ -287,7 +286,7 @@ public abstract class HttpServer<I, O> implements MetricEventsPublisher<HttpServ
      * @return A new {@link HttpServer}
      */
     public static HttpServer<ByteBuf, ByteBuf> newServer() {
-        return _newServer(new TcpServerImpl<ByteBuf, ByteBuf>(0));
+        return _newServer(TcpServer.newServer(0));
     }
 
     /**
@@ -297,7 +296,7 @@ public abstract class HttpServer<I, O> implements MetricEventsPublisher<HttpServ
      * @return A new {@link HttpServer}
      */
     public static HttpServer<ByteBuf, ByteBuf> newServer(int port) {
-        return _newServer(new TcpServerImpl<ByteBuf, ByteBuf>(port));
+        return _newServer(TcpServer.newServer(port));
     }
 
     /**
@@ -311,7 +310,7 @@ public abstract class HttpServer<I, O> implements MetricEventsPublisher<HttpServ
      */
     public static HttpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup eventLoopGroup,
                                                          Class<? extends ServerChannel> channelClass) {
-        return _newServer(new TcpServerImpl<ByteBuf, ByteBuf>(port, eventLoopGroup, eventLoopGroup, channelClass));
+        return _newServer(TcpServer.newServer(port, eventLoopGroup, eventLoopGroup, channelClass));
     }
 
     /**
@@ -327,7 +326,7 @@ public abstract class HttpServer<I, O> implements MetricEventsPublisher<HttpServ
     public static HttpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup serverGroup,
                                                          EventLoopGroup clientGroup,
                                                          Class<? extends ServerChannel> channelClass) {
-        return _newServer(new TcpServerImpl<ByteBuf, ByteBuf>(port, serverGroup, clientGroup, channelClass));
+        return _newServer(TcpServer.newServer(port, serverGroup, clientGroup, channelClass));
     }
 
     private static HttpServer<ByteBuf, ByteBuf> _newServer(TcpServer<ByteBuf, ByteBuf> tcpServer) {

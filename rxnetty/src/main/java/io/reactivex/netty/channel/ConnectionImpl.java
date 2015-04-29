@@ -27,9 +27,9 @@ import rx.functions.Func1;
  *
  * @author Nitesh Kant
  */
-public final class ConnectionImpl<I, O> extends Connection<I, O> {
+public final class ConnectionImpl<R, W> extends Connection<R, W> {
 
-    private final ChannelOperations<O> delegate;
+    private final ChannelOperations<W> delegate;
 
     private ConnectionImpl(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
                            ChannelMetricEventProvider metricEventProvider) {
@@ -37,18 +37,24 @@ public final class ConnectionImpl<I, O> extends Connection<I, O> {
         delegate = new DefaultChannelOperations<>(nettyChannel, eventsSubject, metricEventProvider);
     }
 
+    private ConnectionImpl(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
+                           ChannelMetricEventProvider metricEventProvider, ChannelOperations<W> delegate) {
+        super(nettyChannel, eventsSubject, metricEventProvider);
+        this.delegate = delegate;
+    }
+
     @Override
-    public Observable<Void> write(Observable<O> msgs) {
+    public Observable<Void> write(Observable<W> msgs) {
         return delegate.write(msgs);
     }
 
     @Override
-    public Observable<Void> write(Observable<O> msgs, Func1<O, Boolean> flushSelector) {
+    public Observable<Void> write(Observable<W> msgs, Func1<W, Boolean> flushSelector) {
         return delegate.write(msgs, flushSelector);
     }
 
     @Override
-    public Observable<Void> writeAndFlushOnEach(Observable<O> msgs) {
+    public Observable<Void> writeAndFlushOnEach(Observable<W> msgs) {
         return delegate.writeAndFlushOnEach(msgs);
     }
 
@@ -118,6 +124,16 @@ public final class ConnectionImpl<I, O> extends Connection<I, O> {
     public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
                                                      ChannelMetricEventProvider metricEventProvider) {
         final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventsSubject, metricEventProvider);
+        toReturn.connectCloseToChannelClose();
+        return toReturn;
+    }
+
+    /*Visible for testing*/static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel,
+                                                                     MetricEventsSubject<?> eventsSubject,
+                                                                     ChannelMetricEventProvider metricEventProvider,
+                                                                     ChannelOperations<W> delegate) {
+        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventsSubject, metricEventProvider,
+                                                                   delegate);
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }

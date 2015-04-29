@@ -158,7 +158,12 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
         return Observable.create(new OnSubscribe<Void>() {
             @Override
             public void call(final Subscriber<? super Void> subscriber) {
-                final ChannelFuture writeFuture = nettyChannel.write(msgs);
+                final ChannelFuture writeFuture = nettyChannel.write(msgs.doOnCompleted(new Action0() {
+                    @Override
+                    public void call() {
+                        nettyChannel.flush();
+                    }
+                }));
                 subscriber.add(Subscriptions.create(new Action0() {
                     @Override
                     public void call() {

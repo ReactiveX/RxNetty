@@ -230,7 +230,7 @@ public class PreferCurrentEventLoopHolderTest {
             }).get(1, TimeUnit.MINUTES);
         }
 
-        private class IdleConnectionsHolderFactoryImpl implements IdleConnectionsHolderFactory<String, String> {
+        private static class IdleConnectionsHolderFactoryImpl implements IdleConnectionsHolderFactory<String, String> {
 
             @Override
             public <WW, RR> IdleConnectionsHolderFactory<WW, RR> copy(ClientState<WW, RR> newState) {

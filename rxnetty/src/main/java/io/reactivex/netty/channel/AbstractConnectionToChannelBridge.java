@@ -441,7 +441,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
         @Override
         public void onCompleted() {
-            ctx.channel().flush(); // Flush on completion.
             onTermination();
         }
 
