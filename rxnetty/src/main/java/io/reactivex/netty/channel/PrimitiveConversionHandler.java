@@ -30,7 +30,7 @@ public class PrimitiveConversionHandler extends ChannelOutboundHandlerAdapter {
 
     public static final PrimitiveConversionHandler INSTANCE = new PrimitiveConversionHandler();
 
-    private PrimitiveConversionHandler() {
+    PrimitiveConversionHandler() {
     }
 
     @Override

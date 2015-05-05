@@ -222,7 +222,7 @@ public class AbstractConnectionToChannelBridgeTest {
         }
 
         public void activateConnectionAndAssert(ConnectionSubscriber subscriber) throws Exception {
-            handler.channelActive(ctx);
+            handler.userEventTriggered(ctx, EmitConnectionEvent.INSTANCE);
 
             assertThat("Unexpected notifications count after channel active.", subscriber.notificationList,
                        hasSize(2));

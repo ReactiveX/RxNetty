@@ -15,7 +15,6 @@
  */
 package io.reactivex.netty.channel;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor;
 import io.reactivex.netty.channel.BackpressureManagingHandler.WriteStreamSubscriber;
@@ -25,8 +24,6 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-
-import java.nio.charset.Charset;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -47,33 +44,6 @@ public class BytesWriteInterceptorTest {
         sub1.unsubscribe();
 
         assertThat("Subscriber not removed post unsubscribe", inspectorRule.interceptor.getSubscribers(), is(empty()));
-    }
-
-    @Test
-    public void testWriteString() throws Exception {
-        String msg = "Hello";
-        inspectorRule.channel.writeAndFlush(msg);
-        assertThat("String not written", inspectorRule.channel.outboundMessages(), hasSize(1));
-        Object writtenMsg = inspectorRule.channel.readOutbound();
-        assertThat("String not written as buffer", writtenMsg, is(instanceOf(ByteBuf.class)));
-
-        ByteBuf asBB = (ByteBuf) writtenMsg;
-
-        assertThat("Unexpected content of buffer written.", asBB.toString(Charset.defaultCharset()), equalTo(msg));
-    }
-
-    @Test
-    public void testWriteByteArray() throws Exception {
-        byte[] msg = "Hello".getBytes();
-        inspectorRule.channel.writeAndFlush(msg);
-        assertThat("Bytes not written", inspectorRule.channel.outboundMessages(), hasSize(1));
-        Object writtenMsg = inspectorRule.channel.readOutbound();
-        assertThat("Bytes not written as buffer", writtenMsg, is(instanceOf(ByteBuf.class)));
-
-        byte[] asBytes = new byte[msg.length];
-        ((ByteBuf) writtenMsg).readBytes(asBytes);
-
-        assertThat("Unexpected content of buffer written.", asBytes, equalTo(msg));
     }
 
     @Test
