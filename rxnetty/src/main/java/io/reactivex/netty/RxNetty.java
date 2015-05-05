@@ -271,25 +271,21 @@ public final class RxNetty {
      *
      * <h2>Http Server</h2>
      <pre>
-     * {@code
        RxNetty.newHttpServerBuilder(8888, new RequestHandler<Object, Object>() {
-            @Override
+
             public Observable<Void> handle(HttpServerRequest<Object> request, HttpServerResponse<Object> response) {
             return null;
             }
        }).channel(EpollServerSocketChannel.class)
          .eventLoop(new EpollEventLoopGroup());
-      }
      </pre>
      *
      * <h2>Http Client</h2>
      *
      <pre>
-     {@code
      RxNetty.newHttpClientBuilder("localhost", 8888)
             .channel(EpollSocketChannel.class)
             .eventloop(new EpollEventLoopGroup());
-     }
      </pre>
      */
     public static void useNativeTransportIfApplicable() {
