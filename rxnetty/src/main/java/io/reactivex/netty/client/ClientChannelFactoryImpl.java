@@ -22,11 +22,11 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.ssl.SslHandler;
 import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.RxRequiredConfigurator;
-import io.reactivex.netty.pipeline.ssl.SslCompletionHandler;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
@@ -83,12 +83,13 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
                         } else {
                             @SuppressWarnings("unchecked")
                             ConnectionLifecycleHandler<I, O> handler = (ConnectionLifecycleHandler<I, O>) lifecycleHandler;
-                            SslCompletionHandler sslHandler = pipeline.get(SslCompletionHandler.class);
+                            SslHandler sslHandler = pipeline.get(SslHandler.class);
                             if (null == sslHandler) {
                                 ObservableConnection<I, O> conn = _newConnection(connectionFactory, future.channel(),
                                                                                  subscriber, startTimeMillis);
                                 handler.setConnection(conn);
                             } else {
+/*
                                 sslHandler.sslCompletionStatus().subscribe(new Subscriber<Void>() {
                                     @Override
                                     public void onCompleted() {
@@ -106,6 +107,7 @@ public class ClientChannelFactoryImpl<I, O> implements ClientChannelFactory<I, O
                                         // No Op.
                                     }
                                 });
+*/
                             }
                         }
                     }

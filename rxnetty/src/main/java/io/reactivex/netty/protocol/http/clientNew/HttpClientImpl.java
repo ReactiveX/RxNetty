@@ -27,7 +27,6 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
@@ -153,7 +152,7 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(group, baseName, name,
-                                                                                      handlerFactory)));
+                                                                                  handlerFactory)));
     }
 
     @Override
@@ -166,7 +165,7 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(group, baseName, name,
-                                                                                     handlerFactory)));
+                                                                                 handlerFactory)));
     }
 
     @Override
@@ -207,11 +206,6 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     @Override
     public HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
         return _copy(client.enableWireLogging(wireLoggingLevel));
-    }
-
-    @Override
-    public HttpClient<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory) {
-        return _copy(client.sslEngineFactory(sslEngineFactory));
     }
 
     @Override

@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.tcp.server;
 
 import io.netty.bootstrap.ServerBootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -24,14 +25,23 @@ import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
+import io.reactivex.netty.channel.PrimitiveConversionHandler;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.ssl.DefaultSslCodec;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerMetricsEvent;
+import rx.exceptions.Exceptions;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
+
+import javax.net.ssl.SSLEngine;
 
 /**
  * A collection of state that {@link TcpServer} holds.
@@ -47,6 +57,7 @@ public final class ServerState<R, W> {
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
     private final int port;
+    private final boolean secure;
     private final ServerBootstrap bootstrap;
     private final DetachedChannelPipeline detachedPipeline;
 
@@ -59,6 +70,13 @@ public final class ServerState<R, W> {
         bootstrap.channel(channelClass);
         eventsSubject = new MetricEventsSubject<ServerMetricsEvent<?>>();
         detachedPipeline = new DetachedChannelPipeline();
+        detachedPipeline.addLast(HandlerNames.PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
+            @Override
+            public ChannelHandler call() {
+                return PrimitiveConversionHandler.INSTANCE; /*Sharable handler*/
+            }
+        });
+        secure = false;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
     }
 
@@ -66,6 +84,7 @@ public final class ServerState<R, W> {
         port = toCopy.port;
         bootstrap = newBootstrap;
         detachedPipeline = toCopy.detachedPipeline;
+        secure = toCopy.secure;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopy.eventsSubject.copy();
     }
@@ -75,6 +94,17 @@ public final class ServerState<R, W> {
         port = toCopy.port;
         bootstrap = toCopyCast.bootstrap.clone();
         detachedPipeline = newPipeline;
+        secure = toCopy.secure;
+        bootstrap.childHandler(detachedPipeline.getChannelInitializer());
+        eventsSubject = toCopyCast.eventsSubject.copy();
+    }
+
+    private ServerState(ServerState<?, ?> toCopy, final SslCodec sslCodec) {
+        final ServerState<R, W> toCopyCast = toCopy.cast();
+        port = toCopy.port;
+        bootstrap = toCopyCast.bootstrap.clone();
+        detachedPipeline = toCopy.detachedPipeline.copy().configure(sslCodec);
+        secure = true;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopyCast.eventsSubject.copy();
     }
@@ -83,6 +113,7 @@ public final class ServerState<R, W> {
         this.port = port;
         bootstrap = toCopy.bootstrap.clone();
         detachedPipeline = toCopy.detachedPipeline;
+        secure = toCopy.secure;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopy.eventsSubject.copy();
     }
@@ -168,6 +199,34 @@ public final class ServerState<R, W> {
         });
     }
 
+    public ServerState<R, W> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return secure(new DefaultSslCodec(sslEngineFactory));
+    }
+
+    public ServerState<R, W> secure(SSLEngine sslEngine) {
+        return secure(new DefaultSslCodec(sslEngine));
+    }
+
+    public ServerState<R, W> secure(SslCodec sslCodec) {
+        return new ServerState<R, W>(this, sslCodec);
+    }
+
+    public ServerState<R, W> unsafeSecure() {
+        return secure(new DefaultSslCodec(new Func1<ByteBufAllocator, SSLEngine>() {
+            @Override
+            public SSLEngine call(ByteBufAllocator allocator) {
+                SelfSignedCertificate ssc;
+                try {
+                    ssc = new SelfSignedCertificate();
+                    return SslContext.newServerContext(ssc.certificate(), ssc.privateKey())
+                                     .newEngine(allocator);
+                } catch (Exception e) {
+                    throw Exceptions.propagate(e);
+                }
+            }
+        }));
+    }
+
     public ServerState<R, W> serverPort(int port) {
         return new ServerState<R, W>(this, port);
     }
@@ -192,6 +251,10 @@ public final class ServerState<R, W> {
 
     public int getServerPort() {
         return port;
+    }
+
+    public boolean isSecure() {
+        return secure;
     }
 
     /*package private. Should not leak as it is mutable*/ ServerBootstrap getBootstrap() {

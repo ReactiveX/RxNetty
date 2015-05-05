@@ -68,7 +68,8 @@ public class PooledConnection<R, W> extends Connection<R, W> {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
                 if (!isUsable()) {
-                    PooledConnection.this.owner.discard(PooledConnection.this).subscribe(subscriber);
+                    PooledConnection.this.owner.discard(PooledConnection.this)
+                                               .subscribe(subscriber);
                 } else {
                     Long keepAliveTimeout = getNettyChannel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).get();
                     if (null != keepAliveTimeout) {
@@ -80,7 +81,8 @@ public class PooledConnection<R, W> extends Connection<R, W> {
                              public void call() {
                                  lastReturnToPoolTimeMillis = System.currentTimeMillis();
                              }
-                         }).subscribe(subscriber);
+                         })
+                         .unsafeSubscribe(subscriber);
                 }
             }
         }).onErrorResumeNext(discard());

@@ -45,19 +45,24 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
     private final ConnectionHandler<R, W> connectionHandler;
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
+    private final boolean isSecure;
     private final NewConnectionSubscriber newConnectionSubscriber;
 
     public ServerConnectionToChannelBridge(ConnectionHandler<R, W> connectionHandler,
-                                           MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
+                                           MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject, boolean isSecure) {
         super(eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
         this.connectionHandler = connectionHandler;
         this.eventsSubject = eventsSubject;
+        this.isSecure = isSecure;
         newConnectionSubscriber = new NewConnectionSubscriber();
     }
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
         userEventTriggered(ctx, new ConnectionSubscriberEvent<R, W>(newConnectionSubscriber));
+        if (!isSecure) {/*When secure, the event is triggered post SSL handshake via the SslCodec*/
+            userEventTriggered(ctx, EmitConnectionEvent.INSTANCE);
+        }
         super.channelRegistered(ctx);
     }
 

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.tcp.echo;
+package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractClientExample;
@@ -24,15 +24,17 @@ import rx.Observable;
 import java.nio.charset.Charset;
 
 /**
- * A TCP client for {@link TcpEchoServer}
+ * A TCP client for {@link SecureEchoServer}
  */
-public final class TcpEchoClient extends AbstractClientExample {
+public final class SecureEchoClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
-        int port = getServerPort(TcpEchoServer.class, args);
+        int port = getServerPort(SecureEchoServer.class, args);
 
         TcpClient.<ByteBuf, ByteBuf>newClient("127.0.0.1", port)
+                 .unsafeSecure()
+                 //.enableWireLogging(LogLevel.ERROR)
                  .createConnectionRequest()
                  .flatMap(connection ->
                                   connection.writeString(Observable.just("Hello World!"))

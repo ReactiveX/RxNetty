@@ -30,7 +30,6 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
@@ -423,17 +422,6 @@ public abstract class HttpClient<I, O> implements MetricEventsPublisher<HttpClie
      * @return A new {@link HttpClient} instance.
      */
     public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code sslEngineFactory} for all secured connections created by the newly created client instance.
-     *
-     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created client
-     *                                                 instance.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory);
 
     public static HttpClient<ByteBuf, ByteBuf> newClient(ServerPool<ClientMetricsEvent<?>> serverPool) {
         return newClient(HTTP_CLIENT_NO_NAME, serverPool);

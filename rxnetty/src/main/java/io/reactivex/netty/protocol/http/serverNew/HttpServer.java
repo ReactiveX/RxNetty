@@ -24,7 +24,6 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import rx.functions.Action1;
@@ -209,17 +208,6 @@ public abstract class HttpServer<I, O> implements MetricEventsPublisher<HttpServ
      * @return A new {@link HttpServer} instance.
      */
     public abstract <II, OO> HttpServer<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed {@code
-     * sslEngineFactory} for all secured connections created by the newly created client instance.
-     *
-     * @param sslEngineFactory {@link io.reactivex.netty.pipeline.ssl.SSLEngineFactory} for all secured connections
-     * created by the newly created client instance.
-     *
-     * @return A new {@link HttpServer} instance.
-     */
-    public abstract HttpServer<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the

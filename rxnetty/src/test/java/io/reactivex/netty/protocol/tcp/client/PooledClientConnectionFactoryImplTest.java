@@ -270,7 +270,7 @@ public class PooledClientConnectionFactoryImplTest {
                     @Override
                     public void call(Subscriber<? super Connection<R, W>> subscriber) {
                         ClientConnectionToChannelBridge<R, W> bridge =
-                                new ClientConnectionToChannelBridge<>(subscriber, state.getEventsSubject());
+                                new ClientConnectionToChannelBridge<>(subscriber, state.getEventsSubject(), false);
                         EmbeddedChannel channel = new EmbeddedChannel(bridge);
                         channel.connect(new InetSocketAddress("localhost", 0));
                     }

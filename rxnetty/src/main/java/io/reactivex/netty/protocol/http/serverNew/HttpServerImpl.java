@@ -33,7 +33,6 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -123,11 +122,6 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
     @Override
     public <II, OO> HttpServer<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         return _copy(HttpServerImpl.<II>castServer(server.pipelineConfigurator(pipelineConfigurator)));
-    }
-
-    @Override
-    public HttpServer<I, O> sslEngineFactory(SSLEngineFactory sslEngineFactory) {
-        return _copy(server.sslEngineFactory(sslEngineFactory));
     }
 
     @Override

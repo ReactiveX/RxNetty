@@ -24,6 +24,7 @@ import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.test.util.FlushSelector;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;

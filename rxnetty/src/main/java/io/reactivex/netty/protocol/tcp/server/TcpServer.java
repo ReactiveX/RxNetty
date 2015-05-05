@@ -16,19 +16,24 @@
 package io.reactivex.netty.protocol.tcp.server;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -207,8 +212,8 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
                                                                       String name, Func0<ChannelHandler> handlerFactory);
 
     /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * action to configure all the connections created by the newly created client instance.
+     * Creates a new server instances, inheriting all configurations from this server and using the passed
+     * action to configure all the connections created by the newly created server instance.
      *
      * @param pipelineConfigurator Action to configure {@link ChannelPipeline}.
      *
@@ -217,19 +222,57 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
     public abstract <RR, WW> TcpServer<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code sslEngineFactory} for all secured connections created by the newly created client instance.
+     * Creates a new server instances, inheriting all configurations from this server and using the passed
+     * {@code sslEngineFactory} for all secured connections accepted by the newly created server instance.
      *
-     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created client
+     * If the {@link SSLEngine} instance can be statically, created, {@link #secure(SSLEngine)} can be used.
+     *
+     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created server
      *                                                 instance.
      *
      * @return A new {@link TcpServer} instance.
      */
-    public abstract TcpServer<R, W> sslEngineFactory(SSLEngineFactory sslEngineFactory);
+    public abstract TcpServer<R, W> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory);
 
     /**
-     * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
-     * passed level for the newly created client instance.
+     * Creates a new server instances, inheriting all configurations from this server and using the passed
+     * {@code sslEngine} for all secured connections accepted by the newly created server instance.
+     *
+     * If the {@link SSLEngine} instance can not be statically, created, {@link #secure(Func1)} )} can be used.
+     *
+     * @param sslEngine {@link SSLEngine} for all secured connections created by the newly created server instance.
+     *
+     * @return A new {@link TcpServer} instance.
+     */
+    public abstract TcpServer<R, W> secure(SSLEngine sslEngine);
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and using the passed
+     * {@code sslCodec} for all secured connections accepted by the newly created server instance.
+     *
+     * This is required only when the {@link SslHandler} used by {@link SslCodec} is to be modified before adding to
+     * the {@link ChannelPipeline}. For most of the cases, {@link #secure(Func1)} or {@link #secure(SSLEngine)} will be
+     * enough.
+     *
+     * @param sslCodec {@link SslCodec} for all secured connections created by the newly created server instance.
+     *
+     * @return A new {@link TcpServer} instance.
+     */
+    public abstract TcpServer<R, W> secure(SslCodec sslCodec);
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and using a self-signed
+     * certificate for all secured connections accepted by the newly created server instance.
+     *
+     * <b>This is only for testing and should not be used for real production servers.</b>
+     *
+     * @return A new {@link TcpServer} instance.
+     */
+    public abstract TcpServer<R, W> unsafeSecure();
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and enabling wire logging at the
+     * passed level for the newly created server instance.
      *
      * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
      *                         logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
@@ -251,14 +294,14 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      * Starts this server and waits till the server is shutdown. This will block the caller thread till the time the
      * server is shutdown. If blocking the caller is not required, use {@link #start(ConnectionHandler)}
      *
-     * @param connectionHandler Connection handler that will handle any new client connections to this server.
+     * @param connectionHandler Connection handler that will handle any new server connections to this server.
      */
     public abstract void startAndWait(ConnectionHandler<R, W> connectionHandler);
 
     /**
      * Starts this server.
      *
-     * @param connectionHandler Connection handler that will handle any new client connections to this server.
+     * @param connectionHandler Connection handler that will handle any new server connections to this server.
      *
      * @return This server.
      */

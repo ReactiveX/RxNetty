@@ -15,6 +15,7 @@
  */
 package io.reactivex.netty.protocol.tcp.server;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
@@ -24,16 +25,17 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ServerConnectionToChannelBridge;
-import io.reactivex.netty.codec.SSLCodec;
 import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
@@ -128,8 +130,23 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     }
 
     @Override
-    public TcpServer<R, W> sslEngineFactory(SSLEngineFactory sslEngineFactory) {
-        return copy(state.<R, W>pipelineConfigurator(new SSLCodec(sslEngineFactory)));
+    public TcpServer<R, W> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return copy(state.secure(sslEngineFactory));
+    }
+
+    @Override
+    public TcpServer<R, W> secure(SSLEngine sslEngine) {
+        return copy(state.secure(sslEngine));
+    }
+
+    @Override
+    public TcpServer<R, W> secure(SslCodec sslCodec) {
+        return copy(state.secure(sslCodec));
+    }
+
+    @Override
+    public TcpServer<R, W> unsafeSecure() {
+        return copy(state.unsafeSecure());
     }
 
     @Override
@@ -164,7 +181,8 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
             Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
                 @Override
                 public ChannelHandler call() {
-                    return new ServerConnectionToChannelBridge<>(connectionHandler, state.getEventsSubject());
+                    return new ServerConnectionToChannelBridge<>(connectionHandler, state.getEventsSubject(),
+                                                                 state.isSecure());
                 }
             };
             final ServerState<R, W> newState = state.addChannelHandlerLast("conn_channel_bridge", handlerFactory);

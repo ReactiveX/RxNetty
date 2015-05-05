@@ -23,9 +23,10 @@ package io.reactivex.netty.codec;
 public enum HandlerNames {
 
     WireLogging("wire-logging-handler"),
-
+    PrimitiveConverter("primitive-converter"),
     SslHandler("ssl-handler"),
-    SslCompletionHandler("ssl-completion-handler");
+    SslConnectionEmissionHandler("ssl-connection-emitter"),
+    ;
 
     private final String name;
 

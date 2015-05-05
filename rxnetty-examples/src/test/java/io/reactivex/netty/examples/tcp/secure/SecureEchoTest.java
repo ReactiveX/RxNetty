@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.tcp.echo;
+package io.reactivex.netty.examples.tcp.secure;
 
 import org.junit.Test;
 
@@ -24,13 +24,13 @@ import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class TcpEchoTest {
+public class SecureEchoTest {
 
     @Test(timeout = 60000)
-    public void testEcho() throws Exception {
-        final Queue<String> output = setupClientLogger(TcpEchoClient.class);
+    public void testSecureEcho() throws Exception {
+        final Queue<String> output = setupClientLogger(SecureEchoClient.class);
 
-        TcpEchoClient.main(null);
+        SecureEchoClient.main(null);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(1));
         assertThat("Unexpected number of messages echoed", output, contains("echo => Hello World!"));

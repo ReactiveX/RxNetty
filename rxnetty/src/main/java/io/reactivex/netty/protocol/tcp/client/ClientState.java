@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
@@ -24,10 +25,13 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ClientConnectionToChannelBridge;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
+import io.reactivex.netty.channel.PrimitiveConversionHandler;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PoolConfig;
@@ -37,16 +41,22 @@ import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
+import io.reactivex.netty.protocol.tcp.ssl.DefaultSslCodec;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
+import rx.exceptions.Exceptions;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.EnumMap;
 import java.util.concurrent.TimeUnit;
 
 import static io.reactivex.netty.client.PoolConfig.*;
+import static io.reactivex.netty.codec.HandlerNames.*;
 
 /**
  * A collection of state that {@link TcpClient} holds. This supports the copy-on-write semantics of {@link TcpClient}
@@ -56,7 +66,7 @@ import static io.reactivex.netty.client.PoolConfig.*;
  *
  * @author Nitesh Kant
  */
-public final class ClientState<W, R> {
+class ClientState<W, R> {
 
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
@@ -65,6 +75,7 @@ public final class ClientState<W, R> {
     private final PoolConfig<W, R> poolConfig;
     private final DetachedChannelPipeline detachedPipeline;
     private final ServerPool<ClientMetricsEvent<?>> serverPool;
+    private final boolean isSecure;
 
     private ClientState(EventLoopGroup group, Class<? extends Channel> channelClass,
                         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
@@ -76,6 +87,7 @@ public final class ClientState<W, R> {
         clientBootstrap.channel(channelClass);
         poolConfig = null;
         this.eventsSubject = eventsSubject;
+        isSecure = false;
         this.detachedPipeline = detachedPipeline;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         this.serverPool = serverPool;
@@ -85,6 +97,7 @@ public final class ClientState<W, R> {
         clientBootstrap = newBootstrap;
         poolConfig = null == toCopy.poolConfig ? null : toCopy.poolConfig.copy();
         detachedPipeline = toCopy.detachedPipeline;
+        isSecure = toCopy.isSecure;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopy.eventsSubject.copy();
         serverPool = toCopy.serverPool;
@@ -94,8 +107,20 @@ public final class ClientState<W, R> {
         clientBootstrap = toCopy.clientBootstrap;
         this.poolConfig = poolConfig;
         detachedPipeline = toCopy.detachedPipeline;
+        isSecure = toCopy.isSecure;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopy.eventsSubject.copy();
+        serverPool = toCopy.serverPool;
+    }
+
+    private ClientState(ClientState<W, R> toCopy, SslCodec sslCodec) {
+        clientBootstrap = toCopy.clientBootstrap;
+        poolConfig = toCopy.poolConfig;
+        eventsSubject = toCopy.eventsSubject.copy();
+        detachedPipeline = toCopy.detachedPipeline.copy(new TailHandlerFactory<>(eventsSubject, true))
+                                                  .configure(sslCodec);
+        isSecure = true;
+        clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         serverPool = toCopy.serverPool;
     }
 
@@ -104,6 +129,7 @@ public final class ClientState<W, R> {
         clientBootstrap = toCopyCast.clientBootstrap.clone();
         poolConfig = null == toCopyCast.poolConfig ? null : toCopyCast.poolConfig.copy();
         detachedPipeline = newPipeline;
+        isSecure = toCopy.isSecure;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
         eventsSubject = toCopyCast.eventsSubject.copy();
         serverPool = toCopy.serverPool;
@@ -114,6 +140,7 @@ public final class ClientState<W, R> {
         clientBootstrap = toCopyCast.clientBootstrap;
         poolConfig = toCopyCast.poolConfig;
         detachedPipeline = toCopy.detachedPipeline;
+        isSecure = toCopy.isSecure;
         eventsSubject = toCopyCast.eventsSubject.copy();
         serverPool = newServerPool;
     }
@@ -182,6 +209,35 @@ public final class ClientState<W, R> {
         ClientState<WW, RR> copy = copy();
         copy.detachedPipeline.configure(pipelineConfigurator);
         return copy;
+    }
+
+    public ClientState<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return secure(new DefaultSslCodec(sslEngineFactory));
+    }
+
+    public ClientState<W, R> secure(SSLEngine sslEngine) {
+        return secure(new DefaultSslCodec(sslEngine));
+    }
+
+    public ClientState<W, R> secure(SslCodec sslCodec) {
+        ClientState<W, R> toReturn = new ClientState<W, R>(this, sslCodec);
+        // Connection factory depends on bootstrap, so it should change whenever bootstrap changes.
+        toReturn.connectionFactory = connectionFactory.copy(toReturn);
+        return toReturn;
+    }
+
+    public ClientState<W, R> unsafeSecure() {
+        return secure(new DefaultSslCodec(new Func1<ByteBufAllocator, SSLEngine>() {
+            @Override
+            public SSLEngine call(ByteBufAllocator allocator) {
+                try {
+                    return SslContext.newClientContext(InsecureTrustManagerFactory.INSTANCE)
+                                     .newEngine(allocator);
+                } catch (Exception e) {
+                    throw Exceptions.propagate(e);
+                }
+            }
+        }));
     }
 
     public ClientState<W, R> enableWireLogging(final LogLevel wireLogginLevel) {
@@ -315,12 +371,14 @@ public final class ClientState<W, R> {
                                                       ServerPool<ClientMetricsEvent<?>> serverPool) {
         final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<>();
 
-        DetachedChannelPipeline detachedPipeline = new DetachedChannelPipeline(new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ClientConnectionToChannelBridge<WW, RR>(eventsSubject);
-            }
-        });
+        final TailHandlerFactory<WW, RR> tail = new TailHandlerFactory<>(eventsSubject, false);
+        DetachedChannelPipeline detachedPipeline = new DetachedChannelPipeline(tail)
+                .addLast(PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
+                    @Override
+                    public ChannelHandler call() {
+                        return PrimitiveConversionHandler.INSTANCE;
+                    }
+                });
 
         return create(detachedPipeline, eventsSubject, group, channelClass, serverPool);
     }
@@ -413,6 +471,22 @@ public final class ClientState<W, R> {
         @Override
         public ChannelHandler call() {
             return loggingHandler;/*logging handler is shareable.*/
+        }
+    }
+
+    private static class TailHandlerFactory<WW, RR> implements Func0<ChannelHandler> {
+
+        private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+        private final boolean isSecure;
+
+        public TailHandlerFactory(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject, boolean isSecure) {
+            this.eventsSubject = eventsSubject;
+            this.isSecure = isSecure;
+        }
+
+        @Override
+        public ChannelHandler call() {
+            return new ClientConnectionToChannelBridge<WW, RR>(eventsSubject, isSecure);
         }
     }
 

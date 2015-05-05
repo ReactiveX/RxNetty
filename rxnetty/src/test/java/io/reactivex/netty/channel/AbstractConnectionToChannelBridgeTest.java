@@ -19,6 +19,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.reactivex.netty.channel.BackpressureManagingHandler.RequestReadIfRequiredEvent;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -96,7 +97,7 @@ public class AbstractConnectionToChannelBridgeTest {
                    hasSize(0));
         assertThat("Input subscriber is unsubscribed.", inputSubscriber.isUnsubscribed(),
                    is(false));
-
+        connectionHandlerRule.startRead();
         connectionHandlerRule.testSendInputMsgs(inputSubscriber, "hello1");
     }
 
@@ -106,7 +107,7 @@ public class AbstractConnectionToChannelBridgeTest {
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
         connectionHandlerRule.activateConnectionAndAssert(subscriber);
         ConnectionInputSubscriber inputSubscriber = subscriber.getInputSubscriber(); // since sub is eager.
-
+        connectionHandlerRule.startRead();
         connectionHandlerRule.testSendInputMsgs(inputSubscriber, "hello1");
 
         inputSubscriber.notificationList.clear();
@@ -116,23 +117,6 @@ public class AbstractConnectionToChannelBridgeTest {
                    hasSize(1));
         assertThat("Unexpected notifications count after channel active.", inputSubscriber.notificationList.get(0),
                    is(Notification.<String>createOnCompleted()));
-    }
-
-    @Test
-    public void testCloseOnInputUnsubscribe() throws Exception {
-        connectionHandlerRule.channel.config().setAutoRead(false);
-        ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
-        connectionHandlerRule.activateConnectionAndAssert(subscriber);
-        Connection<String, String> connection = subscriber.notificationList.get(0).getValue();
-        ConnectionInputSubscriber inputSubscriber = subscriber.getInputSubscriber(); // since sub is eager.
-
-        connectionHandlerRule.testSendInputMsgs(inputSubscriber, "hello1");
-
-        inputSubscriber.notificationList.clear();
-
-        inputSubscriber.unsubscribe();
-
-        assertThat("Connection not closed on unsubscribe.", connection.getNettyChannel().isOpen(), is(false));
     }
 
     @Test
@@ -211,6 +195,15 @@ public class AbstractConnectionToChannelBridgeTest {
                     base.evaluate();
                 }
             };
+        }
+
+        public void startRead() throws Exception {
+            handler.userEventTriggered(ctx, new RequestReadIfRequiredEvent() {
+                @Override
+                protected boolean shouldReadMore(ChannelHandlerContext ctx) {
+                    return true;
+                }
+            });
         }
 
         public ConnectionSubscriber enableConnectionSubscriberAndAssert(boolean eagerSubToInput) throws Exception {

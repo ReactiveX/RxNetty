@@ -15,6 +15,7 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
@@ -28,17 +29,20 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.client.ServerPool.Server;
-import io.reactivex.netty.codec.SSLCodec;
 import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -213,8 +217,23 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     @Override
-    public TcpClient<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory) {
-        return copy(state.<W, R>pipelineConfigurator(new SSLCodec(sslEngineFactory)));
+    public TcpClient<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return copy(state.secure(sslEngineFactory));
+    }
+
+    @Override
+    public TcpClient<W, R> secure(SSLEngine sslEngine) {
+        return copy(state.secure(sslEngine));
+    }
+
+    @Override
+    public TcpClient<W, R> secure(SslCodec sslCodec) {
+        return copy(state.secure(sslCodec));
+    }
+
+    @Override
+    public TcpClient<W, R> unsafeSecure() {
+        return copy(state.unsafeSecure());
     }
 
     private <WW, RR> TcpClientImpl<WW, RR> copy(ClientState<WW, RR> state) {
@@ -224,5 +243,13 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     @Override
     public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
         return state.getEventsSubject().subscribe(listener);
+    }
+
+    /*Visible for testing*/ ClientState<W, R> getClientState() {
+        return state;
+    }
+
+    /*Visible for testing*/ Map<SocketAddress, ConnectionRequest<W, R>> getRemoteAddrVsConnRequest() {
+        return Collections.unmodifiableMap(remoteAddrVsConnRequest);
     }
 }

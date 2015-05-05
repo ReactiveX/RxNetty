@@ -14,20 +14,26 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.tcp.echo;
+package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import io.reactivex.netty.protocol.text.StringLineDecoder;
 
 import java.nio.charset.Charset;
 
-public final class TcpEchoServer extends AbstractServerExample {
+/**
+ * A TCP echo server that decodes the data received on the socket using {@link StringLineDecoder} and echoes the same
+ * after prepending "echo =>" to the message.
+ */
+public final class SecureEchoServer extends AbstractServerExample {
 
     static TcpServer<ByteBuf, ByteBuf> serverIfRunning;
 
     public static void main(final String[] args) {
         serverIfRunning = TcpServer.newServer(0)
+                                   .unsafeSecure()
                                    .start(connection -> connection
                                            .writeStringAndFlushOnEach(connection.getInput()
                                                                                 .map(bb -> bb.toString(

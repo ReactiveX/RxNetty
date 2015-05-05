@@ -21,10 +21,13 @@ import io.netty.channel.ChannelHandlerInvoker;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.concurrent.EventExecutorGroup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.functions.Action1;
 import rx.functions.Func0;
 
 import java.util.LinkedList;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
 /**
@@ -38,6 +41,8 @@ import java.util.NoSuchElementException;
  * @author Nitesh Kant
  */
 public class DetachedChannelPipeline {
+
+    private static final Logger logger = LoggerFactory.getLogger(DetachedChannelPipeline.class);
 
     private final LinkedList<HandlerHolder> holdersInOrder;
 
@@ -72,12 +77,20 @@ public class DetachedChannelPipeline {
         }
     }
 
+    public Func0<ChannelHandler> getNullableTail() {
+        return nullableTail;
+    }
+
     public ChannelInitializer<Channel> getChannelInitializer() {
         return channelInitializer;
     }
 
     public DetachedChannelPipeline copy() {
-        return new DetachedChannelPipeline(this, nullableTail);
+        return copy(nullableTail);
+    }
+
+    public DetachedChannelPipeline copy(Func0<ChannelHandler> newTail) {
+        return new DetachedChannelPipeline(this, newTail);
     }
 
     public DetachedChannelPipeline addFirst(String name, Func0<ChannelHandler> handlerFactory) {
@@ -230,6 +243,10 @@ public class DetachedChannelPipeline {
         if (null != nullableTail) {
             pipeline.addLast(nullableTail.call()); // This is the last handler to be added to the pipeline always.
         }
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Channel pipeline in initializer: " + pipelineToString(pipeline));
+        }
     }
 
     private HandlerHolder unguardedFindHandlerByName(String baseName, boolean leniant) {
@@ -275,6 +292,28 @@ public class DetachedChannelPipeline {
             holdersInOrder.add(indexOfAfter + 1, toAdd);
         }
         return this;
+    }
+
+    private static String pipelineToString(ChannelPipeline pipeline) {
+        StringBuilder builder = new StringBuilder();
+        for (Entry<String, ChannelHandler> handlerEntry : pipeline) {
+            if (builder.length() == 0) {
+                builder.append("[\n");
+            } else {
+                builder.append(" ==> ");
+            }
+            builder.append("{ name =>")
+                   .append(handlerEntry.getKey())
+                   .append(", handler => ")
+                   .append(handlerEntry.getValue())
+                   .append("}\n")
+            ;
+        }
+
+        if (builder.length() > 0) {
+            builder.append("}\n");
+        }
+        return builder.toString();
     }
 
     /**

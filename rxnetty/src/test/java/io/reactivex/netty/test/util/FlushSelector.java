@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.test.util;
 
 import rx.functions.Func1;
 
@@ -22,7 +22,7 @@ public class FlushSelector<T> implements Func1<T, Boolean> {
     private final int flushEvery;
     private int count;
 
-    FlushSelector(int flushEvery) {
+    public FlushSelector(int flushEvery) {
         this.flushEvery = flushEvery;
     }
 

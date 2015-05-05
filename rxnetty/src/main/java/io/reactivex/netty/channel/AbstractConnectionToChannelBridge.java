@@ -15,26 +15,17 @@
  */
 package io.reactivex.netty.channel;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelDuplexHandler;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import rx.Observable;
 import rx.Producer;
 import rx.Subscriber;
 import rx.exceptions.MissingBackpressureException;
-import rx.functions.Action0;
-import rx.subscriptions.Subscriptions;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
@@ -67,7 +58,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     @SuppressWarnings("rawtypes")
     protected final MetricEventsSubject eventsSubject;
     protected final ChannelMetricEventProvider metricEventProvider;
-    private final BytesWriteInterceptor bytesWriteInterceptor;
     private Subscriber<? super Connection<R, W>> newConnectionSub;
     private ReadProducer<R> readProducer;
     private boolean raiseErrorOnInputSubscription;
@@ -77,7 +67,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
                                                 ChannelMetricEventProvider metricEventProvider) {
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
-        bytesWriteInterceptor = new BytesWriteInterceptor();
     }
 
     protected AbstractConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
@@ -85,27 +74,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
                                                 ChannelMetricEventProvider metricEventProvider) {
         this(eventsSubject, metricEventProvider);
         newConnectionSub = connSub;
-    }
-
-    @Override
-    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        ctx.pipeline().addFirst(bytesWriteInterceptor);
-        super.handlerAdded(ctx);
-    }
-
-    @Override
-    public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
-        ctx.pipeline().remove(bytesWriteInterceptor);
-        super.handlerRemoved(ctx);
-    }
-
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        if (!connectionEmitted) {
-            createNewConnection(ctx.channel());
-            connectionEmitted = true;
-        }
-        super.channelActive(ctx);
     }
 
     @Override
@@ -120,7 +88,16 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof ConnectionSubscriberEvent) {
+        if (evt instanceof EmitConnectionEvent) {
+            if (!connectionEmitted) {
+                createNewConnection(ctx.channel());
+                connectionEmitted = true;
+            }
+        } else if (evt instanceof ConnectionCreationFailedEvent) {
+            if (isValidToEmit(newConnectionSub)) {
+                newConnectionSub.onError(((ConnectionCreationFailedEvent)evt).getThrowable());
+            }
+        } else if (evt instanceof ConnectionSubscriberEvent) {
             @SuppressWarnings("unchecked")
             final ConnectionSubscriberEvent<R, W> connectionSubscriberEvent = (ConnectionSubscriberEvent<R, W>) evt;
 
@@ -172,37 +149,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         }
     }
 
-    /**
-     * Intercepts a write on the channel. The following message types are handled:
-     *
-     * <ul>
-     <li>String: If the pipeline is not configured to write a String, this converts the string to a {@link ByteBuf} and
-     then writes it on the channel.</li>
-     <li>byte[]: If the pipeline is not configured to write a byte[], this converts the byte[] to a {@link ByteBuf} and
-     then writes it on the channel.</li>
-     <li>Observable: Subscribes to the {@link Observable} and writes all items, requesting the next item if an only if
-     the channel is writable as indicated by {@link Channel#isWritable()}</li>
-     </ul>
-     *
-     * @param ctx Channel handler context.
-     * @param msg Message to write.
-     * @param promise Promise for the completion of write.
-     *
-     * @throws Exception If there is an error handling this write.
-     */
-    @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof Observable) {
-            @SuppressWarnings("rawtypes")
-            Observable observable = (Observable) msg; /*One can write heterogneous objects on a channel.*/
-            final WriteStreamSubscriber subscriber = new WriteStreamSubscriber(ctx, promise);
-            bytesWriteInterceptor.addSubscriber(subscriber);
-            subscriber.subscribeTo(observable);
-        } else {
-            ctx.write(msg, promise);
-        }
-    }
-
     protected static boolean isValidToEmit(Subscriber<?> subscriber) {
         return null != subscriber && !subscriber.isUnsubscribed();
     }
@@ -237,7 +183,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     }
 
     private void createNewConnection(Channel channel) {
-        if (null != newConnectionSub && !newConnectionSub.isUnsubscribed()) {
+        if (isValidToEmit(newConnectionSub)) {
             Connection<R, W> connection = ConnectionImpl.create(channel, eventsSubject, metricEventProvider);
             newConnectionSub.onNext(connection);
             connectionEmitted = true;
@@ -280,7 +226,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         }
     }
 
-    private static final class ReadProducer<T> extends RequestReadIfRequiredEvent implements Producer {
+    /*Visible for testing*/ static final class ReadProducer<T> extends RequestReadIfRequiredEvent implements Producer {
 
         @SuppressWarnings("rawtypes")
         private static final AtomicLongFieldUpdater<ReadProducer> REQUEST_UPDATER =
@@ -290,7 +236,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         private final Subscriber<? super T> subscriber;
         private final Channel channel;
 
-        private ReadProducer(Subscriber<? super T> subscriber, Channel channel) {
+        /*Visible for testing*/ ReadProducer(Subscriber<? super T> subscriber, Channel channel) {
             this.subscriber = subscriber;
             this.channel = channel;
         }
@@ -337,7 +283,8 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
                 }
                 subscriber.onNext(nextItem);
             } else {
-                subscriber.onError(new MissingBackpressureException("Received more data on the channel than demanded by the subscriber."));
+                subscriber.onError(new MissingBackpressureException(
+                        "Received more data on the channel than demanded by the subscriber."));
             }
         }
 
@@ -345,215 +292,9 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         protected boolean shouldReadMore(ChannelHandlerContext ctx) {
             return !subscriber.isUnsubscribed() && REQUEST_UPDATER.get(this) > 0;
         }
-    }
 
-    /**
-     * Regulates write->request more->write process on the channel.
-     *
-     * Why is this a separate handler?
-     * The sole purpose of this handler is to request more items from each of the Observable streams producing items to
-     * write. It is important to request more items only when the current item is written on the channel i.e. added to
-     * the ChannelOutboundBuffer. If we request more from outside the pipeline (from WriteStreamSubscriber.onNext())
-     * then it may so happen that the onNext is not from within this eventloop and hence instead of being written to
-     * the channel, is added to the task queue of the EventLoop. Requesting more items in such a case, would mean we
-     * keep adding the writes to the eventloop queue and not on the channel buffer. This would mean that the channel
-     * writability would not truly indicate the buffer.
-     */
-    private final class BytesWriteInterceptor extends ChannelDuplexHandler {
-
-        /*
-         * Since, unsubscribes can happen on a different thread, this has to be thread-safe.
-         */
-        private final ConcurrentLinkedQueue<WriteStreamSubscriber> subscribers = new ConcurrentLinkedQueue<>();
-
-        @Override
-        public void write(ChannelHandlerContext ctx, final Object msg, ChannelPromise promise) throws Exception {
-            Object msgToWrite = msg;
-
-            /*Support for writing an Observable<String> or Observable<byte[]> directly*/
-            if (msg instanceof String) {
-                msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
-            } else if (msg instanceof byte[]) {
-                msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
-            }
-
-            ctx.write(msgToWrite, promise);
-
-            requestMoreIfWritable(ctx);
-        }
-
-        @Override
-        public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
-            if (ctx.channel().isWritable()) {
-                requestMoreIfWritable(ctx);
-            }
-            super.channelWritabilityChanged(ctx);
-        }
-
-        public void addSubscriber(final WriteStreamSubscriber streamSubscriber) {
-            streamSubscriber.add(Subscriptions.create(new Action0() {
-                @Override
-                public void call() {
-                    /*Remove the subscriber on unsubscribe.*/
-                    subscribers.remove(streamSubscriber);
-                }
-            }));
-
-            subscribers.add(streamSubscriber);
-        }
-
-        private void requestMoreIfWritable(ChannelHandlerContext ctx) {
-            /**
-             * Predicting which subscriber is going to give the next item isn't possible, so all subscribers are
-             * requested an item. This means that we buffer a max of one item per subscriber.
-             */
-            for (WriteStreamSubscriber subscriber: subscribers) {
-                if (!subscriber.isUnsubscribed() && ctx.channel().isWritable()) {
-                    subscriber.requestMore(1);
-                }
-            }
-        }
-    }
-
-    /**
-     * Backpressure enabled subscriber to an Observable written on this channel. This connects the promise for writing
-     * the Observable to all the promises created per write (per onNext).
-     */
-    private static final class WriteStreamSubscriber extends Subscriber<Object> {
-
-        private final ChannelHandlerContext ctx;
-        private final ChannelPromise overarchingWritePromise;
-        private final Object guard = new Object();
-        private boolean isDone; /*Guarded by guard*/
-        private boolean isPromiseCompletedOnWriteComplete; /*Guarded by guard. Only transition should be false->true*/
-
-        private int listeningTo;
-
-        private WriteStreamSubscriber(ChannelHandlerContext ctx, ChannelPromise promise) {
-            this.ctx = ctx;
-            overarchingWritePromise = promise;
-        }
-
-        @Override
-        public void onStart() {
-            request(1); /*Only request one item at a time. Every write, requests one more, if channel is writable.*/
-        }
-
-        @Override
-        public void onCompleted() {
-            onTermination();
-        }
-
-        @Override
-        public void onError(Throwable e) {
-            onTermination();
-            overarchingWritePromise.tryFailure(e);
-        }
-
-        @Override
-        public void onNext(Object nextItem) {
-
-            final ChannelFuture channelFuture = ctx.write(nextItem);
-            synchronized (guard) {
-                listeningTo++;
-            }
-
-            channelFuture.addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-
-                    if (overarchingWritePromise.isDone()) {
-                        /*
-                         * Overarching promise will be done if and only if there was an error or all futures have
-                         * completed. In both cases, this callback is useless, hence return from here.
-                         * IOW, if we are here, it can be two cases:
-                         *
-                         * - There has already been a write that has failed. So, the promise is done with failure.
-                         * - There was a write that arrived after termination of the Observable.
-                         *
-                         * Two above isn't possible as per Rx contract.
-                         * One above is possible but is not of any consequence w.r.t this listener as this listener does
-                         * not give callbacks to specific writes
-                         */
-                        return;
-                    }
-
-                    /**
-                     * The intent here is to NOT give listener callbacks via promise completion within the sync block.
-                     * So, a co-ordination b/w the thread sending Observable terminal event and thread sending write
-                     * completion event is required.
-                     * The only work to be done in the Observable terminal event thread is to whether the
-                     * overarchingWritePromise is to be completed or not.
-                     * The errors are not buffered, so the overarchingWritePromise is completed in this callback w/o
-                     * knowing whether any more writes will arive or not.
-                     * This co-oridantion is done via the flag isPromiseCompletedOnWriteComplete
-                     */
-                    synchronized (guard) {
-                        listeningTo--;
-                        if (0 == listeningTo && isDone) {
-                            /**
-                             * If the listening count is 0 and no more items will arive, this thread wins the race of
-                             * completing the overarchingWritePromise
-                             */
-                            isPromiseCompletedOnWriteComplete = true;
-                        }
-                    }
-
-                    /**
-                     * Exceptions are not buffered but completion is only sent when there are no more items to be
-                     * received for write.
-                     */
-                    if (!future.isSuccess()) {
-                        overarchingWritePromise.tryFailure(future.cause());
-                        /*
-                         * Unsubscribe this subscriber when write fails as we are completing the promise which is
-                         * attached to the listener of the write results.
-                         */
-                        unsubscribe();
-                    } else if (isPromiseCompletedOnWriteComplete) { /*Once set to true, never goes back to false.*/
-                        /*Complete only when no more items will arrive and all writes are completed*/
-                        overarchingWritePromise.trySuccess();
-                    }
-                }
-            });
-        }
-
-        private void onTermination() {
-            int _listeningTo;
-            boolean _shouldCompletePromise;
-
-            /**
-             * The intent here is to NOT give listener callbacks via promise completion within the sync block.
-             * So, a co-ordination b/w the thread sending Observable terminal event and thread sending write
-             * completion event is required.
-             * The only work to be done in the Observable terminal event thread is to whether the
-             * overarchingWritePromise is to be completed or not.
-             * The errors are not buffered, so the overarchingWritePromise is completed in this callback w/o
-             * knowing whether any more writes will arive or not.
-             * This co-oridantion is done via the flag isPromiseCompletedOnWriteComplete
-             */
-            synchronized (guard) {
-                isDone = true;
-                _listeningTo = listeningTo;
-                /**
-                 * Flag to indicate whether the write complete thread won the race and will complete the
-                 * overarchingWritePromise
-                 */
-                _shouldCompletePromise = 0 == _listeningTo && !isPromiseCompletedOnWriteComplete;
-            }
-
-            if (_shouldCompletePromise) {
-                overarchingWritePromise.trySuccess();
-            }
-        }
-
-        private void requestMore(long more) {
-            request(more);
-        }
-
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        public void subscribeTo(Observable observable) {
-            observable.subscribe(this);
+        /*Visible for testing*/long getRequested() {
+            return requested;
         }
     }
 }

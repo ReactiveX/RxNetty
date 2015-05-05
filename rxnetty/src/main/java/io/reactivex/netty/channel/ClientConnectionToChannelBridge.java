@@ -55,13 +55,25 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
     private static final Logger logger = LoggerFactory.getLogger(ClientConnectionToChannelBridge.class);
 
-    public ClientConnectionToChannelBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+    private final boolean isSecure;
+
+    public ClientConnectionToChannelBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject, boolean isSecure) {
         super(eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+        this.isSecure = isSecure;
     }
 
     public ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
-                                           MetricEventsSubject<?> eventsSubject) {
+                                           MetricEventsSubject<?> eventsSubject, boolean isSecure) {
         super(connSub, eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+        this.isSecure = isSecure;
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if (!isSecure) {/*When secure, the event is triggered post SSL handshake via the SslCodec*/
+            userEventTriggered(ctx, EmitConnectionEvent.INSTANCE);
+        }
+        super.channelActive(ctx);
     }
 
     @Override
