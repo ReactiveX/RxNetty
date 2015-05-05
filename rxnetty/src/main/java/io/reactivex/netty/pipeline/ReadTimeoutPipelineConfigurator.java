@@ -15,13 +15,9 @@
  */
 package io.reactivex.netty.pipeline;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelPromise;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import io.netty.util.concurrent.EventExecutor;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
@@ -52,6 +48,9 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
     private static final Logger logger = LoggerFactory.getLogger(ReadTimeoutPipelineConfigurator.class);
 
     public static final String READ_TIMEOUT_HANDLER_NAME = "readtimeout-handler";
+
+    @SuppressWarnings("unused")
+    @Deprecated
     public static final String READ_TIMEOUT_LIFECYCLE_MANAGER_HANDLER_NAME = "readtimeout-handler-lifecycle-manager";
     private final long timeout;
     private final TimeUnit timeUnit;
@@ -63,7 +62,7 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
 
     @Override
     public void configureNewPipeline(ChannelPipeline pipeline) {
-        pipeline.addFirst(READ_TIMEOUT_LIFECYCLE_MANAGER_HANDLER_NAME, new ReadTimeoutHandlerLifecycleManager());
+        pipeline.addFirst(READ_TIMEOUT_HANDLER_NAME, new InternalReadTimeoutHandler(timeout, timeUnit));
     }
 
     public static void disableReadTimeout(ChannelPipeline pipeline) {
@@ -77,7 +76,7 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
          * See issue: https://github.com/Netflix/RxNetty/issues/145
          */
         final ChannelHandler timeoutHandler = pipeline.get(READ_TIMEOUT_HANDLER_NAME);
-        if (timeoutHandler != null) {
+        if (timeoutHandler != null && timeoutHandler instanceof InternalReadTimeoutHandler) {
             final ChannelHandlerContext handlerContext = pipeline.context(timeoutHandler);
             EventExecutor executor = handlerContext.executor();
 
@@ -99,34 +98,12 @@ public class ReadTimeoutPipelineConfigurator implements PipelineConfigurator<Obj
     }
 
     private static void disableHandler(ChannelHandler timeoutHandler, ChannelHandlerContext handlerContext) {
+        InternalReadTimeoutHandler tHandler = (InternalReadTimeoutHandler) timeoutHandler;
         try {
-            timeoutHandler.handlerRemoved(handlerContext);
+            tHandler.cancelTimeoutSchedule(handlerContext);
         } catch (Exception e) {
-            logger.error("Failed to remove readtimeout handler. This connection will be discarded.", e);
+            logger.error("Failed to disable read timeout handler. This connection will be discarded.", e);
             handlerContext.channel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true);
-        }
-    }
-
-    @ChannelHandler.Sharable
-    private class ReadTimeoutHandlerLifecycleManager extends ChannelOutboundHandlerAdapter {
-
-        @Override
-        public void write(final ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            // Add the timeout handler when write is complete.
-            promise.addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    ChannelHandler timeoutHandler = ctx.pipeline().get(READ_TIMEOUT_HANDLER_NAME);
-                    if (null == timeoutHandler) {
-                        ctx.pipeline().addFirst(READ_TIMEOUT_HANDLER_NAME, new ReadTimeoutHandler(timeout, timeUnit));
-                    } else {
-                        // This will always be invoked from the eventloop as it is a future listener callback.
-                        ChannelHandlerContext handlerContext = ctx.pipeline().context(timeoutHandler);
-                        timeoutHandler.handlerAdded(handlerContext);
-                    }
-                }
-            });
-            super.write(ctx, msg, promise);
         }
     }
 }
