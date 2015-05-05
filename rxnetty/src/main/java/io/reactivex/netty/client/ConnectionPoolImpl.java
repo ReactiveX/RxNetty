@@ -42,6 +42,8 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     private static final Logger logger = LoggerFactory.getLogger(ConnectionPoolImpl.class);
 
+    @Deprecated
+    @SuppressWarnings("unused")
     public static final PoolExhaustedException POOL_EXHAUSTED_EXCEPTION = new PoolExhaustedException("Rx Connection Pool exhausted.");
 
     private final ConcurrentLinkedQueue<PooledConnection<I, O>> idleConnections;
@@ -142,9 +144,10 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                             newConnectionSubscriber.onError(throwable);
                         }
                     } else { // Pool Exhausted
+                        PoolExhaustedException e = new PoolExhaustedException();
                         metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
-                                                    Clock.onEndMillis(startTimeMillis), POOL_EXHAUSTED_EXCEPTION);
-                        subscriber.onError(POOL_EXHAUSTED_EXCEPTION);
+                                                    Clock.onEndMillis(startTimeMillis), e);
+                        subscriber.onError(e);
                     }
                 } catch (Throwable throwable) {
                     metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
