@@ -34,6 +34,8 @@ import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.websocket.WebSocketClientMetricsHandlers.ClientReadMetricsHandler;
 import io.reactivex.netty.protocol.http.websocket.WebSocketClientMetricsHandlers.ClientWriteMetricsHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@link WebSocketClientHandler} orchestrates WebSocket handshake process and reconfigures
@@ -42,6 +44,8 @@ import io.reactivex.netty.protocol.http.websocket.WebSocketClientMetricsHandlers
  * @author Tomasz Bak
  */
 public class WebSocketClientHandler extends ChannelInboundHandlerAdapter {
+
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketClientHandler.class);
 
     private final WebSocketClientHandshaker handshaker;
     private final int maxFramePayloadLength;
@@ -105,8 +109,10 @@ public class WebSocketClientHandler extends ChannelInboundHandlerAdapter {
         if (messageAggregation) {
             p.addAfter("websocket-read-metrics", "websocket-frame-aggregator", new WebSocketFrameAggregator(maxFramePayloadLength));
         }
-        p.remove(HttpObjectAggregator.class);
-        p.remove(this);
+        HttpObjectAggregator aggregator = p.get(HttpObjectAggregator.class);
+        if (aggregator != null) {
+            p.remove(aggregator);
+        }
 
         handshakeFuture.setSuccess();
     }
@@ -116,6 +122,8 @@ public class WebSocketClientHandler extends ChannelInboundHandlerAdapter {
         if (!handshakeFuture.isDone()) {
             handshakeFuture.setFailure(cause);
         }
+
+        logger.error("Exception caught, closing the channel.", cause);
         ctx.close();
     }
 }

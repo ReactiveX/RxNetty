@@ -42,11 +42,12 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
         for (int i = 0; i < strategies.length; i++) {
             PoolLimitDeterminationStrategy strategy = strategies[i];
             if (!strategy.acquireCreationPermit(acquireStartTime, timeUnit)) {
+                PoolExhaustedException throwable = new PoolExhaustedException();
                 if (i > 0) {
                     long now = timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
                     for (int j = i - 1; j >= 0; j--) {
                         strategies[j].onEvent(ClientMetricsEvent.CONNECT_FAILED, now - acquireStartTime,
-                                              timeUnit, ConnectionPoolImpl.POOL_EXHAUSTED_EXCEPTION,
+                                              timeUnit, throwable,
                                               null); // release all permits acquired before this failure.
                     }
                 }

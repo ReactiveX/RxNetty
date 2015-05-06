@@ -214,6 +214,16 @@ public class HttpClientPoolTest {
         Assert.assertEquals("Pooled connection not evicted after idle timeout.", 0, latch.getCount());
     }
 
+    @Test(expected=ReadTimeoutException.class)
+    public void testReadtimeoutForReusedConnection() throws Exception {
+        HttpClient.HttpClientConfig conf = new HttpClient.HttpClientConfig.Builder()
+                .readTimeout(1, TimeUnit.SECONDS).build();
+        client = newHttpClient(1, PoolConfig.DEFAULT_CONFIG.getMaxIdleTimeMillis(), conf);
+        //first make a normal request with no timeout to let it get to the pool
+        submitAndWaitForCompletion(client, HttpClientRequest.createGet("/"), null);
+        //now try the pooled connection with response delay > timeout
+        submitAndWaitForCompletion(client, HttpClientRequest.createGet("test/timeout?timeout=10000"), null);
+    }
 
     private static List<String> submitAndConsumeContent(HttpClientImpl<ByteBuf, ByteBuf> client,
                                                         HttpClientRequest<ByteBuf> request)

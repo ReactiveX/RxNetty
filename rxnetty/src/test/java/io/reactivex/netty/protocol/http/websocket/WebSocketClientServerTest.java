@@ -213,7 +213,7 @@ public class WebSocketClientServerTest {
                         }
                     });
                 }
-            }).withMessageAggregator(messageAggregation).enableWireLogging(LogLevel.ERROR).build().start();
+            }).withMessageAggregator(messageAggregation)./*enableWireLogging(LogLevel.ERROR).*/build().start();
 
             final CountDownLatch clientLatch = new CountDownLatch(expectedOnClient);
             RxNetty.newWebSocketClientBuilder("localhost", server.getServerPort())
