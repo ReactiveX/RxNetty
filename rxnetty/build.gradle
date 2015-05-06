@@ -2,4 +2,6 @@ dependencies {
     compile "io.netty:netty-codec-http:${netty_version}"
     compile "io.netty:netty-transport-native-epoll:${netty_version}"
     compile "org.slf4j:slf4j-api:${slf4j_version}"
+
+    testCompile 'com.jcraft:jzlib:1.1.3'
 }
