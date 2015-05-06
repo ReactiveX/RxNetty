@@ -1,5 +1,25 @@
 # RxNetty Releases #
 
+### Version 0.4.9 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.9+is%3Aclosed)
+
+* [Issue 344] (https://github.com/ReactiveX/RxNetty/issue/344) ReadTimeout is not respected by the client reusing a pooled connection.
+* [Issue 348] (https://github.com/ReactiveX/RxNetty/issue/348) SSL causes exception to be thrown on every request in VoidChannelPromise.
+* [Issue 352] (https://github.com/ReactiveX/RxNetty/issue/352) 'public static final' exceptions render stack trace useless.
+* [Issue 354] (https://github.com/ReactiveX/RxNetty/issue/354) Unique attribute key name clash.
+* [Issue 355] (https://github.com/ReactiveX/RxNetty/issue/355) Upgrade to netty 4.0.27.Final.
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.9%7C)
+
+### Version 0.4.8 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.8+is%3Aclosed)
+
+* [Pull 342] (https://github.com/ReactiveX/RxNetty/pull/342) Errors in the pipeline post response header delivery were lost.
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.8%7C)
+
 ### Version 0.4.7 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.7+is%3Aclosed)
