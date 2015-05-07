@@ -56,7 +56,7 @@ import static io.reactivex.netty.client.ClientMetricsEvent.*;
  *
  * @author Nitesh Kant
  */
-public class PooledClientConnectionFactoryImpl<W, R> extends PooledClientConnectionFactory<W, R> {
+public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientConnectionFactory<W, R> {
 
     private static final Logger logger = LoggerFactory.getLogger(PooledClientConnectionFactoryImpl.class);
 
@@ -68,13 +68,13 @@ public class PooledClientConnectionFactoryImpl<W, R> extends PooledClientConnect
     private final Observable<PooledConnection<R, W>> idleConnFinderObservable;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
 
-    public PooledClientConnectionFactoryImpl(ClientState<W, R> clientState) {
+    protected PooledClientConnectionFactoryImpl(ClientState<W, R> clientState) {
         this(clientState, new FIFOIdleConnectionsHolder<W, R>(),
              new UnpooledClientConnectionFactory<W, R>(clientState));
     }
 
     protected PooledClientConnectionFactoryImpl(ClientState<W, R> clientState,
-                                             IdleConnectionsHolder<W, R> connectionsHolder) {
+                                                IdleConnectionsHolder<W, R> connectionsHolder) {
         this(clientState, connectionsHolder, new UnpooledClientConnectionFactory<W, R>(clientState));
     }
 
@@ -152,6 +152,17 @@ public class PooledClientConnectionFactoryImpl<W, R> extends PooledClientConnect
         connectDelegate.shutdown();
     }
 
+    public static <W, R> Func1<ClientState<W, R>, PooledClientConnectionFactory<W, R>> create(
+                                                                    final IdleConnectionsHolder<W, R> connectionsHolder,
+                                                                    final ClientConnectionFactory<W, R> delegate) {
+        return new Func1<ClientState<W, R>, PooledClientConnectionFactory<W, R>>() {
+            @Override
+            public PooledClientConnectionFactory<W, R> call(ClientState<W, R> clientState) {
+                return new PooledClientConnectionFactoryImpl<W, R>(clientState, connectionsHolder, delegate);
+            }
+        };
+    }
+
     @Override
     protected <WW, RR> ClientConnectionFactory<WW, RR> doCopy(ClientState<WW, RR> newState) {
         return new PooledClientConnectionFactoryImpl<WW, RR>(newState, idleConnectionsHolder.copy(newState),
@@ -181,7 +192,7 @@ public class PooledClientConnectionFactoryImpl<W, R> extends PooledClientConnect
                                                                        Clock.onEndMillis(startTimeMillis), throwable);
                                        }
                                    })
-                                   .subscribe(subscriber);
+                                   .unsafeSubscribe(subscriber);
                 } else {
                     subscriber.onError(new PoolExhaustedException("Client connection pool exhausted."));
                 }

@@ -13,14 +13,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.channel.BackpressureManagingHandler.RequestReadIfRequiredEvent;
-import io.reactivex.netty.channel.BackpressureManagingHandler.State;
+import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.RequestReadIfRequiredEvent;
+import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.State;
 import io.reactivex.netty.test.util.InboundRequestFeeder;
 import org.junit.Rule;
 import org.junit.Test;

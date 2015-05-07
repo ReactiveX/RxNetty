@@ -16,7 +16,6 @@
 package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.channel.ClientConnectionToChannelBridge;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PoolExhaustedException;
@@ -195,7 +194,7 @@ public class PooledClientConnectionFactoryImplTest {
 
     public static class PooledFactoryRule extends ExternalResource {
 
-        private PooledClientConnectionFactoryImpl<String, String> factory;
+        private PooledClientConnectionFactory<String, String> factory;
         private TestableClientConnectionFactory<String, String> delegateFactory;
         private TestScheduler testScheduler;
         private FIFOIdleConnectionsHolder<String, String> holder;
@@ -218,8 +217,7 @@ public class PooledClientConnectionFactoryImplTest {
                                                                    .maxConnections(maxConnections);
                     delegateFactory = new TestableClientConnectionFactory<>(state);
                     holder = new FIFOIdleConnectionsHolder<>();
-                    factory = new PooledClientConnectionFactoryImpl<String, String>(state, holder, delegateFactory) {
-                    };
+                    factory = PooledClientConnectionFactoryImpl.create(holder, delegateFactory).call(state);
                     eventsListener = new TrackableMetricEventsListener();
                     state.getEventsSubject().subscribe(eventsListener);
                     base.evaluate();
@@ -231,7 +229,7 @@ public class PooledClientConnectionFactoryImplTest {
             testScheduler.triggerActions();
         }
 
-        public PooledClientConnectionFactoryImpl<String, String> getFactory() {
+        public PooledClientConnectionFactory<String, String> getFactory() {
             return factory;
         }
 

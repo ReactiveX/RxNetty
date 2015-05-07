@@ -13,27 +13,23 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.channel.BackpressureManagingHandler.RequestReadIfRequiredEvent;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.RequestReadIfRequiredEvent;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-import rx.Notification;
-import rx.Notification.Kind;
-import rx.Subscriber;
-
-import java.util.ArrayList;
-import java.util.List;
+import rx.observers.TestSubscriber;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
@@ -49,10 +45,10 @@ public class AbstractConnectionToChannelBridgeTest {
 
         connectionHandlerRule.activateConnectionAndAssert(subscriber);
 
-        subscriber.notificationList.clear(); // reset
-
+        assertThat("Duplicate channel active event sent a notification", subscriber.getOnNextEvents(), hasSize(1));
         connectionHandlerRule.handler.channelActive(connectionHandlerRule.ctx); // duplicate event should not trigger onNext.
-        assertThat("Duplicate channel active event sent a notification", subscriber.notificationList, hasSize(0));
+        /*One item from activation*/
+        assertThat("Duplicate channel active event sent a notification", subscriber.getOnNextEvents(), hasSize(1));
     }
 
     @Test
@@ -64,10 +60,8 @@ public class AbstractConnectionToChannelBridgeTest {
 
         ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
 
-        assertThat("Unexpected notifications count after channel active.", inputSubscriber.notificationList,
-                   hasSize(1));
-        assertThat("Unexpected first notification kind.", inputSubscriber.notificationList.get(0).getKind(),
-                   is(Kind.OnError));
+        subscriber.assertTerminalEvent();
+        assertThat("Unexpected first notification kind.", inputSubscriber.getOnErrorEvents(), hasSize(1));
 
     }
 
@@ -80,10 +74,10 @@ public class AbstractConnectionToChannelBridgeTest {
         connectionHandlerRule.activateConnectionAndAssert(subscriber); // eagerly subscribes to input.
         ConnectionInputSubscriber inputSubscriber = subscriber.getInputSubscriber();
 
-        assertThat("Unexpected notifications count after channel active.", inputSubscriber.notificationList,
+        assertThat("Unexpected notifications count after channel active.", inputSubscriber.getOnNextEvents(),
                    hasSize(0));
-        assertThat("Input subscriber is unsubscribed.", inputSubscriber.isUnsubscribed(),
-                   is(false));
+        inputSubscriber.assertNoErrors();
+        assertThat("Input subscriber is unsubscribed.", inputSubscriber.isUnsubscribed(), is(false));
     }
 
     @Test
@@ -93,10 +87,13 @@ public class AbstractConnectionToChannelBridgeTest {
         connectionHandlerRule.activateConnectionAndAssert(subscriber);
         ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
 
-        assertThat("Unexpected notifications count after channel active.", inputSubscriber.notificationList,
+        inputSubscriber.assertNoErrors();
+        assertThat("Unexpected on next events after channel active.", inputSubscriber.getOnNextEvents(),
                    hasSize(0));
-        assertThat("Input subscriber is unsubscribed.", inputSubscriber.isUnsubscribed(),
-                   is(false));
+        assertThat("Unexpected on completed events after channel active.", inputSubscriber.getOnCompletedEvents(),
+                   hasSize(0));
+        assertThat("Input subscriber is unsubscribed.", inputSubscriber.isUnsubscribed(), is(false));
+
         connectionHandlerRule.startRead();
         connectionHandlerRule.testSendInputMsgs(inputSubscriber, "hello1");
     }
@@ -110,13 +107,14 @@ public class AbstractConnectionToChannelBridgeTest {
         connectionHandlerRule.startRead();
         connectionHandlerRule.testSendInputMsgs(inputSubscriber, "hello1");
 
-        inputSubscriber.notificationList.clear();
 
-        connectionHandlerRule.handler.channelUnregistered(connectionHandlerRule.ctx);
-        assertThat("Unexpected notifications count after channel active.", inputSubscriber.notificationList,
+        assertThat("Unexpected notifications count after channel active.", inputSubscriber.getOnNextEvents(),
                    hasSize(1));
-        assertThat("Unexpected notifications count after channel active.", inputSubscriber.notificationList.get(0),
-                   is(Notification.<String>createOnCompleted()));
+        connectionHandlerRule.handler.channelUnregistered(connectionHandlerRule.ctx);
+        inputSubscriber.assertTerminalEvent();
+        inputSubscriber.assertNoErrors();
+        assertThat("Unexpected notifications count after channel active.", inputSubscriber.getOnNextEvents(),
+                   hasSize(1));
     }
 
     @Test
@@ -126,9 +124,12 @@ public class AbstractConnectionToChannelBridgeTest {
         connectionHandlerRule.activateConnectionAndAssert(subscriber); // one subscription
 
         ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
-        assertThat("Unexpected notifications for second subscriber.", inputSubscriber.notificationList, hasSize(1));
-        assertThat("Unexpected notification type for second subscriber.",
-                   inputSubscriber.notificationList.get(0).getKind(), is(Kind.OnError));
+
+        inputSubscriber.assertTerminalEvent();
+
+        assertThat("Unexpected on next events for second subscriber.", inputSubscriber.getOnNextEvents(), hasSize(0));
+        assertThat("Unexpected notification type for second subscriber.", inputSubscriber.getOnErrorEvents(),
+                   hasSize(1));
     }
 
     @Test
@@ -138,17 +139,20 @@ public class AbstractConnectionToChannelBridgeTest {
         connectionHandlerRule.activateConnectionAndAssert(subscriber); // one subscription
 
         ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
-        assertThat("Unexpected notifications for second subscriber.", inputSubscriber.notificationList, hasSize(1));
-        assertThat("Unexpected notification type for second subscriber.",
-                   inputSubscriber.notificationList.get(0).getKind(), is(Kind.OnError));
+        inputSubscriber.assertTerminalEvent();
+        assertThat("Unexpected on next events for second subscriber.", inputSubscriber.getOnNextEvents(), hasSize(0));
 
         connectionHandlerRule.handler.userEventTriggered(connectionHandlerRule.ctx,
                                                          new ConnectionInputSubscriberResetEvent() {
                                                          });
 
         inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
-        assertThat("Unexpected notifications for input subscriber post reset.", inputSubscriber.notificationList,
+        assertThat("Unexpected on next count for input subscriber post reset.", inputSubscriber.getOnNextEvents(),
                    hasSize(0));
+        assertThat("Unexpected on error count for input subscriber post reset.", inputSubscriber.getOnErrorEvents(),
+                   hasSize(0));
+        assertThat("Unexpected on completed count for input subscriber post reset.",
+                   inputSubscriber.getOnCompletedEvents(), hasSize(0));
     }
 
     @Test
@@ -157,9 +161,10 @@ public class AbstractConnectionToChannelBridgeTest {
         final NullPointerException exception = new NullPointerException();
         connectionHandlerRule.handler.exceptionCaught(connectionHandlerRule.ctx, exception);
 
-        assertThat("Unexpected notifications count post exception.", subscriber.notificationList, hasSize(1));
-        assertThat("Unexpected notification type post exception.", subscriber.notificationList.get(0).getKind(),
-                   is(Kind.OnError));
+        subscriber.assertTerminalEvent();
+
+        assertThat("Unexpected on next notifications count post exception.", subscriber.getOnNextEvents(), hasSize(0));
+        assertThat("Unexpected notification type post exception.", subscriber.getOnErrorEvents(), hasSize(1));
     }
 
     @Test
@@ -167,13 +172,18 @@ public class AbstractConnectionToChannelBridgeTest {
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
         connectionHandlerRule.activateConnectionAndAssert(subscriber);
         ConnectionInputSubscriber inputSubscriber = subscriber.getInputSubscriber(); // since sub is eager.
-        assertThat("Unexpected notifications count pre exception.", inputSubscriber.notificationList, hasSize(0));
+
+        assertThat("Unexpected on next notifications count pre exception.", inputSubscriber.getOnNextEvents(), hasSize(0));
+        assertThat("Unexpected on error notifications count pre exception.", inputSubscriber.getOnErrorEvents(), hasSize(0));
+        assertThat("Unexpected on completed notifications count pre exception.", inputSubscriber.getOnCompletedEvents(), hasSize(0));
         final NullPointerException exception = new NullPointerException();
         connectionHandlerRule.handler.exceptionCaught(connectionHandlerRule.ctx, exception);
 
-        assertThat("Unexpected notifications count post exception.", inputSubscriber.notificationList, hasSize(1));
-        assertThat("Unexpected notification type post exception.", inputSubscriber.notificationList.get(0).getKind(),
-                   is(Kind.OnError));
+        inputSubscriber.assertTerminalEvent();
+
+        assertThat("Unexpected on next notifications count post exception.", inputSubscriber.getOnNextEvents(), hasSize(0));
+        assertThat("Unexpected on error notifications count post exception.", inputSubscriber.getOnErrorEvents(),
+                   hasSize(1));
     }
 
     public static class ConnectionHandlerRule extends ExternalResource {
@@ -209,14 +219,18 @@ public class AbstractConnectionToChannelBridgeTest {
         public ConnectionSubscriber enableConnectionSubscriberAndAssert(boolean eagerSubToInput) throws Exception {
             ConnectionSubscriber toReturn = new ConnectionSubscriber(eagerSubToInput, this);
             handler.userEventTriggered(ctx, new ConnectionSubscriberEvent<String, String>(toReturn));
-            assertThat("Unexpected notifications count before channel active.", toReturn.notificationList, hasSize(0));
+            assertThat("Unexpected on next notifications count before channel active.", toReturn.getOnNextEvents(),
+                       hasSize(0));
+            assertThat("Unexpected on error notifications count before channel active.", toReturn.getOnErrorEvents(),
+                       hasSize(0));
+            assertThat("Unexpected on complete notifications count before channel active.", toReturn.getOnCompletedEvents(), hasSize(0));
             return toReturn;
         }
 
         public ConnectionInputSubscriber enableConnectionInputSubscriber(ConnectionSubscriber subscriber)
                 throws Exception {
             ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber();
-            Connection<String, String> connection = subscriber.notificationList.get(0).getValue();
+            Connection<String, String> connection = subscriber.getOnNextEvents().get(0);
             handler.userEventTriggered(ctx, new ConnectionInputSubscriberEvent<String, String>(toReturn, connection));
             return toReturn;
         }
@@ -224,30 +238,32 @@ public class AbstractConnectionToChannelBridgeTest {
         public void activateConnectionAndAssert(ConnectionSubscriber subscriber) throws Exception {
             handler.userEventTriggered(ctx, EmitConnectionEvent.INSTANCE);
 
-            assertThat("Unexpected notifications count after channel active.", subscriber.notificationList,
-                       hasSize(2));
-            Notification<Connection<String, String>> connNotif = subscriber.notificationList.get(0);
-            assertThat("Unexpected first notification kind.", connNotif.getKind(), is(Kind.OnNext));
-            assertThat("Unexpected onNext.", connNotif.getValue(), is(notNullValue()));
-            assertThat("Unexpected channel in new connection.", connNotif.getValue().getNettyChannel(), is(channel));
-            assertThat("Unexpected second notification.", subscriber.notificationList.get(1).getKind(),
-                       is(Kind.OnCompleted));
+            subscriber.assertTerminalEvent();
+            subscriber.assertNoErrors();
+
+            assertThat("No connections received.", subscriber.getOnNextEvents(), is(not(empty())));
+            assertThat("Unexpected channel in new connection.", subscriber.getOnNextEvents().get(0).getNettyChannel(),
+                       is(channel));
+
         }
 
         public void testSendInputMsgs(ConnectionInputSubscriber inputSubscriber, String... msgs) throws Exception {
+
             for (String msg: msgs) {
                 handler.channelRead(ctx, msg);
-                assertThat("Unexpected notifications count after read.", inputSubscriber.notificationList,
-                           hasSize(1));
-                assertThat("Input subscriber is unsubscribed after read.", inputSubscriber.isUnsubscribed(),
-                           is(false));
-                assertThat("Unexpected next input notification.", inputSubscriber.notificationList.get(0).getValue(),
-                           is(msg));
             }
+
+            assertThat("Unexpected notifications count after read.", inputSubscriber.getOnNextEvents(),
+                       hasSize(msgs.length));
+            assertThat("Unexpected notifications count after read.", inputSubscriber.getOnNextEvents(),
+                       contains(msgs));
+
+            assertThat("Input subscriber is unsubscribed after read.", inputSubscriber.isUnsubscribed(),
+                       is(false));
         }
     }
 
-    public static class ConnectionSubscriber extends TestableSubscriber<Connection<String, String>> {
+    public static class ConnectionSubscriber extends TestSubscriber<Connection<String, String>> {
 
         private final boolean subscribeToInput;
         private final ConnectionHandlerRule rule;
@@ -275,7 +291,7 @@ public class AbstractConnectionToChannelBridgeTest {
         }
     }
 
-    public static class ConnectionInputSubscriber extends TestableSubscriber<String> {
+    public static class ConnectionInputSubscriber extends TestSubscriber<String> {
 
         private final long requestAtStart;
 
@@ -290,30 +306,6 @@ public class AbstractConnectionToChannelBridgeTest {
         @Override
         public void onStart() {
             request(requestAtStart);
-        }
-
-        public void requestMore(long more) {
-            request(more);
-        }
-    }
-
-    public static class TestableSubscriber<T> extends Subscriber<T> {
-
-        protected final List<Notification<T>> notificationList = new ArrayList<>();
-
-        @Override
-        public void onCompleted() {
-            notificationList.add(Notification.<T>createOnCompleted());
-        }
-
-        @Override
-        public void onError(Throwable e) {
-            notificationList.add(Notification.<T>createOnError(e));
-        }
-
-        @Override
-        public void onNext(T connection) {
-            notificationList.add(Notification.createOnNext(connection));
         }
     }
 }

@@ -13,16 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.Connection;
 import rx.Subscriber;
 import rx.functions.Action1;
 import rx.observers.Subscribers;
 
 /**
  * An event to communicate the subscriber of the associated connection input stream created by
- * {@link AbstractConnectionToChannelBridge}.
+ * {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge}.
  *
  * <h2>Multiple events on the same channel</h2>
  *

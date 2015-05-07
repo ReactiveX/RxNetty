@@ -13,11 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor;
-import io.reactivex.netty.channel.BackpressureManagingHandler.WriteStreamSubscriber;
+import io.reactivex.netty.channel.PrimitiveConversionHandler;
+import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.BytesWriteInterceptor;
+import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.WriteStreamSubscriber;
 import io.reactivex.netty.test.util.MockProducer;
 import org.junit.Rule;
 import org.junit.Test;
@@ -135,7 +136,7 @@ public class BytesWriteInterceptorTest {
                 @Override
                 public void evaluate() throws Throwable {
                     interceptor = new BytesWriteInterceptor();
-                    channel = new EmbeddedChannel(interceptor);
+                    channel = new EmbeddedChannel(PrimitiveConversionHandler.INSTANCE, interceptor);
                     base.evaluate();
                 }
             };

@@ -13,18 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.tcp.client.PooledConnection;
+import io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge;
+import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent;
+import io.reactivex.netty.protocol.tcp.ConnectionSubscriberEvent;
+import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscriber;
@@ -35,7 +39,7 @@ import rx.subscriptions.Subscriptions;
 import java.net.SocketAddress;
 
 /**
- * An implementation of {@link AbstractConnectionToChannelBridge} for clients.
+ * An implementation of {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge} for clients.
  *
  * <h2>Reuse</h2>
  *
@@ -173,7 +177,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
      * <h2>Connection reuse</h2>
      *
      * For cases, where the {@link Connection} is pooled, reuse should be indicated explicitly via
-     * {@link ConnectionInputSubscriberResetEvent}. There can be multiple {@link ConnectionInputSubscriberResetEvent}s
+     * {@link io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent}. There can be multiple {@link io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent}s
      * sent to the same channel and hence the same instance of {@link AbstractConnectionToChannelBridge}.
      *
      * @param <I> Type read from the connection held by the event.
@@ -195,7 +199,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     }
 
     /**
-     * An event to indicate channel/{@link ObservableConnection} reuse. This event should be used for clients that pool
+     * An event to indicate channel/{@link io.reactivex.netty.channel.ObservableConnection} reuse. This event should be used for clients that pool
      * connections. For every reuse of a connection (connection creation still uses {@link ConnectionSubscriberEvent})
      * the corresponding subscriber must be sent via this event.
      *

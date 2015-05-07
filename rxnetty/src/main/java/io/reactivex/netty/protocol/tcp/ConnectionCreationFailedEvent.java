@@ -13,27 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandler;
 
 /**
- * An event to indicate to {@link AbstractConnectionToChannelBridge} that the channel is ready to emit a new
- * {@link Connection} to the subscriber as published by {@link ConnectionSubscriberEvent}
+ * An event to indicate to {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge} that the subscriber as published by
+ * {@link ConnectionSubscriberEvent} should be informed of a connection creation failure, instead of a new connection.
  *
  * <h2>Why do we need this?</h2>
  *
  * Since, emitting a connection can include a handshake for protocols such as TLS/SSL, it is not so that a new
- * {@link Connection} should be emitted as soon as the channel is active (i.e. inside
+ * {@link io.reactivex.netty.channel.Connection} should be emitted as soon as the channel is active (i.e. inside
  * {@link ChannelInboundHandler#channelActive(ChannelHandlerContext)}).
  * For this reason, this event leaves it to the pipeline or any other entity outside to decide, when is the rite time to
- * emit a connection.
+ * determine that a connection for a channel has failed creation.
  */
-public final class EmitConnectionEvent {
+public final class ConnectionCreationFailedEvent {
 
-    public static final EmitConnectionEvent INSTANCE = new EmitConnectionEvent();
+    private final Throwable throwable;
 
-    private EmitConnectionEvent() {
+    public ConnectionCreationFailedEvent(Throwable throwable) {
+        this.throwable = throwable;
+    }
+
+    public Throwable getThrowable() {
+        return throwable;
     }
 }

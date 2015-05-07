@@ -17,11 +17,11 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.Channel;
 import io.netty.channel.FileRegion;
-import io.reactivex.netty.channel.ClientConnectionToChannelBridge.ConnectionResueEvent;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -69,7 +69,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
             public void call(Subscriber<? super Void> subscriber) {
                 if (!isUsable()) {
                     PooledConnection.this.owner.discard(PooledConnection.this)
-                                               .subscribe(subscriber);
+                                               .unsafeSubscribe(subscriber);
                 } else {
                     Long keepAliveTimeout = getNettyChannel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).get();
                     if (null != keepAliveTimeout) {

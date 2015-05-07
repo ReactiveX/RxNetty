@@ -22,8 +22,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.SslHandshakeCompletionEvent;
-import io.reactivex.netty.channel.ConnectionCreationFailedEvent;
-import io.reactivex.netty.channel.EmitConnectionEvent;
+import io.reactivex.netty.protocol.tcp.ConnectionCreationFailedEvent;
+import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
 import rx.functions.Action1;
 
 import javax.net.ssl.SSLException;

@@ -323,6 +323,16 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
     public abstract TcpClient<W, R> noConnectionPooling();
 
     /**
+     * Creates a new client instances, inheriting all configurations from this client and using the passed
+     * {@code factory} for the newly created client instance.
+     *
+     * @param factory Connection factory to use for the new client.
+     *
+     * @return A new {@link TcpClient} instance.
+     */
+    public abstract TcpClient<W, R> connectionFactory(Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> factory);
+
+    /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
      * passed level for the newly created client instance.
      *

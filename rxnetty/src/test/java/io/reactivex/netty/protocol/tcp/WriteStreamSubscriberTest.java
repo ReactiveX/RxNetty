@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.channel.BackpressureManagingHandler.WriteStreamSubscriber;
+import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.WriteStreamSubscriber;
 import io.reactivex.netty.test.util.MockProducer;
 import org.junit.Rule;
 import org.junit.Test;

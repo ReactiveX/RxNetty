@@ -23,12 +23,14 @@ import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import io.reactivex.netty.protocol.http.server.UriInfoHolder;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.functions.Func1;
 
 import java.text.ParseException;
 import java.util.Date;
@@ -257,13 +259,12 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public Observable<Void> discardContent() {
-        return Observable.create(new OnSubscribe<Void>() {
+        return getContent().map(new Func1<T, Void>() {
             @Override
-            public void call(Subscriber<? super Void> subscriber) {
-                nettyChannel.pipeline()
-                            .fireUserEventTriggered(HttpContentSubscriberEvent.discardAllInput());
-                subscriber.onCompleted();
+            public Void call(T t) {
+                ReferenceCountUtil.release(t);
+                return null;
             }
-        });
+        }).ignoreElements();
     }
 }

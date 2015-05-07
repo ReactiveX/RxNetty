@@ -26,9 +26,9 @@ import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
-import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
+import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Producer;
@@ -256,7 +256,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
      */
     protected static final class State {
 
-        private enum Stage {
+        /*Visible for testing*/enum Stage {
             /*Strictly in the order in which the transitions would happen*/
             Created,
             HeaderReceived,
@@ -296,7 +296,35 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         public boolean receiveStarted() {
             return stage.ordinal() > Stage.Created.ordinal();
         }
-   }
+
+        /*Visible for testing*/Subscriber<?> getHeaderSub() {
+            return headerSub;
+        }
+
+        /*Visible for testing*/Subscriber<?> getContentSub() {
+            return contentSub;
+        }
+
+        /*Visible for testing*/Subscriber<? super TrailingHeaders> getTrailerSub() {
+            return trailerSub;
+        }
+
+        /*Visible for testing*/long getHeaderReceivedTimeMillis() {
+            return headerReceivedTimeMillis;
+        }
+
+        /*Visible for testing*/Stage getStage() {
+            return stage;
+        }
+
+        /*Visible for testing*/IllegalStateException getRaiseErrorOnInputSubscription() {
+            return raiseErrorOnInputSubscription;
+        }
+
+        /*Visible for testing*/IllegalStateException getRaiseErrorOnTrailerSubscription() {
+            return raiseErrorOnTrailerSubscription;
+        }
+    }
 
     /**
      * A subscriber that can be reused if and only if not wrapped in a {@link rx.observers.SafeSubscriber}.
@@ -368,11 +396,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 }
             }));
             channel = evt.getConnection().getNettyChannel();
-        }
-
-        @Override
-        public void onStart() {
-            request(1); // Looking for a single message. The content request comes from the actual subscriber.
         }
 
         @Override
@@ -518,6 +541,10 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                  */
                 state.raiseErrorOnInputSubscription = CONTENT_ARRIVED_WITH_NO_SUB;
             }
+        }
+
+        /*Visible for testing*/State getState() {
+            return state;
         }
     }
 }

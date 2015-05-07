@@ -24,13 +24,13 @@ import io.netty.handler.codec.http.HttpHeaders.Values;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.AttributeKey;
-import io.reactivex.netty.channel.ClientConnectionToChannelBridge.ConnectionResueEvent;
-import io.reactivex.netty.channel.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 
 public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridge<C> {
 

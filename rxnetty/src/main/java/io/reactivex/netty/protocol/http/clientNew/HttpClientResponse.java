@@ -359,6 +359,14 @@ public abstract class HttpClientResponse<T> {
      */
     public abstract Observable<T> getContent();
 
+    /**
+     * Marks the content to be discarded. This means that the content can not be read from this response from now.
+     *
+     * @return An {@link Observable}, subscription to which will discard the content. This {@code Observable} will
+     * error/complete when the content errors/completes and unsubscription from here will unsubscribe from the content.
+     */
+    public abstract Observable<Void> discardContent();
+
     public String toString() {
         StringBuilder builder = new StringBuilder();
         builder.append(getHttpVersion().text())

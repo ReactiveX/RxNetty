@@ -212,6 +212,11 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     @Override
+    public TcpClient<W, R> connectionFactory(Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> factory) {
+        return copy(state.connectionFactory(factory));
+    }
+
+    @Override
     public TcpClient<W, R> enableWireLogging(LogLevel wireLoggingLevel) {
         return copy(state.enableWireLogging(wireLoggingLevel));
     }

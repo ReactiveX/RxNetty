@@ -19,10 +19,13 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
+import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.functions.Func1;
 
 /**
  * An abstraction over netty's channel providing Rx APIs.
@@ -88,9 +91,18 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
      * Unless, {@link ChannelOption#AUTO_READ} is set to {@code true}, the content will only be read from the
      * underneath channel, if there is a subscriber to the input. So, upon recieving this connection, either one should
      * call this method or eventually subscribe to the stream returned by {@link #getInput()}
+     *
+     * @return An {@link Observable}, subscription to which will discard the input. This {@code Observable} will
+     * error/complete when the input errors/completes and unsubscription from here will unsubscribe from the content.
      */
-    public void ignoreInput() {
-        nettyChannel.pipeline().fireUserEventTriggered(ConnectionInputSubscriberEvent.discardAllInput(this));
+    public Observable<Void> ignoreInput() {
+        return getInput().map(new Func1<R, Void>() {
+            @Override
+            public Void call(R r) {
+                ReferenceCountUtil.release(r);
+                return null;
+            }
+        }).ignoreElements();
     }
 
     public Channel getNettyChannel() {

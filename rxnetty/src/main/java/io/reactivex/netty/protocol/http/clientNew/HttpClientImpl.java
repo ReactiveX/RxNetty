@@ -36,9 +36,6 @@ import rx.functions.Func0;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
 public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     private final TcpClient<?, HttpClientResponse<O>> client;
@@ -220,6 +217,17 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
                     public void call(ChannelPipeline pipeline) {
                         // TODO: Fix events subject
                         pipeline.addLast(new HttpClientCodec());
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(new MetricEventsSubject<ClientMetricsEvent<?>>()));
+                    }
+                }));
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        return new HttpClientImpl<>(
+                tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
+                    @Override
+                    public void call(ChannelPipeline pipeline) {
+                        // TODO: Fix events subject
                         pipeline.addLast(new HttpClientToConnectionBridge<>(new MetricEventsSubject<ClientMetricsEvent<?>>()));
                     }
                 }));

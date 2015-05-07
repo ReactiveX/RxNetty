@@ -638,6 +638,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return A new instance of {@link HttpClientRequestUpdater}
      */
+    @Experimental
     public abstract HttpClientRequestUpdater<I, O> newUpdater();
 
     /**

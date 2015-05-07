@@ -208,6 +208,12 @@ public class DetachedChannelPipeline {
         return this;
     }
 
+    public void copyTo(ChannelPipeline pipeline) {
+        synchronized (holdersInOrder) {
+            unguardedCopyToPipeline(pipeline);
+        }
+    }
+
     /*Visible for testing*/ LinkedList<HandlerHolder> getHoldersInOrder() {
         return holdersInOrder;
     }

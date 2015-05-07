@@ -13,14 +13,17 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp.server;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
+import io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge;
+import io.reactivex.netty.protocol.tcp.ConnectionSubscriberEvent;
+import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
 import io.reactivex.netty.server.ServerChannelMetricEventProvider;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import org.slf4j.Logger;
@@ -32,7 +35,7 @@ import rx.functions.Action1;
 import rx.functions.Actions;
 
 /**
- * An implementation of {@link AbstractConnectionToChannelBridge} for servers.
+ * An implementation of {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge} for servers.
  *
  * @param <R> The type of objects read from the server using this bridge.
  * @param <W> The type of objects written to this server using this bridge.

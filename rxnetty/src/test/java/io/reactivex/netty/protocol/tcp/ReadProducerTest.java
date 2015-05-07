@@ -13,10 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.channel.AbstractConnectionToChannelBridge.ReadProducer;
+import io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge.ReadProducer;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;

@@ -29,7 +29,6 @@ import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.channel.ClientConnectionToChannelBridge;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.PrimitiveConversionHandler;
 import io.reactivex.netty.client.ClientMetricsEvent;
@@ -66,7 +65,7 @@ import static io.reactivex.netty.codec.HandlerNames.*;
  *
  * @author Nitesh Kant
  */
-class ClientState<W, R> {
+public class ClientState<W, R> {
 
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
 
@@ -315,6 +314,13 @@ class ClientState<W, R> {
         return toReturn;
     }
 
+    public ClientState<W, R> connectionFactory(Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> f) {
+        final ClientState<W, R> copy = copy();
+        final ClientConnectionFactory<W, R> factory = f.call(copy);
+        copy.connectionFactory = factory;
+        return copy;
+    }
+
     public ClientState<W, R> remoteAddress(SocketAddress newAddress) {
         final ClientState<W, R> toReturn = new ClientState<W, R>(this, new IdentityServerPool(newAddress));
         toReturn.connectionFactory = connectionFactory.copy(toReturn);
@@ -381,12 +387,6 @@ class ClientState<W, R> {
                 });
 
         return create(detachedPipeline, eventsSubject, group, channelClass, serverPool);
-    }
-
-    public static <WW, RR> ClientState<WW, RR> create(ClientState<WW, RR> state,
-                                                      ClientConnectionFactory<WW, RR> connectionFactory) {
-        state.connectionFactory = connectionFactory;
-        return state;
     }
 
     /*Visible for testing*/ static <WW, RR> ClientState<WW, RR> create(DetachedChannelPipeline detachedPipeline,

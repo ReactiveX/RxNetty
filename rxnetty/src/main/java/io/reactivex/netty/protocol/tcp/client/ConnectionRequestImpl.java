@@ -82,7 +82,7 @@ final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
 
                 stateToUse.getConnectionFactory()
                           .connect()
-                          .subscribe(subscriber);
+                          .unsafeSubscribe(subscriber);
             }
         });
         this.clientState = clientState;

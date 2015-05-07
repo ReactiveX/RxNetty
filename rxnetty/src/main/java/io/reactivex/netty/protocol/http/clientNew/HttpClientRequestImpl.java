@@ -556,7 +556,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         public void call(Subscriber<? super HttpClientResponse<O>> subscriber) {
             @SuppressWarnings("rawtypes")
             final Subscriber rawSub = subscriber;
-            source.subscribe(rawSub);
+            source.unsafeSubscribe(rawSub);
         }
     }
 }

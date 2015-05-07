@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.channel;
+package io.reactivex.netty.protocol.tcp;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.ChannelMetricEventProvider;
+import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,15 +32,15 @@ import rx.exceptions.MissingBackpressureException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
- * A bridge between a {@link Connection} instance and the associated {@link Channel}.
+ * A bridge between a {@link io.reactivex.netty.channel.Connection} instance and the associated {@link Channel}.
  *
- * All operations on {@link Connection} will pass through this bridge to an appropriate action on the {@link Channel}
+ * All operations on {@link io.reactivex.netty.channel.Connection} will pass through this bridge to an appropriate action on the {@link Channel}
  *
- * <h2>Lazy {@link Connection#getInput()} subscription</h2>
+ * <h2>Lazy {@link io.reactivex.netty.channel.Connection#getInput()} subscription</h2>
  *
- * Lazy subscriptions are allowed on {@link Connection#getInput()} if and only if the channel is configured to
+ * Lazy subscriptions are allowed on {@link io.reactivex.netty.channel.Connection#getInput()} if and only if the channel is configured to
  * not read data automatically (i.e. {@link ChannelOption#AUTO_READ} is set to {@code false}). Otherwise,
- * if {@link Connection#getInput()} is subscribed lazily, the subscriber always recieves an error. The content
+ * if {@link io.reactivex.netty.channel.Connection#getInput()} is subscribed lazily, the subscriber always recieves an error. The content
  * in this case is disposed upon reading.
  *
  * @param <R> Type read from the connection held by this handler.

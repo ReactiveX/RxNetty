@@ -15,10 +15,7 @@
  */
 package io.reactivex.netty.protocol.http.internal;
 
-import io.netty.util.ReferenceCountUtil;
 import rx.Subscriber;
-import rx.functions.Action1;
-import rx.observers.Subscribers;
 
 public class HttpContentSubscriberEvent<T> {
 
@@ -30,14 +27,5 @@ public class HttpContentSubscriberEvent<T> {
 
     public Subscriber<? super T> getSubscriber() {
         return subscriber;
-    }
-
-    public static <T> HttpContentSubscriberEvent<T> discardAllInput() {
-        return new HttpContentSubscriberEvent<>(Subscribers.create(new Action1<T>() {
-            @Override
-            public void call(T msg) {
-                ReferenceCountUtil.release(msg);
-            }
-        }));
     }
 }

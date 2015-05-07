@@ -22,6 +22,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import org.slf4j.Logger;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.functions.Func1;
 
 import java.text.ParseException;
 import java.util.Date;
@@ -236,6 +238,17 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
                             .fireUserEventTriggered(new HttpContentSubscriberEvent<T>(subscriber));
             }
         });
+    }
+
+    @Override
+    public Observable<Void> discardContent() {
+        return getContent().map(new Func1<T, Void>() {
+            @Override
+            public Void call(T t) {
+                ReferenceCountUtil.release(t);
+                return null;
+            }
+        }).ignoreElements();
     }
 
     /**

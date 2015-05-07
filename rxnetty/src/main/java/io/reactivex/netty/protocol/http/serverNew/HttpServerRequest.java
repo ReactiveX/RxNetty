@@ -401,9 +401,10 @@ public abstract class HttpServerRequest<T> {
      *
      * Unless the channel is set to auto-read, aA {@link RequestHandler} processing a request <em>must</em> make sure
      * that it either discards or subscribes to the content. Failure to do so, will stall the connection and no other
-     * requests will arrive on that connection as nothing is read from the connection.
+     * requests will arrive on that connection as nothing is read from it.
      *
-     * @return An {@link Observable}, subscription to which will discard the content.
+     * @return An {@link Observable}, subscription to which will discard the content. This {@code Observable} will
+     * error/complete when the content errors/completes and unsubscription from here will unsubscribe from the content.
      */
     public abstract Observable<Void> discardContent();
 
