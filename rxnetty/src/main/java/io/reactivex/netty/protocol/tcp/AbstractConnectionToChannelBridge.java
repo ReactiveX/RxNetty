@@ -19,6 +19,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.internal.EmptyArrays;
 import io.reactivex.netty.channel.ChannelMetricEventProvider;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
@@ -29,6 +30,7 @@ import rx.Producer;
 import rx.Subscriber;
 import rx.exceptions.MissingBackpressureException;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
@@ -58,6 +60,16 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     private static final IllegalStateException LAZY_CONN_INPUT_SUB =
             new IllegalStateException("Channel is set to auto-read but the subscription was lazy.");
 
+
+    private static final ClosedChannelException CLOSED_CHANNEL_EXCEPTION = new ClosedChannelException();
+
+    static {
+        ONLY_ONE_CONN_INPUT_SUB_ALLOWED.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        ONLY_ONE_CONN_SUB_ALLOWED.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        LAZY_CONN_INPUT_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        CLOSED_CHANNEL_EXCEPTION.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+    }
+
     @SuppressWarnings("rawtypes")
     protected final MetricEventsSubject eventsSubject;
     protected final ChannelMetricEventProvider metricEventProvider;
@@ -83,7 +95,8 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
 
         if (isValidToEmitToReadSubscriber(readProducer)) {
-            readProducer.sendOnComplete();
+            /*If the subscriber is still active, then it expects data but the channel is closed.*/
+            readProducer.sendOnError(CLOSED_CHANNEL_EXCEPTION);
         }
 
         super.channelUnregistered(ctx);

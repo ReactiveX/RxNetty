@@ -371,7 +371,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
      * {@link HttpClientRequest} objects.
      */
-    public abstract HttpClientRequest<I, O> addHeader(CharSequence name, Iterable<Object> values);
+    public abstract HttpClientRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values);
 
     /**
      * Overwrites the current value, if any, of the passed header to the passed date value for this request. The date is
@@ -429,7 +429,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
      * {@link HttpClientRequest} objects.
      */
-    public abstract HttpClientRequest<I, O> setHeader(CharSequence name, Iterable<Object> values);
+    public abstract HttpClientRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values);
 
     /**
      * Removes the passed header from this request.

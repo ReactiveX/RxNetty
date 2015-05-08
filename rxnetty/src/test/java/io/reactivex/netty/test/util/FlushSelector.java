@@ -30,4 +30,8 @@ public class FlushSelector<T> implements Func1<T, Boolean> {
     public Boolean call(T o) {
         return ++count % flushEvery == 0;
     }
+
+    public int getFlushEvery() {
+        return flushEvery;
+    }
 }

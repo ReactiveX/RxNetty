@@ -15,16 +15,17 @@
  */
 package io.reactivex.netty.protocol.http.clientNew;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
@@ -44,9 +45,6 @@ import java.util.List;
 import java.util.Map.Entry;
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
 public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     private final Request request;
@@ -213,8 +211,8 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequest<I, O> addHeader(CharSequence name, Iterable<Object> values) {
-        return new HttpClientRequestImpl<>(request.addHeader(name, values), client);
+    public HttpClientRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
+        return new HttpClientRequestImpl<>(request.addHeaderValues(name, values), client);
     }
 
     @Override
@@ -233,8 +231,8 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequest<I, O> setHeader(CharSequence name, Iterable<Object> values) {
-        return new HttpClientRequestImpl<>(request.setHeader(name, values), client);
+    public HttpClientRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
+        return new HttpClientRequestImpl<>(request.setHeaderValues(name, values), client);
     }
 
     @Override
@@ -386,7 +384,15 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         return new HttpClientRequestImpl<>(r, client);
     }
 
-    private static class Request {
+    /*Visible for testing*/ Request getRawRequest() {
+        return request;
+    }
+
+    /*Visible for testing*/ TcpClient<?, HttpClientResponse<O>> getTcpClient() {
+        return client;
+    }
+
+    /*Visible for testing*/static class Request {
 
         private final HttpRequest headers;
         @SuppressWarnings("rawtypes")
@@ -408,7 +414,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             return create(headersCopy, content, hasTrailers);
         }
 
-        public Request addHeader(CharSequence name, Iterable<Object> values) {
+        public Request addHeaderValues(CharSequence name, Iterable<Object> values) {
             HttpRequest headersCopy = _copyHeaders();
             headersCopy.headers().add(name, values);
             return create(headersCopy, content, hasTrailers);
@@ -445,7 +451,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             return create(headersCopy, content, hasTrailers);
         }
 
-        public Request setHeader(CharSequence name, Iterable<Date> values) {
+        public Request setHeaderValues(CharSequence name, Iterable<Object> values) {
             HttpRequest headersCopy = _copyHeaders();
             headersCopy.headers().set(name, values);
             return create(headersCopy, content, hasTrailers);
@@ -453,8 +459,14 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
         public Request setDateHeader(CharSequence name, Iterable<Date> values) {
             HttpRequest headersCopy = _copyHeaders();
+            boolean addNow = false;
             for (Date value : values) {
-                HttpHeaders.setDateHeader(headersCopy, name, value);
+                if (addNow) {
+                    HttpHeaders.addDateHeader(headersCopy, name, value);
+                } else {
+                    HttpHeaders.setDateHeader(headersCopy, name, value);
+                    addNow = true;
+                }
             }
             return create(headersCopy, content, hasTrailers);
         }
@@ -478,20 +490,19 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         }
 
         @SuppressWarnings({"rawtypes", "unchecked"})
-        private Observable asObservable(Connection connection) {
+        /*visible for testing*/ Observable asObservable(Channel channel) {
             Observable toReturn = Observable.just(headers);
 
             if (null != content) {
                 if (null == flushSelector) {
                     toReturn = toReturn.concatWith(content);
                 } else {
-                    toReturn = toReturn.concatWith(content.lift(new FlushSelectorOperator(flushSelector,
-                                                                                          connection.getNettyChannel())));
+                    toReturn = toReturn.concatWith(content.lift(new FlushSelectorOperator(flushSelector, channel)));
                 }
             }
 
             if (!hasTrailers) {
-                toReturn = toReturn.concatWith(Observable.just(new DefaultLastHttpContent()));
+                toReturn = toReturn.concatWith(Observable.just(LastHttpContent.EMPTY_LAST_CONTENT));
             }
 
             return toReturn;
@@ -522,6 +533,23 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                       boolean hasTrailers) {
             return new Request(headers, content, flushSelector, hasTrailers);
         }
+
+        /*Visible for testing*/HttpRequest getHeaders() {
+            return headers;
+        }
+
+        @SuppressWarnings("rawtypes")
+        /*Visible for testing*/ Observable getContent() {
+            return content;
+        }
+
+        /*Visible for testing*/ Func1<?, Boolean> getFlushSelector() {
+            return flushSelector;
+        }
+
+        /*Visible for testing*/ boolean hasTrailers() {
+            return hasTrailers;
+        }
     }
 
     private static class OnSubscribeFuncImpl<O> implements OnSubscribe<HttpClientResponse<O>> {
@@ -542,7 +570,8 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                @SuppressWarnings("rawtypes")
                                                @Override
                                                public Observable<HttpClientResponse> call(Connection c) {
-                                                   return c.write(OnSubscribeFuncImpl.this.request.asObservable(c))
+                                                   return c.write(OnSubscribeFuncImpl.this.request
+                                                                          .asObservable(c.getNettyChannel()))
                                                            .ignoreElements()
                                                            .cast(HttpClientResponse.class)
                                                            .concatWith(c.getInput().take(1));

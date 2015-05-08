@@ -17,11 +17,6 @@ package io.reactivex.netty.protocol.http.clientNew;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.client.ClientMetricsEvent;
@@ -50,21 +45,6 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof HttpRequest) {
-            HttpRequest request = (HttpRequest) msg;
-            if (!HttpHeaders.isContentLengthSet(request)) {
-                // If there is no content length we need to specify the transfer encoding as chunked as we always
-                // send data in multiple HttpContent.
-                // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
-                // as expected.
-                request.headers().set(Names.TRANSFER_ENCODING, Values.CHUNKED);
-            }
-        }
-        super.write(ctx, msg, promise);
-    }
-
-    @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof ConnectionResueEvent) {
             resetSubscriptionState(connectionInputSubscriber);
@@ -76,9 +56,14 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected void closedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
-        connectionInputSubscriber.getChannel().attr(DISCARD_CONNECTION).set(true);
-        super.closedBeforeReceiveComplete(connectionInputSubscriber);
+    protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
+        if (connectionInputSubscriber.getChannel().isActive()) {
+            /*
+             * If the close is triggerred by the user, the channel will be active.
+             * If the response, isn't complete, then the connection can not be used.
+             */
+            connectionInputSubscriber.getChannel().attr(DISCARD_CONNECTION).set(true);
+        }
     }
 
     @Override

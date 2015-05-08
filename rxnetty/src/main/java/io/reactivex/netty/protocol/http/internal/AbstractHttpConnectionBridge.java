@@ -24,8 +24,13 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.internal.EmptyArrays;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
@@ -36,7 +41,7 @@ import rx.Subscriber;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
-import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandler {
@@ -57,6 +62,18 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     private static final IllegalStateException TRAILER_ARRIVED_WITH_NO_SUB =
             new IllegalStateException("HTTP trailing headers received but no subscriber was registered.");
 
+    private static final ClosedChannelException CLOSED_CHANNEL_EXCEPTION = new ClosedChannelException();
+
+    static {
+        ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        LAZY_CONTENT_INPUT_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        CONTENT_ARRIVED_WITH_NO_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        ONLY_ONE_TRAILER_INPUT_SUB_ALLOWED.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        LAZY_TRAILER_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        TRAILER_ARRIVED_WITH_NO_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+        CLOSED_CHANNEL_EXCEPTION.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
+    }
+
     protected ConnectionInputSubscriber connectionInputSubscriber;
     private final UnsafeEmptySubscriber<C> emptyContentSubscriber;
     private final UnsafeEmptySubscriber<TrailingHeaders> emptyTrailerSubscriber;
@@ -70,7 +87,16 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         Object msgToWrite = msg;
 
-        if (msg instanceof String) {
+        if (isHeaderMessage(msg)) {
+            HttpMessage httpMsg = (HttpMessage) msg;
+            if (!HttpHeaders.isContentLengthSet(httpMsg)) {
+                // If there is no content length we need to specify the transfer encoding as chunked as we always
+                // send data in multiple HttpContent.
+                // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
+                // as expected.
+                httpMsg.headers().set(Names.TRANSFER_ENCODING, Values.CHUNKED);
+            }
+        } else if (msg instanceof String) {
             msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
         } else if (msg instanceof byte[]) {
             msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
@@ -110,21 +136,16 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         super.userEventTriggered(ctx, eventToPropagateFurther);
     }
 
-    protected void onChannelClose(ConnectionInputSubscriber connectionInputSubscriber) {
-        if (connectionInputSubscriber.state.startButNotCompleted()) {
-            closedBeforeReceiveComplete(connectionInputSubscriber);
-        }
+    protected final void onChannelClose(ConnectionInputSubscriber connectionInputSubscriber) {
+        /*
+         * If any of the subscribers(header, content, trailer) are still subscribed and the channel is closed, it is an
+         * error. If they are unsubscribed, this will be a no-op.
+         */
+        connectionInputSubscriber.onError(CLOSED_CHANNEL_EXCEPTION);
     }
 
-    protected void closedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
-        if (isValidToEmit(connectionInputSubscriber.state.contentSub)) {
-            connectionInputSubscriber.state.contentSub
-                    .onError(new IOException("Connection closed/released before receiving entire HTTP message."));
-        }
-        if (isValidToEmit(connectionInputSubscriber.state.trailerSub)) {
-            connectionInputSubscriber.state.trailerSub
-                    .onError(new IOException("Connection closed/released before receiving entire HTTP message."));
-        }
+    protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
+        // No Op. Override to add behavior
     }
 
     protected void resetSubscriptionState(final ConnectionInputSubscriber connectionInputSubscriber) {
@@ -147,6 +168,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             state.headerReceived();
             Object newHttpObject = newHttpObject(nextItem, channel);
             connectionInputSubscriber.nextHeader(newHttpObject);
+            /*Why not complete the header sub? It may be listening to multiple responses (pipelining)*/
             checkEagerSubscriptionIfConfigured(channel, state);
         }
 
@@ -352,9 +374,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         }
     }
 
-    private static class TrailerProducer implements Producer {
+    /*Visible for testing*/static class TrailerProducer implements Producer {
 
-        private final Producer connInputProducer;
+        private final Producer delegate;
         @SuppressWarnings("unused")
         private volatile int requestedUp; /*Updated and used via the updater*/
         /*Updater for requested*/
@@ -362,8 +384,8 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 REQUESTED_UP_UPDATER =
                 AtomicIntegerFieldUpdater.newUpdater(TrailerProducer.class, "requestedUp");
 
-        private TrailerProducer(Producer connInputProducer) {
-            this.connInputProducer = connInputProducer;
+        private TrailerProducer(Producer delegate) {
+            this.delegate = delegate;
         }
 
         @Override
@@ -373,8 +395,12 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                  * Since, the trailer will always be 1 for a http message, this just makes sure the trailer
                  * subscriber never requests more than 1
                  */
-                connInputProducer.request(1);
+                delegate.request(1);
             }
+        }
+
+        /*Visible for testing*/ Producer getDelegateProducer() {
+            return delegate;
         }
     }
 
@@ -391,7 +417,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 @Override
                 public void call() {
                     if (!state.receiveStarted()) {
-                        unsubscribe(); // If the receive has not yet started, unsubscribe from input.
+                        unsubscribe(); // If the receive has not yet started, unsubscribe from input, which closes connection
                     }
                 }
             }));
@@ -402,9 +428,10 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         public void onCompleted() {
             // This means channel input has completed
             if (state.startButNotCompleted()) {
-                closedBeforeReceiveComplete(this);
+                onError(CLOSED_CHANNEL_EXCEPTION);
+            } else {
+                completeAllSubs();
             }
-            completeAllSubs();
         }
 
         @Override
@@ -413,7 +440,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             errorAllSubs(e);
 
             if (state.startButNotCompleted()) {
-                closedBeforeReceiveComplete(this);
+                onClosedBeforeReceiveComplete(this);
             }
         }
 
