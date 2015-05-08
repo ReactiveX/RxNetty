@@ -40,6 +40,7 @@ public class ByteArrayPipelineConfigurator implements PipelineConfigurator<byte[
                         int readableBytes = byteBuf.readableBytes();
                         byte[] msgToPass = new byte[readableBytes];
                         byteBuf.readBytes(msgToPass);
+                        byteBuf.release(); /*Since we are not passing this buffer further in the pipeline.*/
                         handled = true;
                         ctx.fireChannelRead(msgToPass);
                     }
