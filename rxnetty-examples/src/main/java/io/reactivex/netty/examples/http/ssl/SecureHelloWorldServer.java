@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.helloworld;
+package io.reactivex.netty.examples.http.ssl;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractServerExample;
@@ -25,13 +25,14 @@ import static rx.Observable.*;
 /**
  * An HTTP "Hello World" server. It returns an "Hello World" response for all requests received.
  */
-public final class HelloWorldServer extends AbstractServerExample {
+public final class SecureHelloWorldServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
         server = HttpServer.newServer(0)
+                           .unsafeSecure()/*To be used only for testing, use secure() overloads to configure proper security.*/
                            .start((req, resp) ->
                                           req.discardContent() /*Discard content since we do not read it.*/
                                              .concatWith(resp.sendHeaders()

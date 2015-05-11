@@ -17,6 +17,7 @@
 package io.reactivex.netty.protocol.http.clientNew;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
@@ -25,17 +26,23 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.TrustManagerFactory;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
@@ -411,6 +418,55 @@ public abstract class HttpClient<I, O> implements MetricEventsPublisher<HttpClie
      * @return A new {@link HttpClient} instance.
      */
     public abstract HttpClient<I, O> noConnectionPooling();
+
+    /**
+     * Creates a new client instance, inheriting all configurations from this client and using the passed
+     * {@code sslEngineFactory} for all secured connections created by the newly created client instance.
+     *
+     * If the {@link SSLEngine} instance can be statically, created, {@link #secure(SSLEngine)} can be used.
+     *
+     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created client
+     *                                                 instance.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory);
+
+    /**
+     * Creates a new client instance, inheriting all configurations from this client and using the passed
+     * {@code sslEngine} for all secured connections created by the newly created client instance.
+     *
+     * If the {@link SSLEngine} instance can not be statically, created, {@link #secure(Func1)} )} can be used.
+     *
+     * @param sslEngine {@link SSLEngine} for all secured connections created by the newly created client instance.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> secure(SSLEngine sslEngine);
+
+    /**
+     * Creates a new client instance, inheriting all configurations from this client and using the passed
+     * {@code sslCodec} for all secured connections created by the newly created client instance.
+     *
+     * This is required only when the {@link SslHandler} used by {@link SslCodec} is to be modified before adding to
+     * the {@link ChannelPipeline}. For most of the cases, {@link #secure(Func1)} or {@link #secure(SSLEngine)} will be
+     * enough.
+     *
+     * @param sslCodec {@link SslCodec} for all secured connections created by the newly created client instance.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> secure(SslCodec sslCodec);
+
+    /**
+     * Creates a new client instance, inheriting all configurations from this client and using a trust-all
+     * {@link TrustManagerFactory}for all secured connections created by the newly created client instance.
+     *
+     * <b>This is only for testing and should not be used for real production clients.</b>
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> unsafeSecure();
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the

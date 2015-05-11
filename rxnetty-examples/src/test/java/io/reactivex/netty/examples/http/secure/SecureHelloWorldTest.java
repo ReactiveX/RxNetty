@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.helloworld;
+package io.reactivex.netty.examples.http.secure;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders.Names;
@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.examples.ExamplesEnvironment;
+import io.reactivex.netty.examples.http.ssl.SecureHelloWorldClient;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
 
@@ -33,13 +34,13 @@ import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class HelloWorldTest extends ExamplesEnvironment {
+public class SecureHelloWorldTest extends ExamplesEnvironment {
 
     @Test(timeout = 60000)
     public void testHelloWorld() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Queue<String> output = setupClientLogger(HelloWorldClient.class);
+        final Queue<String> output = setupClientLogger(SecureHelloWorldClient.class);
 
-        HelloWorldClient.main(null);
+        SecureHelloWorldClient.main(null);
 
         HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         expectedHeader.headers().add(Names.TRANSFER_ENCODING, Values.CHUNKED);

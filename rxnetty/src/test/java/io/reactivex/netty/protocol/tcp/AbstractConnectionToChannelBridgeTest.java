@@ -110,8 +110,8 @@ public class AbstractConnectionToChannelBridgeTest {
 
         assertThat("Unexpected notifications count after channel active.", inputSubscriber.getOnNextEvents(),
                    hasSize(1));
+        inputSubscriber.unsubscribe(); // else channel close will generate error if subscribed
         connectionHandlerRule.handler.channelUnregistered(connectionHandlerRule.ctx);
-        inputSubscriber.assertTerminalEvent();
         inputSubscriber.assertNoErrors();
         assertThat("Unexpected notifications count after channel active.", inputSubscriber.getOnNextEvents(),
                    hasSize(1));
@@ -201,7 +201,7 @@ public class AbstractConnectionToChannelBridgeTest {
                     ctx = channel.pipeline().firstContext();
                     MetricEventsSubject<ClientMetricsEvent<?>> subject = new MetricEventsSubject<>();
                     ClientChannelMetricEventProvider provider = ClientChannelMetricEventProvider.INSTANCE;
-                    handler = new AbstractConnectionToChannelBridge<String, String>(subject, provider) { };
+                    handler = new AbstractConnectionToChannelBridge<String, String>("foo", subject, provider) { };
                     base.evaluate();
                 }
             };

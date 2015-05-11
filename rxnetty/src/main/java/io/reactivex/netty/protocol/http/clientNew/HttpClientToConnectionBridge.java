@@ -17,6 +17,7 @@ package io.reactivex.netty.protocol.http.clientNew;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.client.ClientMetricsEvent;
@@ -67,8 +68,13 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected boolean isHeaderMessage(Object nextItem) {
+    protected boolean isInboundHeader(Object nextItem) {
         return nextItem instanceof HttpResponse;
+    }
+
+    @Override
+    protected boolean isOutboundHeader(Object nextItem) {
+        return nextItem instanceof HttpRequest;
     }
 
     @Override

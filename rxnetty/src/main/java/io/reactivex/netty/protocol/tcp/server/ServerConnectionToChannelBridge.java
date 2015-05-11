@@ -18,6 +18,7 @@ package io.reactivex.netty.protocol.tcp.server;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -34,6 +35,8 @@ import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Actions;
 
+import java.nio.channels.ClosedChannelException;
+
 /**
  * An implementation of {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge} for servers.
  *
@@ -45,28 +48,41 @@ import rx.functions.Actions;
 public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToChannelBridge<R, W> {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerConnectionToChannelBridge.class);
+    private static final String HANDLER_NAME = "server-conn-channel-bridge";
 
     private final ConnectionHandler<R, W> connectionHandler;
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
     private final boolean isSecure;
     private final NewConnectionSubscriber newConnectionSubscriber;
+    private final ConnectionSubscriberEvent<R, W> connectionSubscriberEvent;
 
-    public ServerConnectionToChannelBridge(ConnectionHandler<R, W> connectionHandler,
+    private ServerConnectionToChannelBridge(ConnectionHandler<R, W> connectionHandler,
                                            MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject, boolean isSecure) {
-        super(eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
+        super(HANDLER_NAME, eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
         this.connectionHandler = connectionHandler;
         this.eventsSubject = eventsSubject;
         this.isSecure = isSecure;
         newConnectionSubscriber = new NewConnectionSubscriber();
+        connectionSubscriberEvent = new ConnectionSubscriberEvent<>(newConnectionSubscriber);
     }
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        userEventTriggered(ctx, new ConnectionSubscriberEvent<R, W>(newConnectionSubscriber));
+        userEventTriggered(ctx, connectionSubscriberEvent);
         if (!isSecure) {/*When secure, the event is triggered post SSL handshake via the SslCodec*/
             userEventTriggered(ctx, EmitConnectionEvent.INSTANCE);
         }
         super.channelRegistered(ctx);
+    }
+
+    public static <R, W> ServerConnectionToChannelBridge<R, W> addToPipeline(ChannelPipeline pipeline,
+                                                                             ConnectionHandler<R, W> connectionHandler,
+                                                                             MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
+                                                                             boolean isSecure) {
+        ServerConnectionToChannelBridge<R, W> toAdd = new ServerConnectionToChannelBridge<>(connectionHandler,
+                                                                                            eventsSubject, isSecure);
+        pipeline.addLast(HANDLER_NAME, toAdd);
+        return toAdd;
     }
 
     private final class NewConnectionSubscriber extends Subscriber<Connection<R, W>> {
@@ -111,7 +127,11 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 public void onError(Throwable e) {
                     eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_FAILED,
                                           Clock.onEndMillis(startTimeMillis), e);
-                    logger.error("Error processing connection.", e);
+                    if (!(e instanceof ClosedChannelException)) {
+                        /*Since, this is always reading input for new requests, it will always get a closed channel
+                        exception on connection close from client. No point in logging that error.*/
+                        logger.error("Error processing connection.", e);
+                    }
                     closeConnectionNow();
                 }
 

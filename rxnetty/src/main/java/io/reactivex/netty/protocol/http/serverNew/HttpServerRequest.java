@@ -20,6 +20,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -409,24 +410,6 @@ public abstract class HttpServerRequest<T> {
     public abstract Observable<Void> discardContent();
 
     public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(getHttpMethod())
-               .append(' ')
-               .append(getUri())
-               .append(' ')
-               .append(getHttpVersion().text())
-               .append('\n');
-
-        Iterator<Entry<String, String>> headers = headerIterator();
-        while (headers.hasNext()) {
-            Entry<String, String> next = headers.next();
-            builder.append(next.getKey())
-                   .append(": ")
-                   .append(next.getValue())
-                   .append('\n');
-        }
-        builder.append('\n');
-
-        return builder.toString();
+        return HttpMessageFormatter.formatRequest(getHttpVersion(), getHttpMethod(), getUri(), headerIterator());
     }
 }

@@ -16,7 +16,9 @@
 package io.reactivex.netty.protocol.http.serverNew;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpResponse;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
@@ -32,8 +34,13 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected boolean isHeaderMessage(Object nextItem) {
+    protected boolean isInboundHeader(Object nextItem) {
         return nextItem instanceof HttpRequest;
+    }
+
+    @Override
+    protected boolean isOutboundHeader(Object nextItem) {
+        return nextItem instanceof HttpResponse;
     }
 
     @Override
@@ -47,9 +54,16 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
         eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_CONTENT_RECEIVED);
     }
 
+
     @Override
     protected void onContentReceiveComplete(long receiveStartTimeMillis) {
         eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_RECEIVE_COMPLETE,
                               Clock.onEndMillis(receiveStartTimeMillis));
+    }
+
+    @Override
+    public void channelReadComplete(ChannelHandlerContext ctx) throws Exception {
+        super.channelReadComplete(ctx);
+        ctx.flush(); /*This is a no-op if there is nothing to flush but supports HttpServerResponse.flushOnlyOnReadComplete()*/
     }
 }

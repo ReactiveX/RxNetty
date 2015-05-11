@@ -87,7 +87,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         Object msgToWrite = msg;
 
-        if (isHeaderMessage(msg)) {
+        if (isOutboundHeader(msg)) {
             HttpMessage httpMsg = (HttpMessage) msg;
             if (!HttpHeaders.isContentLengthSet(httpMsg)) {
                 // If there is no content length we need to specify the transfer encoding as chunked as we always
@@ -152,7 +152,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         connectionInputSubscriber.resetSubscribers();
     }
 
-    protected abstract boolean isHeaderMessage(Object nextItem);
+    protected abstract boolean isInboundHeader(Object nextItem);
+
+    protected abstract boolean isOutboundHeader(Object nextItem);
 
     protected abstract Object newHttpObject(Object nextItem, Channel channel);
 
@@ -164,7 +166,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         final State state = connectionInputSubscriber.state;
         final Channel channel = connectionInputSubscriber.channel;
 
-        if (isHeaderMessage(nextItem)) {
+        if (isInboundHeader(nextItem)) {
             state.headerReceived();
             Object newHttpObject = newHttpObject(nextItem, channel);
             connectionInputSubscriber.nextHeader(newHttpObject);
@@ -200,7 +202,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             } else {
                 connectionInputSubscriber.nextContent(content);
             }
-        } else if(!isHeaderMessage(nextItem)){
+        } else if(!isInboundHeader(nextItem)){
             connectionInputSubscriber.nextContent(nextItem);
         }
     }

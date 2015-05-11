@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.http.clientNew;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -29,11 +30,14 @@ import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.util.concurrent.TimeUnit;
 
 public class HttpClientImpl<I, O> extends HttpClient<I, O> {
@@ -198,6 +202,26 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     @Override
     public HttpClient<I, O> noConnectionPooling() {
         return _copy(client.noConnectionPooling());
+    }
+
+    @Override
+    public HttpClient<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return _copy(client.secure(sslEngineFactory));
+    }
+
+    @Override
+    public HttpClient<I, O> secure(SSLEngine sslEngine) {
+        return _copy(client.secure(sslEngine));
+    }
+
+    @Override
+    public HttpClient<I, O> secure(SslCodec sslCodec) {
+        return _copy(client.secure(sslCodec));
+    }
+
+    @Override
+    public HttpClient<I, O> unsafeSecure() {
+        return _copy(client.unsafeSecure());
     }
 
     @Override

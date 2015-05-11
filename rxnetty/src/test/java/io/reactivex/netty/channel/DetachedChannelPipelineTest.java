@@ -18,6 +18,7 @@ package io.reactivex.netty.channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerInvoker;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.DefaultChannelHandlerInvoker;
 import io.netty.channel.EventLoopGroup;
 import io.reactivex.netty.channel.DetachedChannelPipeline.HandlerHolder;
@@ -27,6 +28,7 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import rx.functions.Action1;
 import rx.functions.Func0;
 
 import static org.hamcrest.MatcherAssert.*;
@@ -307,10 +309,10 @@ public class DetachedChannelPipelineTest {
                 @Override
                 public void evaluate() throws Throwable {
                     tail = new ChannelDuplexHandler();
-                    pipeline = new DetachedChannelPipeline(new Func0<ChannelHandler>() {
+                    pipeline = new DetachedChannelPipeline(new Action1<ChannelPipeline>() {
                         @Override
-                        public ChannelHandler call() {
-                            return tail;
+                        public void call(ChannelPipeline pipeline1) {
+                            pipeline1.addLast(tail);
                         }
                     });
                     base.evaluate();

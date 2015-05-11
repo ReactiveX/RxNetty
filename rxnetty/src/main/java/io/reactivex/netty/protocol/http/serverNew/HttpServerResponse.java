@@ -282,6 +282,43 @@ public abstract class HttpServerResponse<C> {
     public abstract HttpServerResponse<C> setStatus(HttpResponseStatus status);
 
     /**
+     * Sets the HTTP transfer encoding to chunked for this response. This delegates to
+     * {@link HttpHeaders#setTransferEncodingChunked(HttpMessage)}
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> setTransferEncodingChunked();
+
+    /**
+     * This is a performance optimization to <em>not</em> flush the channel on every response send.
+     *
+     * <h2>When NOT to use</h2>
+     * This can be used
+     * only when the processing for a server is not asynchronous, in which case, one would have to flush the responses
+     * written explicitly (done on completion of the {@link Observable} written). Something like this:
+     *
+     <PRE>
+     resp.sendHeaders()
+         .writeStringAndFlushOnEach(Observable.interval(1, TimeUnit.SECONDS))
+                                              .map(aLong -> "Interval =>" + aLong)
+                                   )
+     </PRE>
+     *
+     * <h2>When to use</h2>
+     *
+     * This can be used when the response is written synchronously from a {@link RequestHandler}, something like:
+     *
+     <PRE>
+     response.writeString(Observable.just("Hello world");
+     </PRE>
+     *
+     * When set, this will make the channel to be flushed only when all the requests available on the channel are
+     * read. Thus, making it possible to do a gathering write for all pipelined requests on a connection. This reduces
+     * the number of system calls and is helpful in "Hello World" benchmarks.
+     */
+    public abstract HttpServerResponse<C> flushOnlyOnReadComplete();
+
+    /**
      * Writes the headers for the response on the underlying channel.
      *
      * Any modification to the headers after this point, will not be written on the channel and any subsequent calls to

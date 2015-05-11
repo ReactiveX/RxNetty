@@ -34,15 +34,15 @@ import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 /**
- * A bridge between a {@link io.reactivex.netty.channel.Connection} instance and the associated {@link Channel}.
+ * A bridge between a {@link Connection} instance and the associated {@link Channel}.
  *
- * All operations on {@link io.reactivex.netty.channel.Connection} will pass through this bridge to an appropriate action on the {@link Channel}
+ * All operations on {@link Connection} will pass through this bridge to an appropriate action on the {@link Channel}
  *
- * <h2>Lazy {@link io.reactivex.netty.channel.Connection#getInput()} subscription</h2>
+ * <h2>Lazy {@link Connection#getInput()} subscription</h2>
  *
- * Lazy subscriptions are allowed on {@link io.reactivex.netty.channel.Connection#getInput()} if and only if the channel is configured to
+ * Lazy subscriptions are allowed on {@link Connection#getInput()} if and only if the channel is configured to
  * not read data automatically (i.e. {@link ChannelOption#AUTO_READ} is set to {@code false}). Otherwise,
- * if {@link io.reactivex.netty.channel.Connection#getInput()} is subscribed lazily, the subscriber always recieves an error. The content
+ * if {@link Connection#getInput()} is subscribed lazily, the subscriber always recieves an error. The content
  * in this case is disposed upon reading.
  *
  * @param <R> Type read from the connection held by this handler.
@@ -78,16 +78,17 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     private boolean raiseErrorOnInputSubscription;
     private boolean connectionEmitted;
 
-    protected AbstractConnectionToChannelBridge(MetricEventsSubject<?> eventsSubject,
+    protected AbstractConnectionToChannelBridge(String thisHandlerName, MetricEventsSubject<?> eventsSubject,
                                                 ChannelMetricEventProvider metricEventProvider) {
+        super(thisHandlerName);
         this.eventsSubject = eventsSubject;
         this.metricEventProvider = metricEventProvider;
     }
 
-    protected AbstractConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
+    protected AbstractConnectionToChannelBridge(String thisHandlerName, Subscriber<? super Connection<R, W>> connSub,
                                                 MetricEventsSubject<?> eventsSubject,
                                                 ChannelMetricEventProvider metricEventProvider) {
-        this(eventsSubject, metricEventProvider);
+        this(thisHandlerName, eventsSubject, metricEventProvider);
         newConnectionSub = connSub;
     }
 

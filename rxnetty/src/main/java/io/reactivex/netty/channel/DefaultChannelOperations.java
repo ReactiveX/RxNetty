@@ -161,7 +161,10 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
                 final ChannelFuture writeFuture = nettyChannel.write(msgs.doOnCompleted(new Action0() {
                     @Override
                     public void call() {
-                        nettyChannel.flush();
+                        Boolean shdNotFlush = nettyChannel.attr(FLUSH_ONLY_ON_READ_COMPLETE).get();
+                        if (null == shdNotFlush || !shdNotFlush) {
+                            nettyChannel.flush();
+                        }
                     }
                 }));
                 subscriber.add(Subscriptions.create(new Action0() {

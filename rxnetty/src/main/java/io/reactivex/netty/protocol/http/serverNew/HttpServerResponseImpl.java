@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.ServerCookieEncoder;
+import io.reactivex.netty.channel.ChannelOperations;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import rx.Observable;
@@ -191,6 +192,21 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
         if (allowUpdate()) {
             headers.setStatus(status);
         }
+        return this;
+    }
+
+    @Override
+    public HttpServerResponse<C> setTransferEncodingChunked() {
+        if (allowUpdate()) {
+            HttpHeaders.setTransferEncodingChunked(headers);
+        }
+        return this;
+    }
+
+    @Override
+    public HttpServerResponse<C> flushOnlyOnReadComplete() {
+        // Does not need to be guarded by allowUpdate() as flush semantics can be changed anytime.
+        connection.getNettyChannel().attr(ChannelOperations.FLUSH_ONLY_ON_READ_COMPLETE).set(true);
         return this;
     }
 

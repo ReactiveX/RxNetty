@@ -24,22 +24,20 @@ import java.nio.charset.Charset;
 
 public final class TcpEchoServer extends AbstractServerExample {
 
-    static TcpServer<ByteBuf, ByteBuf> serverIfRunning;
-
     public static void main(final String[] args) {
-        serverIfRunning = TcpServer.newServer(0)
-                                   .start(connection -> connection
-                                           .writeStringAndFlushOnEach(connection.getInput()
-                                                                                .map(bb -> bb.toString(
-                                                                                        Charset.defaultCharset()))
-                                                                                .doOnNext(logger::error)
-                                                                                .map(msg -> "echo => " + msg)));
+        TcpServer<ByteBuf, ByteBuf> server;
+        server = TcpServer.newServer(0)
+                          .start(connection -> connection
+                                  .writeStringAndFlushOnEach(connection.getInput()
+                                                                       .map(bb -> bb.toString(Charset.defaultCharset()))
+                                                                       .doOnNext(logger::error)
+                                                                       .map(msg -> "echo => " + msg)));
 
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
-            serverIfRunning.waitTillShutdown();
+            server.waitTillShutdown();
         }
 
-        serverPort = serverIfRunning.getServerPort();
+        serverPort = server.getServerPort();
     }
 }

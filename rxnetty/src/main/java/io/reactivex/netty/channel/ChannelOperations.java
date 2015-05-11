@@ -17,6 +17,7 @@ package io.reactivex.netty.channel;
 
 import io.netty.channel.Channel;
 import io.netty.channel.FileRegion;
+import io.netty.util.AttributeKey;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -58,6 +59,8 @@ public interface ChannelOperations<W> {
             return true;
         }
     };
+    AttributeKey<Boolean> FLUSH_ONLY_ON_READ_COMPLETE =
+            AttributeKey.valueOf("_rxnetyy-flush-only-on-read-complete");
 
     /**
      * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel.

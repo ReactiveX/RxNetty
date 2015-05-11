@@ -63,6 +63,11 @@ public final class ConnectionInputSubscriberEvent<R, W> {
             public void call(II msg) {
                 ReferenceCountUtil.release(msg);
             }
+        }, new Action1<Throwable>() {
+            @Override
+            public void call(Throwable throwable) {
+                // Empty as we are discarding input anyways.
+            }
         }), connection);
     }
 }

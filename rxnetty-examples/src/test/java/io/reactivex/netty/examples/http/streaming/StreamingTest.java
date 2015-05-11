@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.helloworld;
+package io.reactivex.netty.examples.http.streaming;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders.Names;
@@ -26,20 +26,19 @@ import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
 
-import java.lang.reflect.InvocationTargetException;
 import java.util.Queue;
 
 import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class HelloWorldTest extends ExamplesEnvironment {
+public class StreamingTest extends ExamplesEnvironment {
 
     @Test(timeout = 60000)
-    public void testHelloWorld() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Queue<String> output = setupClientLogger(HelloWorldClient.class);
+    public void testStreaming() throws Exception {
+        final Queue<String> output = setupClientLogger(StreamingClient.class);
 
-        HelloWorldClient.main(null);
+        StreamingClient.main(null);
 
         HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         expectedHeader.headers().add(Names.TRANSFER_ENCODING, Values.CHUNKED);
@@ -47,8 +46,15 @@ public class HelloWorldTest extends ExamplesEnvironment {
                                                                           expectedHeader.status(),
                                                                           expectedHeader.headers().iterator());
 
-        assertThat("Unexpected number of messages echoed", output, hasSize(2));
+        String[] content = new String[10];
+        for (int i = 0; i < 10; i++) {
+            content[i] = "Interval =>" + i;
+        }
 
-        assertThat("Unexpected response.", output, contains(expectedHeaderString, "HelloWorld!"));
+        assertThat("Unexpected number of messages echoed", output, hasSize(content.length + 1));
+
+        assertThat("Unexpected header", output.poll()/*Remove the header.*/, is(expectedHeaderString));
+
+        assertThat("Unexpected content", output, contains(content));
     }
 }

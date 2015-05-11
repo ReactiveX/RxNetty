@@ -31,13 +31,16 @@ public class AbstractClientExample {
     }
 
     protected static int getServerPort(Class<? extends AbstractServerExample> serverClass, String[] args) {
+
+        if(null != args && args.length > 0) {
+            String portAsStr = args[0];
+            return Integer.parseInt(portAsStr);
+        }
+
         boolean started = isStarted(serverClass);
 
         if (started) {
             _getServerPort(serverClass);
-        } else if(null != args && args.length > 0) {
-            String portAsStr = args[0];
-            return Integer.parseInt(portAsStr);
         } else {
             try {
                 disableServerLogger(serverClass);

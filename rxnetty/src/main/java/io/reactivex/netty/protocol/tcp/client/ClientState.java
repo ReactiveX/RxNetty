@@ -116,7 +116,7 @@ public class ClientState<W, R> {
         clientBootstrap = toCopy.clientBootstrap;
         poolConfig = toCopy.poolConfig;
         eventsSubject = toCopy.eventsSubject.copy();
-        detachedPipeline = toCopy.detachedPipeline.copy(new TailHandlerFactory<>(eventsSubject, true))
+        detachedPipeline = toCopy.detachedPipeline.copy(new TailHandlerFactory(eventsSubject, true))
                                                   .configure(sslCodec);
         isSecure = true;
         clientBootstrap.handler(detachedPipeline.getChannelInitializer());
@@ -377,7 +377,7 @@ public class ClientState<W, R> {
                                                       ServerPool<ClientMetricsEvent<?>> serverPool) {
         final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<>();
 
-        final TailHandlerFactory<WW, RR> tail = new TailHandlerFactory<>(eventsSubject, false);
+        final TailHandlerFactory tail = new TailHandlerFactory(eventsSubject, false);
         DetachedChannelPipeline detachedPipeline = new DetachedChannelPipeline(tail)
                 .addLast(PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
                     @Override
@@ -474,7 +474,7 @@ public class ClientState<W, R> {
         }
     }
 
-    private static class TailHandlerFactory<WW, RR> implements Func0<ChannelHandler> {
+    private static class TailHandlerFactory implements Action1<ChannelPipeline> {
 
         private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
         private final boolean isSecure;
@@ -485,8 +485,8 @@ public class ClientState<W, R> {
         }
 
         @Override
-        public ChannelHandler call() {
-            return new ClientConnectionToChannelBridge<WW, RR>(eventsSubject, isSecure);
+        public void call(ChannelPipeline pipeline) {
+            ClientConnectionToChannelBridge.addToPipeline(pipeline, eventsSubject, isSecure);
         }
     }
 

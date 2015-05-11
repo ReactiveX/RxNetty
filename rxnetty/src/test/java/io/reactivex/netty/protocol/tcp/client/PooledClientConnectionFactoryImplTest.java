@@ -39,7 +39,9 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 import java.net.InetSocketAddress;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static java.lang.annotation.ElementType.*;
 import static org.hamcrest.MatcherAssert.*;
@@ -233,8 +235,10 @@ public class PooledClientConnectionFactoryImplTest {
             return factory;
         }
 
-        public PooledConnection<String, String> getAConnection() {
-            Connection<String, String> connection = getFactory().connect().toBlocking().single();
+        public PooledConnection<String, String> getAConnection()
+                throws InterruptedException, ExecutionException, TimeoutException {
+            Connection<String, String> connection = getFactory().connect().toBlocking().toFuture()
+                                                                .get(1, TimeUnit.MINUTES);
             assertThat("Connection is null.", connection, notNullValue());
             return (PooledConnection<String, String>) connection;
         }
@@ -267,10 +271,11 @@ public class PooledClientConnectionFactoryImplTest {
                 return Observable.create(new OnSubscribe<Connection<R, W>>() {
                     @Override
                     public void call(Subscriber<? super Connection<R, W>> subscriber) {
-                        ClientConnectionToChannelBridge<R, W> bridge =
-                                new ClientConnectionToChannelBridge<>(subscriber, state.getEventsSubject(), false);
-                        EmbeddedChannel channel = new EmbeddedChannel(bridge);
+                        EmbeddedChannel channel = new EmbeddedChannel();
+                        ClientConnectionToChannelBridge.addToPipeline(subscriber, channel.pipeline(),
+                                                                      state.getEventsSubject(), false);
                         channel.connect(new InetSocketAddress("localhost", 0));
+                        channel.pipeline().fireChannelActive();
                     }
                 });
             }

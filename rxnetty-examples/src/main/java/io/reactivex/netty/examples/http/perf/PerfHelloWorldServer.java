@@ -14,18 +14,26 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.helloworld;
+package io.reactivex.netty.examples.http.perf;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.serverNew.HttpServer;
 
 import static rx.Observable.*;
 
 /**
- * An HTTP "Hello World" server. It returns an "Hello World" response for all requests received.
+ * A "Hello World" server for doing performance benchmarking.
+ *
+ * This does optimizations which are not required for normal cases where application processing dominates network and
+ * micro object allocation overheads.
  */
-public final class HelloWorldServer extends AbstractServerExample {
+public final class PerfHelloWorldServer extends AbstractServerExample {
+
+    public static final String WELCOME_MSG = "Welcome!!";
+    private static final byte[] WELCOME_MSG_BYTES = WELCOME_MSG.getBytes();
+    private static final String CONTENT_LENGTH_HEADER_VAL = String.valueOf(WELCOME_MSG_BYTES.length); // Does not use int as this omits conversion to string for every response.
 
     public static void main(final String[] args) {
 
@@ -34,9 +42,12 @@ public final class HelloWorldServer extends AbstractServerExample {
         server = HttpServer.newServer(0)
                            .start((req, resp) ->
                                           req.discardContent() /*Discard content since we do not read it.*/
-                                             .concatWith(resp.sendHeaders()
-                                                              /*Write the "Hello World" response*/
-                                                             .writeString(just("HelloWorld!")))
+                                                  .concatWith(resp.setHeader(HttpHeaders.Names.CONTENT_LENGTH,
+                                                                             CONTENT_LENGTH_HEADER_VAL)
+                                                                  .flushOnlyOnReadComplete()
+                                                                  .sendHeaders()
+                                                                  /*Write the "Hello World" response*/
+                                                                  .writeBytes(just(WELCOME_MSG_BYTES)))
                            );
 
         /*Wait for shutdown if not called from another class (passed an arg)*/

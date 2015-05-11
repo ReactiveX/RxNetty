@@ -56,18 +56,19 @@ public class DetachedChannelPipeline {
         }
     };
 
-    private final Func0<ChannelHandler> nullableTail;
+    private final Action1<ChannelPipeline> nullableTail;
 
     public DetachedChannelPipeline() {
         this(null);
     }
 
-    public DetachedChannelPipeline(final Func0<ChannelHandler> nullableTail) {
+    public DetachedChannelPipeline(final Action1<ChannelPipeline> nullableTail) {
         this.nullableTail = nullableTail;
         holdersInOrder = new LinkedList<>();
     }
 
-    public DetachedChannelPipeline(final DetachedChannelPipeline copyFrom, final Func0<ChannelHandler> nullableTail) {
+    private DetachedChannelPipeline(final DetachedChannelPipeline copyFrom,
+                                    final Action1<ChannelPipeline> nullableTail) {
         this.nullableTail = nullableTail;
         holdersInOrder = new LinkedList<>();
         synchronized (copyFrom.holdersInOrder) {
@@ -75,10 +76,6 @@ public class DetachedChannelPipeline {
                 holdersInOrder.addLast(handlerHolder);
             }
         }
-    }
-
-    public Func0<ChannelHandler> getNullableTail() {
-        return nullableTail;
     }
 
     public ChannelInitializer<Channel> getChannelInitializer() {
@@ -89,7 +86,7 @@ public class DetachedChannelPipeline {
         return copy(nullableTail);
     }
 
-    public DetachedChannelPipeline copy(Func0<ChannelHandler> newTail) {
+    public DetachedChannelPipeline copy(Action1<ChannelPipeline> newTail) {
         return new DetachedChannelPipeline(this, newTail);
     }
 
@@ -247,7 +244,7 @@ public class DetachedChannelPipeline {
         }
 
         if (null != nullableTail) {
-            pipeline.addLast(nullableTail.call()); // This is the last handler to be added to the pipeline always.
+            nullableTail.call(pipeline); // This is the last handler to be added to the pipeline always.
         }
 
         if (logger.isDebugEnabled()) {

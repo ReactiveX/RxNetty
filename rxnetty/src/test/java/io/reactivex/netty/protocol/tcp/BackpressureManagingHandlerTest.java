@@ -18,7 +18,11 @@ package io.reactivex.netty.protocol.tcp;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.reactivex.netty.channel.PrimitiveConversionHandler;
+import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.BytesWriteInterceptor;
 import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.RequestReadIfRequiredEvent;
 import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.State;
 import io.reactivex.netty.test.util.InboundRequestFeeder;
@@ -28,6 +32,7 @@ import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.mockito.Mockito;
+import rx.Observable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -136,7 +141,7 @@ public class BackpressureManagingHandlerTest {
         /*Since, the demand was met (requested 2 and got 2) , but the supply was more (3), we should be buffering.*/
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
         assertThat("Unexpected buffer size.", handlerRule.handler.getBuffer(), hasSize(1));
-        assertThat("Unexpected buffer contents.", handlerRule.handler.getBuffer(), contains((Object)msg3));
+        assertThat("Unexpected buffer contents.", handlerRule.handler.getBuffer(), contains((Object) msg3));
         assertThat("Unexpected buffer read index.", handlerRule.handler.getCurrentBufferIndex(), is(0));
     }
 
@@ -320,6 +325,25 @@ public class BackpressureManagingHandlerTest {
         assertThat("Message not released when stopped.", msg.refCnt(), is(0));
     }
 
+    @Test
+    public void testWriteWithBufferingHandler() throws Exception {
+        BufferingHandler bufferingHandler = new BufferingHandler();
+        handlerRule.channel.pipeline()
+                           .addBefore(BytesWriteInterceptor.WRITE_INSPECTOR_HANDLER_NAME, "buffering-handler",
+                                      bufferingHandler);
+
+        final String[] dataToWrite = {"Hello1", "Hello2"};
+
+        handlerRule.channel.writeAndFlush(Observable.from(dataToWrite));/*Using Observable.from() to enable backpressure.*/
+
+        assertThat("Messages written to the channel, inspite of buffering", handlerRule.channel.outboundMessages(),
+                   is(empty()));
+
+        /*Inspite of the messages, not reaching the channel, the extra demand should be generated and the buffering
+        handler should contain all messages.*/
+        assertThat("Unexpected buffer size in buffering handler.", bufferingHandler.buffer, hasSize(2));
+    }
+
     public static class HandlerRule extends ExternalResource {
 
         private MockBackpressureManagingHandler handler;
@@ -331,9 +355,13 @@ public class BackpressureManagingHandlerTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    handler = new MockBackpressureManagingHandler();
                     inboundRequestFeeder = new InboundRequestFeeder();
-                    channel = new EmbeddedChannel(inboundRequestFeeder, handler);
+                    channel = new EmbeddedChannel();
+                    String bpName = "backpressure-manager";
+                    channel.pipeline().addFirst(bpName,
+                                                handler = new MockBackpressureManagingHandler(bpName));
+                    channel.pipeline().addBefore(bpName, "primitive-converter", PrimitiveConversionHandler.INSTANCE);
+                    channel.pipeline().addFirst(inboundRequestFeeder);
                     channel.config().setAutoRead(false);
                     base.evaluate();
                 }
@@ -380,6 +408,10 @@ public class BackpressureManagingHandlerTest {
         private final List<Object> msgsReceived = new ArrayList<>();
         private final AtomicLong requested = new AtomicLong();
 
+        protected MockBackpressureManagingHandler(String thisHandlerName) {
+            super(thisHandlerName);
+        }
+
         @Override
         protected void newMessage(ChannelHandlerContext ctx, Object msg) {
             requested.decrementAndGet();
@@ -405,4 +437,13 @@ public class BackpressureManagingHandlerTest {
         }
     }
 
+    private static class BufferingHandler extends ChannelOutboundHandlerAdapter {
+
+        private final List<Object> buffer = new ArrayList<>();
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            buffer.add(msg);
+        }
+    }
 }

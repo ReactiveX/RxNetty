@@ -135,7 +135,7 @@ public class BytesWriteInterceptorTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    interceptor = new BytesWriteInterceptor();
+                    interceptor = new BytesWriteInterceptor("foo");
                     channel = new EmbeddedChannel(PrimitiveConversionHandler.INSTANCE, interceptor);
                     base.evaluate();
                 }

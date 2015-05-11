@@ -21,6 +21,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -368,23 +369,6 @@ public abstract class HttpClientResponse<T> {
     public abstract Observable<Void> discardContent();
 
     public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append(getHttpVersion().text())
-               .append(' ')
-               .append(getStatus().code())
-               .append(' ')
-               .append(getStatus().reasonPhrase())
-               .append('\n');
-
-        Iterator<Entry<String, String>> headers = headerIterator();
-        while (headers.hasNext()) {
-            Entry<String, String> next = headers.next();
-            builder.append(next.getKey())
-                   .append(": ")
-                   .append(next.getValue());
-        }
-        builder.append('\n');
-
-        return builder.toString();
+        return HttpMessageFormatter.formatResponse(getHttpVersion(), getStatus(), headerIterator());
     }
 }

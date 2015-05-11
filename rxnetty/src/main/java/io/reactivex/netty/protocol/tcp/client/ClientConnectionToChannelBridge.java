@@ -19,6 +19,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
@@ -58,17 +59,19 @@ import java.net.SocketAddress;
 public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToChannelBridge<R, W> {
 
     private static final Logger logger = LoggerFactory.getLogger(ClientConnectionToChannelBridge.class);
+    private static final String HANDLER_NAME = "client-conn-channel-bridge";
 
     private final boolean isSecure;
 
-    public ClientConnectionToChannelBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject, boolean isSecure) {
-        super(eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+    private ClientConnectionToChannelBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                                            boolean isSecure) {
+        super(HANDLER_NAME, eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
         this.isSecure = isSecure;
     }
 
-    public ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
-                                           MetricEventsSubject<?> eventsSubject, boolean isSecure) {
-        super(connSub, eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+    private ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
+                                            MetricEventsSubject<?> eventsSubject, boolean isSecure) {
+        super(HANDLER_NAME, connSub, eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
         this.isSecure = isSecure;
     }
 
@@ -170,6 +173,23 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         }
     }
 
+
+    public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(ChannelPipeline pipeline,
+                                                                             MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                                                                             boolean isSecure) {
+        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(eventsSubject, isSecure);
+        pipeline.addLast(HANDLER_NAME, toAdd);
+        return toAdd;
+    }
+
+    /*visible for testing*/static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(Subscriber<? super Connection<R, W>> sub,
+                                                                             ChannelPipeline pipeline,
+                                                                             MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                                                                             boolean isSecure) {
+        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(sub, eventsSubject, isSecure);
+        pipeline.addLast(HANDLER_NAME, toAdd);
+        return toAdd;
+    }
 
     /**
      * An event to communicate the subscriber of a new connection created by {@link AbstractConnectionToChannelBridge}.

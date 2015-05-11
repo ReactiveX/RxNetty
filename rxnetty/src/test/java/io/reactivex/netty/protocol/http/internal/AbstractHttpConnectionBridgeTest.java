@@ -560,8 +560,13 @@ public class AbstractHttpConnectionBridgeTest {
         }
 
         @Override
-        protected boolean isHeaderMessage(Object nextItem) {
+        protected boolean isInboundHeader(Object nextItem) {
             return headerMsgClass.isAssignableFrom(nextItem.getClass());
+        }
+
+        @Override
+        protected boolean isOutboundHeader(Object nextItem) {
+            return false;
         }
 
         @Override

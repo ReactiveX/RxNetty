@@ -19,6 +19,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.ReferenceCountUtil;
@@ -51,7 +52,11 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
     private int currentBufferIndex;
     private State currentState = State.Buffering; /*Buffer unless explicitly asked to read*/
     private boolean continueDraining;
-    private final BytesWriteInterceptor bytesWriteInterceptor = new BytesWriteInterceptor();
+    private final BytesWriteInterceptor bytesWriteInterceptor;
+
+    protected BackpressureManagingHandler(String thisHandlerName) {
+        bytesWriteInterceptor = new BytesWriteInterceptor(thisHandlerName);
+    }
 
     @SuppressWarnings("fallthrough")
     @Override
@@ -90,7 +95,8 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
     @Override
     public void handlerRemoved(ChannelHandlerContext ctx) throws Exception {
-        ctx.pipeline().remove(bytesWriteInterceptor);
+        /*On shut down, all the handlers are removed from the pipeline, so we don't need to explicitly remove the
+        additional handlers added in handlerAdded()*/
         currentState = State.Stopped;
         if (null != buffer) {
             if (!buffer.isEmpty()) {
@@ -273,6 +279,44 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
     }
 
     /**
+     * This handler inspects write to see if a write made it to {@link BytesWriteInterceptor} inline with a write call.
+     * The reasons why a write would not make it to the channel, would be:
+     * <ul>
+     <li>If there is a handler in the pipeline that runs in a different group.</li>
+     <li>If there is a handler that collects many items to produce a single item.</li>
+     </ul>
+     *
+     * When a write did not reach the {@link BytesWriteInterceptor}, no request for more items will be generated and
+     * we could get into a deadlock where a handler is waiting for more items (collect case) but no more items arrive as
+     * no more request is generated. In order to avoid this deadlock, this handler will detect the situation and
+     * trigger more request in this case.
+     *
+     * Why a separate handler?
+     *
+     * This needs to be different than {@link BytesWriteInterceptor} as we need it immediately after
+     * {@link BackpressureManagingHandler} so that no other handler eats a write and {@link BytesWriteInterceptor} is
+     * always the first handler in the pipeline to be right before the channel and hence maintain proper demand.
+     */
+    static final class WriteInspector extends ChannelDuplexHandler {
+
+        private final BytesWriteInterceptor bytesWriteInterceptor;
+
+        WriteInspector(BytesWriteInterceptor bytesWriteInterceptor) {
+            this.bytesWriteInterceptor = bytesWriteInterceptor;
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            /*Both these handlers always run in the same executor, so it's safe to access this variable.*/
+            bytesWriteInterceptor.messageReceived = false; /*reset flag for this write*/
+            ctx.write(msg, promise);
+            if (!bytesWriteInterceptor.messageReceived) {
+                bytesWriteInterceptor.requestMoreIfWritable(ctx.channel());
+            }
+        }
+    }
+
+    /**
      * Regulates write->request more->write process on the channel.
      *
      * Why is this a separate handler?
@@ -286,21 +330,42 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
      */
     /*Visible for testing*/ static final class BytesWriteInterceptor extends ChannelDuplexHandler {
 
+        /*Visible for testing*/ static final String WRITE_INSPECTOR_HANDLER_NAME = "write-inspector";
+
         /*
          * Since, unsubscribes can happen on a different thread, this has to be thread-safe.
          */
         private final ConcurrentLinkedQueue<WriteStreamSubscriber> subscribers = new ConcurrentLinkedQueue<>();
+        private final String parentHandlerName;
+
+        /* This should always be access from the eventloop and can be used to manage state befor and after a write to see
+         * if a write started from {@link WriteInspector} made it to this handler.*/
+        private boolean messageReceived;
+
+        BytesWriteInterceptor(String parentHandlerName) {
+            this.parentHandlerName = parentHandlerName;
+        }
 
         @Override
         public void write(ChannelHandlerContext ctx, final Object msg, ChannelPromise promise) throws Exception {
             ctx.write(msg, promise);
-            requestMoreIfWritable(ctx);
+            messageReceived = true;
+            requestMoreIfWritable(ctx.channel());
+        }
+
+        @Override
+        public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+            WriteInspector writeInspector = new WriteInspector(this);
+            ChannelHandler parent = ctx.pipeline().get(parentHandlerName);
+            if (null != parent) {
+                ctx.pipeline().addBefore(parentHandlerName, WRITE_INSPECTOR_HANDLER_NAME, writeInspector);
+            }
         }
 
         @Override
         public void channelWritabilityChanged(ChannelHandlerContext ctx) throws Exception {
             if (ctx.channel().isWritable()) {
-                requestMoreIfWritable(ctx);
+                requestMoreIfWritable(ctx.channel());
             }
             super.channelWritabilityChanged(ctx);
         }
@@ -321,13 +386,13 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
             return Collections.unmodifiableList(new ArrayList<>(subscribers));
         }
 
-        private void requestMoreIfWritable(ChannelHandlerContext ctx) {
+        private void requestMoreIfWritable(Channel channel) {
             /**
              * Predicting which subscriber is going to give the next item isn't possible, so all subscribers are
              * requested an item. This means that we buffer a max of one item per subscriber.
              */
             for (WriteStreamSubscriber subscriber: subscribers) {
-                if (!subscriber.isUnsubscribed() && ctx.channel().isWritable()) {
+                if (!subscriber.isUnsubscribed() && channel.isWritable()) {
                     subscriber.requestMore(1);
                 }
             }

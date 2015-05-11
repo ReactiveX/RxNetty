@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.streaming;
+package io.reactivex.netty.examples.http.ssl;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractClientExample;
@@ -24,34 +24,34 @@ import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
 import java.nio.charset.Charset;
 
 /**
- * An HTTP streaming example. There are three ways of running this example:
+ * An HTTP "Hello World" example. There are three ways of running this example:
  *
  * <h2>Default</h2>
  *
- * The default way is to just run this class with no arguments, which will start a server ({@link StreamingServer}) on
+ * The default way is to just run this class with no arguments, which will start a server ({@link SecureHelloWorldServer}) on
  * an ephemeral port and then send an HTTP request to that server and print the response.
  *
- * <h2>After starting {@link StreamingServer}</h2>
+ * <h2>After starting {@link SecureHelloWorldServer}</h2>
  *
- * If you want to see how {@link StreamingServer} work, you can run {@link StreamingServer} by yourself and then pass
+ * If you want to see how {@link SecureHelloWorldServer} work, you can run {@link SecureHelloWorldServer} by yourself and then pass
  * the port on which the server started to this class as a program argument:
  *
  <PRE>
- java io.reactivex.netty.examples.http.streaming.StreamingClient [server port]
+    java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
  </PRE>
  *
  * <h2>Existing HTTP server</h2>
  *
- * You can also use this client to send a GET request "/stream" to an existing HTTP server (different than
- * {@link StreamingServer}) by passing the port fo the existing server similar to the case above:
+ * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
+ * {@link SecureHelloWorldServer}) by passing the port fo the existing server similar to the case above:
  *
  <PRE>
- java io.reactivex.netty.examples.http.streaming.StreamingClient [server port]
+ java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
  </PRE>
  *
  * In all the above usages, this client will print the response received from the server.
  */
-public class StreamingClient extends AbstractClientExample {
+public class SecureHelloWorldClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
@@ -63,19 +63,18 @@ public class StreamingClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that port.</li>
          </ul>
          */
-        int port = getServerPort(StreamingServer.class, args);
+        int port = getServerPort(SecureHelloWorldServer.class, args);
 
         HttpClient.newClient("localhost", port) /*Create a client*/
-                  .createGet("/stream") /*Creates a GET request with URI "/hello"*/
+                  .unsafeSecure()/*To be used only for testing, use secure() overloads to configure proper security.*/
+                  .createGet("/hello") /*Creates a GET request with URI "/hello"*/
                   .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
                   .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/
                                      /*Now use the content stream.*/
-                                     resp.getContent()
-                                         /*Convert ByteBuf to string for each content*/
-                                         .map(bb -> bb.toString(Charset.defaultCharset()))
+                                   resp.getContent()
+                                     /*Convert ByteBuf to string for each content*/
+                                       .map(bb -> bb.toString(Charset.defaultCharset()))
                   )
-                  /*Since, the server sends an infinite stream, take only 10 items*/
-                  .take(10)
                   /*Block till the response comes to avoid JVM exit.*/
                   .toBlocking()
                   /*Print each content chunk*/

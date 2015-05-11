@@ -177,14 +177,14 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
             throw new IllegalStateException("Server already started");
         }
         try {
-            Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
+            Action1<ChannelPipeline> handlerFactory = new Action1<ChannelPipeline>() {
                 @Override
-                public ChannelHandler call() {
-                    return new ServerConnectionToChannelBridge<>(connectionHandler, state.getEventsSubject(),
-                                                                 state.isSecure());
+                public void call(ChannelPipeline pipeline) {
+                    ServerConnectionToChannelBridge.addToPipeline(pipeline, connectionHandler, state.getEventsSubject(),
+                                                                  state.isSecure());
                 }
             };
-            final ServerState<R, W> newState = state.addChannelHandlerLast("conn_channel_bridge", handlerFactory);
+            final ServerState<R, W> newState = state.pipelineConfigurator(handlerFactory);
             bindFuture = newState.getBootstrap().bind(newState.getServerPort()).sync();
             if (!bindFuture.isSuccess()) {
                 throw new RuntimeException(bindFuture.cause());

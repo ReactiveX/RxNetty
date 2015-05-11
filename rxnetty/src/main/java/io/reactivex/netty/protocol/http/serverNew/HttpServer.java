@@ -16,19 +16,25 @@
 package io.reactivex.netty.protocol.http.serverNew;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
+import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -208,6 +214,55 @@ public abstract class HttpServer<I, O> implements MetricEventsPublisher<HttpServ
      * @return A new {@link HttpServer} instance.
      */
     public abstract <II, OO> HttpServer<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and using the passed
+     * {@code sslEngineFactory} for all secured connections accepted by the newly created server instance.
+     *
+     * If the {@link SSLEngine} instance can be statically, created, {@link #secure(SSLEngine)} can be used.
+     *
+     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created server
+     *                                                 instance.
+     *
+     * @return A new {@link HttpServer} instance.
+     */
+    public abstract HttpServer<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory);
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and using the passed
+     * {@code sslEngine} for all secured connections accepted by the newly created server instance.
+     *
+     * If the {@link SSLEngine} instance can not be statically, created, {@link #secure(Func1)} )} can be used.
+     *
+     * @param sslEngine {@link SSLEngine} for all secured connections created by the newly created server instance.
+     *
+     * @return A new {@link HttpServer} instance.
+     */
+    public abstract HttpServer<I, O> secure(SSLEngine sslEngine);
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and using the passed
+     * {@code sslCodec} for all secured connections accepted by the newly created server instance.
+     *
+     * This is required only when the {@link SslHandler} used by {@link SslCodec} is to be modified before adding to
+     * the {@link ChannelPipeline}. For most of the cases, {@link #secure(Func1)} or {@link #secure(SSLEngine)} will be
+     * enough.
+     *
+     * @param sslCodec {@link SslCodec} for all secured connections created by the newly created server instance.
+     *
+     * @return A new {@link HttpServer} instance.
+     */
+    public abstract HttpServer<I, O> secure(SslCodec sslCodec);
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and using a self-signed
+     * certificate for all secured connections accepted by the newly created server instance.
+     *
+     * <b>This is only for testing and should not be used for real production servers.</b>
+     *
+     * @return A new {@link HttpServer} instance.
+     */
+    public abstract HttpServer<I, O> unsafeSecure();
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the

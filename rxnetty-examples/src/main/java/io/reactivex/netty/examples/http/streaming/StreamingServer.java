@@ -17,52 +17,42 @@
 package io.reactivex.netty.examples.http.streaming;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.serverNew.HttpServer;
 import rx.Observable;
 
-import java.nio.charset.Charset;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.TimeUnit;
 
-public final class StreamingServer {
-
-    static final int DEFAULT_PORT = 8010;
-
-    private final int port;
-
-    public StreamingServer(int port) {
-        this.port = port;
-    }
-
-    public HttpServer<ByteBuf, ByteBuf> startServer() {
-        return HttpServer.newServer(port)
-                         .start((req, resp) -> {
-                             System.out.println(req);
-                             final AtomicInteger flushBuckets = new AtomicInteger();
-                             return req.getContent()
-                                       .<Void>map(bb -> {
-                                           System.out.println(bb.toString(Charset.defaultCharset()));
-                                           return null;
-                                       })
-                                       .ignoreElements()
-                                       .concatWith(resp.sendHeaders()
-                                                       .write(Observable.range(1, 10000000)
-                                                                        .map(anInt -> {
-                                                                            if (anInt % 1000 == 0) {
-                                                                                System.out.println(
-                                                                                        "Writing item # " + anInt);
-                                                                            }
-                                                                            return Unpooled.buffer()
-                                                                                           .writeBytes(
-                                                                                                   ("Interval: " +
-                                                                                                    anInt + '\n')
-                                                                                                           .getBytes());
-                                                                        }),
-                                                              bb -> flushBuckets.incrementAndGet() % 100 == 0));
-                         });
-    }
+/**
+ * An HTTP server that sends an infinite HTTP chunked response emitting a number every second.
+ */
+public final class StreamingServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
-        new StreamingServer(DEFAULT_PORT).startServer().waitTillShutdown();
+
+        HttpServer<ByteBuf, ByteBuf> server;
+
+        server = HttpServer.newServer(0)
+                           .start((req, resp) ->
+                                      req.discardContent() /*Discard content since we do not read it.*/
+                                         .concatWith(resp.sendHeaders()
+                                                         /*Write the stream of numbers*/
+                                                         .writeStringAndFlushOnEach(Observable.interval(1, TimeUnit.SECONDS)
+                                                                                              /*If the channel is backed up with data, drop the numbers*/
+                                                                                              .onBackpressureDrop()
+                                                                                              /*Convert the number to a string.*/
+                                                                                              .map(aLong -> "Interval =>" + aLong)
+                                                         )
+                                         )
+                           );
+
+        /*Wait for shutdown if not called from another class (passed an arg)*/
+        if (shouldWaitForShutdown(args)) {
+            /*When testing the args are set, to avoid blocking till shutdown*/
+            server.waitTillShutdown();
+        }
+
+        /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
+        serverPort = server.getServerPort();
     }
 }

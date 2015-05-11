@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.http.serverNew;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
@@ -36,6 +37,7 @@ import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +48,9 @@ import rx.Subscription;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.util.concurrent.TimeUnit;
 
 public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
@@ -122,6 +126,26 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
     @Override
     public <II, OO> HttpServer<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         return _copy(HttpServerImpl.<II>castServer(server.pipelineConfigurator(pipelineConfigurator)));
+    }
+
+    @Override
+    public HttpServer<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return _copy(server.secure(sslEngineFactory));
+    }
+
+    @Override
+    public HttpServer<I, O> secure(SSLEngine sslEngine) {
+        return _copy(server.secure(sslEngine));
+    }
+
+    @Override
+    public HttpServer<I, O> secure(SslCodec sslCodec) {
+        return _copy(server.secure(sslCodec));
+    }
+
+    @Override
+    public HttpServer<I, O> unsafeSecure() {
+        return _copy(server.unsafeSecure());
     }
 
     @Override

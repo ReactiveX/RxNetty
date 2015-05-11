@@ -26,8 +26,6 @@ import io.reactivex.netty.protocol.tcp.ConnectionCreationFailedEvent;
 import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
 import rx.functions.Action1;
 
-import javax.net.ssl.SSLException;
-
 import static io.reactivex.netty.codec.HandlerNames.*;
 
 /**
@@ -89,13 +87,6 @@ public abstract class SslCodec implements Action1<ChannelPipeline> {
                 }
             }
             super.userEventTriggered(ctx, evt);
-        }
-
-        @Override
-        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-            if (cause instanceof SSLException) {
-                ctx.pipeline().fireUserEventTriggered(new ConnectionCreationFailedEvent(cause));
-            }
         }
     }
 }
