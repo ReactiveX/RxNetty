@@ -27,6 +27,9 @@ import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
+import rx.Subscriber;
+import rx.functions.Action0;
+import rx.subscriptions.Subscriptions;
 
 public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridge<C> {
 
@@ -104,6 +107,16 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
         eventsSubject.onEvent(HttpClientMetricsEvent.RESPONSE_RECEIVE_COMPLETE,
                               Clock.onEndMillis(receiveStartTimeMillis));
 
+    }
+
+    @Override
+    protected void onNewContentSubscriber(final ConnectionInputSubscriber inputSubscriber, Subscriber<? super C> newSub) {
+        newSub.add(Subscriptions.create(new Action0() {
+            @Override
+            public void call() {
+                inputSubscriber.unsubscribe();
+            }
+        }));
     }
 
     private void onPooledConnectionRelease(ConnectionInputSubscriber connectionInputSubscriber) {

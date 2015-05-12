@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.http.clientNew;
 
 import io.netty.channel.Channel;
+import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -249,6 +250,11 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
                 return null;
             }
         }).ignoreElements();
+    }
+
+    @Override
+    DecoderResult decoderResult() {
+        return nettyResponse.decoderResult();
     }
 
     /**

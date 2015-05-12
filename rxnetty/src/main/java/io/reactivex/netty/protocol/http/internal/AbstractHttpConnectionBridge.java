@@ -28,6 +28,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpHeaders.Values;
 import io.netty.handler.codec.http.HttpMessage;
+import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
@@ -115,6 +116,12 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             ConnectionInputSubscriberEvent orig = (ConnectionInputSubscriberEvent) evt;
             /*Local copy to refer from the channel close listener. As the instance level copy can change*/
             final ConnectionInputSubscriber _connectionInputSubscriber = new ConnectionInputSubscriber(orig);
+            _connectionInputSubscriber.add(Subscriptions.create(new Action0() {
+                @Override
+                public void call() {
+                    System.out.println("AbstractHttpConnectionBridge.call");
+                }
+            }));
             connectionInputSubscriber = _connectionInputSubscriber;
             ctx.channel().closeFuture().addListener(new ChannelFutureListener() {
                 @Override
@@ -162,6 +169,10 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
     protected abstract void onContentReceiveComplete(long receiveStartTimeMillis);
 
+    protected void onNewContentSubscriber(ConnectionInputSubscriber inputSubscriber, Subscriber<? super C> newSub) {
+        // No Op.
+    }
+
     private void processNextItemInEventloop(Object nextItem, ConnectionInputSubscriber connectionInputSubscriber) {
         final State state = connectionInputSubscriber.state;
         final Channel channel = connectionInputSubscriber.channel;
@@ -172,6 +183,13 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             connectionInputSubscriber.nextHeader(newHttpObject);
             /*Why not complete the header sub? It may be listening to multiple responses (pipelining)*/
             checkEagerSubscriptionIfConfigured(channel, state);
+
+            final HttpObject httpObject = (HttpObject) nextItem;
+            if (httpObject.decoderResult().isFailure()) {
+                connectionInputSubscriber.onError(httpObject.decoderResult().cause());
+                channel.close();// Netty rejects all data after decode failure, so closing connection
+                                // Issue: https://github.com/netty/netty/issues/3362
+            }
         }
 
         if (nextItem instanceof HttpContent) {
@@ -220,6 +238,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 newSub.onError(state.raiseErrorOnInputSubscription);
             } else if (null == state.contentSub) {
                 inputSubscriber.setupContentSubscriber(newSub);
+                onNewContentSubscriber(inputSubscriber, newSub);
             } else {
                 if (!newSub.isUnsubscribed()) {
                     newSub.onError(ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED);
@@ -524,12 +543,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             assert channel.eventLoop().inEventLoop();
 
             state.contentSub = newSub;
-            state.contentSub.add(Subscriptions.create(new Action0() {
-                @Override
-                public void call() {
-                    unsubscribe(); /*TODO: How to handle this with trailers*/
-                }
-            }));
             state.contentSub.setProducer(producer); /*Content demand matches upstream demand*/
         }
 

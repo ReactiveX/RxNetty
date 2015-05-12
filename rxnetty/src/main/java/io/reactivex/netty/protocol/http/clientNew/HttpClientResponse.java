@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.protocol.http.clientNew;
 
+import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
@@ -367,6 +368,13 @@ public abstract class HttpClientResponse<T> {
      * error/complete when the content errors/completes and unsubscription from here will unsubscribe from the content.
      */
     public abstract Observable<Void> discardContent();
+
+    /**
+     * Package private method to get the decoder result from netty.
+     *
+     * @return Decoder result.
+     */
+    abstract DecoderResult decoderResult();
 
     public String toString() {
         return HttpMessageFormatter.formatResponse(getHttpVersion(), getStatus(), headerIterator());

@@ -22,10 +22,11 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
@@ -52,6 +53,8 @@ import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
 import java.util.concurrent.TimeUnit;
+
+import static io.netty.handler.codec.http.HttpResponseStatus.*;
 
 public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
@@ -252,8 +255,23 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     public void onNext(HttpServerRequest<I> request) {
                         final long startTimeMillis = Clock.newStartTimeMillis();
                         eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
-                        HttpResponse responseHeaders = new DefaultHttpResponse(HttpVersion.HTTP_1_1,
-                                                                               HttpResponseStatus.OK);
+
+                        HttpResponse responseHeaders;
+                        boolean invalidRequest = false;
+                        if (request.decoderResult().isFailure()) {
+                            // As per the spec, we should send 414/431 for URI too long and headers too long, but we do not have
+                            // enough info to decide which kind of failure has caused this error here.
+                            responseHeaders = new DefaultFullHttpResponse(request.getHttpVersion(),
+                                                                          REQUEST_HEADER_FIELDS_TOO_LARGE);
+                            responseHeaders.headers()
+                                           .set(Names.CONNECTION, HttpHeaders.Values.CLOSE)
+                                           .set(Names.CONTENT_LENGTH, 0);
+                            invalidRequest = true;
+                        } else {
+                            responseHeaders = new DefaultHttpResponse(HttpVersion.HTTP_1_1, OK);
+                        }
+
+
                         final HttpServerResponse<O> response = new HttpServerResponseImpl<O>(newConnection,
                                                                                              responseHeaders);
                         if (request.isKeepAlive()) {
@@ -269,14 +287,19 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                         } else {
                             response.setHeader(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
                         }
+
                         Observable<Void> requestHandlingResult;
 
                         try {
                             eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
                                                   Clock.onEndMillis(startTimeMillis));
-                            requestHandlingResult = requestHandler.handle(request, response);
-                            if (null == requestHandlingResult) {
-                                requestHandlingResult = Observable.empty();
+                            if (!invalidRequest) {
+                                requestHandlingResult = requestHandler.handle(request, response);
+                                if (null == requestHandlingResult) {
+                                    requestHandlingResult = Observable.empty();
+                                }
+                            } else {
+                                requestHandlingResult = response.sendHeaders();
                             }
                         } catch (Throwable throwable) {
                             requestHandlingResult = Observable.error(throwable);

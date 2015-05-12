@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.http.serverNew;
 
 import io.netty.channel.Channel;
+import io.netty.handler.codec.DecoderResult;
 import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
@@ -266,5 +267,10 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
                 return null;
             }
         }).ignoreElements();
+    }
+
+    @Override
+    DecoderResult decoderResult() {
+        return nettyRequest.decoderResult();
     }
 }

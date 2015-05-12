@@ -31,7 +31,7 @@ public final class HelloWorldServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(8088)
+        server = HttpServer.newServer(8888)
                            .start((req, resp) ->
                                           req.discardContent() /*Discard content since we do not read it.*/
                                              .concatWith(resp.sendHeaders()
