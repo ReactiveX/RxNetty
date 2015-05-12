@@ -253,74 +253,15 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     @SuppressWarnings("unchecked")
                     @Override
                     public void onNext(HttpServerRequest<I> request) {
+
                         final long startTimeMillis = Clock.newStartTimeMillis();
+
                         eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
 
-                        HttpResponse responseHeaders;
-                        boolean invalidRequest = false;
-                        if (request.decoderResult().isFailure()) {
-                            // As per the spec, we should send 414/431 for URI too long and headers too long, but we do not have
-                            // enough info to decide which kind of failure has caused this error here.
-                            responseHeaders = new DefaultFullHttpResponse(request.getHttpVersion(),
-                                                                          REQUEST_HEADER_FIELDS_TOO_LARGE);
-                            responseHeaders.headers()
-                                           .set(Names.CONNECTION, HttpHeaders.Values.CLOSE)
-                                           .set(Names.CONTENT_LENGTH, 0);
-                            invalidRequest = true;
-                        } else {
-                            responseHeaders = new DefaultHttpResponse(HttpVersion.HTTP_1_1, OK);
-                        }
+                        final HttpServerResponse<O> response = newResponse(request);
 
-
-                        final HttpServerResponse<O> response = new HttpServerResponseImpl<O>(newConnection,
-                                                                                             responseHeaders);
-                        if (request.isKeepAlive()) {
-                            if (!request.getHttpVersion().isKeepAliveDefault()) {
-                                // Avoid sending keep-alive header if keep alive is default.
-                                // Issue: https://github.com/Netflix/RxNetty/issues/167
-                                // This optimizes data transferred on the wire.
-
-                                // Add keep alive header as per:
-                                // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
-                                request.setHeader(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
-                            }
-                        } else {
-                            response.setHeader(HttpHeaders.Names.CONNECTION, HttpHeaders.Values.CLOSE);
-                        }
-
-                        Observable<Void> requestHandlingResult;
-
-                        try {
-                            eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
-                                                  Clock.onEndMillis(startTimeMillis));
-                            if (!invalidRequest) {
-                                requestHandlingResult = requestHandler.handle(request, response);
-                                if (null == requestHandlingResult) {
-                                    requestHandlingResult = Observable.empty();
-                                }
-                            } else {
-                                requestHandlingResult = response.sendHeaders();
-                            }
-                        } catch (Throwable throwable) {
-                            requestHandlingResult = Observable.error(throwable);
-                        }
-
-                        requestHandlingResult = requestHandlingResult.doOnError(new Action1<Throwable>() {
-                            @Override
-                            public void call(Throwable throwable) {
-                                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
-                                                      Clock.onEndMillis(startTimeMillis), throwable);
-                                logger.error("Unexpected error processing a request.", throwable);
-                            }
-                        }).doOnCompleted(new Action0() {
-                            @Override
-                            public void call() {
-                                eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
-                                                      Clock.onEndMillis(startTimeMillis));
-                            }
-                        }).onErrorResumeNext(newConnection.close());
-
-                        final Subscription processingSubscription = requestHandlingResult.subscribe();
+                        final Subscription processingSubscription = handleRequest(request, startTimeMillis,
+                                                                                  response).subscribe();
 
                         newConnection.getNettyChannel()
                                      .closeFuture()
@@ -333,6 +274,76 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     }
                 };
             }
+
+            @SuppressWarnings("unchecked")
+            private Observable<Void> handleRequest(HttpServerRequest<I> request, final long startTimeMillis,
+                                                   HttpServerResponse<O> response) {
+                Observable<Void> requestHandlingResult;
+                try {
+                    eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
+                                          Clock.onEndMillis(startTimeMillis));
+                    if (request.decoderResult().isSuccess()) {
+                        requestHandlingResult = requestHandler.handle(request, response);
+                        if (null == requestHandlingResult) {
+                            requestHandlingResult = Observable.empty();
+                        }
+                    } else {
+                        requestHandlingResult = response.sendHeaders();
+                    }
+                } catch (Throwable throwable) {
+                    requestHandlingResult = Observable.error(throwable);
+                }
+
+                return requestHandlingResult.doOnError(new Action1<Throwable>() {
+                    @Override
+                    public void call(Throwable throwable) {
+                        eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
+                                              Clock.onEndMillis(startTimeMillis), throwable);
+                        logger.error("Unexpected error processing a request.", throwable);
+                    }
+                }).doOnCompleted(new Action0() {
+                    @Override
+                    public void call() {
+                        eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
+                                              Clock.onEndMillis(startTimeMillis));
+                    }
+                }).onErrorResumeNext(newConnection.close());
+            }
+
+            private HttpServerResponse<O> newResponse(HttpServerRequest<I> request) {
+                HttpResponse responseHeaders;
+                if (request.decoderResult().isFailure()) {
+                    // As per the spec, we should send 414/431 for URI too long and headers too long, but we do not have
+                    // enough info to decide which kind of failure has caused this error here.
+                    responseHeaders = new DefaultFullHttpResponse(request.getHttpVersion(),
+                                                                  REQUEST_HEADER_FIELDS_TOO_LARGE);
+                    responseHeaders.headers()
+                                   .set(Names.CONNECTION, HttpHeaders.Values.CLOSE)
+                                   .set(Names.CONTENT_LENGTH, 0);
+                } else {
+                    responseHeaders = new DefaultHttpResponse(HttpVersion.HTTP_1_1, OK);
+                }
+                HttpServerResponseImpl<O> response = new HttpServerResponseImpl<>(newConnection, responseHeaders);
+                setConnectionHeader(request, response);
+                return response;
+            }
+
+            private void setConnectionHeader(HttpServerRequest<I> request, HttpServerResponse<O> response) {
+                if (request.isKeepAlive()) {
+                    if (!request.getHttpVersion().isKeepAliveDefault()) {
+                        // Avoid sending keep-alive header if keep alive is default.
+                        // Issue: https://github.com/Netflix/RxNetty/issues/167
+                        // This optimizes data transferred on the wire.
+
+                        // Add keep alive header as per:
+                        // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
+                        request.setHeader(Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                    }
+                } else {
+                    response.setHeader(Names.CONNECTION, HttpHeaders.Values.CLOSE);
+                }
+            }
+
         }
     }
 }

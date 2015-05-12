@@ -22,15 +22,65 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
+import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.server.ServerMetricsEvent;
+import rx.functions.Action0;
+import rx.subscriptions.Subscriptions;
+
+import java.util.ArrayDeque;
+import java.util.Queue;
 
 public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridge<C> {
 
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
+    private volatile boolean activeContentSubscriberExists;
+
+    private final Object contentSubGuard = new Object();
+    private Queue<HttpContentSubscriberEvent<?>> pendingContentSubs; /*Guarded by contentSubGuard*/
+
     public HttpServerToConnectionBridge(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
+    }
+
+    @Override
+    public void userEventTriggered(final ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof HttpContentSubscriberEvent) {
+
+            final HttpContentSubscriberEvent<?> subscriberEvent = (HttpContentSubscriberEvent<?>) evt;
+            subscriberEvent.getSubscriber().add(Subscriptions.create(new Action0() {
+                @Override
+                public void call() {
+                    HttpContentSubscriberEvent<?> nextSub = null;
+                    synchronized (contentSubGuard) {
+                        if (null != pendingContentSubs) {
+                            nextSub = pendingContentSubs.poll();
+                        }
+                    }
+
+                    activeContentSubscriberExists = null != nextSub;
+                    if (null != nextSub) {
+                        ctx.fireUserEventTriggered(nextSub);
+                    }
+                }
+            }));
+
+            if (activeContentSubscriberExists) {
+                synchronized (contentSubGuard) {
+                    if (null == pendingContentSubs) {
+                        pendingContentSubs = new ArrayDeque<>(); /*Guarded by contentSubGuard*/
+                    }
+                    pendingContentSubs.add(subscriberEvent);
+                }
+                return;
+            }
+
+            activeContentSubscriberExists = true;
+        }
+
+        // TODO: Handle trailers
+        super.userEventTriggered(ctx, evt);
     }
 
     @Override
@@ -53,7 +103,6 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
     protected void onContentReceived() {
         eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_CONTENT_RECEIVED);
     }
-
 
     @Override
     protected void onContentReceiveComplete(long receiveStartTimeMillis) {

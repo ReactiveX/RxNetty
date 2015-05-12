@@ -32,6 +32,7 @@ import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
@@ -115,13 +116,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             @SuppressWarnings({"unchecked", "rawtypes"})
             ConnectionInputSubscriberEvent orig = (ConnectionInputSubscriberEvent) evt;
             /*Local copy to refer from the channel close listener. As the instance level copy can change*/
-            final ConnectionInputSubscriber _connectionInputSubscriber = new ConnectionInputSubscriber(orig);
-            _connectionInputSubscriber.add(Subscriptions.create(new Action0() {
-                @Override
-                public void call() {
-                    System.out.println("AbstractHttpConnectionBridge.call");
-                }
-            }));
+            final ConnectionInputSubscriber _connectionInputSubscriber =
+                    new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection());
+
             connectionInputSubscriber = _connectionInputSubscriber;
             ctx.channel().closeFuture().addListener(new ChannelFutureListener() {
                 @Override
@@ -198,7 +195,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             if (nextItem instanceof LastHttpContent) {
                 state.contentComplete();
                 /*
-                 * Since, LastHttpContent is always received, event if the pipeline does not emit ByteBuf, if
+                 * Since, LastHttpContent is always received, even if the pipeline does not emit ByteBuf, if
                  * ByteBuf with the LastHttpContent is empty, only trailing headers are emitted. Otherwise,
                  * the content type should be a ByteBuf.
                  */
@@ -234,15 +231,17 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             newSub.onError(new IllegalStateException("Received an HTTP Content subscriber without HTTP message."));
         } else {
             final State state = inputSubscriber.state;
-            if (state.raiseErrorOnInputSubscription()) {
-                newSub.onError(state.raiseErrorOnInputSubscription);
-            } else if (null == state.contentSub) {
-                inputSubscriber.setupContentSubscriber(newSub);
-                onNewContentSubscriber(inputSubscriber, newSub);
-            } else {
+
+            if (isValidToEmit(state.contentSub)) {
+                /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
                 if (!newSub.isUnsubscribed()) {
                     newSub.onError(ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED);
                 }
+            } else if (state.raiseErrorOnInputSubscription()) {
+                newSub.onError(state.raiseErrorOnInputSubscription);
+            } else {
+                inputSubscriber.setupContentSubscriber(newSub);
+                onNewContentSubscriber(inputSubscriber, newSub);
             }
         }
     }
@@ -431,9 +430,10 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         private final State state;
         private Producer producer;
 
-        public ConnectionInputSubscriber(@SuppressWarnings("rawtypes") ConnectionInputSubscriberEvent evt) {
+        @SuppressWarnings("rawtypes")
+        public ConnectionInputSubscriber(Subscriber subscriber, Connection connection) {
             state = new State();
-            state.headerSub = evt.getSubscriber();
+            state.headerSub = subscriber;
             state.headerSub.add(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {
@@ -442,7 +442,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                     }
                 }
             }));
-            channel = evt.getConnection().getNettyChannel();
+            channel = connection.getNettyChannel();
         }
 
         @Override
