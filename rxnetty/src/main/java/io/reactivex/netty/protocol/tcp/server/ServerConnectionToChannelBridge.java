@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Subscriber;
 import rx.Subscription;
-import rx.functions.Action1;
-import rx.functions.Actions;
 
 import java.nio.channels.ClosedChannelException;
 
@@ -120,7 +118,7 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 public void onCompleted() {
                     eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_SUCCESS,
                                           Clock.onEndMillis(startTimeMillis));
-                    closeConnectionNow();
+                    connection.closeNow();
                 }
 
                 @Override
@@ -132,22 +130,12 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                         exception on connection close from client. No point in logging that error.*/
                         logger.error("Error processing connection.", e);
                     }
-                    closeConnectionNow();
+                    connection.closeNow();
                 }
 
                 @Override
                 public void onNext(Void aVoid) {
                     // No Op.
-                }
-
-                private void closeConnectionNow() {
-                    connection.close()
-                              .subscribe(Actions.empty(), new Action1<Throwable>() {
-                                  @Override
-                                  public void call(Throwable throwable) {
-                                      logger.error("Error closing connection.", throwable);
-                                  }
-                              });
                 }
             });
 

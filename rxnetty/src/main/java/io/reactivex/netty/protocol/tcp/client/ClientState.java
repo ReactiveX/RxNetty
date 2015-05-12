@@ -33,7 +33,6 @@ import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.PrimitiveConversionHandler;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
 import io.reactivex.netty.client.ServerPool;
@@ -54,8 +53,8 @@ import java.net.SocketAddress;
 import java.util.EnumMap;
 import java.util.concurrent.TimeUnit;
 
-import static io.reactivex.netty.client.PoolConfig.*;
 import static io.reactivex.netty.codec.HandlerNames.*;
+import static io.reactivex.netty.protocol.tcp.client.PoolConfig.*;
 
 /**
  * A collection of state that {@link TcpClient} holds. This supports the copy-on-write semantics of {@link TcpClient}
@@ -253,7 +252,7 @@ public class ClientState<W, R> {
             newPoolConfig = new PoolConfig<W, R>(maxIdleTimeMillis,
                                                  Observable.timer(maxIdleTimeMillis, TimeUnit.MILLISECONDS),
                                                  new MaxConnectionsBasedStrategy(maxConnections),
-                                                 newDefaultIdleConnectionsHolder(null));
+                                                 newDefaultIdleConnectionsHolder());
         }
         final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
         copyOrCreatePooledConnectionFactory(toReturn);
@@ -268,7 +267,7 @@ public class ClientState<W, R> {
             newPoolConfig = new PoolConfig<W, R>(maxIdleTimeoutMillis,
                                                  Observable.timer(maxIdleTimeoutMillis, TimeUnit.MILLISECONDS),
                                                  new MaxConnectionsBasedStrategy(),
-                                                 newDefaultIdleConnectionsHolder(null));
+                                                 newDefaultIdleConnectionsHolder());
         }
         final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
         copyOrCreatePooledConnectionFactory(toReturn);
@@ -283,7 +282,7 @@ public class ClientState<W, R> {
             long maxIdleTimeMillis = DEFAULT_MAX_IDLE_TIME_MILLIS;
             newPoolConfig = new PoolConfig<W, R>(maxIdleTimeMillis,
                                                  Observable.timer(maxIdleTimeMillis, TimeUnit.MILLISECONDS), strategy,
-                                                 newDefaultIdleConnectionsHolder(null));
+                                                 newDefaultIdleConnectionsHolder());
         }
         final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
         copyOrCreatePooledConnectionFactory(toReturn);
@@ -297,7 +296,7 @@ public class ClientState<W, R> {
         } else {
             newPoolConfig = new PoolConfig<W, R>(DEFAULT_MAX_IDLE_TIME_MILLIS, idleConnectionCleanupTimer,
                                                  new MaxConnectionsBasedStrategy(),
-                                                 newDefaultIdleConnectionsHolder(null));
+                                                 newDefaultIdleConnectionsHolder());
         }
         final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
         copyOrCreatePooledConnectionFactory(toReturn);
@@ -409,13 +408,14 @@ public class ClientState<W, R> {
         return detachedPipeline;
     }
 
-    private IdleConnectionsHolder<W, R> newDefaultIdleConnectionsHolder(final IdleConnectionsHolder<W, R> template) {
+    private IdleConnectionsHolder<W, R> newDefaultIdleConnectionsHolder() {
+        final FIFOIdleConnectionsHolder<W, R> holder = new FIFOIdleConnectionsHolder<>();
+
         if (clientBootstrap.group() instanceof PreferCurrentEventLoopGroup) {
             PreferCurrentEventLoopGroup pGroup = (PreferCurrentEventLoopGroup) clientBootstrap.group();
-            return new PreferCurrentEventLoopHolder<W, R>(pGroup,
-                                                          new IdleConnectionsHolderFactoryImpl<>(template));
+            return new PreferCurrentEventLoopHolder<W, R>(pGroup, new IdleConnectionsHolderFactoryImpl<>(holder));
         } else {
-            return new FIFOIdleConnectionsHolder<>();
+            return holder;
         }
     }
 

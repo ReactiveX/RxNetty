@@ -31,7 +31,6 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;

@@ -258,4 +258,10 @@ public interface ChannelOperations<W> {
      * @return {@link Observable} representing the result of close and flush.
      */
     Observable<Void> close(boolean flush);
+
+    /**
+     * Closes the connection immediately. Same as calling {@link #close()} and subscribing to the returned
+     * {@code Observable}
+     */
+    void closeNow();
 }

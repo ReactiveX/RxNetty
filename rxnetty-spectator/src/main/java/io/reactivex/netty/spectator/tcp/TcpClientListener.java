@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,9 +24,7 @@ import io.reactivex.netty.metrics.ClientMetricEventsListener;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.newCounter;
-import static io.reactivex.netty.spectator.SpectatorUtils.newGauge;
-import static io.reactivex.netty.spectator.SpectatorUtils.newTimer;
+import static io.reactivex.netty.spectator.SpectatorUtils.*;
 
 /**
  * TcpClientListener
@@ -159,7 +157,7 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
     }
 
     @Override
-    protected void onPooledConnectionReuse(long duration, TimeUnit timeUnit) {
+    protected void onPooledConnectionReuse() {
         poolReuse.increment();
     }
 

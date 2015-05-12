@@ -33,7 +33,6 @@ import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
-import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
@@ -58,7 +57,7 @@ import java.util.concurrent.TimeUnit;
  * @param <I> The type of the content of request.
  * @param <O> The type of the content of response.
  */
-public abstract class HttpClient<I, O> implements MetricEventsPublisher<HttpClientMetricsEvent<?>> {
+public abstract class HttpClient<I, O> implements MetricEventsPublisher<ClientMetricsEvent<?>> {
 
     public static final String HTTP_CLIENT_NO_NAME = "TcpClient-no-name";
 

@@ -123,7 +123,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
             @SuppressWarnings("unchecked")
             ConnectionInputSubscriberEvent<R, W> event = (ConnectionInputSubscriberEvent<R, W>) evt;
 
-            newConnectionInputSubscriber(ctx.channel(), event.getSubscriber());
+            newConnectionInputSubscriber(ctx.channel(), event.getSubscriber(), event.getConnection());
         } else if (evt instanceof ConnectionInputSubscriberResetEvent) {
             resetConnectionInputSubscriber();
         }
@@ -174,7 +174,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         return null != readProducer && !readProducer.subscriber.isUnsubscribed();
     }
 
-    protected void onNewReadSubscriber(Channel channel, Subscriber<? super R> subscriber) {
+    protected void onNewReadSubscriber(Connection<R, W> connection, Subscriber<? super R> subscriber) {
         // NOOP
     }
 
@@ -220,7 +220,8 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         readProducer = null; // A subsequent event should set it to the desired subscriber.
     }
 
-    private void newConnectionInputSubscriber(final Channel channel, final Subscriber<? super R> subscriber) {
+    private void newConnectionInputSubscriber(final Channel channel, final Subscriber<? super R> subscriber,
+                                              final Connection<R, W> connection) {
         final Subscriber<? super R> connInputSub = null == readProducer? null : readProducer.subscriber;
         if (isValidToEmit(connInputSub)) {
             /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
@@ -230,7 +231,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         } else {
             final ReadProducer<R> producer = new ReadProducer<>(subscriber, channel);
             subscriber.setProducer(producer);
-            onNewReadSubscriber(channel, subscriber);
+            onNewReadSubscriber(connection, subscriber);
             readProducer = producer;
         }
     }

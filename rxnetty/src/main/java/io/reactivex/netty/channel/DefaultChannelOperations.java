@@ -21,10 +21,14 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Action0;
+import rx.functions.Action1;
+import rx.functions.Actions;
 import rx.functions.Func1;
 import rx.subscriptions.Subscriptions;
 
@@ -38,6 +42,8 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * @author Nitesh Kant
  */
 public class DefaultChannelOperations<W> implements ChannelOperations<W> {
+
+    private static final Logger logger = LoggerFactory.getLogger(DefaultChannelOperations.class);
 
     /** Field updater for closeIssued. */
     @SuppressWarnings("rawtypes")
@@ -148,6 +154,16 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
     @Override
     public Observable<Void> close(boolean flush) {
         return flush ? flushAndCloseObservable : closeObservable;
+    }
+
+    @Override
+    public void closeNow() {
+        close().subscribe(Actions.empty(), new Action1<Throwable>() {
+            @Override
+            public void call(Throwable throwable) {
+                logger.error("Error closing connection.", throwable);
+            }
+        });
     }
 
     private <X> Observable<Void> _write(final Observable<X> msgs, Func1<X, Boolean> flushSelector) {

@@ -22,7 +22,6 @@ import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.PooledConnection.Owner;

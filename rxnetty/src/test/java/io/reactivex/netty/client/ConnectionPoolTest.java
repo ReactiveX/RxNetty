@@ -30,6 +30,7 @@ import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
+import io.reactivex.netty.protocol.tcp.client.PoolConfig;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Assert;

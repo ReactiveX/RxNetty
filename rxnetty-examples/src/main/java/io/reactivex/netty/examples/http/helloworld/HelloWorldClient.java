@@ -63,9 +63,9 @@ public class HelloWorldClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that port.</li>
          </ul>
          */
-        int port = getServerPort(HelloWorldServer.class, args);
+        int port = 8088;
 
-        HttpClient.newClient("localhost", port) /*Create a client*/
+        HttpClient.newClient("localhost", port) /*Create a client*/.noConnectionPooling()
                   .createGet("/hello") /*Creates a GET request with URI "/hello"*/
                   .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
                   .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/

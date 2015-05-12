@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.client;
+package io.reactivex.netty.protocol.tcp.client;
 
-import io.reactivex.netty.protocol.tcp.client.IdleConnectionsHolder;
+import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import rx.Observable;
 
 import java.util.concurrent.TimeUnit;

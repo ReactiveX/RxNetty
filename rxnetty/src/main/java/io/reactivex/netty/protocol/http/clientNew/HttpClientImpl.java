@@ -28,7 +28,6 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
@@ -230,7 +229,7 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
-    public Subscription subscribe(MetricEventsListener<? extends HttpClientMetricsEvent<?>> listener) {
+    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
         return client.subscribe(listener);
     }
 

@@ -19,13 +19,16 @@ import io.netty.channel.Channel;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Action0;
+import rx.functions.Action1;
+import rx.functions.Actions;
 import rx.functions.Func1;
 
 import static io.reactivex.netty.protocol.http.client.ClientRequestResponseConverter.*;
@@ -42,10 +45,13 @@ import static io.reactivex.netty.protocol.http.client.ClientRequestResponseConve
  */
 public class PooledConnection<R, W> extends Connection<R, W> {
 
+    private static final Logger logger = LoggerFactory.getLogger(PooledConnection.class);
+
     private final Owner<R, W> owner;
     private final Connection<R, W> unpooledDelegate;
 
     private volatile long lastReturnToPoolTimeMillis;
+    private volatile boolean releasedAtLeastOnce;
     private volatile long maxIdleTimeMillis;
     private final Observable<Void> releaseObservable;
 
@@ -76,9 +82,10 @@ public class PooledConnection<R, W> extends Connection<R, W> {
                         maxIdleTimeMillis = keepAliveTimeout;
                     }
                     PooledConnection.this.owner.release(PooledConnection.this)
-                         .finallyDo(new Action0() {
+                         .doOnCompleted(new Action0() {
                              @Override
                              public void call() {
+                                 releasedAtLeastOnce = true;
                                  lastReturnToPoolTimeMillis = System.currentTimeMillis();
                              }
                          })
@@ -175,6 +182,16 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         }
     }
 
+    @Override
+    public void closeNow() {
+        close().subscribe(Actions.empty(), new Action1<Throwable>() {
+            @Override
+            public void call(Throwable throwable) {
+                logger.error("Error closing connection.", throwable);
+            }
+        });
+    }
+
     /**
      * Discards this connection, to be called when this connection will never be used again.
      *
@@ -226,6 +243,16 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }
+
+    /**
+     * Returns {@code true} if this connection is reused at least once.
+     *
+     * @return {@code true} if this connection is reused at least once.
+     */
+    public boolean isReused() {
+        return releasedAtLeastOnce;
+    }
+
     /**
      * A contract for the owner of the {@link PooledConnection} to which any instance of {@link PooledConnection} must
      * be returned after use.

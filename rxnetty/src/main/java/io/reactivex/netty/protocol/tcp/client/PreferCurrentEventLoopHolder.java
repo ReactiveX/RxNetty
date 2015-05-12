@@ -21,6 +21,8 @@ import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
+import rx.Observable.OnSubscribe;
+import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Actions;
 import rx.functions.Func0;
@@ -98,13 +100,19 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
     @Override
     public Observable<PooledConnection<R, W>> pollThisEventLoopConnections() {
-        final IdleConnectionsHolder<W, R> holderForThisEL = perElHolder.get();
-        if (null == holderForThisEL) {
-            /*Caller is not an eventloop*/
-            return super.pollThisEventLoopConnections();
-        } else {
-            return holderForThisEL.poll();
-        }
+
+        return Observable.create(new OnSubscribe<PooledConnection<R, W>>() {
+            @Override
+            public void call(Subscriber<? super PooledConnection<R, W>> subscriber) {
+                final IdleConnectionsHolder<W, R> holderForThisEL = perElHolder.get();
+                if (null == holderForThisEL) {
+                    /*Caller is not an eventloop*/
+                    PreferCurrentEventLoopHolder.super.pollThisEventLoopConnections().unsafeSubscribe(subscriber);
+                } else {
+                    holderForThisEL.poll().unsafeSubscribe(subscriber);
+                }
+            }
+        });
     }
 
     @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,12 +52,11 @@ import rx.Observable;
 import java.net.URI;
 import java.net.URISyntaxException;
 
-import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS;
+import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.*;
 
 public final class RxNetty {
 
-    private static volatile RxEventLoopProvider rxEventLoopProvider =
-            new SingleNioLoopProvider(1, Runtime.getRuntime().availableProcessors());
+    private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider();
 
     private static final CompositeHttpClient<ByteBuf, ByteBuf> globalClient =
             new CompositeHttpClientBuilder<ByteBuf, ByteBuf>().withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();

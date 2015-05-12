@@ -121,6 +121,11 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
         return delegate.close(flush);
     }
 
+    @Override
+    public void closeNow() {
+        delegate.closeNow();
+    }
+
     public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
                                                      ChannelMetricEventProvider metricEventProvider) {
         final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventsSubject, metricEventProvider);

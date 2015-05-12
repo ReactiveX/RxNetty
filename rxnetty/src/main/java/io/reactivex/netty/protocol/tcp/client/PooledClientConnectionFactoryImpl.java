@@ -17,7 +17,6 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.client.PoolConfig;
 import io.reactivex.netty.client.PoolExhaustedException;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.metrics.Clock;
@@ -29,7 +28,6 @@ import rx.Observable.OnSubscribe;
 import rx.Observable.Operator;
 import rx.Subscriber;
 import rx.Subscription;
-import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Actions;
 import rx.functions.Func1;
@@ -69,7 +67,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
 
     protected PooledClientConnectionFactoryImpl(ClientState<W, R> clientState) {
-        this(clientState, new FIFOIdleConnectionsHolder<W, R>(),
+        this(clientState, clientState.getPoolConfig().getIdleConnectionsHolder(),
              new UnpooledClientConnectionFactory<W, R>(clientState));
     }
 
@@ -85,14 +83,20 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
         connectDelegate = delegate;
         idleConnectionsHolder = connectionsHolder;
         idleConnFinderObservable = idleConnectionsHolder.pollThisEventLoopConnections()
-                                                        .doOnSubscribe(new Action0() {
+                                                        .concatWith(idleConnectionsHolder.poll())
+                                                        .filter(new Func1<PooledConnection<R, W>, Boolean>() {
                                                             @Override
-                                                            public void call() {
-                                                                metricsEventSubject.onEvent(POOL_ACQUIRE_START);
+                                                            public Boolean call( PooledConnection<R, W> c) {
+                                                                boolean isUsable = c.isUsable();
+                                                                if (!isUsable) {
+                                                                    idleConnectionsHolder.discard(c);
+                                                                }
+                                                                return isUsable;
                                                             }
                                                         })
-                                                        .concatWith(idleConnectionsHolder.poll())
-                                                        .lift(new SingleConnectionFinder());
+                                                        .switchIfEmpty(connectIfAllowed())
+                                                        .lift(new ReuseSubscriberLinker())
+                                                        .lift(new ConnectMetricsOperator());
         metricsEventSubject = clientState.getEventsSubject();
         limitDeterminationStrategy = clientState.getPoolConfig().getPoolLimitDeterminationStrategy();
         // In case, there is no cleanup required, this observable should never give a tick.
@@ -117,7 +121,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
             return Observable.error(new IllegalStateException("Connection factory is already shutdown."));
         }
 
-        return idleConnFinderObservable.switchIfEmpty(connectIfAllowed());
+        return idleConnFinderObservable;
     }
 
     @Override
@@ -179,17 +183,8 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                                    .map(new Func1<Connection<R, W>, PooledConnection<R, W>>() {
                                        @Override
                                        public PooledConnection<R, W> call(Connection<R, W> connection) {
-                                           metricsEventSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS,
-                                                                       Clock.onEndMillis(startTimeMillis));
                                            return PooledConnection.create(PooledClientConnectionFactoryImpl.this,
                                                                           poolConfig, connection);
-                                       }
-                                   })
-                                   .doOnError(new Action1<Throwable>() {
-                                       @Override
-                                       public void call(Throwable throwable) {
-                                           metricsEventSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
-                                                                       Clock.onEndMillis(startTimeMillis), throwable);
                                        }
                                    })
                                    .unsafeSubscribe(subscriber);
@@ -254,11 +249,10 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                 metricsEventSubject.onEvent(POOL_RELEASE_START);
                 if (isShutdown() || !connection.isUsable()) {
                     idleConnectionsHolder.discard(connection);
-                    metricsEventSubject.onEvent(POOL_RELEASE_SUCCESS, Clock.onEndMillis(releaseStartTime));
                 } else {
                     idleConnectionsHolder.add(connection);
-                    metricsEventSubject.onEvent(POOL_RELEASE_SUCCESS, Clock.onEndMillis(releaseStartTime));
                 }
+                metricsEventSubject.onEvent(POOL_RELEASE_SUCCESS, Clock.onEndMillis(releaseStartTime));
                 subscriber.onCompleted();
             } catch (Throwable throwable) {
                 metricsEventSubject.onEvent(POOL_RELEASE_FAILED, Clock.onEndMillis(releaseStartTime));
@@ -266,49 +260,58 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
         }
     }
 
-    /**
-     * Why isn't this a filter and map?
-     * The only reason for existence of this operator is to record the time taken to fetch an idle connection from the
-     * pool. The start time must be the subscription time, which isn't possible to get via a map function.
-     */
-    private class SingleConnectionFinder implements Operator<PooledConnection<R, W>, PooledConnection<R, W>> {
+    private class ConnectMetricsOperator implements Operator<PooledConnection<R, W>, PooledConnection<R, W>> {
 
         @Override
-        public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super PooledConnection<R, W>> subscriber) {
-
+        public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super PooledConnection<R, W>> o) {
             final long startTimeMillis = Clock.newStartTimeMillis();
+            metricsEventSubject.onEvent(POOL_ACQUIRE_START);
 
-            return new Subscriber<PooledConnection<R, W>>(subscriber) {
-
-                private volatile boolean foundConnection;
-
+            return new Subscriber<PooledConnection<R, W>>(o) {
                 @Override
                 public void onCompleted() {
-                    if (foundConnection) {
-                        metricsEventSubject.onEvent(POOL_ACQUIRE_SUCCESS, Clock.onEndMillis(startTimeMillis));
-                    }
-
-                    if (!subscriber.isUnsubscribed()) {
-                        subscriber.onCompleted();
-                    }
+                    metricsEventSubject.onEvent(POOL_ACQUIRE_SUCCESS,
+                                                Clock.onEndMillis(startTimeMillis));
+                    o.onCompleted();
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    metricsEventSubject.onEvent(POOL_ACQUIRE_FAILED, Clock.onEndMillis(startTimeMillis), e);
-                    if (!subscriber.isUnsubscribed()) {
-                        subscriber.onError(e);
-                    }
+                    metricsEventSubject.onEvent(POOL_ACQUIRE_FAILED,
+                                                Clock.onEndMillis(startTimeMillis), e);
+                    o.onError(e);
                 }
 
                 @Override
-                public void onNext(PooledConnection<R, W> connection) {
-                    if (connection.isUsable()) {
-                        foundConnection = true;
-                        metricsEventSubject.onEvent(POOLED_CONNECTION_REUSE, Clock.onEndMillis(startTimeMillis));
-                        connection.reuse(subscriber);
+                public void onNext(PooledConnection<R, W> c) {
+                    o.onNext(c);
+                }
+            };
+        }
+    }
+
+    private class ReuseSubscriberLinker implements Operator<PooledConnection<R, W>, PooledConnection<R, W>> {
+
+        @Override
+        public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super PooledConnection<R, W>> o) {
+            return new Subscriber<PooledConnection<R, W>>(o) {
+                @Override
+                public void onCompleted() {
+                    o.onCompleted();
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    o.onError(e);
+                }
+
+                @Override
+                public void onNext(PooledConnection<R, W> c) {
+                    if (c.isReused()) {
+                        metricsEventSubject.onEvent(POOLED_CONNECTION_REUSE);
+                        c.reuse(o); /*Reuse will on next to the subscriber*/
                     } else {
-                        idleConnectionsHolder.discard(connection);
+                        o.onNext(c);
                     }
                 }
             };
