@@ -226,8 +226,6 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
             ChannelCloseListener closeListener;
             if (CLOSE_ISSUED_UPDATER.compareAndSet(DefaultChannelOperations.this, 0, 1)) {
-                // TODO: Disable read timeout handler.
-
                 eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
 
                 nettyChannel.close(); // close only once.

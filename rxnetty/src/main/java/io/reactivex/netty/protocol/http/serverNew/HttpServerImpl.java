@@ -22,7 +22,6 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders.Names;
@@ -265,7 +264,6 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                         final HttpServerResponse<O> response = newResponse(request);
 
                         final Subscription processingSubscription = handleRequest(request, startTimeMillis, response)
-                                                                        .onErrorResumeNext(Observable.<Void>empty())
                                                                         .doOnTerminate(new Action0() {
                                                                             @Override
                                                                             public void call() {
@@ -290,37 +288,66 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
             @SuppressWarnings("unchecked")
             private Observable<Void> handleRequest(HttpServerRequest<I> request, final long startTimeMillis,
-                                                   HttpServerResponse<O> response) {
-                Observable<Void> requestHandlingResult;
+                                                   final HttpServerResponse<O> response) {
+                Observable<Void> requestHandlingResult = null;
                 try {
-                    server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
-                                                      Clock.onEndMillis(startTimeMillis));
+
                     if (request.decoderResult().isSuccess()) {
                         requestHandlingResult = requestHandler.handle(request, response);
-                        if (null == requestHandlingResult) {
-                            requestHandlingResult = Observable.empty();
-                        }
-                    } else {
-                        requestHandlingResult = response.sendHeaders();
                     }
+
+                    if(null == requestHandlingResult) {
+                        /*If decoding failed an appropriate response status would have been set.
+                          Otherwise, overwrite the status to 500*/
+                        if (response.getStatus().equals(OK)) {
+                            response.setStatus(INTERNAL_SERVER_ERROR);
+                        }
+                        requestHandlingResult = response.write(Observable.<O>empty());
+                    }
+
                 } catch (Throwable throwable) {
-                    requestHandlingResult = Observable.error(throwable);
+                    /*If the headers are already written, then this will produce an error Observable.*/
+                    requestHandlingResult = response.setStatus(INTERNAL_SERVER_ERROR)
+                                                    .write(Observable.<O>empty());
                 }
 
-                return requestHandlingResult.doOnError(new Action1<Throwable>() {
+                return requestHandlingResult.lift(new Operator<Void, Void>() {
                     @Override
-                    public void call(Throwable throwable) {
-                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
-                                                          Clock.onEndMillis(startTimeMillis), throwable);
-                        logger.error("Unexpected error processing a request.", throwable);
-                    }
-                }).doOnCompleted(new Action0() {
-                    @Override
-                    public void call() {
-                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
+                    public Subscriber<? super Void> call(final Subscriber<? super Void> o) {
+                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
                                                           Clock.onEndMillis(startTimeMillis));
+                        return new Subscriber<Void>(o) {
+                            @Override
+                            public void onCompleted() {
+                                server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
+                                                                  Clock.onEndMillis(startTimeMillis));
+                                o.onCompleted();
+                            }
+
+                            @Override
+                            public void onError(Throwable e) {
+                                server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
+                                                                  Clock.onEndMillis(startTimeMillis), e);
+                                logger.error("Unexpected error processing a request.", e);
+                                o.onError(e);
+                            }
+
+                            @Override
+                            public void onNext(Void aVoid) {
+                                // No Op, its a void
+                            }
+                        };
                     }
-                }).onErrorResumeNext(newConnection.close());
+                }).onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
+                    @Override
+                    public Observable<Void> call(Throwable throwable) {
+                        return response.setStatus(INTERNAL_SERVER_ERROR)
+                                       .dispose()
+                                       .concatWith(newConnection.close())
+                                       .onErrorResumeNext(Observable.<Void>empty());// Ignore errors on cleanup
+                    }
+                }).concatWith(request.dispose()/*Dispose request at the end of processing to discard content if not read*/);
+
             }
 
             private HttpServerResponse<O> newResponse(HttpServerRequest<I> request) {
@@ -328,15 +355,15 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                 if (request.decoderResult().isFailure()) {
                     // As per the spec, we should send 414/431 for URI too long and headers too long, but we do not have
                     // enough info to decide which kind of failure has caused this error here.
-                    responseHeaders = new DefaultFullHttpResponse(request.getHttpVersion(),
-                                                                  REQUEST_HEADER_FIELDS_TOO_LARGE);
+                    responseHeaders = new DefaultHttpResponse(request.getHttpVersion(),
+                                                              REQUEST_HEADER_FIELDS_TOO_LARGE);
                     responseHeaders.headers()
                                    .set(Names.CONNECTION, HttpHeaders.Values.CLOSE)
                                    .set(Names.CONTENT_LENGTH, 0);
                 } else {
                     responseHeaders = new DefaultHttpResponse(HttpVersion.HTTP_1_1, OK);
                 }
-                HttpServerResponseImpl<O> response = new HttpServerResponseImpl<>(newConnection, responseHeaders);
+                HttpServerResponse<O> response = HttpServerResponseImpl.create(newConnection, responseHeaders);
                 setConnectionHeader(request, response);
                 return response;
             }

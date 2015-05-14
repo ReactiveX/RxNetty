@@ -43,13 +43,6 @@ import java.util.Set;
  * <h2>Mutability</h2>
  *
  * Headers and trailing headers can be mutated for this response.
- *
- * <h2>Content consumption</h2>
- *
- * Unless the channel is set to auto-read, it is required for a {@link RequestHandler} to either subscribe to
- * {@link #getContent()} or {@link #discardContent()} after receiving this request. Failure to do so would mean
- * that no further data will be read from the connection and hence no futher requests on the same connection would be
- * passed to the {@link RequestHandler}
  */
 public abstract class HttpServerRequest<T> {
 
@@ -390,10 +383,6 @@ public abstract class HttpServerRequest<T> {
      * Returns the content as a stream. There can only be one {@link Subscriber} to the returned {@link Observable}, any
      * subsequent subscriptions will get an error.
      *
-     * Unless the channel is set to auto-read, a {@link RequestHandler} processing a request <em>must</em> make sure
-     * that it either discards or subscribes to the content. Failure to do so, will stall the connection and no other
-     * requests will arrive on that connection as nothing is read from the connection.
-     *
      * @return Stream of content.
      */
     public abstract Observable<T> getContent();
@@ -401,14 +390,18 @@ public abstract class HttpServerRequest<T> {
     /**
      * Subscribes to the content and discards.
      *
-     * Unless the channel is set to auto-read, aA {@link RequestHandler} processing a request <em>must</em> make sure
-     * that it either discards or subscribes to the content. Failure to do so, will stall the connection and no other
-     * requests will arrive on that connection as nothing is read from it.
-     *
      * @return An {@link Observable}, subscription to which will discard the content. This {@code Observable} will
      * error/complete when the content errors/completes and unsubscription from here will unsubscribe from the content.
      */
     public abstract Observable<Void> discardContent();
+
+    /**
+     * Disposes this request. If the content is not yet subscribed, will subscribe and discard the same.
+     *
+     * @return An {@link Observable}, subscription to which will dispose this request. If the content is not yet
+     * subscribed then this is the same as {@link #discardContent()}.
+     */
+    public abstract Observable<Void> dispose();
 
     /**
      * Package private method to get the decoder result from netty.

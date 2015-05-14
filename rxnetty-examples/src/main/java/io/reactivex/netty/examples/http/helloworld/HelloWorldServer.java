@@ -32,12 +32,7 @@ public final class HelloWorldServer extends AbstractServerExample {
         HttpServer<ByteBuf, ByteBuf> server;
 
         server = HttpServer.newServer(0)
-                           .start((req, resp) ->
-                                          req.discardContent() /*Discard content since we do not read it.*/
-                                                  .concatWith(resp.sendHeaders()
-                                                              /*Write the "Hello World" response*/
-                                                                      .writeString(just("HelloWorld!")))
-                           );
+                           .start((req, resp) -> resp.writeString(just("HelloWorld!")));
 
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {

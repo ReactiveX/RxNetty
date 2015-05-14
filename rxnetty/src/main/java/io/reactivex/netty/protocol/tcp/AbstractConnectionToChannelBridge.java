@@ -162,7 +162,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         } else if (isValidToEmitToReadSubscriber(readProducer)) {
             readProducer.sendOnError(cause);
         } else {
-            super.exceptionCaught(ctx, cause);
+            logger.info("Exception in the pipeline and none of the subscribers are active.", cause);
         }
     }
 

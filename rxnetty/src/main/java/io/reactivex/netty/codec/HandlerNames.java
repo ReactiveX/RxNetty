@@ -26,6 +26,7 @@ public enum HandlerNames {
     PrimitiveConverter("primitive-converter"),
     SslHandler("ssl-handler"),
     SslConnectionEmissionHandler("ssl-connection-emitter"),
+    ClientReadTimeoutHandler("client-read-timeout-handler"),
     ;
 
     private final String name;

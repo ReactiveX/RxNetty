@@ -34,17 +34,12 @@ public final class StreamingServer extends AbstractServerExample {
 
         server = HttpServer.newServer(0)
                            .start((req, resp) ->
-                                      req.discardContent() /*Discard content since we do not read it.*/
-                                         .concatWith(resp.sendHeaders()
-                                                         /*Write the stream of numbers*/
-                                                         .writeStringAndFlushOnEach(Observable.interval(1, TimeUnit.SECONDS)
-                                                                                              /*If the channel is backed up with data, drop the numbers*/
-                                                                                              .onBackpressureDrop()
-                                                                                              /*Convert the number to a string.*/
-                                                                                              .map(aLong -> "Interval =>" + aLong)
-                                                         )
-                                         )
-                           );
+                                          resp.writeStringAndFlushOnEach(
+                                                  Observable.interval(1, TimeUnit.SECONDS)
+                                                          .onBackpressureDrop()/*If the channel is backed up with data, drop the numbers*/
+                                                          .map(aLong -> "Interval =>" + aLong)/*Convert the number to a string.*/
+                                          )
+        );
 
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {

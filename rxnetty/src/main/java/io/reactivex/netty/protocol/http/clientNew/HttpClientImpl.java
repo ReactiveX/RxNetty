@@ -98,8 +98,7 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public HttpClient<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
-        // TODO: Auto-generated method stub
-        return null;
+        return _copy(client.readTimeOut(timeOut, timeUnit));
     }
 
     @Override

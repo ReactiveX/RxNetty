@@ -41,13 +41,9 @@ public final class PerfHelloWorldServer extends AbstractServerExample {
 
         server = HttpServer.newServer(0)
                            .start((req, resp) ->
-                                          req.discardContent() /*Discard content since we do not read it.*/
-                                                  .concatWith(resp.setHeader(HttpHeaders.Names.CONTENT_LENGTH,
-                                                                             CONTENT_LENGTH_HEADER_VAL)
-                                                                  .flushOnlyOnReadComplete()
-                                                                  .sendHeaders()
-                                                                  /*Write the "Hello World" response*/
-                                                                  .writeBytes(just(WELCOME_MSG_BYTES)))
+                                          resp.setHeader(HttpHeaders.Names.CONTENT_LENGTH, CONTENT_LENGTH_HEADER_VAL)
+                                              .flushOnlyOnReadComplete()
+                                              .writeBytes(just(WELCOME_MSG_BYTES))/*Write the "Hello World" response*/
                            );
 
         /*Wait for shutdown if not called from another class (passed an arg)*/

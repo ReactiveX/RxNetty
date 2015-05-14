@@ -43,6 +43,7 @@ import javax.net.ssl.TrustManagerFactory;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A TCP client for creating TCP connections.
@@ -112,6 +113,17 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
      * @return A new {@link TcpClient} instance.
      */
     public abstract <T> TcpClient<W, R> channelOption(ChannelOption<T> option, T value);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and enables read timeout for all
+     * the connection created by this client.
+     *
+     * @param timeOut Read timeout duration.
+     * @param timeUnit Read timeout time unit.
+     *
+     * @return A new {@link TcpClient} instance.
+     */
+    public abstract TcpClient<W, R> readTimeOut(int timeOut, TimeUnit timeUnit);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this client. The specified

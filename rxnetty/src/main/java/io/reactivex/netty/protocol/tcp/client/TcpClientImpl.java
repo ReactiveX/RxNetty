@@ -29,6 +29,7 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.client.ServerPool.Server;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
@@ -46,6 +47,7 @@ import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 public class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
@@ -131,6 +133,16 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     @Override
     public <T> TcpClient<W, R> channelOption(ChannelOption<T> option, T value) {
         return copy(state.channelOption(option, value));
+    }
+
+    @Override
+    public TcpClient<W, R> readTimeOut(final int timeOut, final TimeUnit timeUnit) {
+        return addChannelHandlerFirst(HandlerNames.ClientReadTimeoutHandler.getName(), new Func0<ChannelHandler>() {
+            @Override
+            public ChannelHandler call() {
+                return new InternalReadTimeoutHandler(timeOut, timeUnit);
+            }
+        });
     }
 
     @Override

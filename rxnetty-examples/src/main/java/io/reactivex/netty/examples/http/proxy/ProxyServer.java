@@ -62,7 +62,7 @@ public final class ProxyServer extends AbstractServerExample {
                                                            Entry<String, String> next = respH.next();
                                                            resp.setHeader(next.getKey(), next.getValue());
                                                        }
-                                                       return resp.sendHeaders().write(outResp.getContent());
+                                                       return resp.write(outResp.getContent());
                                                    });
                                   }
                            );
@@ -109,11 +109,7 @@ public final class ProxyServer extends AbstractServerExample {
 
     private static int startTargetServer() {
         return HttpServer.newServer(0)
-                         .start((req, resp) ->
-                                        req.discardContent() /*Discard content since we do not read it.*/
-                                                .concatWith(resp.sendHeaders()
-                                                              /*Write the "Hello World" response*/
-                                                                    .writeString(just("HelloWorld!")))
-                         ).getServerPort();
+                         .start((req, resp) -> resp.writeString(just("HelloWorld!")))
+                         .getServerPort();
     }
 }

@@ -24,6 +24,7 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.client.ServerPool.Server;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Subscriber;
 import rx.functions.Action0;
@@ -105,9 +106,13 @@ final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
     }
 
     @Override
-    public ConnectionRequest<W, R> readTimeOut(int timeOut, TimeUnit timeUnit) {
-        // TODO: Auto-generated method stub
-        return null;
+    public ConnectionRequest<W, R> readTimeOut(final int timeOut, final TimeUnit timeUnit) {
+        return addChannelHandlerFirst(HandlerNames.ClientReadTimeoutHandler.getName(), new Func0<ChannelHandler>() {
+            @Override
+            public ChannelHandler call() {
+                return new InternalReadTimeoutHandler(timeOut, timeUnit);
+            }
+        });
     }
 
     @Override

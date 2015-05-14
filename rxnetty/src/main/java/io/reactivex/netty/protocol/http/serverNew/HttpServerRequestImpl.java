@@ -270,6 +270,11 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
     }
 
     @Override
+    public Observable<Void> dispose() {
+        return discardContent().onErrorResumeNext(Observable.<Void>empty());
+    }
+
+    @Override
     DecoderResult decoderResult() {
         return nettyRequest.decoderResult();
     }

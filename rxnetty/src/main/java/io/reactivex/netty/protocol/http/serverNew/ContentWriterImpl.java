@@ -23,14 +23,13 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.FlushSelectorOperator;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
-import io.reactivex.netty.protocol.http.serverNew.HttpServerResponse.ContentWriter;
 import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
 
-final class ContentWriterImpl<C> extends ContentWriter<C> {
+final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
 
     @SuppressWarnings("rawtypes")
     private final Connection connection;
@@ -88,7 +87,7 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
     }
 
     @Override
-    public ContentWriter<C> write(Observable<C> msgs) {
+    public ResponseContentWriter<C> write(Observable<C> msgs) {
         return new ContentWriterImpl<>(this, msgs, true);
     }
 
@@ -111,19 +110,19 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
     }
 
     @Override
-    public ContentWriter<C> write(Observable<C> msgs, final Func1<C, Boolean> flushSelector) {
+    public ResponseContentWriter<C> write(Observable<C> msgs, final Func1<C, Boolean> flushSelector) {
         return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<C>(flushSelector,
                                                                                     connection.getNettyChannel())),
                                        true);
     }
 
     @Override
-    public ContentWriter<C> writeAndFlushOnEach(Observable<C> msgs) {
+    public ResponseContentWriter<C> writeAndFlushOnEach(Observable<C> msgs) {
         return write(msgs, flushOnEachSelector);
     }
 
     @Override
-    public ContentWriter<C> writeString(Observable<String> msgs) {
+    public ResponseContentWriter<C> writeString(Observable<String> msgs) {
         return new ContentWriterImpl<>(this, msgs, true);
     }
 
@@ -150,19 +149,19 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
     }
 
     @Override
-    public ContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
+    public ResponseContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
         return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<String>(flushSelector,
                                                                                          connection.getNettyChannel())),
                                        true);
     }
 
     @Override
-    public ContentWriter<C> writeStringAndFlushOnEach(Observable<String> msgs) {
+    public ResponseContentWriter<C> writeStringAndFlushOnEach(Observable<String> msgs) {
         return writeString(msgs, ChannelOperations.FLUSH_ON_EACH_STRING);
     }
 
     @Override
-    public ContentWriter<C> writeBytes(Observable<byte[]> msgs) {
+    public ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs) {
         return new ContentWriterImpl<>(this, msgs, true);
     }
 
@@ -189,14 +188,14 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
     }
 
     @Override
-    public ContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector) {
+    public ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector) {
         return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<byte[]>(flushSelector,
                                                                                          connection.getNettyChannel())),
                                        true);
     }
 
     @Override
-    public ContentWriter<C> writeBytesAndFlushOnEach(Observable<byte[]> msgs) {
+    public ResponseContentWriter<C> writeBytesAndFlushOnEach(Observable<byte[]> msgs) {
         return writeBytes(msgs, ChannelOperations.FLUSH_ON_EACH_BYTES);
     }
 

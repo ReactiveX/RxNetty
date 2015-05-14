@@ -21,6 +21,7 @@ import io.reactivex.netty.client.PoolExhaustedException;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -249,6 +250,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
         @Override
         public void run() {
             try {
+                connection.getNettyChannel().pipeline().fireUserEventTriggered(PooledConnectionReleaseEvent.INSTANCE);
                 metricsEventSubject.onEvent(POOL_RELEASE_START);
                 if (isShutdown() || !connection.isUsable()) {
                     idleConnectionsHolder.discard(connection);

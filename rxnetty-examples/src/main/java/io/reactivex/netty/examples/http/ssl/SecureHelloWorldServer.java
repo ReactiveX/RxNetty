@@ -33,12 +33,7 @@ public final class SecureHelloWorldServer extends AbstractServerExample {
 
         server = HttpServer.newServer(0)
                            .unsafeSecure()/*To be used only for testing, use secure() overloads to configure proper security.*/
-                           .start((req, resp) ->
-                                          req.discardContent() /*Discard content since we do not read it.*/
-                                             .concatWith(resp.sendHeaders()
-                                                              /*Write the "Hello World" response*/
-                                                             .writeString(just("HelloWorld!")))
-                           );
+                           .start((req, resp) -> resp.writeString(just("HelloWorld!")));
 
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
