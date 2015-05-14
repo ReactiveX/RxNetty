@@ -30,6 +30,7 @@ import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.client.ServerPool.Server;
 import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.Subscription;
@@ -239,6 +240,11 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     @Override
     public TcpClient<W, R> unsafeSecure() {
         return copy(state.unsafeSecure());
+    }
+
+    @Override
+    public MetricEventsSubject<ClientMetricsEvent<?>> getEventsSubject() {
+        return getClientState().getEventsSubject();
     }
 
     private <WW, RR> TcpClientImpl<WW, RR> copy(ClientState<WW, RR> state) {

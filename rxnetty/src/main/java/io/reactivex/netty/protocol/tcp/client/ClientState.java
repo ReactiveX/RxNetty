@@ -435,7 +435,8 @@ public class ClientState<W, R> {
     }
 
     private <WW, RR> ClientState<WW, RR> copy() {
-        ClientState<WW, RR> toReturn = new ClientState<WW, RR>(this, detachedPipeline.copy());
+        TailHandlerFactory newTail = new TailHandlerFactory(eventsSubject, isSecure);
+        ClientState<WW, RR> toReturn = new ClientState<WW, RR>(this, detachedPipeline.copy(newTail));
         // Connection factory depends on bootstrap, so it should change whenever bootstrap changes.
         toReturn.connectionFactory = connectionFactory.copy(toReturn);
         return toReturn;

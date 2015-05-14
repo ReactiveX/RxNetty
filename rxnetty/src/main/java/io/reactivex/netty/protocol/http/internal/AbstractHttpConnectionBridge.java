@@ -79,6 +79,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     protected ConnectionInputSubscriber connectionInputSubscriber;
     private final UnsafeEmptySubscriber<C> emptyContentSubscriber;
     private final UnsafeEmptySubscriber<TrailingHeaders> emptyTrailerSubscriber;
+    private long headerWriteStartTimeMillis;
 
     protected AbstractHttpConnectionBridge() {
         emptyContentSubscriber = new UnsafeEmptySubscriber<>("Error while waiting for HTTP content.");
@@ -90,6 +91,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         Object msgToWrite = msg;
 
         if (isOutboundHeader(msg)) {
+            headerWriteStartTimeMillis = Clock.newStartTimeMillis();
             HttpMessage httpMsg = (HttpMessage) msg;
             if (!HttpHeaders.isContentLengthSet(httpMsg)) {
                 // If there is no content length we need to specify the transfer encoding as chunked as we always
@@ -98,14 +100,24 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 // as expected.
                 httpMsg.headers().set(Names.TRANSFER_ENCODING, Values.CHUNKED);
             }
+
+            onOutboundHeaderWrite(httpMsg, promise, headerWriteStartTimeMillis);
+
         } else if (msg instanceof String) {
             msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
         } else if (msg instanceof byte[]) {
             msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
+        } else if (msg instanceof LastHttpContent) {
+            onOutboundLastContentWrite((LastHttpContent) msg, promise, headerWriteStartTimeMillis);
         }
 
         super.write(ctx, msgToWrite, promise);
     }
+
+    protected abstract void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis);
+
+    protected abstract void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
+                                                       long headerWriteStartTime);
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
@@ -232,13 +244,13 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         } else {
             final State state = inputSubscriber.state;
 
-            if (isValidToEmit(state.contentSub)) {
+            if (state.raiseErrorOnInputSubscription()) {
+                newSub.onError(state.raiseErrorOnInputSubscription);
+            } else if (isValidToEmit(state.contentSub)) {
                 /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
                 if (!newSub.isUnsubscribed()) {
                     newSub.onError(ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED);
                 }
-            } else if (state.raiseErrorOnInputSubscription()) {
-                newSub.onError(state.raiseErrorOnInputSubscription);
             } else {
                 inputSubscriber.setupContentSubscriber(newSub);
                 onNewContentSubscriber(inputSubscriber, newSub);

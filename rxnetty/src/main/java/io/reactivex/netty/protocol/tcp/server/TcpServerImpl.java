@@ -25,6 +25,7 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import org.slf4j.Logger;
@@ -163,6 +164,11 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
         }
 
         return state.getServerPort();
+    }
+
+    @Override
+    public MetricEventsSubject<ServerMetricsEvent<?>> getEventsSubject() {
+        return state.getEventsSubject();
     }
 
     @Override

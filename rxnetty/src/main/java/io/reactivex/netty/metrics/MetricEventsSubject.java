@@ -160,7 +160,7 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
     }
 
     public MetricEventsSubject<E> copy() {
-        return new MetricEventsSubject<>();
+        return this;
     }
 
     private static class SafeListener<E extends MetricsEvent<?>> implements MetricEventsListener<E> {

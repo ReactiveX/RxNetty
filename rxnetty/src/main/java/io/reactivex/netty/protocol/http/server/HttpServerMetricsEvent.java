@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,6 +33,9 @@ public class HttpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T
         RequestContentReceived(false, false, Void.class),
         RequestReceiveComplete(true, false, Void.class),
 
+        ResponseWriteStart(false, false, Void.class),
+        ResponseWriteSuccess(true, false, Void.class),
+        ResponseWriteFailed(true, false, Void.class),
         ResponseHeadersWriteStart(false, false, Void.class),
         ResponseHeadersWriteSuccess(true, false, Void.class),
         ResponseHeadersWriteFailed(true, true, Void.class),
@@ -75,6 +78,10 @@ public class HttpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T
     public static final HttpServerMetricsEvent<EventType> REQUEST_HEADERS_RECEIVED = from(EventType.RequestHeadersReceived);
     public static final HttpServerMetricsEvent<EventType> REQUEST_CONTENT_RECEIVED = from(EventType.RequestContentReceived);
     public static final HttpServerMetricsEvent<EventType> REQUEST_RECEIVE_COMPLETE = from(EventType.RequestReceiveComplete);
+
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_WRITE_START = from(EventType.ResponseWriteStart);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_WRITE_SUCCESS = from(EventType.ResponseWriteSuccess);
+    public static final HttpServerMetricsEvent<EventType> RESPONSE_WRITE_FAILED = from(EventType.ResponseWriteFailed);
 
     public static final HttpServerMetricsEvent<EventType> RESPONSE_HEADERS_WRITE_START = from(EventType.ResponseHeadersWriteStart);
     public static final HttpServerMetricsEvent<EventType> RESPONSE_HEADERS_WRITE_SUCCESS = from(EventType.ResponseHeadersWriteSuccess);

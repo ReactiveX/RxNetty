@@ -76,7 +76,7 @@ public class HttpClientRule extends ExternalResource {
     }
 
     public void feedResponse(HttpContent... content) {
-        inboundRequestFeeder.addToTheFeed(content);
+        inboundRequestFeeder.addToTheFeed((Object)content);
     }
 
     public void feedResponse(HttpResponse response, HttpContent content) {

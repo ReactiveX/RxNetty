@@ -83,7 +83,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
         connectDelegate = delegate;
         idleConnectionsHolder = connectionsHolder;
         idleConnFinderObservable = idleConnectionsHolder.pollThisEventLoopConnections()
-                                                        .concatWith(idleConnectionsHolder.poll())
+                                                        .concatWith(connectIfAllowed())
                                                         .filter(new Func1<PooledConnection<R, W>, Boolean>() {
                                                             @Override
                                                             public Boolean call( PooledConnection<R, W> c) {
@@ -94,7 +94,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                                                                 return isUsable;
                                                             }
                                                         })
-                                                        .switchIfEmpty(connectIfAllowed())
+                                                        .take(1)
                                                         .lift(new ReuseSubscriberLinker())
                                                         .lift(new ConnectMetricsOperator());
         metricsEventSubject = clientState.getEventsSubject();
@@ -189,7 +189,10 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                                    })
                                    .unsafeSubscribe(subscriber);
                 } else {
-                    subscriber.onError(new PoolExhaustedException("Client connection pool exhausted."));
+                    idleConnectionsHolder.poll()
+                                         .switchIfEmpty(Observable.<PooledConnection<R, W>>error(
+                                                 new PoolExhaustedException("Client connection pool exhausted.")))
+                                         .unsafeSubscribe(subscriber);
                 }
             }
         });
@@ -310,9 +313,8 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                     if (c.isReused()) {
                         metricsEventSubject.onEvent(POOLED_CONNECTION_REUSE);
                         c.reuse(o); /*Reuse will on next to the subscriber*/
-                    } else {
-                        o.onNext(c);
                     }
+                    o.onNext(c);
                 }
             };
         }

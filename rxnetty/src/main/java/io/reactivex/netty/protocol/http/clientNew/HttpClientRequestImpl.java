@@ -30,7 +30,11 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.FlushSelectorOperator;
+import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
+import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
@@ -560,7 +564,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         @SuppressWarnings("rawtypes")
         private final Observable source;
 
-        public OnSubscribeFuncImpl(TcpClient<?, HttpClientResponse<O>> client, Request request) {
+        public OnSubscribeFuncImpl(final TcpClient<?, HttpClientResponse<O>> client, Request request) {
             this.client = client;
             this.request = request;
             @SuppressWarnings({"rawtypes", "unchecked"})
@@ -572,6 +576,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                public Observable<HttpClientResponse> call(Connection c) {
                                                    return c.write(OnSubscribeFuncImpl.this.request
                                                                           .asObservable(c.getNettyChannel()))
+                                                           .lift(new RequestWriteMetricsOperator(client.getEventsSubject()))
                                                            .ignoreElements()
                                                            .cast(HttpClientResponse.class)
                                                            .concatWith(c.getInput().take(1));
@@ -586,6 +591,41 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             @SuppressWarnings("rawtypes")
             final Subscriber rawSub = subscriber;
             source.unsafeSubscribe(rawSub);
+        }
+
+        private static class RequestWriteMetricsOperator implements Operator<Void, Void> {
+
+            private final MetricEventsSubject<ClientMetricsEvent<?>> eventSubject;
+
+            public RequestWriteMetricsOperator(MetricEventsSubject<ClientMetricsEvent<?>> eventSubject) {
+                this.eventSubject = eventSubject;
+            }
+
+            @Override
+            public Subscriber<? super Void> call(final Subscriber<? super Void> o) {
+                final long startTimeMillis = Clock.newStartTimeMillis();
+                eventSubject.onEvent(HttpClientMetricsEvent.REQUEST_SUBMITTED);
+                return new Subscriber<Void>(o) {
+                    @Override
+                    public void onCompleted() {
+                        eventSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_COMPLETE,
+                                             Clock.onEndMillis(startTimeMillis));
+                        o.onCompleted();
+                    }
+
+                    @Override
+                    public void onError(Throwable e) {
+                        eventSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_FAILED,
+                                             Clock.onEndMillis(startTimeMillis), e);
+                        o.onError(e);
+                    }
+
+                    @Override
+                    public void onNext(Void aVoid) {
+                        o.onNext(aVoid);
+                    }
+                };
+            }
         }
     }
 }

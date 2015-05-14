@@ -536,10 +536,10 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                 _shouldCompletePromise = 0 == _listeningTo && !isPromiseCompletedOnWriteComplete;
             }
 
-            if (_shouldCompletePromise) {
-                if (null != throwableIfAny) {
-                    overarchingWritePromise.tryFailure(throwableIfAny);
-                } else {
+            if (null != throwableIfAny) {
+                overarchingWritePromise.tryFailure(throwableIfAny);
+            } else {
+                if (_shouldCompletePromise) {
                     overarchingWritePromise.trySuccess();
                 }
             }

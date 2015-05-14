@@ -27,7 +27,6 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
@@ -233,25 +232,23 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
         return client.subscribe(listener);
     }
 
-    public static HttpClient<ByteBuf, ByteBuf> create(TcpClient<ByteBuf, ByteBuf> tcpClient) {
+    public static HttpClient<ByteBuf, ByteBuf> create(final TcpClient<ByteBuf, ByteBuf> tcpClient) {
         return new HttpClientImpl<>(
                 tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
-                        // TODO: Fix events subject
                         pipeline.addLast(new HttpClientCodec());
-                        pipeline.addLast(new HttpClientToConnectionBridge<>(new MetricEventsSubject<ClientMetricsEvent<?>>()));
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(tcpClient.getEventsSubject()));
                     }
                 }));
     }
 
-    public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(TcpClient<ByteBuf, ByteBuf> tcpClient) {
+    public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(final TcpClient<ByteBuf, ByteBuf> tcpClient) {
         return new HttpClientImpl<>(
                 tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
-                        // TODO: Fix events subject
-                        pipeline.addLast(new HttpClientToConnectionBridge<>(new MetricEventsSubject<ClientMetricsEvent<?>>()));
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(tcpClient.getEventsSubject()));
                     }
                 }));
     }

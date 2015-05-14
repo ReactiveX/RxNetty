@@ -30,6 +30,7 @@ import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
@@ -391,6 +392,8 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
      * @return A new {@link TcpClient} instance.
      */
     public abstract TcpClient<W, R> unsafeSecure();
+
+    public abstract MetricEventsSubject<ClientMetricsEvent<?>> getEventsSubject();
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(ServerPool<ClientMetricsEvent<?>> serverPool) {
         return newClient(TCP_CLIENT_NO_NAME, serverPool);

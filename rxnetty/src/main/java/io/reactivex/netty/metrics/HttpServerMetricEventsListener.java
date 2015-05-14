@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -52,9 +52,18 @@ public abstract class HttpServerMetricEventsListener extends ServerMetricEventsL
                 case RequestReceiveComplete:
                     onRequestReceiveComplete(duration, timeUnit);
                     break;
-                case ResponseHeadersWriteStart:
-                    onResponseHeadersWriteStart();
+                case ResponseWriteStart:
+                    onResponseWriteStart();
                     break;
+                case ResponseWriteSuccess:
+                    onResponseWriteSuccess(duration, timeUnit);
+                    break;
+                case ResponseWriteFailed:
+                    onResponseWriteFailed(duration, timeUnit, throwable);
+                    break;
+                case ResponseHeadersWriteStart:
+                        onResponseHeadersWriteStart();
+                        break;
                 case ResponseHeadersWriteSuccess:
                     onResponseHeadersWriteSuccess(duration, timeUnit);
                     break;
@@ -89,6 +98,12 @@ public abstract class HttpServerMetricEventsListener extends ServerMetricEventsL
     @SuppressWarnings("unused")protected void onResponseContentWriteSuccess(long duration, TimeUnit timeUnit) {}
 
     @SuppressWarnings("unused")protected void onResponseContentWriteStart() {}
+
+    @SuppressWarnings("unused")protected void onResponseWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
+
+    @SuppressWarnings("unused")protected void onResponseWriteSuccess(long duration, TimeUnit timeUnit) {}
+
+    @SuppressWarnings("unused")protected void onResponseWriteStart() {}
 
     @SuppressWarnings("unused")protected void onResponseHeadersWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 

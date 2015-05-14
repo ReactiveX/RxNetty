@@ -201,7 +201,7 @@ final class ContentWriterImpl<C> extends ContentWriter<C> {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static Observable getHttpStream(ContentWriterImpl parent, Observable content, boolean appendTrailer) {
+    private static Observable getHttpStream(final ContentWriterImpl parent, Observable content, boolean appendTrailer) {
         Observable httpStream = parent.headersObservable;
         if (null != parent.contentObservable) {
             httpStream = httpStream.concatWith(parent.contentObservable.mergeWith(content));

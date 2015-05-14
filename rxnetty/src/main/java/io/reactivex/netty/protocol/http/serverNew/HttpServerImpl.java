@@ -34,7 +34,6 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -61,11 +60,9 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
     private static final Logger logger = LoggerFactory.getLogger(HttpServerImpl.class);
 
     private final TcpServer<HttpServerRequest<I>, Object> server;
-    @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
 
     private HttpServerImpl(TcpServer<HttpServerRequest<I>, Object> server) {
         this.server = server;
-        eventsSubject = new MetricEventsSubject(); //TODO: Fix eventsubject
     }
 
     @Override
@@ -189,18 +186,17 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
     }
 
     @Override
-    public Subscription subscribe(MetricEventsListener<? extends HttpServerMetricsEvent<?>> listener) {
+    public Subscription subscribe(MetricEventsListener<? extends ServerMetricsEvent<?>> listener) {
         return server.subscribe(listener);
     }
 
-    public static HttpServer<ByteBuf, ByteBuf> create(TcpServer<ByteBuf, ByteBuf> tcpServer) {
+    public static HttpServer<ByteBuf, ByteBuf> create(final TcpServer<ByteBuf, ByteBuf> tcpServer) {
         return new HttpServerImpl<>(
                 tcpServer.<HttpServerRequest<ByteBuf>, Object>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
-                        // TODO: Fix events subject
                         pipeline.addLast(new HttpServerCodec());
-                        pipeline.addLast(new HttpServerToConnectionBridge<>(new MetricEventsSubject<ServerMetricsEvent<?>>()));
+                        pipeline.addLast(new HttpServerToConnectionBridge<>(tcpServer.getEventsSubject()));
                     }
                 }));
     }
@@ -240,6 +236,14 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
             public Subscriber<? super HttpServerRequest<I>> call(final Subscriber<? super Void> subscriber) {
 
                 return new Subscriber<HttpServerRequest<I>>() {
+
+                    @Override
+                    public void onStart() {
+                        if (!newConnection.getNettyChannel().config().isAutoRead()) {
+                            request(1);
+                        }
+                    }
+
                     @Override
                     public void onCompleted() {
                         subscriber.onCompleted();
@@ -256,12 +260,21 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
                         final long startTimeMillis = Clock.newStartTimeMillis();
 
-                        eventsSubject.onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
+                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
 
                         final HttpServerResponse<O> response = newResponse(request);
 
-                        final Subscription processingSubscription = handleRequest(request, startTimeMillis,
-                                                                                  response).subscribe();
+                        final Subscription processingSubscription = handleRequest(request, startTimeMillis, response)
+                                                                        .onErrorResumeNext(Observable.<Void>empty())
+                                                                        .doOnTerminate(new Action0() {
+                                                                            @Override
+                                                                            public void call() {
+                                                                                if (!newConnection.getNettyChannel().config().isAutoRead()) {
+                                                                                    request(1);
+                                                                                }
+                                                                            }
+                                                                        })
+                                                                        .subscribe();
 
                         newConnection.getNettyChannel()
                                      .closeFuture()
@@ -280,8 +293,8 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                                                    HttpServerResponse<O> response) {
                 Observable<Void> requestHandlingResult;
                 try {
-                    eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
-                                          Clock.onEndMillis(startTimeMillis));
+                    server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
+                                                      Clock.onEndMillis(startTimeMillis));
                     if (request.decoderResult().isSuccess()) {
                         requestHandlingResult = requestHandler.handle(request, response);
                         if (null == requestHandlingResult) {
@@ -297,15 +310,15 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                 return requestHandlingResult.doOnError(new Action1<Throwable>() {
                     @Override
                     public void call(Throwable throwable) {
-                        eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
-                                              Clock.onEndMillis(startTimeMillis), throwable);
+                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
+                                                          Clock.onEndMillis(startTimeMillis), throwable);
                         logger.error("Unexpected error processing a request.", throwable);
                     }
                 }).doOnCompleted(new Action0() {
                     @Override
                     public void call() {
-                        eventsSubject.onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
-                                              Clock.onEndMillis(startTimeMillis));
+                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
+                                                          Clock.onEndMillis(startTimeMillis));
                     }
                 }).onErrorResumeNext(newConnection.close());
             }

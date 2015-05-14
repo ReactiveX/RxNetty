@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -61,6 +61,9 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
                 case RequestContentWriteFailed:
                     onRequestContentWriteFailed(duration, timeUnit, throwable);
                     break;
+                case RequestWriteStart:
+                    onRequestWriteStart();
+                    break;
                 case RequestWriteComplete:
                     onRequestWriteComplete(duration, timeUnit);
                     break;
@@ -97,6 +100,8 @@ public abstract class HttpClientMetricEventsListener extends ClientMetricEventsL
     @SuppressWarnings("unused") protected void onResponseContentReceived(long duration, TimeUnit timeUnit) {}
 
     @SuppressWarnings("unused") protected void onResponseHeadersReceived(long duration, TimeUnit timeUnit) {}
+
+    @SuppressWarnings("unused") protected void onRequestWriteStart() {}
 
     @SuppressWarnings("unused") protected void onRequestWriteComplete(long duration, TimeUnit timeUnit) {}
 

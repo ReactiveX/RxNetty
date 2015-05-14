@@ -103,10 +103,14 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
                         ChannelPromise promise) throws Exception {
         final long startTimeMillis = Clock.newStartTimeMillis();
+
+        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_START);
+
         promise.addListener(new ChannelFutureListener() {
             @SuppressWarnings("unchecked")
             @Override

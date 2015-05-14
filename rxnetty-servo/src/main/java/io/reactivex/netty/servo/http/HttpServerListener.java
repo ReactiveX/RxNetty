@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,11 +25,8 @@ import io.reactivex.netty.servo.tcp.TcpServerListener;
 
 import java.util.concurrent.TimeUnit;
 
-import static com.netflix.servo.monitor.Monitors.newCounter;
-import static com.netflix.servo.monitor.Monitors.newTimer;
-import static io.reactivex.netty.servo.ServoUtils.decrementLongGauge;
-import static io.reactivex.netty.servo.ServoUtils.incrementLongGauge;
-import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
+import static com.netflix.servo.monitor.Monitors.*;
+import static io.reactivex.netty.servo.ServoUtils.*;
 
 /**
  * @author Nitesh Kant
@@ -99,6 +96,17 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
     private class HttpServerMetricEventsListenerImpl extends HttpServerMetricEventsListener {
 
         @Override
+        protected void onResponseWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            responseWriteTimes.record(duration, timeUnit);
+            responseWriteFailed.increment();
+        }
+
+        @Override
+        protected void onResponseWriteSuccess(long duration, TimeUnit timeUnit) {
+            responseWriteTimes.record(duration, timeUnit);
+        }
+
+        @Override
         protected void onRequestHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
             processedRequests.increment();
             decrementLongGauge(inflightRequests);
@@ -109,26 +117,6 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
         protected void onRequestHandlingSuccess(long duration, TimeUnit timeUnit) {
             decrementLongGauge(inflightRequests);
             processedRequests.increment();
-        }
-
-        @Override
-        protected void onResponseContentWriteSuccess(long duration, TimeUnit timeUnit) {
-            responseWriteTimes.record(duration, timeUnit);
-        }
-
-        @Override
-        protected void onResponseHeadersWriteSuccess(long duration, TimeUnit timeUnit) {
-            responseWriteTimes.record(duration, timeUnit);
-        }
-
-        @Override
-        protected void onResponseContentWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            responseWriteFailed.increment();
-        }
-
-        @Override
-        protected void onResponseHeadersWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            responseWriteFailed.increment();
         }
 
         @Override
@@ -165,6 +153,21 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
         @Override
         protected void onNewClientConnected() {
             HttpServerListener.this.onNewClientConnected();
+        }
+
+        @Override
+        protected void onConnectionCloseStart() {
+            HttpServerListener.this.onConnectionCloseStart();
+        }
+
+        @Override
+        protected void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
+            HttpServerListener.this.onConnectionCloseSuccess(duration, timeUnit);
+        }
+
+        @Override
+        protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+            HttpServerListener.this.onConnectionCloseFailed(duration, timeUnit, throwable);
         }
 
         @Override

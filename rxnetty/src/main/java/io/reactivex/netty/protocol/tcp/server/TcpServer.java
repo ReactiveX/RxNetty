@@ -26,6 +26,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
+import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerMetricsEvent;
@@ -289,6 +290,8 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      * @return The port at which this server is running.
      */
     public abstract int getServerPort();
+
+    public abstract MetricEventsSubject<ServerMetricsEvent<?>> getEventsSubject();
 
     /**
      * Starts this server and waits till the server is shutdown. This will block the caller thread till the time the

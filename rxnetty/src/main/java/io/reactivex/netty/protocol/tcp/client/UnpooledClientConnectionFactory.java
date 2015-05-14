@@ -57,7 +57,7 @@ public final class UnpooledClientConnectionFactory<W, R> extends ClientConnectio
                     }
                 });
             }
-        });
+        }).take(1);
     }
 
     @Override

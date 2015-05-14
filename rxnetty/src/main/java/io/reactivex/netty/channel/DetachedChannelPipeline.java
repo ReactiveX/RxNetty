@@ -83,7 +83,7 @@ public class DetachedChannelPipeline {
     }
 
     public DetachedChannelPipeline copy() {
-        return copy(nullableTail);
+        return copy(null);
     }
 
     public DetachedChannelPipeline copy(Action1<ChannelPipeline> newTail) {

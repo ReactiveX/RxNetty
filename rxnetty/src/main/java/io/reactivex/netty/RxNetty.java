@@ -56,7 +56,7 @@ import static io.reactivex.netty.client.MaxConnectionsBasedStrategy.*;
 
 public final class RxNetty {
 
-    private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider();
+    private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider(1, Runtime.getRuntime().availableProcessors());
 
     private static final CompositeHttpClient<ByteBuf, ByteBuf> globalClient =
             new CompositeHttpClientBuilder<ByteBuf, ByteBuf>().withMaxConnections(DEFAULT_MAX_CONNECTIONS).build();

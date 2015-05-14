@@ -20,13 +20,16 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultHttpContent;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge.ConnectionInputSubscriber;
@@ -581,6 +584,17 @@ public class AbstractHttpConnectionBridgeTest {
 
         @Override
         protected void onContentReceiveComplete(long receiveStartTimeMillis) {
+            // No Op
+        }
+
+        @Override
+        protected void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
+            // No Op
+        }
+
+        @Override
+        protected void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
+                                                  long headerWriteStartTime) {
             // No Op
         }
 
