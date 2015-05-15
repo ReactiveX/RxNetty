@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,11 +25,8 @@ import io.reactivex.netty.servo.tcp.TcpClientListener;
 
 import java.util.concurrent.TimeUnit;
 
-import static com.netflix.servo.monitor.Monitors.newCounter;
-import static com.netflix.servo.monitor.Monitors.newTimer;
-import static io.reactivex.netty.servo.ServoUtils.decrementLongGauge;
-import static io.reactivex.netty.servo.ServoUtils.incrementLongGauge;
-import static io.reactivex.netty.servo.ServoUtils.newLongGauge;
+import static com.netflix.servo.monitor.Monitors.*;
+import static io.reactivex.netty.servo.ServoUtils.*;
 
 /**
  * @author Nitesh Kant
@@ -207,8 +204,8 @@ public class HttpClientListener extends TcpClientListener<ClientMetricsEvent<?>>
         }
 
         @Override
-        protected void onPooledConnectionReuse(long duration, TimeUnit timeUnit) {
-            HttpClientListener.this.onPooledConnectionReuse(duration, timeUnit);
+        protected void onPooledConnectionReuse() {
+            HttpClientListener.this.onPooledConnectionReuse();
         }
 
         @Override

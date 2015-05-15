@@ -21,10 +21,13 @@ import io.netty.channel.ChannelHandlerInvoker;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.concurrent.EventExecutorGroup;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.functions.Action1;
 import rx.functions.Func0;
 
 import java.util.LinkedList;
+import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 
 /**
@@ -39,6 +42,8 @@ import java.util.NoSuchElementException;
  */
 public class DetachedChannelPipeline {
 
+    private static final Logger logger = LoggerFactory.getLogger(DetachedChannelPipeline.class);
+
     private final LinkedList<HandlerHolder> holdersInOrder;
 
     private final ChannelInitializer<Channel> channelInitializer = new ChannelInitializer<Channel>() {
@@ -51,18 +56,19 @@ public class DetachedChannelPipeline {
         }
     };
 
-    private final Func0<ChannelHandler> nullableTail;
+    private final Action1<ChannelPipeline> nullableTail;
 
     public DetachedChannelPipeline() {
         this(null);
     }
 
-    public DetachedChannelPipeline(final Func0<ChannelHandler> nullableTail) {
+    public DetachedChannelPipeline(final Action1<ChannelPipeline> nullableTail) {
         this.nullableTail = nullableTail;
         holdersInOrder = new LinkedList<>();
     }
 
-    public DetachedChannelPipeline(final DetachedChannelPipeline copyFrom, final Func0<ChannelHandler> nullableTail) {
+    private DetachedChannelPipeline(final DetachedChannelPipeline copyFrom,
+                                    final Action1<ChannelPipeline> nullableTail) {
         this.nullableTail = nullableTail;
         holdersInOrder = new LinkedList<>();
         synchronized (copyFrom.holdersInOrder) {
@@ -77,7 +83,11 @@ public class DetachedChannelPipeline {
     }
 
     public DetachedChannelPipeline copy() {
-        return new DetachedChannelPipeline(this, nullableTail);
+        return copy(null);
+    }
+
+    public DetachedChannelPipeline copy(Action1<ChannelPipeline> newTail) {
+        return new DetachedChannelPipeline(this, newTail);
     }
 
     public DetachedChannelPipeline addFirst(String name, Func0<ChannelHandler> handlerFactory) {
@@ -195,6 +205,12 @@ public class DetachedChannelPipeline {
         return this;
     }
 
+    public void copyTo(ChannelPipeline pipeline) {
+        synchronized (holdersInOrder) {
+            unguardedCopyToPipeline(pipeline);
+        }
+    }
+
     /*Visible for testing*/ LinkedList<HandlerHolder> getHoldersInOrder() {
         return holdersInOrder;
     }
@@ -228,7 +244,11 @@ public class DetachedChannelPipeline {
         }
 
         if (null != nullableTail) {
-            pipeline.addLast(nullableTail.call()); // This is the last handler to be added to the pipeline always.
+            nullableTail.call(pipeline); // This is the last handler to be added to the pipeline always.
+        }
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Channel pipeline in initializer: " + pipelineToString(pipeline));
         }
     }
 
@@ -275,6 +295,28 @@ public class DetachedChannelPipeline {
             holdersInOrder.add(indexOfAfter + 1, toAdd);
         }
         return this;
+    }
+
+    private static String pipelineToString(ChannelPipeline pipeline) {
+        StringBuilder builder = new StringBuilder();
+        for (Entry<String, ChannelHandler> handlerEntry : pipeline) {
+            if (builder.length() == 0) {
+                builder.append("[\n");
+            } else {
+                builder.append(" ==> ");
+            }
+            builder.append("{ name =>")
+                   .append(handlerEntry.getKey())
+                   .append(", handler => ")
+                   .append(handlerEntry.getValue())
+                   .append("}\n")
+            ;
+        }
+
+        if (builder.length() > 0) {
+            builder.append("}\n");
+        }
+        return builder.toString();
     }
 
     /**

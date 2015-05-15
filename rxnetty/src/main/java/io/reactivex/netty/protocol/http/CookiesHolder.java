@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,8 +28,6 @@ import java.util.Set;
 
 /**
  * A holder of cookies parsed from the Http headers.
- *
- * @author Nitesh Kant
  */
 public class CookiesHolder {
 
@@ -65,10 +63,10 @@ public class CookiesHolder {
         for (String aCookieHeader : allCookieHeaders) {
             Set<Cookie> decode = CookieDecoder.decode(aCookieHeader);
             for (Cookie cookie : decode) {
-                Set<Cookie> existingCookiesOfName = cookies.get(cookie.getName());
+                Set<Cookie> existingCookiesOfName = cookies.get(cookie.name());
                 if (null == existingCookiesOfName) {
                     existingCookiesOfName = new HashSet<Cookie>();
-                    cookies.put(cookie.getName(), existingCookiesOfName);
+                    cookies.put(cookie.name(), existingCookiesOfName);
                 }
                 existingCookiesOfName.add(cookie);
             }

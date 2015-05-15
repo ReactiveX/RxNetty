@@ -36,7 +36,9 @@ public class SslPipelineConfigurator<I, O> implements PipelineConfigurator<I, O>
     public void configureNewPipeline(ChannelPipeline pipeline) {
         final SslHandler sslHandler = new SslHandler(sslEngineFactory.createSSLEngine(pipeline.channel().alloc()));
         pipeline.addFirst(SSL_HANDLER_NAME, sslHandler);
+/*
         pipeline.addAfter(SSL_HANDLER_NAME, SSL_COMPLETION_HANDLER_NAME,
-                          new SslCompletionHandler(sslHandler.handshakeFuture()));
+                          new SslCompletionHandler(pipeline.channel(), sslHandler.handshakeFuture()));
+*/
     }
 }

@@ -17,12 +17,13 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
-import io.reactivex.netty.channel.ClientConnectionToChannelBridge.ClientConnectionSubscriberEvent;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ClientConnectionSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.functions.Func1;
 
 /**
  * An implementation of {@link ClientConnectionFactory} that creates a new connection for every call to
@@ -34,7 +35,7 @@ import rx.Subscriber;
  *
  * @author Nitesh Kant
  */
-public class UnpooledClientConnectionFactory<W, R> extends ClientConnectionFactory<W, R> {
+public final class UnpooledClientConnectionFactory<W, R> extends ClientConnectionFactory<W, R> {
 
     protected UnpooledClientConnectionFactory(ClientState<W, R> clientState) {
         super(clientState);
@@ -56,12 +57,21 @@ public class UnpooledClientConnectionFactory<W, R> extends ClientConnectionFacto
                     }
                 });
             }
-        });
+        }).take(1);
     }
 
     @Override
     public void shutdown() {
         // No op.
+    }
+
+    public static <W, R> Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> create() {
+        return new Func1<ClientState<W, R>, ClientConnectionFactory<W, R>>() {
+            @Override
+            public ClientConnectionFactory<W, R> call(ClientState<W, R> clientState) {
+                return new UnpooledClientConnectionFactory<>(clientState);
+            }
+        };
     }
 
     @Override

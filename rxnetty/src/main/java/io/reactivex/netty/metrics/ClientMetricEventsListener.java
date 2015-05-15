@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -59,7 +59,7 @@ public abstract class ClientMetricEventsListener<T extends ClientMetricsEvent<?>
                 onPoolAcquireFailed(duration, timeUnit, throwable);
                 break;
             case PooledConnectionReuse:
-                onPooledConnectionReuse(duration, timeUnit);
+                onPooledConnectionReuse();
                 break;
             case PooledConnectionEviction:
                 onPooledConnectionEviction();
@@ -119,7 +119,7 @@ public abstract class ClientMetricEventsListener<T extends ClientMetricsEvent<?>
 
     @SuppressWarnings("unused") protected void onPooledConnectionEviction() {}
 
-    @SuppressWarnings("unused") protected void onPooledConnectionReuse(long duration, TimeUnit timeUnit) {}
+    @SuppressWarnings("unused") protected void onPooledConnectionReuse() {}
 
     @SuppressWarnings("unused") protected void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 

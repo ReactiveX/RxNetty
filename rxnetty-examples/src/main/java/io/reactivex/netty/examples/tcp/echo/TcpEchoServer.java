@@ -17,35 +17,27 @@
 package io.reactivex.netty.examples.tcp.echo;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.string.StringEncoder;
+import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
-import io.reactivex.netty.protocol.tcp.server.TcpServerImpl;
-import io.reactivex.netty.protocol.text.StringLineDecoder;
 
-/**
- * @author Nitesh Kant
- */
-public final class TcpEchoServer {
+import java.nio.charset.Charset;
 
-    static final int DEFAULT_PORT = 8099;
-
-    private final int port;
-
-    public TcpEchoServer(int port) {
-        this.port = port;
-    }
-
-    public TcpServer<String, String> startServer() {
-        TcpServer<String, String> server = new TcpServerImpl<ByteBuf, ByteBuf>(port)
-                .<ByteBuf, String>addChannelHandlerLast("encoder", StringEncoder::new)
-                .<String, String>addChannelHandlerLast("decoder", StringLineDecoder::new)
-                .start(connection -> connection.writeAndFlushOnEach(connection.getInput()
-                                                                              .map(msg -> "echo => " + msg + '\n')));
-
-        return server;
-    }
+public final class TcpEchoServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
-        new TcpEchoServer(DEFAULT_PORT).startServer().waitTillShutdown();
+        TcpServer<ByteBuf, ByteBuf> server;
+        server = TcpServer.newServer(0)
+                          .start(connection -> connection
+                                  .writeStringAndFlushOnEach(connection.getInput()
+                                                                       .map(bb -> bb.toString(Charset.defaultCharset()))
+                                                                       .doOnNext(logger::error)
+                                                                       .map(msg -> "echo => " + msg)));
+
+        if (shouldWaitForShutdown(args)) {
+            /*When testing the args are set, to avoid blocking till shutdown*/
+            server.waitTillShutdown();
+        }
+
+        serverPort = server.getServerPort();
     }
 }

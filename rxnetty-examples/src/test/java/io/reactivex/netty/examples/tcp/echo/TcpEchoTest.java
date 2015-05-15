@@ -16,36 +16,23 @@
 
 package io.reactivex.netty.examples.tcp.echo;
 
-import io.reactivex.netty.examples.ExamplesEnvironment;
-import io.reactivex.netty.protocol.tcp.server.TcpServer;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
 import org.junit.Test;
 
-import java.util.List;
+import java.util.Queue;
 
-/**
- * @author Tomasz Bak
- */
-public class TcpEchoTest extends ExamplesEnvironment {
+import static io.reactivex.netty.examples.ExamplesTestUtil.*;
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.*;
 
-    private TcpServer<String, String> server;
+public class TcpEchoTest {
 
-    @Before
-    public void setupServer() {
-        server = new TcpEchoServer(0).startServer();
-    }
+    @Test(timeout = 60000)
+    public void testEcho() throws Exception {
+        final Queue<String> output = setupClientLogger(TcpEchoClient.class);
 
-    @After
-    public void stopServer() throws Exception {
-        server.shutdown();
-    }
+        TcpEchoClient.main(null);
 
-    @Test
-    public void testRequestReplySequence() {
-        TcpEchoClient client = new TcpEchoClient(server.getServerPort());
-        List<String> reply = client.sendEchos();
-        Assert.assertEquals(10, reply.size());
+        assertThat("Unexpected number of messages echoed", output, hasSize(1));
+        assertThat("Unexpected number of messages echoed", output, contains("echo => Hello World!"));
     }
 }

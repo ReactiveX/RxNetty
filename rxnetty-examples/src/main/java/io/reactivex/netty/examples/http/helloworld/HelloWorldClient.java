@@ -1,12 +1,12 @@
 /*
- * Copyright 2014 Netflix, Inc.
- * 
+ * Copyright 2015 Netflix, Inc.
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
- * http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -17,57 +17,66 @@
 package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.client.FlatResponseOperator;
-import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.ResponseHolder;
-import rx.functions.Func1;
+import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.protocol.http.clientNew.HttpClient;
+import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
 
 import java.nio.charset.Charset;
-import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
-import static io.reactivex.netty.examples.http.helloworld.HelloWorldServer.DEFAULT_PORT;
+/**
+ * An HTTP "Hello World" example. There are three ways of running this example:
+ *
+ * <h2>Default</h2>
+ *
+ * The default way is to just run this class with no arguments, which will start a server ({@link HelloWorldServer}) on
+ * an ephemeral port and then send an HTTP request to that server and print the response.
+ *
+ * <h2>After starting {@link HelloWorldServer}</h2>
+ *
+ * If you want to see how {@link HelloWorldServer} work, you can run {@link HelloWorldServer} by yourself and then pass
+ * the port on which the server started to this class as a program argument:
+ *
+ <PRE>
+    java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
+ </PRE>
+ *
+ * <h2>Existing HTTP server</h2>
+ *
+ * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
+ * {@link HelloWorldServer}) by passing the port fo the existing server similar to the case above:
+ *
+ <PRE>
+ java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
+ </PRE>
+ *
+ * In all the above usages, this client will print the response received from the server.
+ */
+public class HelloWorldClient extends AbstractClientExample {
 
-public class HelloWorldClient {
+    public static void main(String[] args) {
 
-    private final int port;
+        /*
+         * Retrieves the server port, using the following algorithm:
+         * <ul>
+             <li>If an argument is passed, then use the argument as the server port.</li>
+             <li>Otherwise, see if the server in the passed server class is already running. If so, use that port.</li>
+             <li>Otherwise, start the passed server class and use that port.</li>
+         </ul>
+         */
+        int port = getServerPort(HelloWorldServer.class, args);
 
-    public HelloWorldClient(int port) {
-        this.port = port;
-    }
-
-    public String sendHelloRequest() throws InterruptedException, ExecutionException, TimeoutException {
-        return RxNetty.createHttpGet("http://localhost:" + port + "/hello")
-                .flatMap(response -> {
-                    printResponseHeader(response);
-                    return response.getContent().<String> map(content -> {
-                        return content.toString(Charset.defaultCharset());
-                    });
-                })
-                .toBlocking()
-                .toFuture().get(1, TimeUnit.MINUTES);
-    }
-
-    public void printResponseHeader(HttpClientResponse<ByteBuf> response) {
-        System.out.println("New response received.");
-        System.out.println("========================");
-        System.out.println(response.getHttpVersion().text() + ' ' + response.getStatus().code()
-                + ' ' + response.getStatus().reasonPhrase());
-        for (Map.Entry<String, String> header : response.getHeaders().entries()) {
-            System.out.println(header.getKey() + ": " + header.getValue());
-        }
-    }
-
-    public static void main(String[] args) throws InterruptedException, ExecutionException, TimeoutException {
-        int port = DEFAULT_PORT;
-        if (args.length > 0) {
-            port = Integer.parseInt(args[0]);
-        }
-        String value = new HelloWorldClient(port).sendHelloRequest();
-        System.out.println(value);
-        System.out.println("========================");
+        HttpClient.newClient("localhost", port) /*Create a client*/.noConnectionPooling()
+                  .createGet("/hello") /*Creates a GET request with URI "/hello"*/
+                  .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
+                  .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/
+                                     /*Now use the content stream.*/
+                                     resp.getContent()
+                                     /*Convert ByteBuf to string for each content*/
+                                     .map(bb -> bb.toString(Charset.defaultCharset()))
+                  )
+                  /*Block till the response comes to avoid JVM exit.*/
+                  .toBlocking()
+                  /*Print each content chunk*/
+                  .forEach(logger::info);
     }
 }

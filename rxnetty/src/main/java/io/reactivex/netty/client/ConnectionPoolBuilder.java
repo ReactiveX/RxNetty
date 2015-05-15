@@ -18,6 +18,7 @@ package io.reactivex.netty.client;
 
 import io.reactivex.netty.channel.RxDefaultThreadFactory;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.client.PoolConfig;
 import rx.Observable;
 
 import java.util.concurrent.Executors;

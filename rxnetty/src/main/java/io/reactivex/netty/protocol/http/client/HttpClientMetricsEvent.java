@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -36,6 +36,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
         RequestContentWriteSuccess(true, false, Void.class),
         RequestContentWriteFailed(true, true, Void.class),
 
+        RequestWriteStart(false, false, Void.class),
         RequestWriteComplete(true, false, Void.class),
         RequestWriteFailed(true, true, Void.class),
 
@@ -80,6 +81,7 @@ public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T
     public static final HttpClientMetricsEvent<EventType> REQUEST_CONTENT_WRITE_START = from(EventType.RequestContentWriteStart);
     public static final HttpClientMetricsEvent<EventType> REQUEST_CONTENT_WRITE_SUCCESS = from(EventType.RequestContentWriteSuccess);
     public static final HttpClientMetricsEvent<EventType> REQUEST_CONTENT_WRITE_FAILED = from(EventType.RequestContentWriteFailed);
+    public static final HttpClientMetricsEvent<EventType> REQUEST_WRITE_START = from(EventType.RequestWriteStart);
     public static final HttpClientMetricsEvent<EventType> REQUEST_WRITE_COMPLETE = from(EventType.RequestWriteComplete);
     public static final HttpClientMetricsEvent<EventType> REQUEST_WRITE_FAILED = from(EventType.RequestWriteFailed);
 

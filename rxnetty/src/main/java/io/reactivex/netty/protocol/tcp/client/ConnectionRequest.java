@@ -15,17 +15,23 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
+import javax.net.ssl.TrustManagerFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -34,15 +40,6 @@ import java.util.concurrent.TimeUnit;
  * <h2>Mutations</h2>
  *
  * All mutations to this request that creates a brand new instance.
- *
- * <h2>Optimizing multiple mutations</h2>
- *
- * A connection creation may include multiple mutations on a {@link ConnectionRequest}. These mutations will create
- * as many objects of {@link ConnectionRequest} and hence create unnecessary garbage. In order to remove this
- * memory overhead, this class provides a {@link ConnectionRequestUpdater} which can be obtained via
- * {@link #newUpdater()}.
- * There is no semantic difference between these two approaches of mutations, this approach, optimizes for lesser
- * object creation.
  *
  * <h2> Inititating connections</h2>
  *
@@ -65,8 +62,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param timeUnit Read timeout time unit.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract ConnectionRequest<W, R> readTimeOut(int timeOut, TimeUnit timeUnit);
 
@@ -78,23 +73,8 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      *                        logging is enabled at this level for {@link LoggingHandler}
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract ConnectionRequest<W, R> enableWireLogging(LogLevel wireLogginLevel);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code sslEngineFactory} for all secured connections created by the newly created client instance.
-     *
-     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created client
-     *                                                 instance.
-     *
-     * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
-     */
-    public abstract ConnectionRequest<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory);
 
     /**
      * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for the connections created by
@@ -108,8 +88,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory);
 
@@ -127,8 +105,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(EventExecutorGroup group,
                                                                               String name,
@@ -146,8 +122,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR>  addChannelHandlerLast(String name,
                                                                               Func0<ChannelHandler> handlerFactory);
@@ -166,8 +140,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                                              Func0<ChannelHandler> handlerFactory);
@@ -185,8 +157,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(String baseName, String name,
                                                                                Func0<ChannelHandler> handlerFactory);
@@ -206,8 +176,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(EventExecutorGroup group,
                                                                                String baseName,
@@ -226,8 +194,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(String baseName, String name,
                                                                               Func0<ChannelHandler> handlerFactory);
@@ -247,8 +213,6 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      * @param handlerFactory Factory to create handler instance to add.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(EventExecutorGroup group,
                                                                               String baseName,
@@ -257,15 +221,61 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * action to configure all the connections created by the newly created client instance.
+     * action to configure all the connections created by the newly created request instance.
      *
      * @param pipelineConfigurator Action to configure {@link ChannelPipeline}.
      *
      * @return A new instance of the {@link ConnectionRequest} sharing all existing state from this request.
-     * Use {@link #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused
-     * intermediary {@link ConnectionRequest} objects.
      */
     public abstract <WW, RR> ConnectionRequest<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
-    public abstract ConnectionRequestUpdater<W, R> newUpdater();
+    /**
+     * Creates a new server instances, inheriting all configurations from this request and using the passed
+     * {@code sslEngineFactory} for all secured connections created by the newly created client instance.
+     *
+     * If the {@link SSLEngine} instance can be statically, created, {@link #secure(SSLEngine)} can be used.
+     *
+     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created client
+     *                                                 instance.
+     *
+     * @return A new {@link ConnectionRequest} instance.
+     */
+    public abstract ConnectionRequest<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory);
+
+    /**
+     * Creates a new request instance, inheriting all configurations from this client and using the passed
+     * {@code sslEngine} for all secured connections created by the newly created request instance.
+     *
+     * If the {@link SSLEngine} instance can not be statically, created, {@link #secure(Func1)} )} can be used.
+     *
+     * @param sslEngine {@link SSLEngine} for all secured connections created by the newly created request instance.
+     *
+     * @return A new {@link ConnectionRequest} instance.
+     */
+    public abstract ConnectionRequest<W, R> secure(SSLEngine sslEngine);
+
+    /**
+     * Creates a new client instance, inheriting all configurations from this request and using the passed
+     * {@code sslCodec} for all secured connections created by the newly created request instance.
+     *
+     * This is required only when the {@link SslHandler} used by {@link SslCodec} is to be modified before adding to
+     * the {@link ChannelPipeline}. For most of the cases, {@link #secure(Func1)} or {@link #secure(SSLEngine)} will be
+     * enough.
+     *
+     * @param sslCodec {@link SslCodec} for all secured connections created by the newly created request instance.
+     *
+     * @return A new {@link ConnectionRequest} instance.
+     */
+    public abstract ConnectionRequest<W, R> secure(SslCodec sslCodec);
+
+    /**
+     * Creates a new client instance, inheriting all configurations from this client and using a trust-all
+     * {@link TrustManagerFactory}for all secured connections created by the newly created request
+     * instance.
+     *
+     * <b>This is only for testing and should not be used for real production clients.</b>
+     *
+     * @return A new {@link ConnectionRequest} instance.
+     */
+    public abstract ConnectionRequest<W, R> unsafeSecure();
 }

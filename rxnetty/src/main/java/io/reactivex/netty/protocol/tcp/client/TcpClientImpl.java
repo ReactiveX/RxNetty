@@ -15,6 +15,7 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
@@ -26,40 +27,61 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
-import io.reactivex.netty.codec.SSLCodec;
+import io.reactivex.netty.client.ServerPool;
+import io.reactivex.netty.client.ServerPool.Server;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.util.Collections;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 public class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     private final ClientState<W, R> state;
     private final String name;
-    private final ConcurrentMap<SocketAddress, ConnectionRequest<W, R>> remoteAddrVsConnRequest;
+    private final ConcurrentMap<SocketAddress, ConnectionRequest<W, R>> remoteAddrVsConnRequest; //TODO: Weak reference
     private final ConnectionRequestImpl<W, R> thisConnectionRequest;
 
-    public TcpClientImpl(String name, SocketAddress remoteAddress) {
+    protected TcpClientImpl(String name, SocketAddress remoteAddress) {
         this(name, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class, remoteAddress);
     }
 
-    public TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
-                         SocketAddress remoteAddress) {
+    protected TcpClientImpl(String name, ServerPool<ClientMetricsEvent<?>> serverPool) {
+        this(name, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class, serverPool);
+    }
+
+    protected TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
+                            SocketAddress remoteAddress) {
         this.name = name;
         state = ClientState.create(eventLoopGroup, channelClass, remoteAddress);
         remoteAddrVsConnRequest = new ConcurrentHashMap<>();
         thisConnectionRequest = new ConnectionRequestImpl<>(state);
     }
 
-    public TcpClientImpl(String name, ClientState<W, R> state) {
+    protected TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
+                            ServerPool<ClientMetricsEvent<?>> serverPool) {
+        this.name = name;
+        state = ClientState.create(eventLoopGroup, channelClass, serverPool);
+        remoteAddrVsConnRequest = new ConcurrentHashMap<>();
+        ConcurrentHashMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> stateMap = new ConcurrentHashMap<>();
+        thisConnectionRequest = new ConnectionRequestImpl<>(state, stateMap);
+    }
+
+    protected TcpClientImpl(String name, ClientState<W, R> state) {
         this.name = name;
         this.state = state;
         remoteAddrVsConnRequest = new ConcurrentHashMap<>();
@@ -70,7 +92,12 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
         this.state = state;
         name = client.name;
         remoteAddrVsConnRequest = new ConcurrentHashMap<>(); // Since, the state has changed, no existing requests are valid.
-        thisConnectionRequest = new ConnectionRequestImpl<>(this.state);
+        if (state.hasServerPool()) {
+            ConcurrentHashMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> stateMap = new ConcurrentHashMap<>();
+            thisConnectionRequest = new ConnectionRequestImpl<>(this.state, stateMap);
+        } else {
+            thisConnectionRequest = new ConnectionRequestImpl<W, R>(this.state);
+        }
     }
 
     @Override
@@ -106,6 +133,16 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     @Override
     public <T> TcpClient<W, R> channelOption(ChannelOption<T> option, T value) {
         return copy(state.channelOption(option, value));
+    }
+
+    @Override
+    public TcpClient<W, R> readTimeOut(final int timeOut, final TimeUnit timeUnit) {
+        return addChannelHandlerFirst(HandlerNames.ClientReadTimeoutHandler.getName(), new Func0<ChannelHandler>() {
+            @Override
+            public ChannelHandler call() {
+                return new InternalReadTimeoutHandler(timeOut, timeUnit);
+            }
+        });
     }
 
     @Override
@@ -188,13 +225,38 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     @Override
+    public TcpClient<W, R> connectionFactory(Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> factory) {
+        return copy(state.connectionFactory(factory));
+    }
+
+    @Override
     public TcpClient<W, R> enableWireLogging(LogLevel wireLoggingLevel) {
         return copy(state.enableWireLogging(wireLoggingLevel));
     }
 
     @Override
-    public TcpClient<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory) {
-        return copy(state.<W, R>pipelineConfigurator(new SSLCodec(sslEngineFactory)));
+    public TcpClient<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return copy(state.secure(sslEngineFactory));
+    }
+
+    @Override
+    public TcpClient<W, R> secure(SSLEngine sslEngine) {
+        return copy(state.secure(sslEngine));
+    }
+
+    @Override
+    public TcpClient<W, R> secure(SslCodec sslCodec) {
+        return copy(state.secure(sslCodec));
+    }
+
+    @Override
+    public TcpClient<W, R> unsafeSecure() {
+        return copy(state.unsafeSecure());
+    }
+
+    @Override
+    public MetricEventsSubject<ClientMetricsEvent<?>> getEventsSubject() {
+        return getClientState().getEventsSubject();
     }
 
     private <WW, RR> TcpClientImpl<WW, RR> copy(ClientState<WW, RR> state) {
@@ -204,5 +266,13 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     @Override
     public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
         return state.getEventsSubject().subscribe(listener);
+    }
+
+    /*Visible for testing*/ ClientState<W, R> getClientState() {
+        return state;
+    }
+
+    /*Visible for testing*/ Map<SocketAddress, ConnectionRequest<W, R>> getRemoteAddrVsConnRequest() {
+        return Collections.unmodifiableMap(remoteAddrVsConnRequest);
     }
 }

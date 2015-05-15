@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.concurrent.EventExecutorGroup;
 import rx.Observable;
+import rx.annotations.Experimental;
 import rx.functions.Action1;
 
 import java.util.Date;
@@ -37,6 +38,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Nitesh Kant
  */
+@Experimental
 public abstract class HttpClientRequestUpdater<I, O> implements HttpClientRequestOperations<I, HttpClientRequestUpdater<I, O>> {
 
     /**

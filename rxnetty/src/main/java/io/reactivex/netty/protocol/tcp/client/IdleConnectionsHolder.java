@@ -16,8 +16,6 @@
 package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.EventLoop;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import rx.Observable;
 
 /**
@@ -29,12 +27,6 @@ import rx.Observable;
  * @author Nitesh Kant
  */
 public abstract class IdleConnectionsHolder<W, R> {
-
-    private MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject;
-
-    IdleConnectionsHolder(MetricEventsSubject<ClientMetricsEvent<?>> metricEventsSubject) {
-        this.metricEventsSubject = metricEventsSubject;
-    }
 
     /**
      * Creates a stream of idle connections where every item sent on to the stream is removed from the underlying
@@ -80,15 +72,12 @@ public abstract class IdleConnectionsHolder<W, R> {
     public abstract boolean remove(PooledConnection<R, W> toRemove);
 
     public final <WW, RR> IdleConnectionsHolder<WW, RR> copy(ClientState<WW, RR> newState) {
-        final IdleConnectionsHolder<WW, RR> copy = doCopy(newState);
-        copy.metricEventsSubject = newState.getEventsSubject();
-        return copy;
+        return doCopy(newState);
     }
 
     protected abstract <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState);
 
     protected Observable<Void> discard(PooledConnection<R, W> toDiscard) {
-        metricEventsSubject.onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION);
         return toDiscard.discard();
     }
 }

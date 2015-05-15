@@ -15,49 +15,109 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
+import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.codec.SSLCodec;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
+import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.client.ServerPool;
+import io.reactivex.netty.client.ServerPool.Server;
+import io.reactivex.netty.codec.HandlerNames;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.functions.Actions;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
+import javax.net.ssl.SSLEngine;
+import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
 
     private final ClientState<W, R> clientState;
 
+    ConnectionRequestImpl(final ClientState<W, R> clientState,
+                          final ConcurrentMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> serverVsState) {
+        super(new OnSubscribe<Connection<R, W>>() {
+            @Override
+            public void call(Subscriber<? super Connection<R, W>> subscriber) {
+
+                if (!clientState.hasServerPool()) {
+                    subscriber.onError(new IllegalArgumentException("Connection request created with no server pool but state map."));
+                }
+
+                ClientState<W, R> stateToUse;
+
+                ServerPool<ClientMetricsEvent<?>> serverPool = clientState.getServerPool();
+                try {
+                    final Server<ClientMetricsEvent<?>> server = serverPool.next();
+                    final ClientState<W, R> serverClientState = clientState.remoteAddress(server.getAddress());
+                    ClientState<W, R> existing = serverVsState.putIfAbsent(server, serverClientState);
+                    if (null == existing) {
+                        stateToUse = serverClientState;
+                        clientState.getEventsSubject().subscribe(server);
+                        server.getLifecycle().subscribe(Actions.empty(), new Action1<Throwable>() {
+                            @Override
+                            public void call(Throwable throwable) {
+                                serverVsState.remove(server);
+                            }
+                        }, new Action0() {
+                            @Override
+                            public void call() {
+                                serverVsState.remove(server);
+                            }
+                        });
+                    } else {
+                        stateToUse = existing;
+                    }
+                } catch (NoSuchElementException e) {
+                    subscriber.onError(e);
+                    return;
+                }
+
+                stateToUse.getConnectionFactory()
+                          .connect()
+                          .unsafeSubscribe(subscriber);
+            }
+        });
+        this.clientState = clientState;
+    }
+
     ConnectionRequestImpl(final ClientState<W, R> clientState) {
         super(new OnSubscribe<Connection<R, W>>() {
             @Override
             public void call(Subscriber<? super Connection<R, W>> subscriber) {
+                if (clientState.hasServerPool()) {
+                    subscriber.onError(new IllegalArgumentException("Connection request created with a server pool but not provided a state map."));
+                }
+
                 clientState.getConnectionFactory()
                            .connect()
-                           .subscribe(subscriber);
+                           .unsafeSubscribe(subscriber);
             }
         });
         this.clientState = clientState;
     }
 
     @Override
-    public ConnectionRequest<W, R> readTimeOut(int timeOut, TimeUnit timeUnit) {
-        // TODO: Auto-generated method stub
-        return null;
+    public ConnectionRequest<W, R> readTimeOut(final int timeOut, final TimeUnit timeUnit) {
+        return addChannelHandlerFirst(HandlerNames.ClientReadTimeoutHandler.getName(), new Func0<ChannelHandler>() {
+            @Override
+            public ChannelHandler call() {
+                return new InternalReadTimeoutHandler(timeOut, timeUnit);
+            }
+        });
     }
 
     @Override
     public ConnectionRequest<W, R> enableWireLogging(LogLevel wireLogginLevel) {
         return copy(clientState.enableWireLogging(wireLogginLevel));
-    }
-
-    @Override
-    public ConnectionRequest<W, R> sslEngineFactory(SSLEngineFactory sslEngineFactory) {
-        return copy(clientState.<W, R>pipelineConfigurator(new SSLCodec(sslEngineFactory)));
     }
 
     @Override
@@ -112,9 +172,27 @@ final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
     }
 
     @Override
-    public ConnectionRequestUpdater<W, R> newUpdater() {
-        // TODO: Auto-generated method stub
-        return null;
+    public ConnectionRequest<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return copy(clientState.secure(sslEngineFactory));
+    }
+
+    @Override
+    public ConnectionRequest<W, R> secure(SSLEngine sslEngine) {
+        return copy(clientState.secure(sslEngine));
+    }
+
+    @Override
+    public ConnectionRequest<W, R> secure(SslCodec sslCodec) {
+        return copy(clientState.secure(sslCodec));
+    }
+
+    @Override
+    public ConnectionRequest<W, R> unsafeSecure() {
+        return copy(clientState.unsafeSecure());
+    }
+
+    /*Visible for testing*/ClientState<W, R> getClientState() {
+        return clientState;
     }
 
     private static <WW, RR> ConnectionRequestImpl<WW, RR> copy(ClientState<WW, RR> state) {

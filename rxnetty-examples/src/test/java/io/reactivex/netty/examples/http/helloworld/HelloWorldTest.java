@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,40 +16,39 @@
 
 package io.reactivex.netty.examples.http.helloworld;
 
-import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.examples.ExamplesEnvironment;
-import io.reactivex.netty.protocol.http.server.HttpServer;
-
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
+import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeoutException;
+import java.lang.reflect.InvocationTargetException;
+import java.util.Queue;
 
-/**
- * @author Tomasz Bak
- */
+import static io.reactivex.netty.examples.ExamplesTestUtil.*;
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.*;
+
 public class HelloWorldTest extends ExamplesEnvironment {
 
-    private HttpServer<ByteBuf, ByteBuf> server;
+    @Test(timeout = 60000)
+    public void testHelloWorld() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        final Queue<String> output = setupClientLogger(HelloWorldClient.class);
 
-    @Before
-    public void setupHttpHelloServer() {
-        server = new HelloWorldServer(0).createServer();
-        server.start();
-    }
+        HelloWorldClient.main(null);
 
-    @After
-    public void stopServer() throws InterruptedException {
-        server.shutdown();
-    }
+        HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        expectedHeader.headers().add(Names.TRANSFER_ENCODING, Values.CHUNKED);
+        String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
+                                                                          expectedHeader.status(),
+                                                                          expectedHeader.headers().iterator());
 
-    @Test
-    public void testRequestReplySequence() throws InterruptedException, ExecutionException, TimeoutException {
-        HelloWorldClient client = new HelloWorldClient(server.getServerPort());
-        String response = client.sendHelloRequest();
-        Assert.assertEquals("Hello World!", response);
+        assertThat("Unexpected number of messages echoed", output, hasSize(2));
+
+        assertThat("Unexpected response.", output, contains(expectedHeaderString, "HelloWorld!"));
     }
 }
