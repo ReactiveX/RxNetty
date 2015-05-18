@@ -105,14 +105,14 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
     public <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource, Func0<T> trailerFactory,
                                                               Func2<T, C, T> trailerMutator,
                                                               Func1<C, Boolean> flushSelector) {
-        return write(contentSource.lift(new FlushSelectorOperator<C>(flushSelector, connection.getNettyChannel())),
+        return write(contentSource.lift(new FlushSelectorOperator<C>(flushSelector, connection.unsafeNettyChannel())),
                      trailerFactory, trailerMutator);
     }
 
     @Override
     public ResponseContentWriter<C> write(Observable<C> msgs, final Func1<C, Boolean> flushSelector) {
         return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<C>(flushSelector,
-                                                                                    connection.getNettyChannel())),
+                                                                                    connection.unsafeNettyChannel())),
                                        true);
     }
 
@@ -143,7 +143,7 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
                                                                     Func1<String, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource.lift(new FlushSelectorOperator<String>(flushSelector,
-                                                                                        connection.getNettyChannel()));
+                                                                                        connection.unsafeNettyChannel()));
         return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
                                        false);
     }
@@ -151,7 +151,7 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
     @Override
     public ResponseContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
         return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<String>(flushSelector,
-                                                                                         connection.getNettyChannel())),
+                                                                                         connection.unsafeNettyChannel())),
                                        true);
     }
 
@@ -182,7 +182,7 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
                                                                    Func1<byte[], Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource.lift(new FlushSelectorOperator<byte[]>(flushSelector,
-                                                                                        connection.getNettyChannel()));
+                                                                                        connection.unsafeNettyChannel()));
         return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
                                        false);
     }
@@ -190,7 +190,7 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
     @Override
     public ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector) {
         return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<byte[]>(flushSelector,
-                                                                                         connection.getNettyChannel())),
+                                                                                         connection.unsafeNettyChannel())),
                                        true);
     }
 

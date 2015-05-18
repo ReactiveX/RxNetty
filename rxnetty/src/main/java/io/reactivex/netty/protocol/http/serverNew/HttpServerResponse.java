@@ -15,11 +15,19 @@
  */
 package io.reactivex.netty.protocol.http.serverNew;
 
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
+import rx.annotations.Experimental;
+import rx.functions.Action1;
 
 import java.text.ParseException;
 import java.util.Date;
@@ -317,6 +325,172 @@ public abstract class HttpServerResponse<C> extends ResponseContentWriter<C> {
      * the number of system calls and is helpful in "Hello World" benchmarks.
      */
     public abstract HttpServerResponse<C> flushOnlyOnReadComplete();
+
+    /**
+     * Converts this response to enable writing {@link ServerSentEvent}s.
+     *
+     * @return This response with writing of {@link ServerSentEvent} enabled.
+     */
+    @Experimental
+    public abstract HttpServerResponse<ServerSentEvent> transformToServerSentEvents();
+
+    /**
+     * Enables wire logging at the passed level for this response.
+     *
+     * @param wireLogginLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
+     *                        logging is enabled at this level for {@link LoggingHandler}
+     *
+     * @return {@code this}.
+     */
+    public abstract HttpServerResponse<C> enableWireLogging(LogLevel wireLogginLevel);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the first position of the pipeline as specified by
+     * {@link ChannelPipeline#addFirst(String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerFirst(String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the first position of the pipeline as specified by
+     * {@link ChannelPipeline#addFirst(EventExecutorGroup, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the last position of the pipeline as specified by
+     * {@link ChannelPipeline#addLast(String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerLast(String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the last position of the pipeline as specified by
+     * {@link ChannelPipeline#addLast(EventExecutorGroup, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                                      ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addBefore(String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param baseName  the name of the existing handler
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerBefore(String baseName, String name,
+                                                                        ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addBefore(EventExecutorGroup, String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param baseName  the name of the existing handler
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
+                                                                        String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addAfter(String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param baseName  the name of the existing handler
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerAfter(String baseName, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addAfter(EventExecutorGroup, String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param baseName  the name of the existing handler
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerAfter(EventExecutorGroup group,
+                                                                       String baseName, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Configures the {@link ChannelPipeline} for the connection used by this response.
+     *
+     * @param pipelineConfigurator Action to configure {@link ChannelPipeline}.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
      * Disposes this response. If the response is not yet set then this will attempt to send an error response if the

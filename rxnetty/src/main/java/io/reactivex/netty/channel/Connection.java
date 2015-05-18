@@ -19,6 +19,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
@@ -49,6 +50,8 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
     private final MetricEventsSubject eventsSubject;
     private final ChannelMetricEventProvider metricEventProvider;
 
+    protected final MarkAwarePipeline markAwarePipeline;
+
     protected Connection(final Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
                          ChannelMetricEventProvider metricEventProvider) {
         this.eventsSubject = eventsSubject;
@@ -57,12 +60,14 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
             throw new IllegalArgumentException("Channel can not be null");
         }
         this.nettyChannel = nettyChannel;
+        markAwarePipeline = new MarkAwarePipeline(nettyChannel.pipeline());
     }
 
     protected Connection(Connection<R, W> toCopy) {
         eventsSubject = toCopy.eventsSubject;
         metricEventProvider = toCopy.metricEventProvider;
         nettyChannel = toCopy.nettyChannel;
+        markAwarePipeline = toCopy.markAwarePipeline;
     }
 
     /**
@@ -105,7 +110,33 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
         }).ignoreElements();
     }
 
-    public Channel getNettyChannel() {
+    /**
+     * Returns the {@link MarkAwarePipeline} for this connection, changes to which can be reverted at any point in time.
+     */
+    public MarkAwarePipeline getResettableChannelPipeline() {
+        return markAwarePipeline;
+    }
+
+    /**
+     * Returns the {@link ChannelPipeline} for this connection.
+     *
+     * @return {@link ChannelPipeline} for this connection.
+     */
+    public ChannelPipeline getChannelPipeline() {
+        return nettyChannel.pipeline();
+    }
+
+    /**
+     * Returns the underlying netty {@link Channel} for this connection.
+     *
+     * <h2>Why unsafe?</h2>
+     *
+     * It is advisable to use this connection abstraction for all interactions with the channel, however, advanced users
+     * may find directly using the netty channel useful in some cases.
+     *
+     * @return The underlying netty {@link Channel} for this connection.
+     */
+    public Channel unsafeNettyChannel() {
         return nettyChannel;
     }
 

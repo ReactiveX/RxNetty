@@ -31,11 +31,14 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.FlushSelectorOperator;
 import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEventDecoder;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
 import rx.Subscriber;
@@ -318,6 +321,16 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
+    public HttpClientRequest<O, ServerSentEvent> expectServerSentEvents() {
+        return addChannelHandlerLast(HandlerNames.SseClientCodec.getName(), new Func0<ChannelHandler>() {
+            @Override
+            public ChannelHandler call() {
+                return new ServerSentEventDecoder();
+            }
+        });
+    }
+
+    @Override
     public boolean containsHeader(CharSequence name) {
         return request.headers.headers().contains(name);
     }
@@ -574,7 +587,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                @Override
                                                public Observable<HttpClientResponse> call(Connection c) {
                                                    return c.write(OnSubscribeFuncImpl.this.request
-                                                                          .asObservable(c.getNettyChannel()))
+                                                                          .asObservable(c.unsafeNettyChannel()))
                                                            .lift(new RequestWriteMetricsOperator(client.getEventsSubject()))
                                                            .ignoreElements()
                                                            .cast(HttpClientResponse.class)

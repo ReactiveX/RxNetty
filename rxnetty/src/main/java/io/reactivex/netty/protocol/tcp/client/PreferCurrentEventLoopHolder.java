@@ -130,7 +130,7 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
              * This should not happen as the code generally adds the connection from within an eventloop.
              * By executing the add on the eventloop, the owner eventloop is correctly discovered for this eventloop.
              */
-            toAdd.getNettyChannel().eventLoop().execute(new Runnable() {
+            toAdd.unsafeNettyChannel().eventLoop().execute(new Runnable() {
                 @Override
                 public void run() {
                     IdleConnectionsHolder<W, R> holderForThisEl = perElHolder.get();

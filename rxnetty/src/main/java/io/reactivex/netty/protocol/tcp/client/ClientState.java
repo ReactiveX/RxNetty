@@ -24,7 +24,6 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -39,6 +38,7 @@ import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
+import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import io.reactivex.netty.protocol.tcp.ssl.DefaultSslCodec;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
@@ -50,7 +50,6 @@ import rx.functions.Func1;
 import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.EnumMap;
 import java.util.concurrent.TimeUnit;
 
 import static io.reactivex.netty.codec.HandlerNames.*;
@@ -240,7 +239,7 @@ public class ClientState<W, R> {
 
     public ClientState<W, R> enableWireLogging(final LogLevel wireLogginLevel) {
         return addChannelHandlerFirst(HandlerNames.WireLogging.getName(),
-                                      LoggingHandlerFactory.factories.get(wireLogginLevel));
+                                      LoggingHandlerFactory.getFactory(wireLogginLevel));
     }
 
     public ClientState<W, R> maxConnections(int maxConnections) {
@@ -445,34 +444,6 @@ public class ClientState<W, R> {
     @SuppressWarnings("unchecked")
     private <WW, RR> ClientState<WW, RR> cast() {
         return (ClientState<WW, RR>) this;
-    }
-
-    /**
-     * {@link LoggingHandler} is a shaerable handler and hence need not be created for every client. This factory
-     * manages a static map of log level -> instance which can be used directly instead of creating a new factoru per
-     * client.
-     */
-    /*visible for testing*/static class LoggingHandlerFactory implements Func0<ChannelHandler> {
-
-        /*visible for testing*/ static final EnumMap<LogLevel, LoggingHandlerFactory> factories =
-                new EnumMap<LogLevel, LoggingHandlerFactory>(LogLevel.class);
-
-        static {
-            for (LogLevel logLevel : LogLevel.values()) {
-                factories.put(logLevel, new LoggingHandlerFactory(logLevel));
-            }
-        }
-
-        private final LoggingHandler loggingHandler;
-
-        private LoggingHandlerFactory(LogLevel wireLogginLevel) {
-            loggingHandler = new LoggingHandler(wireLogginLevel);
-        }
-
-        @Override
-        public ChannelHandler call() {
-            return loggingHandler;/*logging handler is shareable.*/
-        }
     }
 
     private static class TailHandlerFactory implements Action1<ChannelPipeline> {

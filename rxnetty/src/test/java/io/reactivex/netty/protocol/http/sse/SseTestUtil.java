@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,12 @@ package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.codec.http.DefaultHttpContent;
+import io.netty.handler.codec.http.HttpContent;
 
 import java.nio.charset.Charset;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 /**
  * @author Nitesh Kant
@@ -66,9 +68,9 @@ public final class SseTestUtil {
                      null == actual ? null : actual.toString(Charset.defaultCharset()));
     }
 
-    public static ByteBuf toByteBuf(String event) {
+    public static HttpContent toHttpContent(String event) {
         ByteBuf in = Unpooled.buffer(1024);
         in.writeBytes(event.getBytes(Charset.defaultCharset()));
-        return in;
+        return new DefaultHttpContent(in);
     }
 }

@@ -21,13 +21,9 @@ import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.clientNew.HttpClient;
 import io.reactivex.netty.protocol.http.clientNew.HttpClientRequest;
 import io.reactivex.netty.protocol.http.serverNew.HttpServer;
-import io.reactivex.netty.servo.http.HttpClientListener;
-import io.reactivex.netty.servo.http.HttpServerListener;
-import rx.Observable;
 
 import java.util.Iterator;
 import java.util.Map.Entry;
-import java.util.concurrent.TimeUnit;
 
 import static rx.Observable.*;
 
@@ -37,14 +33,11 @@ public final class ProxyServer extends AbstractServerExample {
 
         int targetServerPort = startTargetServer();
 
-        final HttpClient<ByteBuf, ByteBuf> targetClient = HttpClient.newClient("localhost", targetServerPort)
-                                                                    .maxConnections(500);
-        final HttpClientListener metricListener = HttpClientListener.newHttpListener("blah");
-        targetClient.subscribe(metricListener);
+        final HttpClient<ByteBuf, ByteBuf> targetClient = HttpClient.newClient("localhost", targetServerPort);
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(8888)
+        server = HttpServer.newServer(0)
                            .start((req, resp) -> {
                                       HttpClientRequest<ByteBuf, ByteBuf> outReq =
                                               targetClient.createRequest(req.getHttpMethod(), req.getUri());
@@ -57,45 +50,17 @@ public final class ProxyServer extends AbstractServerExample {
 
                                       return outReq.writeContent(req.getContent())
                                                    .flatMap(outResp -> {
-                                                       Iterator<Entry<String, String>> respH = req.headerIterator();
+                                                       Iterator<Entry<String, String>> respH = outResp.headerIterator();
                                                        while (respH.hasNext()) {
                                                            Entry<String, String> next = respH.next();
                                                            resp.setHeader(next.getKey(), next.getValue());
                                                        }
+
+                                                       resp.setHeader("X-Proxied-By", "RxNetty");
                                                        return resp.write(outResp.getContent());
                                                    });
                                   }
                            );
-
-        HttpServerListener serverListener = HttpServerListener.newHttpListener("bar");
-        server.subscribe(serverListener);
-
-        Observable.interval(10, TimeUnit.SECONDS)
-                  .forEach(aLong -> {
-                      System.out.println("====================  Client   =====================");
-                      System.out.print("Pool acquires => " + metricListener.getPoolAcquires());
-                      System.out.print(", Pending pool acquires => " + metricListener.getPendingPoolAcquires());
-                      System.out.println(", Pool acquire times => " + metricListener.getPoolAcquireTimes().getValue());
-                      System.out.print("Pool releases => " + metricListener.getPoolReleases());
-                      System.out.print(", Pending pool releases => " + metricListener.getPendingPoolReleases());
-                      System.out.println(", Pool release times  => " + metricListener.getPoolReleaseTimes().getValue());
-                      System.out.println("Pool reuse => " + metricListener.getPoolReuse());
-                      System.out.print("Connection count => " + metricListener.getConnectionCount());
-                      System.out.print(", Live connections => " + metricListener.getLiveConnections());
-                      System.out.print(", Pending connects => " + metricListener.getPendingConnects());
-                      System.out.print(", Pending connection close => " + metricListener.getPendingConnectionClose());
-                      System.out.print(", Processed requests => " + metricListener.getProcessedRequests());
-                      System.out.print(", Inflight requests => " + metricListener.getInflightRequests());
-                      System.out.println(", Response read times => " + metricListener.getResponseReadTimes().getValue());
-                      System.out.println("====================  Server   =====================");
-                      System.out.print("Inflight requests => " + serverListener.getInflightRequests());
-                      System.out.print(", Connected clients => " + serverListener.getLiveConnections());
-                      System.out.print(", Processed requests => " + serverListener.getProcessedRequests());
-                      System.out.print(", Failed requests => " + serverListener.getFailedRequests());
-                      System.out.print(", Response write failed => " + serverListener.getResponseWriteFailed());
-                      System.out.print(", Response write times => " + serverListener.getResponseWriteTimes().getValue());
-                      System.out.println(", Request read times => " + serverListener.getRequestReadTimes().getValue());
-                  });
 
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {

@@ -139,7 +139,7 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 }
             });
 
-            connection.getNettyChannel().closeFuture().addListener(new ChannelFutureListener() {
+            connection.unsafeNettyChannel().closeFuture().addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     handlingSubscription.unsubscribe(); // Cancel on connection close.

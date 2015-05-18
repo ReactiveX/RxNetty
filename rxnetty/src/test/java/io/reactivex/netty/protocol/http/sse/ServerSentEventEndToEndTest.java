@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,7 +19,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -115,7 +114,7 @@ public class ServerSentEventEndToEndTest {
     private Observable<ServerSentEvent> receiveSse() {
         return RxNetty.<ByteBuf, ServerSentEvent>newHttpClientBuilder("localhost",
                                                                       sseServer.getServerPort())
-                                           .pipelineConfigurator(PipelineConfigurators.<ByteBuf>clientSseConfigurator())
+                                           //.pipelineConfigurator(PipelineConfigurators.<ByteBuf>clientSseConfigurator())
                                            .enableWireLogging(LogLevel.ERROR)
                                            .build()
                                            .submit(HttpClientRequest.createGet("/"))
@@ -150,7 +149,7 @@ public class ServerSentEventEndToEndTest {
                                  });
             }
         }).enableWireLogging(LogLevel.ERROR)
-                           .pipelineConfigurator(PipelineConfigurators.<ByteBuf>serveSseConfigurator())
+                           //.pipelineConfigurator(PipelineConfigurators.<ByteBuf>serveSseConfigurator())
                            .build();
         sseServer.start();
     }

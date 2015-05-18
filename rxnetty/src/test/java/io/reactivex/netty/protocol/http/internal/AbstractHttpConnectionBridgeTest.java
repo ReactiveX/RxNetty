@@ -475,7 +475,7 @@ public class AbstractHttpConnectionBridgeTest {
                     channel = new EmbeddedChannel(handler, eventCatcher);
                     @SuppressWarnings("unchecked")
                     Connection<String, String> connMock = Mockito.mock(Connection.class);
-                    Mockito.when(connMock.getNettyChannel()).thenReturn(channel);
+                    Mockito.when(connMock.unsafeNettyChannel()).thenReturn(channel);
 
                     HandlerRule.this.connMock = connMock;
                     base.evaluate();

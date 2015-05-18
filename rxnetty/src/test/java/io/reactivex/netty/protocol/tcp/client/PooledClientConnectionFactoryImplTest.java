@@ -80,7 +80,7 @@ public class PooledClientConnectionFactoryImplTest {
         assertThat("Idle connections available before discard.", connIdle, is(nullValue()));
 
         /*This attribute will discard on close*/
-        connection.getNettyChannel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true);
+        connection.unsafeNettyChannel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true);
 
         /* Close will discard */
         pooledFactoryRule.closeAndAwait(connection); /*Throw error or close quietly*/
@@ -95,7 +95,7 @@ public class PooledClientConnectionFactoryImplTest {
         PooledConnection<String, String> idleConnection = _testRelease();
 
         /*Force discard by next idle connection reap*/
-        idleConnection.getNettyChannel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true);
+        idleConnection.unsafeNettyChannel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true);
 
         pooledFactoryRule.testScheduler.advanceTimeBy(1, TimeUnit.MINUTES);
 
@@ -244,7 +244,7 @@ public class PooledClientConnectionFactoryImplTest {
         }
 
         public void closeAndAwait(Connection<String, String> toClose) throws Throwable {
-            EmbeddedChannel embeddedChannel= (EmbeddedChannel) toClose.getNettyChannel();
+            EmbeddedChannel embeddedChannel= (EmbeddedChannel) toClose.unsafeNettyChannel();
 
             final TestSubscriber<Void> testSubscriber = new TestSubscriber<>();
 

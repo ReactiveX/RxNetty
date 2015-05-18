@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
-import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 
 /**
  * A factory class for different {@link PipelineConfigurator} for the context module.
@@ -56,17 +55,5 @@ public final class ContextPipelineConfigurators {
     public static <I, O> PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>>
     httpClientConfigurator(RequestIdProvider requestIdProvider, RequestCorrelator correlator) {
         return httpClientConfigurator(requestIdProvider, correlator, PipelineConfigurators.<I, O>httpClientConfigurator());
-    }
-
-    public static <I> PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>>
-    sseClientConfigurator(RequestIdProvider requestIdProvider, RequestCorrelator correlator) {
-        return new HttpClientContextConfigurator<I, ServerSentEvent>(requestIdProvider, correlator,
-                                                                     PipelineConfigurators.<I>clientSseConfigurator());
-    }
-
-    public static <I> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<ServerSentEvent>>
-    sseServerConfigurator(RequestIdProvider requestIdProvider, RequestCorrelator correlator) {
-        return new HttpServerContextConfigurator<I, ServerSentEvent>(requestIdProvider, correlator,
-                                                                     PipelineConfigurators.<I>serveSseConfigurator());
     }
 }

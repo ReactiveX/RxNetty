@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.streaming;
+package io.reactivex.netty.examples.http.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractServerExample;
@@ -23,10 +23,12 @@ import rx.Observable;
 
 import java.util.concurrent.TimeUnit;
 
+import static io.reactivex.netty.protocol.http.sse.ServerSentEvent.*;
+
 /**
- * An HTTP server that sends an infinite HTTP chunked response emitting a number every second.
+ * An HTTP "Hello World" server. It returns an "Hello World" response for all requests received.
  */
-public final class StreamingServer extends AbstractServerExample {
+public final class HelloSseServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
 
@@ -34,12 +36,11 @@ public final class StreamingServer extends AbstractServerExample {
 
         server = HttpServer.newServer(0)
                            .start((req, resp) ->
-                                          resp.writeStringAndFlushOnEach(
-                                                  Observable.interval(10, TimeUnit.MILLISECONDS)
-                                                          .onBackpressureDrop()/*If the channel is backed up with data, drop the numbers*/
-                                                          .map(aLong -> "Interval =>" + aLong)/*Convert the number to a string.*/
-                                          )
-        );
+                               resp.transformToServerSentEvents()
+                                   .writeAndFlushOnEach(Observable.interval(10, TimeUnit.MILLISECONDS)
+                                                                  .onBackpressureDrop()
+                                                                  .map(aLong -> withData("Interval => " + aLong)))
+                           );
 
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {

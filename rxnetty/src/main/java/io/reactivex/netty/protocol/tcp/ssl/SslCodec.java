@@ -17,7 +17,6 @@ package io.reactivex.netty.protocol.tcp.ssl;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
@@ -56,8 +55,7 @@ public abstract class SslCodec implements Action1<ChannelPipeline> {
 
     protected abstract SslHandler newSslHandler(ChannelPipeline pipeline);
 
-    @Sharable
-    public static final class SslConnEmissionHandler extends ChannelDuplexHandler {
+    private static final class SslConnEmissionHandler extends ChannelDuplexHandler {
 
         private boolean handshakeDone;
 

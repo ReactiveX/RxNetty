@@ -242,7 +242,7 @@ public class AbstractConnectionToChannelBridgeTest {
             subscriber.assertNoErrors();
 
             assertThat("No connections received.", subscriber.getOnNextEvents(), is(not(empty())));
-            assertThat("Unexpected channel in new connection.", subscriber.getOnNextEvents().get(0).getNettyChannel(),
+            assertThat("Unexpected channel in new connection.", subscriber.getOnNextEvents().get(0).unsafeNettyChannel(),
                        is(channel));
 
         }

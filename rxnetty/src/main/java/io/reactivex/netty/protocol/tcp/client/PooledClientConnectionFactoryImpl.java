@@ -138,7 +138,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                      * Executing the release on the eventloop to avoid race-conditions between code cleaning up
                      * connection in the pipeline and the connecting being released to the pool.
                      */
-                    connection.getNettyChannel()
+                    connection.unsafeNettyChannel()
                               .eventLoop()
                               .submit(new ReleaseTask(connection, subscriber));
                 }
@@ -250,7 +250,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
         @Override
         public void run() {
             try {
-                connection.getNettyChannel().pipeline().fireUserEventTriggered(PooledConnectionReleaseEvent.INSTANCE);
+                connection.unsafeNettyChannel().pipeline().fireUserEventTriggered(PooledConnectionReleaseEvent.INSTANCE);
                 metricsEventSubject.onEvent(POOL_RELEASE_START);
                 if (isShutdown() || !connection.isUsable()) {
                     idleConnectionsHolder.discard(connection);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,9 @@ package io.reactivex.netty.protocol.http.sse;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufProcessor;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.MessageToMessageDecoder;
+import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.LastHttpContent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +30,7 @@ import java.util.List;
 /**
  * A decoder to decode <a href="http://www.w3.org/TR/eventsource/">Server sent events</a> into {@link ServerSentEvent}
  */
-public class ServerSentEventDecoder extends ByteToMessageDecoder {
+public class ServerSentEventDecoder extends MessageToMessageDecoder<HttpContent> {
 
     private static final Logger logger = LoggerFactory.getLogger(ServerSentEventDecoder.class);
 
@@ -111,7 +113,9 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
     private State state = State.ReadFieldName;
 
     @Override
-    protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
+    protected void decode(ChannelHandlerContext ctx, HttpContent httpContent, List<Object> out) throws Exception {
+
+        final ByteBuf in = httpContent.content();
 
         if (null == sseEncodingCharset) {
             throw new IllegalArgumentException("Can not read SSE data as UTF-8 charset is not available.");
@@ -235,6 +239,11 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
             }
         }
 
+
+        if (httpContent instanceof LastHttpContent) {
+            ctx.fireChannelRead(httpContent); // Since the content is already consumed above (by the SSEDecoder), this is just
+                                              // as sending just trailing headers. This is critical to mark the end of stream.
+        }
     }
 
     private static ServerSentEvent.Type readCurrentFieldTypeFromBuffer(final ByteBuf fieldNameBuffer) {

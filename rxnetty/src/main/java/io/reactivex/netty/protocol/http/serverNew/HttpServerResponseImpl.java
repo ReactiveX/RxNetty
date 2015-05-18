@@ -15,17 +15,28 @@
  */
 package io.reactivex.netty.protocol.http.serverNew;
 
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.ServerCookieEncoder;
+import io.netty.handler.logging.LogLevel;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ChannelOperations;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.MarkAwarePipeline;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEventEncoder;
+import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import rx.Observable;
 import rx.Subscriber;
+import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
@@ -207,13 +218,95 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public HttpServerResponse<C> flushOnlyOnReadComplete() {
         // Does not need to be guarded by allowUpdate() as flush semantics can be changed anytime.
-        state.connection.getNettyChannel().attr(ChannelOperations.FLUSH_ONLY_ON_READ_COMPLETE).set(true);
+        state.connection.unsafeNettyChannel().attr(ChannelOperations.FLUSH_ONLY_ON_READ_COMPLETE).set(true);
         return this;
     }
 
     @Override
+    public HttpServerResponse<ServerSentEvent> transformToServerSentEvents() {
+        return addChannelHandlerAfter(HandlerNames.HttpServerEncoder.getName(), HandlerNames.SseServerCodec.getName(),
+                                      new ServerSentEventEncoder());
+    }
+
+    @Override
+    public HttpServerResponse<C> enableWireLogging(LogLevel wireLogginLevel) {
+        return addChannelHandlerFirst(HandlerNames.WireLogging.getName(), LoggingHandlerFactory.get(wireLogginLevel));
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerFirst(String name, ChannelHandler handler) {
+        markAwarePipeline().addFirst(name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                              ChannelHandler handler) {
+        markAwarePipeline().addFirst(group, name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerLast(String name, ChannelHandler handler) {
+        markAwarePipeline().addLast(name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                             ChannelHandler handler) {
+        markAwarePipeline().addLast(group, name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerBefore(String baseName, String name, ChannelHandler handler) {
+        markAwarePipeline().addBefore(baseName, name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
+                                                               ChannelHandler handler) {
+        markAwarePipeline().addBefore(group, baseName, name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerAfter(String baseName, String name, ChannelHandler handler) {
+        markAwarePipeline().addAfter(baseName, name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
+                                                              ChannelHandler handler) {
+        markAwarePipeline().addAfter(group, baseName, name, handler);
+        return _cast();
+    }
+
+    @Override
+    public <CC> HttpServerResponse<CC> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+        pipelineConfigurator.call(markAwarePipeline());
+        return _cast();
+    }
+
+    @Override
     public Observable<Void> dispose() {
-        return state.allowUpdate() ? write(Observable.<C>empty()) : Observable.<Void>empty();
+        return Observable.defer(new Func0<Observable<Void>>() {
+            @Override
+            public Observable<Void> call() {
+                return (state.allowUpdate()? write(Observable.<C>empty()) : Observable.<Void>empty())
+                        .doOnSubscribe(new Action0() {
+                            @Override
+                            public void call() {
+                                state.connection
+                                        .getResettableChannelPipeline()
+                                        .reset();
+                            }
+                        });
+            }
+        });
     }
 
     @Override
@@ -308,6 +401,15 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
                                                    HttpResponse headers) {
         final State<T> newState = new State<>(headers, connection);
         return new HttpServerResponseImpl<>(newState);
+    }
+
+    @SuppressWarnings("unchecked")
+    private <CC> HttpServerResponse<CC> _cast() {
+        return (HttpServerResponse<CC>) this;
+    }
+
+    private MarkAwarePipeline markAwarePipeline() {
+        return state.connection.getResettableChannelPipeline().markIfNotYetMarked();
     }
 
     private static class State<T> {

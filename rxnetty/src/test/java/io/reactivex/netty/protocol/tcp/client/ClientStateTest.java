@@ -36,7 +36,7 @@ import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.ClientState.IdentityServerPool;
-import io.reactivex.netty.protocol.tcp.client.ClientState.LoggingHandlerFactory;
+import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import org.junit.Rule;
@@ -298,7 +298,7 @@ public class ClientStateTest {
                    is(not(newState.getConnectionFactory())));
 
         Mockito.verify(newState.getDetachedPipeline()).addFirst(HandlerNames.WireLogging.getName(),
-                                                                LoggingHandlerFactory.factories.get(LogLevel.ERROR));
+                                                                LoggingHandlerFactory.getFactory(LogLevel.ERROR));
 
 
         Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());

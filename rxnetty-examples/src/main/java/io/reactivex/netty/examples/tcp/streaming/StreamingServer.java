@@ -14,40 +14,33 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.streaming;
+package io.reactivex.netty.examples.tcp.streaming;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractServerExample;
-import io.reactivex.netty.protocol.http.serverNew.HttpServer;
+import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import rx.Observable;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * An HTTP server that sends an infinite HTTP chunked response emitting a number every second.
- */
 public final class StreamingServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
+        TcpServer<ByteBuf, ByteBuf> server;
+        server = TcpServer.newServer(0)
+                          .start(connection ->
+                                         connection.writeStringAndFlushOnEach(
+                                                 Observable.interval(10, TimeUnit.MILLISECONDS)
+                                                           .onBackpressureBuffer()
+                                                           .map(aLong -> "Interval =>" + aLong + '\n')/*Convert the number to a string.*/
+                                         )
+                          );
 
-        HttpServer<ByteBuf, ByteBuf> server;
-
-        server = HttpServer.newServer(0)
-                           .start((req, resp) ->
-                                          resp.writeStringAndFlushOnEach(
-                                                  Observable.interval(10, TimeUnit.MILLISECONDS)
-                                                          .onBackpressureDrop()/*If the channel is backed up with data, drop the numbers*/
-                                                          .map(aLong -> "Interval =>" + aLong)/*Convert the number to a string.*/
-                                          )
-        );
-
-        /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
             server.waitTillShutdown();
         }
 
-        /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
         serverPort = server.getServerPort();
     }
 }

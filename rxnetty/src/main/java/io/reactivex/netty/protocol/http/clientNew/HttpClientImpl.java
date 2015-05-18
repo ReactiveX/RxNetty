@@ -26,6 +26,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
@@ -236,7 +237,7 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
                 tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
-                        pipeline.addLast(new HttpClientCodec());
+                        pipeline.addLast(HandlerNames.HttpClientCodec.getName(), new HttpClientCodec());
                         pipeline.addLast(new HttpClientToConnectionBridge<>(tcpClient.getEventsSubject()));
                     }
                 }));

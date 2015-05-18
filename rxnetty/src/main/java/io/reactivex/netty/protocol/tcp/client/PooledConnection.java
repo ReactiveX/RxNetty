@@ -16,6 +16,7 @@
 package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientMetricsEvent;
@@ -77,10 +78,11 @@ public class PooledConnection<R, W> extends Connection<R, W> {
                     PooledConnection.this.owner.discard(PooledConnection.this)
                                                .unsafeSubscribe(subscriber);
                 } else {
-                    Long keepAliveTimeout = getNettyChannel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).get();
+                    Long keepAliveTimeout = unsafeNettyChannel().attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).get();
                     if (null != keepAliveTimeout) {
                         maxIdleTimeMillis = keepAliveTimeout;
                     }
+                    markAwarePipeline.reset(); // Reset pipeline state, if changed, on release.
                     PooledConnection.this.owner.release(PooledConnection.this)
                          .doOnCompleted(new Action0() {
                              @Override
@@ -216,7 +218,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      * @return {@code true} if the connection is usable.
      */
     public boolean isUsable() {
-        final Channel nettyChannel = getNettyChannel();
+        final Channel nettyChannel = unsafeNettyChannel();
         Boolean discardConn = nettyChannel.attr(ClientRequestResponseConverter.DISCARD_CONNECTION).get();
 
         if (!nettyChannel.isActive() || Boolean.TRUE == discardConn) {
@@ -234,7 +236,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      * @param connectionSubscriber Subscriber for the pooled connection for reuse.
      */
     public void reuse(Subscriber<? super PooledConnection<R, W>> connectionSubscriber) {
-        getNettyChannel().pipeline().fireUserEventTriggered(new ConnectionResueEvent<R, W>(connectionSubscriber, this));
+        unsafeNettyChannel().pipeline().fireUserEventTriggered(new ConnectionResueEvent<R, W>(connectionSubscriber, this));
     }
 
     public static <R, W> PooledConnection<R, W> create(Owner<R, W> owner, PoolConfig<W, R> poolConfig,
@@ -251,6 +253,11 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      */
     public boolean isReused() {
         return releasedAtLeastOnce;
+    }
+
+    @Override
+    public ChannelPipeline getChannelPipeline() {
+        return markAwarePipeline; // Always return mark aware as, we always have to reset state on release to pool.
     }
 
     /**

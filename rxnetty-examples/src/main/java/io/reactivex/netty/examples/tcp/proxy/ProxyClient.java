@@ -14,17 +14,17 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.proxy;
+package io.reactivex.netty.examples.tcp.proxy;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.protocol.http.clientNew.HttpClient;
-import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
+import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import rx.Observable;
 
 import java.nio.charset.Charset;
 
 /**
- * An HTTP "Hello World" example. There are three ways of running this example:
+ * A TCP "Hello World" example. There are three ways of running this example:
  *
  * <h2>Default</h2>
  *
@@ -37,7 +37,7 @@ import java.nio.charset.Charset;
  * the port on which the server started to this class as a program argument:
  *
  <PRE>
-    java io.reactivex.netty.examples.http.proxy.ProxyClient [server port]
+ java io.reactivex.netty.examples.tcp.proxy.ProxyClient [server port]
  </PRE>
  *
  * <h2>Existing HTTP server</h2>
@@ -46,12 +46,12 @@ import java.nio.charset.Charset;
  * {@link ProxyServer}) by passing the port fo the existing server similar to the case above:
  *
  <PRE>
- java io.reactivex.netty.examples.http.proxy.ProxyClient [server port]
+ java io.reactivex.netty.examples.tcp.proxy.ProxyClient [server port]
  </PRE>
  *
  * In all the above usages, this client will print the response received from the server.
  */
-public class ProxyClient extends AbstractClientExample {
+public final class ProxyClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
@@ -65,18 +65,17 @@ public class ProxyClient extends AbstractClientExample {
          */
         int port = getServerPort(ProxyServer.class, args);
 
-        HttpClient.newClient("localhost", port) /*Create a client*/.noConnectionPooling()
-                  .createGet("/hello") /*Creates a GET request with URI "/hello"*/
-                  .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
-                  .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/
-                                     /*Now use the content stream.*/
-                                     resp.getContent()
-                                     /*Convert ByteBuf to string for each content*/
-                                     .map(bb -> bb.toString(Charset.defaultCharset()))
-                  )
-                  /*Block till the response comes to avoid JVM exit.*/
-                  .toBlocking()
-                  /*Print each content chunk*/
-                  .forEach(logger::info);
+        TcpClient.<ByteBuf, ByteBuf>newClient("127.0.0.1", port)
+                 .createConnectionRequest()
+                 .flatMap(connection ->
+                                  connection.writeString(Observable.just("Hello World!"))
+                                            .ignoreElements()
+                                            .cast(ByteBuf.class)
+                                            .mergeWith(connection.getInput())
+                 )
+                 .take(1)
+                 .map(bb -> bb.toString(Charset.defaultCharset()))
+                 .toBlocking()
+                 .forEach(logger::info);
     }
 }

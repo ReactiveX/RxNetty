@@ -454,7 +454,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                     }
                 }
             }));
-            channel = connection.getNettyChannel();
+            channel = connection.unsafeNettyChannel();
         }
 
         @Override

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.secure;
+package io.reactivex.netty.examples.http.proxy;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders.Names;
@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.examples.ExamplesEnvironment;
+import io.reactivex.netty.examples.http.helloworld.HelloWorldClient;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
 
@@ -33,15 +34,16 @@ import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class SecureHelloWorldTest extends ExamplesEnvironment {
+public class ProxyTest extends ExamplesEnvironment {
 
     @Test(timeout = 60000)
-    public void testHelloWorld() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Queue<String> output = setupClientLogger(SecureHelloWorldClient.class);
+    public void testProxy() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
+        final Queue<String> output = setupClientLogger(HelloWorldClient.class);
 
-        SecureHelloWorldClient.main(null);
+        ProxyClient.main(null);
 
         HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        expectedHeader.headers().add("X-Proxied-By", "RxNetty");
         expectedHeader.headers().add(Names.TRANSFER_ENCODING, Values.CHUNKED);
         String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
                                                                           expectedHeader.status(),

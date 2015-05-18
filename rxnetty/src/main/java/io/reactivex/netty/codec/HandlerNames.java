@@ -27,6 +27,11 @@ public enum HandlerNames {
     SslHandler("ssl-handler"),
     SslConnectionEmissionHandler("ssl-connection-emitter"),
     ClientReadTimeoutHandler("client-read-timeout-handler"),
+    HttpClientCodec("htp-client-codec"),
+    HttpServerDecoder("htp-server-request-decoder"),
+    HttpServerEncoder("htp-server-response-encode"),
+    SseClientCodec("sse-client-codec"),
+    SseServerCodec("sse-server-codec"),
     ;
 
     private final String name;

@@ -25,12 +25,14 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpServerCodec;
+import io.netty.handler.codec.http.HttpResponseEncoder;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
@@ -189,12 +191,13 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
         return server.subscribe(listener);
     }
 
-    public static HttpServer<ByteBuf, ByteBuf> create(final TcpServer<ByteBuf, ByteBuf> tcpServer) {
+    static HttpServer<ByteBuf, ByteBuf> create(final TcpServer<ByteBuf, ByteBuf> tcpServer) {
         return new HttpServerImpl<>(
                 tcpServer.<HttpServerRequest<ByteBuf>, Object>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
-                        pipeline.addLast(new HttpServerCodec());
+                        pipeline.addLast(HandlerNames.HttpServerEncoder.getName(), new HttpResponseEncoder());
+                        pipeline.addLast(HandlerNames.HttpServerDecoder.getName(), new HttpRequestDecoder());
                         pipeline.addLast(new HttpServerToConnectionBridge<>(tcpServer.getEventsSubject()));
                     }
                 }));
@@ -238,7 +241,7 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
                     @Override
                     public void onStart() {
-                        if (!newConnection.getNettyChannel().config().isAutoRead()) {
+                        if (!newConnection.unsafeNettyChannel().config().isAutoRead()) {
                             request(1);
                         }
                     }
@@ -267,14 +270,14 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                                                                         .doOnTerminate(new Action0() {
                                                                             @Override
                                                                             public void call() {
-                                                                                if (!newConnection.getNettyChannel().config().isAutoRead()) {
+                                                                                if (!newConnection.unsafeNettyChannel().config().isAutoRead()) {
                                                                                     request(1);
                                                                                 }
                                                                             }
                                                                         })
                                                                         .subscribe();
 
-                        newConnection.getNettyChannel()
+                        newConnection.unsafeNettyChannel()
                                      .closeFuture()
                                      .addListener(new ChannelFutureListener() {
                                          @Override
@@ -306,6 +309,7 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     }
 
                 } catch (Throwable throwable) {
+                    logger.error("Unexpected error while invoking HTTP user handler.", throwable);
                     /*If the headers are already written, then this will produce an error Observable.*/
                     requestHandlingResult = response.setStatus(INTERNAL_SERVER_ERROR)
                                                     .write(Observable.<O>empty());
@@ -346,7 +350,8 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                                        .concatWith(newConnection.close())
                                        .onErrorResumeNext(Observable.<Void>empty());// Ignore errors on cleanup
                     }
-                }).concatWith(request.dispose()/*Dispose request at the end of processing to discard content if not read*/);
+                }).concatWith(request.dispose()/*Dispose request at the end of processing to discard content if not read*/
+                ).concatWith(response.dispose()/*Dispose response at the end of processing to cleanup*/);
 
             }
 

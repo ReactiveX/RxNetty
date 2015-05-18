@@ -17,9 +17,9 @@
 package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.codec.StringLineDecoder;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
-import io.reactivex.netty.protocol.text.StringLineDecoder;
 
 import java.nio.charset.Charset;
 

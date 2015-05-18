@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,11 +32,6 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerPipelineConfigurator;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
-import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
-import io.reactivex.netty.protocol.http.sse.SseClientPipelineConfigurator;
-import io.reactivex.netty.protocol.http.sse.SseOverHttpClientPipelineConfigurator;
-import io.reactivex.netty.protocol.http.sse.SseOverHttpServerPipelineConfigurator;
-import io.reactivex.netty.protocol.http.sse.SseServerPipelineConfigurator;
 import io.reactivex.netty.protocol.text.SimpleTextProtocolConfigurator;
 
 import java.nio.charset.Charset;
@@ -83,30 +78,6 @@ public final class PipelineConfigurators {
     public static <I, O> PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> httpClientConfigurator() {
         return new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(new HttpClientPipelineConfigurator<I, O>(),
                                                                                   new HttpObjectAggregationConfigurator());
-    }
-
-    public static <I> PipelineConfigurator<HttpClientResponse<ServerSentEvent>, HttpClientRequest<I>> clientSseConfigurator() {
-        return new SseClientPipelineConfigurator<I>();
-    }
-
-    public static <I> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<ServerSentEvent>> serveSseConfigurator() {
-        return new SseServerPipelineConfigurator<I>();
-    }
-
-    /**
-     * @deprecated Use {@link #clientSseConfigurator()} instead.
-     */
-    @Deprecated
-    public static <I> PipelineConfigurator<HttpClientResponse<io.reactivex.netty.protocol.text.sse.ServerSentEvent>, HttpClientRequest<I>> sseClientConfigurator() {
-        return new SseOverHttpClientPipelineConfigurator<I>();
-    }
-
-    /**
-     * @deprecated Use {@link #serveSseConfigurator()} instead.
-     */
-    @Deprecated
-    public static <I> PipelineConfigurator<HttpServerRequest<I>, HttpServerResponse<io.reactivex.netty.protocol.text.sse.ServerSentEvent>> sseServerConfigurator() {
-        return new SseOverHttpServerPipelineConfigurator<I>();
     }
 
     public static <I, O> PipelineConfigurator<I, O> sslConfigurator(SSLEngineFactory sslEngineFactory) {
