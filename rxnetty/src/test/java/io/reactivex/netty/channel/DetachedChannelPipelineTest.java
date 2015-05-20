@@ -21,8 +21,8 @@ import io.netty.channel.ChannelHandlerInvoker;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.DefaultChannelHandlerInvoker;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.reactivex.netty.channel.DetachedChannelPipeline.HandlerHolder;
-import io.reactivex.netty.client.NioClientEventLoopGroup;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -37,8 +37,8 @@ import static org.hamcrest.Matchers.*;
 public class DetachedChannelPipelineTest {
 
     private static final ChannelHandlerInvoker MULTI_INVOKER =
-            new DefaultChannelHandlerInvoker(new NioClientEventLoopGroup().next());
-    private static final EventLoopGroup MULTI_GRP = new NioClientEventLoopGroup();
+            new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next());
+    private static final EventLoopGroup MULTI_GRP = new NioEventLoopGroup();
 
     public static final Func0<ChannelHandler> HANDLER_FACTORY = new Func0<ChannelHandler>() {
         @Override
@@ -49,11 +49,11 @@ public class DetachedChannelPipelineTest {
     private static final HandlerHolder HANDLER_1_NO_NAME = new HandlerHolder(HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1 = new HandlerHolder("handler-1", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_GRP =
-            new HandlerHolder(new NioClientEventLoopGroup(), "handler-1", HANDLER_FACTORY);
+            new HandlerHolder(new NioEventLoopGroup(), "handler-1", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_GRP_NO_NAME =
             new HandlerHolder(MULTI_GRP, null, HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_INVOKER =
-            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioClientEventLoopGroup().next()),
+            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next()),
                               "handler-1", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_INVOKER_NO_NAME =
             new HandlerHolder(MULTI_INVOKER,
@@ -62,9 +62,9 @@ public class DetachedChannelPipelineTest {
     private static final HandlerHolder HANDLER_2_NO_NAME = new HandlerHolder(HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2 = new HandlerHolder("handler-2", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2_GRP =
-            new HandlerHolder(new NioClientEventLoopGroup(), "handler-2", HANDLER_FACTORY);
+            new HandlerHolder(new NioEventLoopGroup(), "handler-2", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2_INVOKER =
-            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioClientEventLoopGroup().next()),
+            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next()),
                               "handler-2", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2_GRP_NO_NAME =
             new HandlerHolder(MULTI_GRP, null, HANDLER_FACTORY);

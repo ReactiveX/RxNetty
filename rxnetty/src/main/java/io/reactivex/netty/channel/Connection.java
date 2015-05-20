@@ -140,6 +140,26 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
         return nettyChannel;
     }
 
+    /**
+     * Returns an {@link Observable} that completes when this connection is closed.
+     *
+     * @return An {@link Observable} that completes when this connection is closed.
+     */
+    public Observable<Void> closeListener() {
+        return Observable.create(new OnSubscribe<Void>() {
+            @Override
+            public void call(final Subscriber<? super Void> subscriber) {
+                nettyChannel.closeFuture()
+                            .addListener(new ChannelFutureListener() {
+                                @Override
+                                public void operationComplete(ChannelFuture future) throws Exception {
+                                    subscriber.onCompleted();
+                                }
+                            });
+            }
+        });
+    }
+
     @SuppressWarnings("rawtypes")
     protected MetricEventsSubject getEventsSubject() {
         return eventsSubject;

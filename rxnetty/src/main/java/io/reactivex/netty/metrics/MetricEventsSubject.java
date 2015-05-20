@@ -20,7 +20,7 @@ import rx.exceptions.Exceptions;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -37,14 +37,14 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEventsPublisher<E>, MetricEventsListener<E> {
 
-    private final CopyOnWriteArrayList<SafeListener<? extends E>> listeners;
+    private final CopyOnWriteArraySet<SafeListener<? extends E>> listeners;
 
     public MetricEventsSubject() {
-        listeners = new CopyOnWriteArrayList<SafeListener<? extends E>>();
+        listeners = new CopyOnWriteArraySet<>();
     }
 
     protected MetricEventsSubject(MetricEventsSubject<E> toCopy) {
-        listeners = new CopyOnWriteArrayList<SafeListener<? extends E>>(toCopy.listeners);
+        listeners = new CopyOnWriteArraySet<>(toCopy.listeners);
     }
 
     @Override
@@ -199,6 +199,30 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
             if (!isDone.get()) {
                 delegate.onSubscribe();
             }
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (!(o instanceof SafeListener)) {
+                return false;
+            }
+
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            SafeListener that = (SafeListener) o;
+
+            if (delegate != null? !delegate.equals(that.delegate) : that.delegate != null) {
+                return false;
+            }
+
+            return true;
+        }
+
+        @Override
+        public int hashCode() {
+            return delegate != null? delegate.hashCode() : 0;
         }
     }
 }

@@ -22,11 +22,13 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.pool.PooledConnection;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge;
+import io.reactivex.netty.protocol.tcp.ConnectionCreationFailedEvent;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent;
 import io.reactivex.netty.protocol.tcp.ConnectionSubscriberEvent;
 import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
@@ -62,6 +64,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     private static final String HANDLER_NAME = "client-conn-channel-bridge";
 
     private final boolean isSecure;
+    private long connectStartTimeMillis;
 
     private ClientConnectionToChannelBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
                                             boolean isSecure) {
@@ -100,6 +103,9 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             ConnectionResueEvent<R, W> event = (ConnectionResueEvent<R, W>) evt;
 
             newConnectionReuseEvent(ctx.channel(), event);
+        } else if (evt instanceof ConnectionCreationFailedEvent) {
+            ConnectionCreationFailedEvent failedEvent = (ConnectionCreationFailedEvent) evt;
+            onConnectFailedEvent(failedEvent);
         }
     }
 
@@ -107,7 +113,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     @Override
     public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
                         ChannelPromise promise) throws Exception {
-        final long startTimeMillis = Clock.newStartTimeMillis();
+        connectStartTimeMillis = Clock.newStartTimeMillis();
 
         eventsSubject.onEvent(ClientMetricsEvent.CONNECT_START);
 
@@ -116,10 +122,10 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (!future.isSuccess()) {
-                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(startTimeMillis),
+                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(connectStartTimeMillis),
                                           future.cause());
                 } else {
-                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(startTimeMillis));
+                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(connectStartTimeMillis));
                 }
             }
         });
@@ -177,6 +183,10 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         }
     }
 
+    @SuppressWarnings("unchecked")
+    private void onConnectFailedEvent(ConnectionCreationFailedEvent event) {
+        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, connectStartTimeMillis, event.getThrowable());
+    }
 
     public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(ChannelPipeline pipeline,
                                                                              MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
@@ -186,7 +196,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         return toAdd;
     }
 
-    /*visible for testing*/static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(Subscriber<? super Connection<R, W>> sub,
+    public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(Subscriber<? super Connection<R, W>> sub,
                                                                              ChannelPipeline pipeline,
                                                                              MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
                                                                              boolean isSecure) {
@@ -223,7 +233,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     }
 
     /**
-     * An event to indicate channel/{@link io.reactivex.netty.channel.ObservableConnection} reuse. This event should be used for clients that pool
+     * An event to indicate channel/{@link Connection} reuse. This event should be used for clients that pool
      * connections. For every reuse of a connection (connection creation still uses {@link ConnectionSubscriberEvent})
      * the corresponding subscriber must be sent via this event.
      *

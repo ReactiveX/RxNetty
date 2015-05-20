@@ -29,6 +29,7 @@ import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpHeaders.Values;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
@@ -93,7 +94,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         if (isOutboundHeader(msg)) {
             headerWriteStartTimeMillis = Clock.newStartTimeMillis();
             HttpMessage httpMsg = (HttpMessage) msg;
-            if (!HttpHeaders.isContentLengthSet(httpMsg)) {
+            if (!HttpHeaders.isContentLengthSet(httpMsg) && !HttpVersion.HTTP_1_0.equals(httpMsg.protocolVersion())) {
                 // If there is no content length we need to specify the transfer encoding as chunked as we always
                 // send data in multiple HttpContent.
                 // On the other hand, if someone wants to not have chunked encoding, adding content-length will work

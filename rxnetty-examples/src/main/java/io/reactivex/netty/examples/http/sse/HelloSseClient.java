@@ -17,8 +17,8 @@
 package io.reactivex.netty.examples.http.sse;
 
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.protocol.http.clientNew.HttpClient;
-import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.HttpClient;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
 /**
  * An <a href="http://www.w3.org/TR/eventsource/">Server sent event</a> "Hello World" example.

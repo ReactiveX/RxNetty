@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,7 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.CookieDecoder;
 import io.netty.handler.codec.http.DefaultCookie;
@@ -27,18 +27,16 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import io.reactivex.netty.NoOpChannelHandlerContext;
+import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.ConnectionImpl;
+import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Map;
 import java.util.Set;
 
-/**
- * @author Nitesh Kant
- */
 public class CookieTest {
 
     @Test
@@ -51,26 +49,28 @@ public class CookieTest {
         String cookie1Header = cookie1Name + '=' + cookie1Value
                                + "; expires=Thu, 18-Feb-2016 07:47:08 GMT; path=" + cookie1Path + "; domain=" + cookie1Domain;
         nettyRequest.headers().add(HttpHeaders.Names.COOKIE, cookie1Header);
-        Channel noOpChannel = new NoOpChannelHandlerContext().channel();
-        HttpServerRequest<ByteBuf> request =
-                new HttpServerRequest<ByteBuf>(noOpChannel, nettyRequest,
-                                               UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
+
+        EmbeddedChannel channel = new EmbeddedChannel();
+        HttpServerRequest<ByteBuf> request = new HttpServerRequestImpl<ByteBuf>(nettyRequest,channel);
+
         Map<String,Set<Cookie>> cookies = request.getCookies();
         Assert.assertEquals("Unexpected number of cookies.", 1, cookies.size());
         Set<Cookie> cookies1 = cookies.get(cookie1Name);
         Assert.assertNotNull("No cookie found with name: " + cookie1Name, cookies1);
         Assert.assertEquals("Unexpected number of cookies with name: " + cookie1Name, 1, cookies1.size() );
         Cookie cookie = cookies1.iterator().next();
-        Assert.assertEquals("Unexpected cookie name.", cookie1Name, cookie.getName());
-        Assert.assertEquals("Unexpected cookie path.", cookie1Path, cookie.getPath());
+        Assert.assertEquals("Unexpected cookie name.", cookie1Name, cookie.name());
+        Assert.assertEquals("Unexpected cookie path.", cookie1Path, cookie.path());
     }
 
     @Test
     public void testSetCookie() throws Exception {
         DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
-        HttpServerResponse<ByteBuf> response =
-                new HttpServerResponse<ByteBuf>(new NoOpChannelHandlerContext().channel(), nettyResponse,
-                                                new MetricEventsSubject<HttpServerMetricsEvent<?>>());
+        EmbeddedChannel channel = new EmbeddedChannel();
+        Connection<ByteBuf, ByteBuf> connection =
+                ConnectionImpl.create(channel, new MetricEventsSubject<>(), ClientChannelMetricEventProvider.INSTANCE);
+
+        HttpServerResponse<ByteBuf> response = HttpServerResponseImpl.create(connection, nettyResponse);
         String cookieName = "name";
         String cookieValue = "value";
         response.addCookie(new DefaultCookie(cookieName, cookieValue));
@@ -80,8 +80,8 @@ public class CookieTest {
         Assert.assertNotNull("Decoded cookie not found.", decode);
         Assert.assertEquals("Unexpected number of decoded cookie not found.", 1, decode.size());
         Cookie cookie = decode.iterator().next();
-        Assert.assertEquals("Unexpected cookie name.", cookieName, cookie.getName());
-        Assert.assertEquals("Unexpected cookie value.", cookieValue, cookie.getValue());
+        Assert.assertEquals("Unexpected cookie name.", cookieName, cookie.name());
+        Assert.assertEquals("Unexpected cookie value.", cookieValue, cookie.path());
 
     }
 }

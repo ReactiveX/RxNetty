@@ -17,6 +17,9 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.EventLoop;
 import io.netty.util.concurrent.FastThreadLocal;
+import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.PooledConnection;
 import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,13 +33,13 @@ import rx.functions.Func0;
 import java.util.Set;
 
 /**
- * An {@link IdleConnectionsHolder} implementation that can identify if the calling thread is an {@link EventLoop} in
+ * An {@link io.reactivex.netty.channel.pool.IdleConnectionsHolder} implementation that can identify if the calling thread is an {@link EventLoop} in
  * the provided {@link PreferCurrentEventLoopGroup} and prefers a connection registered with the calling
  * {@link EventLoop}.
  *
  * If the calling thread is not an {@link EventLoop} in the provided {@link PreferCurrentEventLoopGroup} then
  * {@link #poll()} and {@link #peek()} will iterate over connections from all {@link EventLoop}s however
- * {@link #add(PooledConnection)} will attempt to find the {@link EventLoop} of the added {@link PooledConnection}. If
+ * {@link #add(io.reactivex.netty.channel.pool.PooledConnection)} will attempt to find the {@link EventLoop} of the added {@link io.reactivex.netty.channel.pool.PooledConnection}. If
  * the {@link EventLoop} of the connection does not belong to the provided {@link PreferCurrentEventLoopGroup} then the
  * connection will be discarded.
  *

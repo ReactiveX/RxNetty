@@ -43,7 +43,7 @@ public final class SecureEchoServer extends AbstractServerExample {
 
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
-            serverIfRunning.waitTillShutdown();
+            serverIfRunning.awaitShutdown();
         }
 
         serverPort = serverIfRunning.getServerPort();

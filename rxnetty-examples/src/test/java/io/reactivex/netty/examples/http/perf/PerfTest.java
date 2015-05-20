@@ -22,7 +22,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.examples.ExamplesEnvironment;
-import io.reactivex.netty.examples.http.helloworld.HelloWorldClient;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
 
@@ -37,7 +36,7 @@ public class PerfTest extends ExamplesEnvironment {
 
     @Test(timeout = 60000)
     public void testPerf() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Queue<String> output = setupClientLogger(HelloWorldClient.class);
+        final Queue<String> output = setupClientLogger(PerfHelloWorldClient.class);
 
         PerfHelloWorldClient.main(null);
 

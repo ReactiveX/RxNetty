@@ -18,8 +18,8 @@ package io.reactivex.netty.examples.http.perf;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.protocol.http.clientNew.HttpClient;
-import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.HttpClient;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
 import java.nio.charset.Charset;
 
@@ -54,7 +54,6 @@ import java.nio.charset.Charset;
 public class PerfHelloWorldClient extends AbstractClientExample {
 
     public static void main(String[] args) {
-
         /*
          * Retrieves the server port, using the following algorithm:
          * <ul>
@@ -66,17 +65,17 @@ public class PerfHelloWorldClient extends AbstractClientExample {
         int port = getServerPort(PerfHelloWorldServer.class, args);
 
         HttpClient.newClient("localhost", port) /*Create a client*/.noConnectionPooling()
-                  .createGet("/hello") /*Creates a GET request with URI "/hello"*/
-                  .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
-                  .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/
+                .createGet("/hello") /*Creates a GET request with URI "/hello"*/
+                .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
+                .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/
                                      /*Now use the content stream.*/
-                                     resp.getContent()
+                                 resp.getContent()
                                      /*Convert ByteBuf to string for each content*/
-                                     .map(bb -> bb.toString(Charset.defaultCharset()))
-                  )
+                                         .map(bb -> bb.toString(Charset.defaultCharset()))
+                )
                   /*Block till the response comes to avoid JVM exit.*/
-                  .toBlocking()
+                .toBlocking()
                   /*Print each content chunk*/
-                  .forEach(logger::info);
+                .forEach(logger::info);
     }
 }

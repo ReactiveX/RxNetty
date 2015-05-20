@@ -23,7 +23,6 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.functions.Action1;
@@ -235,8 +234,7 @@ public abstract class ConnectionRequest<W, R> extends Observable<Connection<R, W
      *
      * If the {@link SSLEngine} instance can be statically, created, {@link #secure(SSLEngine)} can be used.
      *
-     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created client
-     *                                                 instance.
+     * @param sslEngineFactory Factory for all secured connections created by the newly created client instance.
      *
      * @return A new {@link ConnectionRequest} instance.
      */

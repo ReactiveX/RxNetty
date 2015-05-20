@@ -51,7 +51,7 @@ public final class ProxyServer extends AbstractServerExample {
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
-            server.waitTillShutdown();
+            server.awaitShutdown();
         }
 
         /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/

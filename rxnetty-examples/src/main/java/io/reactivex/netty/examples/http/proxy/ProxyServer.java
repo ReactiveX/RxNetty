@@ -18,9 +18,9 @@ package io.reactivex.netty.examples.http.proxy;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractServerExample;
-import io.reactivex.netty.protocol.http.clientNew.HttpClient;
-import io.reactivex.netty.protocol.http.clientNew.HttpClientRequest;
-import io.reactivex.netty.protocol.http.serverNew.HttpServer;
+import io.reactivex.netty.protocol.http.client.HttpClient;
+import io.reactivex.netty.protocol.http.client.HttpClientRequest;
+import io.reactivex.netty.protocol.http.server.HttpServer;
 
 import java.util.Iterator;
 import java.util.Map.Entry;
@@ -65,7 +65,7 @@ public final class ProxyServer extends AbstractServerExample {
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
-            server.waitTillShutdown();
+            server.awaitShutdown();
         }
 
         /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,146 +13,263 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.reactivex.netty.protocol.http.client;
 
-import io.netty.bootstrap.Bootstrap;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpMethod;
-import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.client.ClientChannelFactory;
-import io.reactivex.netty.client.ClientConnectionFactory;
+import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.logging.LogLevel;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.client.ConnectionPool;
-import io.reactivex.netty.client.ConnectionPoolBuilder;
-import io.reactivex.netty.client.RxClientImpl;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.pipeline.PipelineConfigurator;
-import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
+import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.codec.HandlerNames;
+import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl;
+import io.reactivex.netty.protocol.http.client.internal.Redirector;
+import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
-import rx.functions.Action0;
+import rx.Subscription;
+import rx.functions.Action1;
+import rx.functions.Func0;
+import rx.functions.Func1;
 
-public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, HttpClientResponse<O>> implements HttpClient<I, O> {
+import javax.net.ssl.SSLEngine;
+import java.util.concurrent.TimeUnit;
 
-    private final String hostHeaderValue;
+public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
-    public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
-                          PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-                          ClientConfig clientConfig,
-                          ClientChannelFactory<HttpClientResponse<O>, HttpClientRequest<I>> channelFactory,
-                          ClientConnectionFactory<HttpClientResponse<O>, HttpClientRequest<I>,
-                                  ? extends ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionFactory,
-                          MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
-        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, channelFactory, connectionFactory,
-              eventsSubject);
-        hostHeaderValue = prepareHostHeaderValue();
-    }
+    private final TcpClient<?, HttpClientResponse<O>> client;
+    private int maxRedirects;
 
-    public HttpClientImpl(String name, ServerInfo serverInfo, Bootstrap clientBootstrap,
-                          PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-                          ClientConfig clientConfig,
-                          ConnectionPoolBuilder<HttpClientResponse<O>, HttpClientRequest<I>> poolBuilder,
-                          MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
-        super(name, serverInfo, clientBootstrap, pipelineConfigurator, clientConfig, poolBuilder, eventsSubject);
-        hostHeaderValue = prepareHostHeaderValue();
+    protected HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client) {
+        this.client = client;
     }
 
     @Override
-    public Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request) {
-        return submit(request, connect());
+    public HttpClientRequest<I, O> createGet(String uri) {
+        return createRequest(HttpMethod.GET, uri);
     }
 
     @Override
-    public Observable<HttpClientResponse<O>> submit(HttpClientRequest<I> request, ClientConfig config) {
-        return submit(request, connect(), config);
-    }
-
-    protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
-                                                       Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable) {
-        return submit(request, connectionObservable, null == clientConfig
-                                                     ? HttpClientConfig.Builder.newDefaultConfig() : clientConfig);
-    }
-
-    protected Observable<HttpClientResponse<O>> submit(final HttpClientRequest<I> request,
-                                                       final Observable<ObservableConnection<HttpClientResponse<O>, HttpClientRequest<I>>> connectionObservable,
-                                                       final ClientConfig config) {
-        final long startTimeMillis = Clock.newStartTimeMillis();
-        HttpClientConfig httpClientConfig;
-        if (config instanceof HttpClientConfig) {
-            httpClientConfig = (HttpClientConfig) config;
-        } else {
-            httpClientConfig = new HttpClientConfig(config);
-        }
-        boolean followRedirect = shouldFollowRedirectForRequest(httpClientConfig, request);
-
-        enrichRequest(request, httpClientConfig);
-        Observable<HttpClientResponse<O>> toReturn =
-                connectionObservable.lift(new RequestProcessingOperator<I, O>(request, eventsSubject,
-                                                                              httpClientConfig.getResponseSubscriptionTimeoutMs()));
-
-        if (followRedirect) {
-            toReturn = toReturn.lift(new RedirectOperator<I, O>(request, this, httpClientConfig));
-        }
-        return toReturn.take(1).finallyDo(new Action0() {
-            @Override
-            public void call() {
-                eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_PROCESSING_COMPLETE,
-                                      Clock.onEndMillis(startTimeMillis));
-            }
-        });
+    public HttpClientRequest<I, O> createPost(String uri) {
+        return createRequest(HttpMethod.POST, uri);
     }
 
     @Override
-    protected PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> adaptPipelineConfigurator(
-            PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
-            ClientConfig clientConfig, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
-        PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator =
-                new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator,
-                                                     new ClientRequiredConfigurator<I, O>(eventsSubject));
-        return super.adaptPipelineConfigurator(configurator, clientConfig, eventsSubject);
+    public HttpClientRequest<I, O> createPut(String uri) {
+        return createRequest(HttpMethod.PUT, uri);
     }
 
-    protected boolean shouldFollowRedirectForRequest(HttpClientConfig config, HttpClientRequest<I> request) {
-        HttpClientConfig.RedirectsHandling redirectsHandling = config.getFollowRedirect();
-
-        switch (redirectsHandling) {
-            case Enable:
-                return true;
-            case Disable:
-                return false;
-            case Undefined:
-                return request.getMethod() == HttpMethod.HEAD || request.getMethod() == HttpMethod.GET;
-            default:
-                return false;
-        }
+    @Override
+    public HttpClientRequest<I, O> createDelete(String uri) {
+        return createRequest(HttpMethod.DELETE, uri);
     }
 
-    /*visible for testing*/ ConnectionPool<HttpClientResponse<O>, HttpClientRequest<I>> getConnectionPool() {
-        return pool;
+    @Override
+    public HttpClientRequest<I, O> createHead(String uri) {
+        return createRequest(HttpMethod.HEAD, uri);
     }
 
-    private void enrichRequest(HttpClientRequest<I> request, ClientConfig config) {
-
-        request.setDynamicUriParts(serverInfo.getHost(), serverInfo.getPort(), false /*Set when we handle https*/);
-
-        if(!request.getHeaders().contains(HttpHeaders.Names.HOST)) {
-            request.getHeaders().add(HttpHeaders.Names.HOST, hostHeaderValue);
-        }
-
-        if (config instanceof HttpClientConfig) {
-            HttpClientConfig httpClientConfig = (HttpClientConfig) config;
-            if (httpClientConfig.getUserAgent() != null && request.getHeaders().get(HttpHeaders.Names.USER_AGENT) == null) {
-                request.getHeaders().set(HttpHeaders.Names.USER_AGENT, httpClientConfig.getUserAgent());
-            }
-        }
+    @Override
+    public HttpClientRequest<I, O> createOptions(String uri) {
+        return createRequest(HttpMethod.OPTIONS, uri);
     }
 
-    private String prepareHostHeaderValue() {
-        if (serverInfo.getPort() == 80 || serverInfo.getPort() == 443) {
-            return serverInfo.getHost();
-        }
-        // Add port to the host header if the port is not standard port. Issue: https://github.com/ReactiveX/RxNetty/issues/258
-        return serverInfo.getHost() + ':' + serverInfo.getPort();
+    @Override
+    public HttpClientRequest<I, O> createPatch(String uri) {
+        return createRequest(HttpMethod.PATCH, uri);
+    }
+
+    @Override
+    public HttpClientRequest<I, O> createTrace(String uri) {
+        return createRequest(HttpMethod.TRACE, uri);
+    }
+
+    @Override
+    public HttpClientRequest<I, O> createConnect(String uri) {
+        return createRequest(HttpMethod.CONNECT, uri);
+    }
+
+    @Override
+    public HttpClientRequest<I, O> createRequest(HttpMethod method, String uri) {
+        return createRequest(HttpVersion.HTTP_1_1, method, uri);
+    }
+
+    @Override
+    public HttpClientRequest<I, O> createRequest(HttpVersion version, HttpMethod method, String uri) {
+        return HttpClientRequestImpl.create(version, method, uri, client, maxRedirects);
+    }
+
+    @Override
+    public HttpClient<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
+        return _copy(client.readTimeOut(timeOut, timeUnit));
+    }
+
+    @Override
+    public HttpClient<I, O> followRedirects(int maxRedirects) {
+        HttpClientImpl<I, O> toReturn = _copy(client);
+        toReturn.maxRedirects = maxRedirects;
+        return toReturn;
+    }
+
+    @Override
+    public HttpClient<I, O> followRedirects(boolean follow) {
+        HttpClientImpl<I, O> toReturn = _copy(client);
+        toReturn.maxRedirects = follow ? Redirector.DEFAULT_MAX_REDIRECTS : HttpClientRequestImpl.NO_REDIRECTS;
+        return toReturn;
+    }
+
+    @Override
+    public <T> HttpClient<I, O> channelOption(ChannelOption<T> option, T value) {
+        return _copy(client.channelOption(option, value));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                              Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(group, name, handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                             Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(group, name, handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(String baseName, String name,
+                                                               Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(baseName, name, handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
+                                                               Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(group, baseName, name,
+                                                                                  handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(String baseName, String name,
+                                                              Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(baseName, name, handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
+                                                              Func0<ChannelHandler> handlerFactory) {
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(group, baseName, name,
+                                                                                 handlerFactory)));
+    }
+
+    @Override
+    public <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+        return _copy(HttpClientImpl.<OO>castClient(client.pipelineConfigurator(pipelineConfigurator)));
+    }
+
+    @Override
+    public HttpClient<I, O> maxConnections(int maxConnections) {
+        return _copy(client.maxConnections(maxConnections));
+    }
+
+    @Override
+    public HttpClient<I, O> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
+        return _copy(client.idleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis));
+    }
+
+    @Override
+    public HttpClient<I, O> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
+        return _copy(client.connectionPoolLimitStrategy(limitDeterminationStrategy));
+    }
+
+    @Override
+    public HttpClient<I, O> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer) {
+        return _copy(client.idleConnectionCleanupTimer(idleConnectionCleanupTimer));
+    }
+
+    @Override
+    public HttpClient<I, O> noIdleConnectionCleanup() {
+        return _copy(client.noIdleConnectionCleanup());
+    }
+
+    @Override
+    public HttpClient<I, O> noConnectionPooling() {
+        return _copy(client.noConnectionPooling());
+    }
+
+    @Override
+    public HttpClient<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return _copy(client.secure(sslEngineFactory));
+    }
+
+    @Override
+    public HttpClient<I, O> secure(SSLEngine sslEngine) {
+        return _copy(client.secure(sslEngine));
+    }
+
+    @Override
+    public HttpClient<I, O> secure(SslCodec sslCodec) {
+        return _copy(client.secure(sslCodec));
+    }
+
+    @Override
+    public HttpClient<I, O> unsafeSecure() {
+        return _copy(client.unsafeSecure());
+    }
+
+    @Override
+    public HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
+        return _copy(client.enableWireLogging(wireLoggingLevel));
+    }
+
+    @Override
+    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
+        return client.subscribe(listener);
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> create(final TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        return new HttpClientImpl<>(
+                tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
+                    @Override
+                    public void call(ChannelPipeline pipeline) {
+                        pipeline.addLast(HandlerNames.HttpClientCodec.getName(), new HttpClientCodec());
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(tcpClient.getEventsSubject()));
+                    }
+                }));
+    }
+
+    public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(final TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        return new HttpClientImpl<>(
+                tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
+                    @Override
+                    public void call(ChannelPipeline pipeline) {
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(tcpClient.getEventsSubject()));
+                    }
+                }));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <OO> TcpClient<?, HttpClientResponse<OO>> castClient(TcpClient<?, ?> rawTypes) {
+        return (TcpClient<?, HttpClientResponse<OO>>) rawTypes;
+    }
+
+    private static <II, OO> HttpClientImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient) {
+        return new HttpClientImpl<>(newClient);
     }
 }

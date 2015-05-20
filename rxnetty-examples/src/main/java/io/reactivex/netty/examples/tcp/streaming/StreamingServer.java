@@ -38,7 +38,7 @@ public final class StreamingServer extends AbstractServerExample {
 
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
-            server.waitTillShutdown();
+            server.awaitShutdown();
         }
 
         serverPort = server.getServerPort();

@@ -30,6 +30,11 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.PrimitiveConversionHandler;
+import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.PoolConfig;
+import io.reactivex.netty.channel.pool.PooledClientConnectionFactory;
+import io.reactivex.netty.channel.pool.PooledClientConnectionFactoryImpl;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
@@ -52,8 +57,8 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import static io.reactivex.netty.channel.pool.PoolConfig.*;
 import static io.reactivex.netty.codec.HandlerNames.*;
-import static io.reactivex.netty.protocol.tcp.client.PoolConfig.*;
 
 /**
  * A collection of state that {@link TcpClient} holds. This supports the copy-on-write semantics of {@link TcpClient}
@@ -307,8 +312,20 @@ public class ClientState<W, R> {
     }
 
     public ClientState<W, R> noConnectionPooling() {
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, (PoolConfig<W, R>)null);
-        toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
+        if (null == poolConfig) {
+            return this; /*If already no pooling, then no copy is needed.*/
+        }
+
+        final ClientState<W, R> toReturn = new ClientState<W, R>(this, (PoolConfig<W, R>) null);
+
+        if (connectionFactory instanceof PooledClientConnectionFactory) {
+            PooledClientConnectionFactory<W, R> pcf = (PooledClientConnectionFactory<W, R>) connectionFactory;
+            ClientConnectionFactory<W, R> delegate = pcf.getConnectDelegate();
+            toReturn.connectionFactory = delegate.copy(toReturn);
+        } else {
+            toReturn.connectionFactory = connectionFactory.copy(toReturn);
+        }
+
         return toReturn;
     }
 
@@ -422,7 +439,10 @@ public class ClientState<W, R> {
         if (connectionFactory instanceof PooledClientConnectionFactory) {
             toReturn.connectionFactory = connectionFactory.copy(toReturn);
         } else {
-            toReturn.connectionFactory = new PooledClientConnectionFactoryImpl<W, R>(toReturn);
+            final PoolConfig<W, R> _poolConfig = toReturn.getPoolConfig();
+            toReturn.connectionFactory = new PooledClientConnectionFactoryImpl<W, R>(toReturn,
+                                                                                     _poolConfig.getIdleConnectionsHolder(),
+                                                                                     connectionFactory.copy(toReturn));
         }
     }
 

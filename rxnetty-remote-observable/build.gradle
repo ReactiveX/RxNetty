@@ -1,6 +1,0 @@
- dependencies {
-     compile project(':rxnetty')
-     compile 'com.netflix.numerus:numerus:1.1'
-     compile 'io.reactivex:rxjava-math:1.0.0'
-     compile "org.slf4j:slf4j-log4j12:${slf4j_version}"
- }

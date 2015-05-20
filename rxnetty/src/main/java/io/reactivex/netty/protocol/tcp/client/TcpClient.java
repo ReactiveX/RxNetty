@@ -31,7 +31,6 @@ import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.functions.Action1;
@@ -362,8 +361,7 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
      *
      * If the {@link SSLEngine} instance can be statically, created, {@link #secure(SSLEngine)} can be used.
      *
-     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created client
-     *                                                 instance.
+     * @param sslEngineFactory Factory for all secured connections created by the newly created client instance.
      *
      * @return A new {@link TcpClient} instance.
      */

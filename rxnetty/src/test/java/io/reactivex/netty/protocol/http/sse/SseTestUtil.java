@@ -24,9 +24,6 @@ import java.nio.charset.Charset;
 
 import static org.junit.Assert.*;
 
-/**
- * @author Nitesh Kant
- */
 public final class SseTestUtil {
 
     private SseTestUtil() {

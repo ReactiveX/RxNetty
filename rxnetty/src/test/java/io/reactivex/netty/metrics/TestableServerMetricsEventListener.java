@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,12 +16,12 @@
 
 package io.reactivex.netty.metrics;
 
+import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
+import io.reactivex.netty.server.ServerMetricsEvent;
+
 import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent;
-import io.reactivex.netty.server.ServerMetricsEvent;
 
 /**
  * @author Nitesh Kant
@@ -52,6 +52,7 @@ public class TestableServerMetricsEventListener extends HttpServerMetricEventsLi
         return httpserverEventStore.getEventTypeVsInvalidInvocations();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void onEvent(ServerMetricsEvent<?> event, long duration, TimeUnit timeUnit,
                         Throwable throwable, Object value) {
