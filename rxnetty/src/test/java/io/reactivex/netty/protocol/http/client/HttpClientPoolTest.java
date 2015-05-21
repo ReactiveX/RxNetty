@@ -16,278 +16,180 @@
 
 package io.reactivex.netty.protocol.http.client;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.PooledClientConnectionFactoryImpl;
+import io.reactivex.netty.channel.pool.PooledConnection;
+import io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
+import io.reactivex.netty.protocol.tcp.client.ClientState;
+import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.runner.Description;
+import org.junit.runners.model.Statement;
+import rx.functions.Func1;
+import rx.observers.TestSubscriber;
+
+import java.nio.channels.ClosedChannelException;
+
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.*;
+
 public class HttpClientPoolTest {
-/*
 
-    private static HttpServer<ByteBuf, ByteBuf> mockServer;
-    private static int port;
+    @Rule
+    public final PooledHttpClientRule clientRule = new PooledHttpClientRule();
 
-    private final ChannelCloseListener channelCloseListener = new ChannelCloseListener();
-    private HttpClientImpl<ByteBuf,ByteBuf> client;
-    private TrackableMetricEventsListener stateChangeListener;
-    private PoolStats stats;
-
-    @BeforeClass
-    public static void init() throws Exception {
-        mockServer = RxNetty.newHttpServerBuilder(0, new RequestProcessor()).enableWireLogging(LogLevel.ERROR)
-                            .build().start();
-        port = mockServer.getServerPort();
-    }
-
-    @AfterClass
-    public static void shutdown() throws InterruptedException {
-        mockServer.shutdown();
-        mockServer.waitTillShutdown(1, TimeUnit.MINUTES);
-    }
-
-    @After
-    public void tearDown() throws Exception {
-        if (null != client) {
-            client.shutdown();
-        }
-    }
-
-    @Test
+    @Test(timeout = 60000)
     public void testBasicAcquireRelease() throws Exception {
 
-        client = newHttpClient(2, 30000, null);
+        clientRule.assertIdleConnections(0);
 
-        HttpClientResponse<ByteBuf> response = submitAndWaitForCompletion(client, HttpClientRequest.createGet("/"), null
-        );
+        final HttpClientRequest<ByteBuf, ByteBuf> request1 = clientRule.getHttpClient().createGet("/");
+        TestSubscriber<Void> subscriber = clientRule.sendRequestAndDiscardResponseContent(request1);
 
-        Assert.assertEquals("Unexpected HTTP response code.", 200, response.getStatus().code());
-        Assert.assertEquals("Unexpected Idle connection count.", 1, stats.getIdleCount());
-        Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
-        Assert.assertEquals("Unexpected total connection count.", 1, stats.getTotalConnectionCount());
+        clientRule.assertIdleConnections(0); // No idle connections post connect
+        clientRule.assertRequestHeadersWritten(HttpMethod.GET, "/");
+
+        clientRule.feedResponseAndComplete();
+
+        subscriber.assertTerminalEvent();
+        subscriber.assertNoErrors();
+
+        clientRule.getChannel().runPendingTasks();
+
+        clientRule.assertIdleConnections(1);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testBasicAcquireReleaseWithServerClose() throws Exception {
 
-        client = newHttpClient(2, 30000, null);
+        clientRule.assertIdleConnections(0);
 
-        final long[] idleCountOnComplete = {0};
-        final long[] inUseCountOnComplete = {0};
-        final long[] totalCountOnComplete = {0};
+        final HttpClientRequest<ByteBuf, ByteBuf> request1 = clientRule.getHttpClient().createGet("/");
+        TestSubscriber<Void> subscriber = clientRule.sendRequestAndDiscardResponseContent(request1);
 
-        Action0 onComplete = new Action0() {
-            @Override
-            public void call() {
-                idleCountOnComplete[0] = stats.getIdleCount();
-                inUseCountOnComplete[0] = stats.getInUseCount();
-                totalCountOnComplete[0] = stats.getTotalConnectionCount();
-            }
-        };
+        clientRule.assertIdleConnections(0); // No idle connections post connect
+        clientRule.assertRequestHeadersWritten(HttpMethod.GET, "/");
 
-        HttpClientResponse<ByteBuf> response = submitAndWaitForCompletion(client,
-                                                                          HttpClientRequest.createGet("test/closeConnection"),
-                                                                          onComplete);
+        clientRule.getChannel().close().await();
 
-        Assert.assertEquals("Unexpected idle connection count on completion of submit. ", 0, idleCountOnComplete[0]);
-        Assert.assertEquals("Unexpected in-use connection count on completion of submit. ", 0, inUseCountOnComplete[0]);
-        Assert.assertEquals("Unexpected total connection count on completion of submit. ", 0, totalCountOnComplete[0]);
+        subscriber.assertTerminalEvent();
+        assertThat("On complete sent instead of onError", subscriber.getOnCompletedEvents(), is(empty()));
+        assertThat("Unexpected error notifications count.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error notification.", subscriber.getOnErrorEvents().get(0),
+                   is(instanceOf(ClosedChannelException.class)));
 
-        Assert.assertEquals("Unexpected HTTP response code.", 200, response.getStatus().code());
-        Assert.assertEquals("Unexpected Idle connection count.", 0, stats.getIdleCount());
-        Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
-        Assert.assertEquals("Unexpected total connection count.", 0, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected connection eviction count.", 1, stateChangeListener.getEvictionCount());
+        clientRule.getChannel().runPendingTasks();
+
+        clientRule.assertIdleConnections(0); // Since, channel is closed, it should be discarded.
     }
 
-    @Test
-    public void testReadtimeoutCloseConnection() throws Exception {
-        HttpClient.HttpClientConfig conf = new HttpClient.HttpClientConfig.Builder().readTimeout(1, TimeUnit.SECONDS).build();
-        client = newHttpClient(1, 30000, conf);
-        try {
-            submitAndWaitForCompletion(client, HttpClientRequest.createGet("test/timeout?timeout=60000"), null);
-            throw new AssertionError("Expected read timeout error.");
-        } catch (ReadTimeoutException e) {
-            waitForClose();
-            Assert.assertEquals("Unexpected Idle connection count.", 0, stats.getIdleCount());
-            Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
-            Assert.assertEquals("Unexpected total connection count.", 0, stats.getTotalConnectionCount());
-            Assert.assertEquals("Unexpected connection eviction count.", 1, stateChangeListener.getEvictionCount());
-        }
-    }
-
-    @Test
+    @Test(timeout = 60000)
     public void testCloseOnKeepAliveTimeout() throws Exception {
-        client = newHttpClient(2, 30000, null);
 
-        HttpClientResponse<ByteBuf> response = submitAndWaitForCompletion(client,
-                                                                          HttpClientRequest.createGet("test/keepAliveTimeout"),
-                                                                          null);
+        clientRule.assertIdleConnections(0);
 
-        Assert.assertEquals("Unexpected HTTP response code.", 200, response.getStatus().code());
-        Assert.assertEquals("Unexpected Idle connection count.", 1, stats.getIdleCount());
-        Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
-        Assert.assertEquals("Unexpected total connection count.", 1, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected reuse connection count.", 0, stateChangeListener.getReuseCount());
+        final HttpClientRequest<ByteBuf, ByteBuf> request1 = clientRule.getHttpClient().createGet("/");
 
-        Thread.sleep(RequestProcessor.KEEP_ALIVE_TIMEOUT_SECONDS * 1000); // Waiting for keep-alive timeout to expire.
+        TestSubscriber<HttpClientResponse<ByteBuf>> responseSub = clientRule.sendRequest(request1);
 
-        response = submitAndWaitForCompletion(client, HttpClientRequest.createGet("/"), null);
+        clientRule.assertIdleConnections(0); // No idle connections post connect
+        clientRule.assertRequestHeadersWritten(HttpMethod.GET, "/");
 
-        Assert.assertEquals("Unexpected HTTP response code.", 200, response.getStatus().code());
-        Assert.assertEquals("Unexpected Idle connection count.", 1, stats.getIdleCount());
-        Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
-        Assert.assertEquals("Unexpected total connection count.", 1, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected reuse connection count.", 0, stateChangeListener.getReuseCount());
-        Assert.assertEquals("Unexpected reuse connection count.", 1, stateChangeListener.getEvictionCount());
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        response.headers().set(HttpClientResponseImpl.KEEP_ALIVE_HEADER_NAME,
+                               HttpClientResponseImpl.KEEP_ALIVE_TIMEOUT_HEADER_ATTR + "=0");
+        clientRule.feedResponseAndComplete(response);
+
+        HttpClientResponse<ByteBuf> resp = clientRule.discardResponseContent(responseSub);
+        Channel nettyChannel = resp.unsafeNettyChannel();
+
+        clientRule.getChannel().runPendingTasks();
+
+        // Close is while release, so this should be post running pending tasks
+        assertThat("Channel not closed.", nettyChannel.isOpen(), is(false));
+        clientRule.assertIdleConnections(0); // Since, the channel is closed
     }
 
-    @Test
-    public void testReuseWithContent() throws Exception {
-        client = newHttpClient(1, 1000000, null);
+    @Test(timeout = 60000)
+    public void testReuse() throws Exception {
+        clientRule.assertIdleConnections(0);
 
-        List<String> content = submitAndConsumeContent(client, HttpClientRequest.createGet("/"));
-        Assert.assertEquals("Unexpected content fragments count.", 1, content.size());
-        Assert.assertEquals("Unexpected content fragment.", RequestProcessor.SINGLE_ENTITY_BODY, content.get(0));
+        Channel channel1 = clientRule.sendRequestAndGetChannel();
 
-        Assert.assertEquals("Unexpected Idle connection count.", 1, stats.getIdleCount());
-        Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
-        Assert.assertEquals("Unexpected total connection count.", 1, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected reuse connection count.", 0, stateChangeListener.getReuseCount());
+        clientRule.getChannel().runPendingTasks();
 
-        content = submitAndConsumeContent(client, HttpClientRequest.createGet("/"));
+        clientRule.assertIdleConnections(1);
 
-        Assert.assertEquals("Unexpected content fragments count.", 1, content.size());
-        Assert.assertEquals("Unexpected content fragment.", RequestProcessor.SINGLE_ENTITY_BODY, content.get(0));
+        Channel channel2 = clientRule.sendRequestAndGetChannel();
 
-        Assert.assertEquals("Unexpected Idle connection count.", 1, stats.getIdleCount());
-        Assert.assertEquals("Unexpected in use connection count.", 0, stats.getInUseCount());
-        Assert.assertEquals("Unexpected total connection count.", 1, stats.getTotalConnectionCount());
-        Assert.assertEquals("Unexpected reuse connection count.", 1, stateChangeListener.getReuseCount());
+        assertThat("Connection was not reused.", channel2, is(channel1));
     }
 
-    @Test
-    public void testPoolEvictions() throws InterruptedException {
-        client = newHttpClient(1, 1000, null);
-        final CountDownLatch latch = new CountDownLatch(1);
-        HttpClientMetricEventsListener listener = new HttpClientMetricEventsListener() {
+    public static class PooledHttpClientRule extends HttpClientRule {
+
+        private IdleConnectionsHolder<ByteBuf, ByteBuf> idleConnHolder = new FIFOIdleConnectionsHolder<ByteBuf, ByteBuf>() {
+            @SuppressWarnings("unchecked")
             @Override
-            protected void onPooledConnectionEviction() {
-                latch.countDown();
+            protected <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState) {
+                return (IdleConnectionsHolder<WW, RR>) this;
             }
         };
 
-        client.subscribe(listener);
-
-        submitAndConsumeContent(client, HttpClientRequest.createGet("/"));
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("/");
-
-        client.submit(request).subscribe();
-        latch.await(20, TimeUnit.SECONDS); // Wait less than default idle timeout (30 seconds)
-        Assert.assertEquals("Pooled connection not evicted after idle timeout.", 0, latch.getCount());
-    }
-
-
-    private static List<String> submitAndConsumeContent(HttpClientImpl<ByteBuf, ByteBuf> client,
-                                                        HttpClientRequest<ByteBuf> request)
-            throws InterruptedException {
-        final List<String> toReturn = new ArrayList<String>();
-        final CountDownLatch completionLatch = new CountDownLatch(1);
-        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
-        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
-            @Override
-            public Observable<String> call(HttpClientResponse<ByteBuf> response) {
-                if (response.getStatus().code() == 200) {
-                    return response.getContent().map(new Func1<ByteBuf, String>() {
-                        @Override
-                        public String call(ByteBuf byteBuf) {
-                            return byteBuf.toString(Charset.defaultCharset());
-                        }
-                    });
-                } else {
-                    return Observable.error(new AssertionError("Unexpected response code: " + response.getStatus().code()));
+        @Override
+        public Statement apply(final Statement base, Description description) {
+            return new Statement() {
+                @Override
+                public void evaluate() throws Throwable {
+                    setup(); // sets the client et al.
+                    final TcpClient<ByteBuf, ByteBuf> c = getTcpClient().maxConnections(1);
+                    setTcpClient(c.connectionFactory(new Func1<ClientState<ByteBuf, ByteBuf>, ClientConnectionFactory<ByteBuf, ByteBuf>>() {
+                                @Override
+                                public ClientConnectionFactory<ByteBuf, ByteBuf> call(ClientState<ByteBuf, ByteBuf> newState) {
+                                    ClientConnectionFactory<ByteBuf, ByteBuf> delegate = getConnFactory().call(newState);
+                                    idleConnHolder = idleConnHolder.copy(newState);
+                                    return new PooledClientConnectionFactoryImpl<ByteBuf, ByteBuf>(newState,
+                                                                                                   idleConnHolder,
+                                                                                                   delegate);
+                                }
+                            }));
+                    base.evaluate();
                 }
-            }
-        }).finallyDo(new Action0() {
-            @Override
-            public void call() {
-                completionLatch.countDown();
-            }
-        }).toBlocking().forEach(new Action1<String>() {
-            @Override
-            public void call(String s) {
-                toReturn.add(s);
-            }
-        });
-
-        completionLatch.await(1, TimeUnit.MINUTES);
-        return toReturn;
-    }
-
-    private static HttpClientResponse<ByteBuf> submitAndWaitForCompletion(HttpClientImpl<ByteBuf, ByteBuf> client,
-                                                                          HttpClientRequest<ByteBuf> request,
-                                                                          final Action0 onComplete)
-            throws InterruptedException {
-        final CountDownLatch completionLatch = new CountDownLatch(1);
-        Observable<HttpClientResponse<ByteBuf>> submit = client.submit(request);
-        final AtomicReference<HttpClientResponse<ByteBuf>> toReturnRef =
-                new AtomicReference<HttpClientResponse<ByteBuf>>();
-
-        Observable<ByteBuf> contentStream =
-                submit.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
-                    @Override
-                    public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
-                        toReturnRef.set(response);
-                        return response.getContent();
-                    }
-                }).finallyDo(new Action0() {
-                    @Override
-                    public void call() {
-                        completionLatch.countDown();
-
-                    }
-                }).ignoreElements();
-
-        if (null != onComplete) {
-            contentStream = contentStream.doOnCompleted(onComplete);
+            };
         }
 
-        contentStream.toBlocking().lastOrDefault(null);
+        public void assertIdleConnections(int expectedCount) {
+            TestSubscriber<PooledConnection<ByteBuf, ByteBuf>> testSub = new TestSubscriber<>();
+            idleConnHolder.peek().subscribe(testSub);
 
-        completionLatch.await(1, TimeUnit.MINUTES);
+            testSub.assertTerminalEvent();
+            testSub.assertNoErrors();
 
-        return toReturnRef.get();
-    }
+            assertThat("Unexpected number of connections in the holder.", testSub.getOnNextEvents(),
+                       hasSize(expectedCount));
+        }
 
-    private void waitForClose() throws InterruptedException {
-        if (!channelCloseListener.waitForClose(1, TimeUnit.MINUTES)) {
-            throw new AssertionError("Client channel not closed after sufficient wait.");
+        protected Channel sendRequestAndGetChannel() {
+            final HttpClientRequest<ByteBuf, ByteBuf> request1 = getHttpClient().createGet("/");
+            TestSubscriber<HttpClientResponse<ByteBuf>> respSub = sendRequest(request1);
+
+            assertIdleConnections(0); // No idle connections post connect
+            assertRequestHeadersWritten(HttpMethod.GET, "/");
+
+            feedResponseAndComplete();
+
+            final HttpClientResponse<ByteBuf> response = discardResponseContent(respSub);
+
+            return response.unsafeNettyChannel();
         }
     }
-
-    private HttpClientImpl<ByteBuf, ByteBuf> newHttpClient(int maxConnections, long idleTimeout,
-                                                           HttpClient.HttpClientConfig clientConfig) {
-        if (null == clientConfig) {
-            clientConfig = HttpClient.HttpClientConfig.Builder.newDefaultConfig();
-        }
-        PipelineConfigurator<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>> configurator =
-                new PipelineConfiguratorComposite<HttpClientResponse<ByteBuf>, HttpClientRequest<ByteBuf>>(
-                        PipelineConfigurators.httpClientConfigurator(),
-                        new PipelineConfigurator() {
-                            @Override
-                            public void configureNewPipeline(ChannelPipeline pipeline) {
-                                channelCloseListener.reset();
-                                pipeline.addFirst(channelCloseListener);
-                            }
-                        });
-
-        HttpClientImpl<ByteBuf, ByteBuf> client =
-                (HttpClientImpl<ByteBuf, ByteBuf>) new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                        .withMaxConnections(maxConnections)
-                        .withIdleConnectionsTimeoutMillis(idleTimeout)
-                        .config(clientConfig)
-                        .enableWireLogging(LogLevel.DEBUG)
-                        .pipelineConfigurator(configurator).build();
-        stateChangeListener = new TrackableMetricEventsListener();
-        client.subscribe(stateChangeListener);
-        stats = new PoolStats();
-        client.subscribe(stats);
-        return client;
-    }
-*/
-    //TODO: Fix me
 }

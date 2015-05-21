@@ -396,16 +396,15 @@ public abstract class HttpClient<I, O> implements MetricEventsPublisher<ClientMe
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code limitDeterminationStrategy} as the strategy to control the maximum concurrent connections created by the
+     * {@code strategy} as the strategy to control the maximum concurrent connections created by the
      * newly created client instance.
      *
-     * @param limitDeterminationStrategy Strategy to control the maximum concurrent connections created by the
+     * @param strategy Strategy to control the maximum concurrent connections created by the
      * newly created client instance.
      *
      * @return A new {@link HttpClient} instance.
      */
-    public abstract HttpClient<I, O> connectionPoolLimitStrategy(
-            PoolLimitDeterminationStrategy limitDeterminationStrategy);
+    public abstract HttpClient<I, O> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed

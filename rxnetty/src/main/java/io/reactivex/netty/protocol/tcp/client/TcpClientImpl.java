@@ -205,8 +205,8 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     @Override
-    public TcpClient<W, R> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
-        return copy(state.connectionPoolLimitStrategy(limitDeterminationStrategy));
+    public TcpClient<W, R> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy) {
+        return copy(state.connectionPoolLimitStrategy(strategy));
     }
 
     @Override

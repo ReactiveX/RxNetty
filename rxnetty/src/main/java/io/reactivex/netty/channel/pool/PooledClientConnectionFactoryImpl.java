@@ -258,7 +258,13 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                 connection.unsafeNettyChannel().pipeline().fireUserEventTriggered(PooledConnectionReleaseEvent.INSTANCE);
                 metricsEventSubject.onEvent(POOL_RELEASE_START);
                 if (isShutdown() || !connection.isUsable()) {
-                    idleConnectionsHolder.discard(connection);
+                    idleConnectionsHolder.discard(connection)
+                                         .subscribe(Actions.empty(), new Action1<Throwable>() {
+                                             @Override
+                                             public void call(Throwable throwable) {
+                                                 logger.error("Error discarding connection.", throwable);
+                                             }
+                                         });
                 } else {
                     idleConnectionsHolder.add(connection);
                 }

@@ -296,16 +296,15 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code limitDeterminationStrategy} as the strategy to control the maximum concurrent connections created by the
+     * {@code strategy} as the strategy to control the maximum concurrent connections created by the
      * newly created client instance.
      *
-     * @param limitDeterminationStrategy Strategy to control the maximum concurrent connections created by the
+     * @param strategy Strategy to control the maximum concurrent connections created by the
      * newly created client instance.
      *
      * @return A new {@link TcpClient} instance.
      */
-    public abstract TcpClient<W, R> connectionPoolLimitStrategy(
-            PoolLimitDeterminationStrategy limitDeterminationStrategy);
+    public abstract TcpClient<W, R> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and using the passed

@@ -26,7 +26,9 @@ import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.functions.Func1;
+import rx.subscriptions.Subscriptions;
 
 /**
  * An abstraction over netty's channel providing Rx APIs.
@@ -83,6 +85,17 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
         return Observable.create(new OnSubscribe<R>() {
             @Override
             public void call(Subscriber<? super R> subscriber) {
+                subscriber.add(Subscriptions.create(new Action0() {
+                    @Override
+                    public void call() {
+                        // Unsubscribe from the input closes the connection as there can only be one subscriber to the
+                        // input and, if nothing is read, it means, nobody is using the connection.
+                        // For fire-and-forget usecases, one should explicitly ignore content on the connection which
+                        // adds a discard all subscriber that never unsubscribes. For this case, then, the close becomes
+                        // explicit.
+                        closeNow();
+                    }
+                }));
                 nettyChannel.pipeline()
                             .fireUserEventTriggered(new ConnectionInputSubscriberEvent<R, W>(subscriber,
                                                                                              Connection.this));

@@ -194,8 +194,8 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
-    public HttpClient<I, O> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy limitDeterminationStrategy) {
-        return _copy(client.connectionPoolLimitStrategy(limitDeterminationStrategy));
+    public HttpClient<I, O> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy) {
+        return _copy(client.connectionPoolLimitStrategy(strategy));
     }
 
     @Override

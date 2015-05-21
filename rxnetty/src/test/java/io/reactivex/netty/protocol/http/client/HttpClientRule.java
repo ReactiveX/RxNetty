@@ -52,29 +52,33 @@ public class HttpClientRule extends ExternalResource {
     private EmbeddedChannel channel;
     private TcpClient<ByteBuf, ByteBuf> tcpClient;
     private InboundRequestFeeder inboundRequestFeeder;
+    private Func1<ClientState<ByteBuf, ByteBuf>, ClientConnectionFactory<ByteBuf, ByteBuf>> connFactory;
 
     @Override
     public Statement apply(final Statement base, Description description) {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                inboundRequestFeeder = new InboundRequestFeeder();
-                Func1<ClientState<ByteBuf, ByteBuf>, ClientConnectionFactory<ByteBuf, ByteBuf>> factory =
-                        ClientEmbeddedConnectionFactory.newFactoryFunc(new Func0<EmbeddedChannel>() {
-                            @Override
-                            public EmbeddedChannel call() {
-                                channel = new EmbeddedChannel(inboundRequestFeeder);
-                                return channel;
-                            }
-                        });
-
-                tcpClient = TcpClient.newClient("localhost", 0)
-                                     .connectionFactory(factory)
-                                     .enableWireLogging(LogLevel.ERROR);
-                httpClient = HttpClientImpl.unsafeCreate(tcpClient);
+                setup();
                 base.evaluate();
             }
         };
+    }
+
+    protected void setup() {
+        inboundRequestFeeder = new InboundRequestFeeder();
+        connFactory = ClientEmbeddedConnectionFactory.newFactoryFunc(new Func0<EmbeddedChannel>() {
+            @Override
+            public EmbeddedChannel call() {
+                channel = new EmbeddedChannel(inboundRequestFeeder);
+                return channel;
+            }
+        });
+
+        tcpClient = TcpClient.newClient("localhost", 0)
+                             .connectionFactory(connFactory)
+                             .enableWireLogging(LogLevel.ERROR);
+        httpClient = HttpClientImpl.unsafeCreate(tcpClient);
     }
 
     public HttpClient<ByteBuf, ByteBuf> getHttpClient() {
@@ -87,6 +91,15 @@ public class HttpClientRule extends ExternalResource {
 
     public TcpClient<ByteBuf, ByteBuf> getTcpClient() {
         return tcpClient;
+    }
+
+    public Func1<ClientState<ByteBuf, ByteBuf>, ClientConnectionFactory<ByteBuf, ByteBuf>> getConnFactory() {
+        return connFactory;
+    }
+
+    public void setTcpClient(TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        this.tcpClient = tcpClient;
+        httpClient = HttpClientImpl.unsafeCreate(this.tcpClient);
     }
 
     public TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(HttpClientRequest<ByteBuf, ByteBuf> request) {
