@@ -16,7 +16,6 @@
 package io.reactivex.netty.client;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -30,7 +29,6 @@ import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
 import javax.net.ssl.SSLException;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -51,8 +49,6 @@ public class SslClientTest {
 
         final MaxConnectionsBasedStrategy strategy = new MaxConnectionsBasedStrategy(1);
 
-        final AtomicReference<Channel> channelRef = new AtomicReference<>();
-
         // The connect fails because the server does not support SSL.
         TestSubscriber<ByteBuf> subscriber = new TestSubscriber<>();
         HttpClient.newClient("127.0.0.1", serverPort)
@@ -62,7 +58,6 @@ public class SslClientTest {
                   .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
                       @Override
                       public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
-                          channelRef.set(response.unsafeNettyChannel());
                           return response.getContent();
                       }
                   })
@@ -72,8 +67,8 @@ public class SslClientTest {
 
         assertThat("Unexpected error notifications.", subscriber.getOnErrorEvents(), hasSize(1));
         assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0), is(instanceOf(SSLException.class)));
-        assertThat("Response channel is null.", channelRef.get(), is(notNullValue()));
 
+        Thread.sleep(10000); //TODO: Fix me: Seems to be a race-condition
         Assert.assertEquals("Unexpected available permits.", 1, strategy.getAvailablePermits());
     }
 }

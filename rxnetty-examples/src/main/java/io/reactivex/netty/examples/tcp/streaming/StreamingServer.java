@@ -41,6 +41,6 @@ public final class StreamingServer extends AbstractServerExample {
             server.awaitShutdown();
         }
 
-        serverPort = server.getServerPort();
+        setServerPort(server.getServerPort());
     }
 }

@@ -53,6 +53,6 @@ public final class PerfHelloWorldServer extends AbstractServerExample {
         }
 
         /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
-        serverPort = server.getServerPort();
+        setServerPort(server.getServerPort());
     }
 }

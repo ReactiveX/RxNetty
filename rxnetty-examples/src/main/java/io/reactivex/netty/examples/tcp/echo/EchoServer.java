@@ -38,6 +38,6 @@ public final class EchoServer extends AbstractServerExample {
             server.awaitShutdown();
         }
 
-        serverPort = server.getServerPort();
+        setServerPort(server.getServerPort());
     }
 }
