@@ -31,7 +31,7 @@ public class FIFOIdleConnectionsHolderTest {
     @Rule
     public final HolderRule holderRule = new HolderRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testPoll() throws Exception {
         holderRule.pollNow();
 
@@ -46,7 +46,7 @@ public class FIFOIdleConnectionsHolderTest {
         holderRule.pollNow(); // Poll removes the item.
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testPeek() throws Exception {
         holderRule.peekNow();
 
@@ -61,7 +61,7 @@ public class FIFOIdleConnectionsHolderTest {
         holderRule.peekNow(added); // Peek does not removes the item.
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAdd() throws Exception {
         PooledConnection<String, String> added = holderRule.addAConnection();
 
@@ -72,7 +72,7 @@ public class FIFOIdleConnectionsHolderTest {
         holderRule.peekNow(added, added2); // Get both items in the same order.
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRemove() throws Exception {
         PooledConnection<String, String> added = holderRule.addAConnection();
         PooledConnection<String, String> added2 = holderRule.addAConnection();
@@ -84,7 +84,7 @@ public class FIFOIdleConnectionsHolderTest {
         holderRule.peekNow(added2); // one item is removed
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testDoCopy() throws Exception {
         PooledConnection<String, String> added = holderRule.addAConnection();
         holderRule.peekNow(added); // check if added.

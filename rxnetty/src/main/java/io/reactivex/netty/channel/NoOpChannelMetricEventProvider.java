@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,8 +26,6 @@ import rx.subscriptions.Subscriptions;
  * provider is always used with {@link NoOpMetricEventsSubject} to make sure that none
  * of the events generated ever reach the listeners. Failure to do so will result in runtime type mismatched for the
  * listeners.
- *
- * @author Nitesh Kant
  */
 public class NoOpChannelMetricEventProvider extends ChannelMetricEventProvider {
 

@@ -49,8 +49,6 @@ import javax.net.ssl.SSLEngine;
  *
  * @param <R> The type of objects read from the server owning this state.
  * @param <W> The type of objects written to the server owning this state.
- *
- * @author Nitesh Kant
  */
 public final class ServerState<R, W> {
 

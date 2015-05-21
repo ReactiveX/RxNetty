@@ -15,9 +15,6 @@
  */
 package io.reactivex.netty.spectator.tcp;
 
-/**
- * @author Nitesh Kant
- */
 public class TcpMetricsTest {
 /*
 

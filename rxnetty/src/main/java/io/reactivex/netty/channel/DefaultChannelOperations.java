@@ -38,8 +38,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
  * Default implementation for {@link ChannelOperations}.
  *
  * @param <W> Type of data that can be written on the associated channel.
- *
- * @author Nitesh Kant
  */
 public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 

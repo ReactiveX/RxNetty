@@ -44,8 +44,6 @@ import java.util.concurrent.TimeUnit;
  *
  * @param <R> The type of objects read from this server.
  * @param <W> The type of objects written to this server.
- *
- * @author Nitesh Kant
  */
 public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMetricsEvent<?>> {
 

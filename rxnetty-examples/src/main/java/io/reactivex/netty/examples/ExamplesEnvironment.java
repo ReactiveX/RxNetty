@@ -18,8 +18,6 @@ package io.reactivex.netty.examples;
 
 /**
  * A place to specify the environment for all examples.
- *
- * @author Nitesh Kant
  */
 public class ExamplesEnvironment {
 }

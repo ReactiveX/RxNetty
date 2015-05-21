@@ -23,8 +23,6 @@ import rx.Observable;
  *
  * @param <R> The type of the object that is read from a new connection.
  * @param <W> The type of objects that are written to a new connection.
- *
- * @author Nitesh Kant
  */
 public interface ConnectionHandler<R, W> {
 

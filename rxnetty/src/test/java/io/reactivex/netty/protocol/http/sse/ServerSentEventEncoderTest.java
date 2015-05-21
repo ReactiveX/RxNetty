@@ -36,7 +36,7 @@ public class ServerSentEventEncoderTest {
     @Rule
     public final EncoderRule rule = new EncoderRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testOneDataLineEncode() throws Exception {
         String eventType = "add";
         String eventId = "1";
@@ -46,7 +46,7 @@ public class ServerSentEventEncoderTest {
         rule.test(expectedOutput, event);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultipleDataLineEncode() throws Exception {
         ServerSentEventEncoder splitEncoder = new ServerSentEventEncoder(true);
         EmbeddedChannel channel = new EmbeddedChannel(splitEncoder);
@@ -62,7 +62,7 @@ public class ServerSentEventEncoderTest {
         rule.test(channel, expectedOutput, event);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testNoSplitMode() throws Exception {
         String eventType = "add";
         String eventId = "1";
@@ -72,7 +72,7 @@ public class ServerSentEventEncoderTest {
         rule.test(expectedOutput, event);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEventWithNoIdEncode() throws Exception {
         String eventType = "add";
         String data = "data line";
@@ -81,7 +81,7 @@ public class ServerSentEventEncoderTest {
         rule.test(expectedOutput, event);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEventWithNoEventTypeEncode() throws Exception {
         String eventId = "1";
         String data = "data line";
@@ -90,7 +90,7 @@ public class ServerSentEventEncoderTest {
         rule.test(expectedOutput, event);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEventWithDataOnlyEncode() throws Exception {
         String data = "data line";
         ServerSentEvent event = newServerSentEvent(null, null, data);

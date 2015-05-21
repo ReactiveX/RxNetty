@@ -40,8 +40,6 @@ import java.nio.channels.ClosedChannelException;
  *
  * @param <R> The type of objects read from the server using this bridge.
  * @param <W> The type of objects written to this server using this bridge.
- *
- * @author Nitesh Kant
  */
 public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToChannelBridge<R, W> {
 

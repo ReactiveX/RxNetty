@@ -158,6 +158,21 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         });
     }
 
+    @Override
+    protected void onNewReadSubscriber(final Connection<R, W> connection, Subscriber<? super R> subscriber) {
+        subscriber.add(Subscriptions.create(new Action0() {
+            @Override
+            public void call() {
+                // Unsubscribe from the input closes the connection as there can only be one subscriber to the
+                // input and, if nothing is read, it means, nobody is using the connection.
+                // For fire-and-forget usecases, one should explicitly ignore content on the connection which
+                // adds a discard all subscriber that never unsubscribes. For this case, then, the close becomes
+                // explicit.
+                connection.closeNow();
+            }
+        }));
+    }
+
     private void newConnectionReuseEvent(Channel channel, final ConnectionResueEvent<R, W> event) {
         Subscriber<? super PooledConnection<R, W>> subscriber = event.getSubscriber();
         if (isValidToEmit(subscriber)) {

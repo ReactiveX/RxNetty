@@ -18,8 +18,6 @@ package io.reactivex.netty.protocol.http.client;
 /**
  * An exception signifying a failed HTTP redirects. Every exception has an encapsulated {@link Reason} retrievable via
  * {@link #getReason()}
- *
- * @author Nitesh Kant
  */
 public class HttpRedirectException extends RuntimeException {
 

@@ -22,8 +22,6 @@ import io.netty.channel.EventLoopGroup;
 /**
  * A provider for netty's {@link EventLoopGroup} to be used for RxNetty's clients and servers when they are not
  * provided explicitly.
- *
- * @author Nitesh Kant
  */
 public abstract class RxEventLoopProvider {
 

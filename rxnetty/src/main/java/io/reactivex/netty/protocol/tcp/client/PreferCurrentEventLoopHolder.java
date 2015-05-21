@@ -45,8 +45,6 @@ import java.util.Set;
  *
  * @param <W> Type of object that is written to the client using this holder.
  * @param <R> Type of object that is read from the the client using this holder.
- *
- * @author Nitesh Kant
  */
 public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W, R> {
 

@@ -29,8 +29,6 @@ import io.netty.handler.codec.http.HttpResponse;
  *
  * This encoder will encode any {@link ServerSentEvent} to {@link ByteBuf} and also set the appropriate HTTP Response
  * headers required for <a href="http://www.w3.org/TR/eventsource/">SSE</a>
- *
- * @author Nitesh Kant
  */
 @ChannelHandler.Sharable
 public class ServerSentEventEncoder extends ChannelOutboundHandlerAdapter {

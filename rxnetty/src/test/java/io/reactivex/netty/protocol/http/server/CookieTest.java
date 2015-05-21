@@ -39,7 +39,7 @@ import java.util.Set;
 
 public class CookieTest {
 
-    @Test
+    @Test(timeout = 60000)
     public void testGetCookie() throws Exception {
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "");
         String cookie1Name = "PREF";
@@ -63,7 +63,7 @@ public class CookieTest {
         Assert.assertEquals("Unexpected cookie path.", cookie1Path, cookie.path());
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetCookie() throws Exception {
         DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
         EmbeddedChannel channel = new EmbeddedChannel();
@@ -81,7 +81,6 @@ public class CookieTest {
         Assert.assertEquals("Unexpected number of decoded cookie not found.", 1, decode.size());
         Cookie cookie = decode.iterator().next();
         Assert.assertEquals("Unexpected cookie name.", cookieName, cookie.name());
-        Assert.assertEquals("Unexpected cookie value.", cookieValue, cookie.path());
-
+        Assert.assertEquals("Unexpected cookie value.", cookieValue, cookie.value());
     }
 }

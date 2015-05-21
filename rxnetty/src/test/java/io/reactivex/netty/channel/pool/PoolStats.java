@@ -22,9 +22,6 @@ import io.reactivex.netty.metrics.MetricEventsListener;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-/**
- * @author Nitesh Kant
- */
 public class PoolStats implements MetricEventsListener<ClientMetricsEvent<?>> {
 
     private final AtomicLong idleConnections;

@@ -79,7 +79,7 @@ public class HttpClientRequestImplTest {
     @Rule
     public final RequestRule requestRule = new RequestRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteContent() throws Exception {
         Observable<Object> content = Observable.<Object>just("Hello");
         Observable<HttpClientResponse<ByteBuf>> newReq = requestRule.request.writeContent(content);
@@ -87,7 +87,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteContentAndFlushOnEach() throws Exception {
         Observable<Object> content = Observable.<Object>just("Hello");
         Observable<HttpClientResponse<ByteBuf>> newReq = requestRule.request.writeContentAndFlushOnEach(content);
@@ -95,21 +95,21 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWriteAndFlushOnEach(content, newReq);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringContent() throws Exception {
         Observable<String> content = Observable.just("Hello");
         Observable<HttpClientResponse<ByteBuf>> newReq = requestRule.request.writeStringContent(content);
         requestRule.assertContentWrite(content, newReq);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesContent() throws Exception {
         Observable<byte[]> content = Observable.just("Hello".getBytes());
         Observable<HttpClientResponse<ByteBuf>> newReq = requestRule.request.writeBytesContent(content);
         requestRule.assertContentWrite(content, newReq);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteContentWithFlushSelector() throws Exception {
         Observable<Object> content = Observable.<Object>just("Hello");
         FlushSelector<Object> flushSelector = new FlushSelector<>(5);
@@ -118,7 +118,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, flushSelector);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringContentWithFlushSelector() throws Exception {
         Observable<String> content = Observable.just("Hello");
         FlushSelector<String> flushSelector = new FlushSelector<>(5);
@@ -127,7 +127,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, flushSelector);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesContentWithFlushSelector() throws Exception {
         Observable<byte[]> content = Observable.just("Hello".getBytes());
         FlushSelector<byte[]> flushSelector = new FlushSelector<>(5);
@@ -136,7 +136,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, flushSelector);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteContentWithTrailer() throws Exception {
         Observable<Object> content = Observable.<Object>just("Hello");
         TestTrailerFactory tFactory = requestRule.newTrailerFactory();
@@ -146,7 +146,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, tFactory, tMutator);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringContentWithTrailer() throws Exception {
         Observable<String> content = Observable.just("Hello");
         TestTrailerFactory tFactory = requestRule.newTrailerFactory();
@@ -157,7 +157,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, tFactory, tMutator);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesContentWithTrailer() throws Exception {
         Observable<byte[]> content = Observable.just("Hello".getBytes());
         TestTrailerFactory tFactory = requestRule.newTrailerFactory();
@@ -168,7 +168,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, tFactory, tMutator);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteContentWithTrailerAndSelector() throws Exception {
         Observable<Object> content = Observable.<Object>just("Hello".getBytes());
         FlushSelector<Object> selector = new FlushSelector<>(1);
@@ -180,7 +180,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, tFactory, tMutator, 2/*One for content & one for trailer*/);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringContentWithTrailerAndSelector() throws Exception {
         Observable<String> content = Observable.just("Hello");
         FlushSelector<String> selector = new FlushSelector<>(1);
@@ -192,7 +192,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, tFactory, tMutator, 2/*One for content & one for trailer*/);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesContentWithTrailerAndSelector() throws Exception {
         Observable<byte[]> content = Observable.just("Hello".getBytes());
         FlushSelector<byte[]> selector = new FlushSelector<>(1);
@@ -204,7 +204,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertContentWrite(content, newReq, tFactory, tMutator, 2/*One for content & one for trailer*/);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddHeader() throws Exception {
         final String headerName = "Foo";
         final String headerVal = "bar";
@@ -217,7 +217,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq, headerName, headerVal);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddCookie() throws Exception {
         DefaultCookie cookie = new DefaultCookie("cookie", "cook");
         HttpClientRequestImpl<Object, ByteBuf> newReq =
@@ -228,7 +228,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq, Names.COOKIE, ClientCookieEncoder.encode(cookie));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddDateHeader() throws Exception {
         String headerName = "date";
         Date date = new Date();
@@ -241,7 +241,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq, headerName, date);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddDateHeaderMulti() throws Exception {
         String headerName = "date";
         Date date1 = new Date();
@@ -256,7 +256,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq, headerName, date1, date2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddDateHeaderIncrementally() throws Exception {
         String headerName = "foo";
         Date date1 = new Date();
@@ -277,7 +277,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq2, headerName, date1, date2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddHeaderMulti() throws Exception {
         String headerName = "foo";
         String val1 = "val1";
@@ -292,7 +292,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq, headerName, val1, val2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddHeaderIncrementally() throws Exception {
         String headerName = "foo";
         String val1 = "val1";
@@ -313,7 +313,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq2, headerName, val1, val2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetDateHeader() throws Exception {
         String headerName = "date";
         Date date1 = new Date();
@@ -334,7 +334,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(setReq, headerName, date2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetHeader() throws Exception {
         String headerName = "foo";
         String val1 = "bar";
@@ -355,7 +355,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(setReq, headerName, val2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetDateHeaderMulti() throws Exception {
         String headerName = "date";
         Date date1 = new Date();
@@ -379,7 +379,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(setReq, headerName, date2, date3);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetHeaderMulti() throws Exception {
         String headerName = "date";
         Date date1 = new Date();
@@ -403,7 +403,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(setReq, headerName, val2, val3);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRemoveHeader() throws Exception {
         final String headerName = "Foo";
         final String headerVal = "bar";
@@ -428,7 +428,7 @@ public class HttpClientRequestImplTest {
                    is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetKeepAlive() throws Exception {
         HttpClientRequestImpl<Object, ByteBuf> newReq =
                 (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setKeepAlive(false);
@@ -436,7 +436,7 @@ public class HttpClientRequestImplTest {
         requestRule.assertHeaderAdded(newReq, Names.CONNECTION, Values.CLOSE);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetTransferEncodingChunked() throws Exception {
         HttpClientRequestImpl<Object, ByteBuf> newReq =
                 (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setTransferEncodingChunked();
@@ -445,7 +445,7 @@ public class HttpClientRequestImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirst() throws Exception {
         String handlerName = "handler1";
         Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
@@ -464,7 +464,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).addChannelHandlerFirst(handlerName, handlerFactory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirstWithGroup() throws Exception {
         String handlerName = "handler1";
         EventExecutorGroup group = new NioEventLoopGroup();
@@ -484,7 +484,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).addChannelHandlerFirst(group, handlerName, handlerFactory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLastWithGroup() throws Exception {
         String handlerName = "handler1";
         EventExecutorGroup group = new NioEventLoopGroup();
@@ -504,7 +504,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).addChannelHandlerLast(group, handlerName, handlerFactory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLast() throws Exception {
         String handlerName = "handler1";
         Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
@@ -523,7 +523,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).addChannelHandlerLast(handlerName, handlerFactory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBefore() throws Exception {
         String baseName = "base";
         String handlerName = "handler1";
@@ -543,7 +543,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).addChannelHandlerBefore(baseName, handlerName, handlerFactory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBeforeWithGroup() throws Exception {
         String baseName = "base";
         String handlerName = "handler1";
@@ -563,7 +563,7 @@ public class HttpClientRequestImplTest {
 
         Mockito.verify(requestRule.clientMock).addChannelHandlerBefore(group, baseName, handlerName, handlerFactory);
     }
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfter() throws Exception {
         String baseName = "base";
         String handlerName = "handler1";
@@ -583,7 +583,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).addChannelHandlerAfter(baseName, handlerName, handlerFactory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfterWithGroup() throws Exception {
         String baseName = "base";
         String handlerName = "handler1";
@@ -604,7 +604,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).addChannelHandlerAfter(group, baseName, handlerName, handlerFactory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testPipelineConfigurator() throws Exception {
         Action1<ChannelPipeline> configurator = new Action1<ChannelPipeline>() {
             @Override
@@ -622,7 +622,7 @@ public class HttpClientRequestImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEnableWireLogging() throws Exception {
         HttpClientRequestImpl<Object, ByteBuf> newReq =
                 (HttpClientRequestImpl<Object, ByteBuf>) requestRule
@@ -633,7 +633,7 @@ public class HttpClientRequestImplTest {
         Mockito.verify(requestRule.clientMock).enableWireLogging(LogLevel.DEBUG);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testContainsHeader() throws Exception {
         final String headerName = "Foo";
         final String headerVal = "bar";
@@ -646,7 +646,7 @@ public class HttpClientRequestImplTest {
         assertThat("Added header not retrievable.", newReq.containsHeader(headerName), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testContainsHeaderWithValue() throws Exception {
         final String headerName = "Foo";
         final String headerVal1 = "bar";
@@ -662,7 +662,7 @@ public class HttpClientRequestImplTest {
                    is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testContainsHeaderWithValueCaseInsensitive() throws Exception {
         final String headerName = "Foo";
         final String headerVal = "bar";
@@ -676,7 +676,7 @@ public class HttpClientRequestImplTest {
                    is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testGetHeader() throws Exception {
         final String headerName = "Foo";
         final String headerVal = "bar";
@@ -689,7 +689,7 @@ public class HttpClientRequestImplTest {
         assertThat("Added header not retrievable.", newReq.getHeader(headerName), is(headerVal));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testGetAllHeaders() throws Exception {
         final String headerName = "Foo";
         final String headerVal1 = "bar";
@@ -708,22 +708,22 @@ public class HttpClientRequestImplTest {
                    contains(headerVal1, headerVal2));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testGetHttpVersion() throws Exception {
         assertThat("Unexpected http version", requestRule.request.getHttpVersion(), is(HttpVersion.HTTP_1_1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testGetMethod() throws Exception {
         assertThat("Unexpected http version", requestRule.request.getMethod(), is(HttpMethod.GET));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testGetUri() throws Exception {
         assertThat("Unexpected http version", requestRule.request.getUri(), is("/"));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSubscribe() throws Exception {
         TestSubscriber<Object> subscriber = new TestSubscriber<>();
 
@@ -732,6 +732,7 @@ public class HttpClientRequestImplTest {
 
         newReq.subscribe(subscriber);
 
+        subscriber.assertNoErrors();
         requestRule.channel.flush(); /*Since nobody subscribes to the observable.*/
 
         assertThat("Unexpected number of items written on the channel.", requestRule.channel.outboundMessages(),
@@ -836,7 +837,7 @@ public class HttpClientRequestImplTest {
                            .thenAnswer(returnThisMock);
 
                     Mockito.when(clientMock.addChannelHandlerLast(anyString(),
-                                                                   Matchers.<Func0<ChannelHandler>>anyObject()))
+                                                                  Matchers.<Func0<ChannelHandler>>anyObject()))
                            .thenAnswer(returnThisMock);
 
                     Mockito.when(clientMock.addChannelHandlerLast(Matchers.<EventExecutorGroup>anyObject(),
@@ -867,6 +868,8 @@ public class HttpClientRequestImplTest {
 
                     Mockito.when(clientMock.enableWireLogging(Matchers.<LogLevel>anyObject()))
                                            .thenAnswer(returnThisMock);
+
+                    Mockito.when(clientMock.getEventsSubject()).thenAnswer(Mockito.RETURNS_MOCKS);
 
                     RequestRule.this.clientMock = clientMock;
 

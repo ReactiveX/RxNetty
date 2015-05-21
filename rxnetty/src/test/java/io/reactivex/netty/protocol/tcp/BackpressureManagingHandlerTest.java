@@ -46,7 +46,7 @@ public class BackpressureManagingHandlerTest {
     @Rule
     public final HandlerRule handlerRule = new HandlerRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testExactDemandAndSupply() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -64,7 +64,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testExactDemandAndSupplyMultiRequests() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -100,10 +100,10 @@ public class BackpressureManagingHandlerTest {
         handlerRule.assertMessagesReceived(msg3);
 
         /*Since, the demand is met (requested 3 and got 3) , we move to buffering.*/
-        assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
+        assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Reading));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMoreDemand() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -122,7 +122,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.ReadRequested));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMoreSupply() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -145,7 +145,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Unexpected buffer read index.", handlerRule.handler.getCurrentBufferIndex(), is(0));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testBufferDrainSingleIteration() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -184,7 +184,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Unexpected buffer read index.", handlerRule.handler.getCurrentBufferIndex(), is(0));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testBufferDrainMultiIteration() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -242,7 +242,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Unexpected buffer read index.", handlerRule.handler.getCurrentBufferIndex(), is(0));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testBufferDrainWithMoreDemand() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -281,7 +281,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Unexpected buffer read index.", handlerRule.handler.getCurrentBufferIndex(), is(0));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testBufferDrainOnRemove() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -310,7 +310,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Buffered item not released.", msg2.refCnt(), is(0));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testDiscardReadWhenStopped() throws Exception {
         assertThat("Unexpected handler state.", handlerRule.handler.getCurrentState(), is(State.Buffering));
 
@@ -325,7 +325,7 @@ public class BackpressureManagingHandlerTest {
         assertThat("Message not released when stopped.", msg.refCnt(), is(0));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteWithBufferingHandler() throws Exception {
         BufferingHandler bufferingHandler = new BufferingHandler();
         handlerRule.channel.pipeline()

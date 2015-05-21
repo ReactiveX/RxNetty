@@ -26,16 +26,13 @@ import java.util.List;
 import static io.reactivex.netty.protocol.http.sse.SseTestUtil.*;
 import static org.junit.Assert.*;
 
-/**
- * @author Tomasz Bak
- */
 public class ServerSentEventDecoderTest {
 
     private final ServerSentEventDecoder decoder = new ServerSentEventDecoder();
 
     private final ChannelHandlerContext ch = new NoOpChannelHandlerContext();
 
-    @Test
+    @Test(timeout = 60000)
     public void testOneDataLineDecode() throws Exception {
         String eventType = "add";
         String eventId = "1";
@@ -46,7 +43,7 @@ public class ServerSentEventDecoderTest {
         doTest(newSseProtocolString(eventType, eventId, data), expected);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultipleDataLineDecode() throws Exception {
         String eventType = "add";
         String eventId = "1";
@@ -59,7 +56,7 @@ public class ServerSentEventDecoderTest {
         doTest(newSseProtocolString(eventType, eventId, data1, data2), expected1, expected2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEventWithNoIdDecode() throws Exception {
         String eventType = "add";
         String data = "data line";
@@ -69,7 +66,7 @@ public class ServerSentEventDecoderTest {
         doTest(newSseProtocolString(eventType, null, data), expected);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEventWithNoEventTypeDecode() throws Exception {
         String eventId = "1";
         String data = "data line";
@@ -79,7 +76,7 @@ public class ServerSentEventDecoderTest {
         doTest(newSseProtocolString(null, eventId, data), expected);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEventWithDataOnlyDecode() throws Exception {
         String data = "data line";
 
@@ -88,7 +85,7 @@ public class ServerSentEventDecoderTest {
         doTest(newSseProtocolString(null, null, data), expected);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testResetEventType() throws Exception {
         String eventType = "add";
         String eventId = "1";
@@ -102,7 +99,7 @@ public class ServerSentEventDecoderTest {
                expected1, expected2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testResetEventId() throws Exception {
         String eventType = "add";
         String eventId = "1";
@@ -116,7 +113,7 @@ public class ServerSentEventDecoderTest {
                expected1, expected2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIncompleteEventId() throws Exception {
         List<Object> out = new ArrayList<Object>();
         decoder.decode(ch, toHttpContent("id: 111"), out);
@@ -128,7 +125,7 @@ public class ServerSentEventDecoderTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIncompleteEventType() throws Exception {
         List<Object> out = new ArrayList<Object>();
         decoder.decode(ch, toHttpContent("event: ad"), out);
@@ -140,7 +137,7 @@ public class ServerSentEventDecoderTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIncompleteEventData() throws Exception {
         ServerSentEvent expected = newServerSentEvent("add", null, "data line");
 
@@ -155,7 +152,7 @@ public class ServerSentEventDecoderTest {
         doTest("ata line\n", expected);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIncompleteFieldName() throws Exception {
         ServerSentEvent expected = newServerSentEvent("add", null, "data line");
 
@@ -170,7 +167,7 @@ public class ServerSentEventDecoderTest {
         doTest("ata: data line\n", expected);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testInvalidFieldNameAndNextEvent() throws Exception {
         ArrayList<Object> out = new ArrayList<Object>();
         decoder.decode(ch, toHttpContent("eventt: event type\n"), out);
@@ -182,21 +179,21 @@ public class ServerSentEventDecoderTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testInvalidFieldName() throws Throwable {
         ArrayList<Object> out = new ArrayList<Object>();
         decoder.decode(ch, toHttpContent("eventt: dumb \n"), out);
         assertTrue("Event emitted for invalid field name.", out.isEmpty());
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testFieldNameWithSpace() throws Throwable {
         ArrayList<Object> out = new ArrayList<Object>();
         decoder.decode(ch, toHttpContent("eve nt: dumb \n"), new ArrayList<Object>());
         assertTrue("Event emitted for invalid field name.", out.isEmpty());
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testDataInMultipleChunks() throws Exception {
         ServerSentEvent expected = newServerSentEvent(null, null, "data line");
 

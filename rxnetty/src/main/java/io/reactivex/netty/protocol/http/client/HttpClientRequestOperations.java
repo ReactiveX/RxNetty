@@ -26,8 +26,6 @@ import java.util.concurrent.TimeUnit;
 /**
  * A package private interface to share the mutable operation declarations on {@link HttpClientRequest} between
  * {@link HttpClientRequest} and {@link HttpClientRequestUpdater}
- *
- * @author Nitesh Kant
  */
 interface HttpClientRequestOperations<Input, Owner> {
 

@@ -15,9 +15,6 @@
  */
 package io.reactivex.netty.spectator;
 
-/**
- * @author Nitesh Kant
- */
 public class SpectatorEventsListenerFactory  {
 /*
 

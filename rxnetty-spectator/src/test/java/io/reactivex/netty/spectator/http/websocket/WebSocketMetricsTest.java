@@ -15,9 +15,6 @@
  */
 package io.reactivex.netty.spectator.http.websocket;
 
-/**
- * @author Tomasz Bak
- */
 public class WebSocketMetricsTest {
 /*
 

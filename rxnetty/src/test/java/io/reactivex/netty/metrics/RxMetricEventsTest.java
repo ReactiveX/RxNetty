@@ -16,9 +16,6 @@
 
 package io.reactivex.netty.metrics;
 
-/**
- * @author Nitesh Kant
- */
 public class RxMetricEventsTest {
 /*
 

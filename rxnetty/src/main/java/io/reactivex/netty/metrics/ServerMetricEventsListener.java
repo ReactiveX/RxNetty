@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,8 +23,6 @@ import java.util.concurrent.TimeUnit;
  * A convenience implementation for {@link MetricEventsListener} for receiving {@link ServerMetricsEvent}. This
  * implementation receives the events and provides convenience methods representing those events with clear arguments
  * that are expected with that event type.
- *
- * @author Nitesh Kant
  */
 public abstract class ServerMetricEventsListener<T extends ServerMetricsEvent<?>> implements MetricEventsListener<T> {
 

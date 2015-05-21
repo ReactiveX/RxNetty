@@ -24,8 +24,6 @@ import rx.functions.Func1;
 /**
  * An implementation of {@link Connection} delegating all {@link ChannelOperations} methods to
  * {@link DefaultChannelOperations}.
- *
- * @author Nitesh Kant
  */
 public final class ConnectionImpl<R, W> extends Connection<R, W> {
 

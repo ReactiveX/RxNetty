@@ -31,8 +31,6 @@ import rx.functions.Func1;
  *
  * @param <W> Type of object that is written to the client using this factory.
  * @param <R> Type of object that is read from the the client using this factory.
- *
- * @author Nitesh Kant
  */
 public final class UnpooledClientConnectionFactory<W, R> extends ClientConnectionFactory<W, R> {
 

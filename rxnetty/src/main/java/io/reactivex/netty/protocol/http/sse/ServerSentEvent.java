@@ -42,8 +42,6 @@ import java.nio.charset.Charset;
  *
  * This is an implementation of {@link ByteBufHolder} so it is required to be explicitly released by calling
  * {@link #release()} when this instance is no longer required.
- *
- * @author Nitesh Kant
  */
 public class ServerSentEvent implements ByteBufHolder {
 

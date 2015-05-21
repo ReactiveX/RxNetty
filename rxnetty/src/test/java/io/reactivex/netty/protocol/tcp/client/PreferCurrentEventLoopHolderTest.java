@@ -56,15 +56,10 @@ public class PreferCurrentEventLoopHolderTest {
     public void testPollOutOfEventloop() throws Exception {
         PooledConnection<String, String> connection1 = preferCurrentELHolderRule.addConnection();
 
-        /*Make sure the connection is not available in the eventloop*/
-        PooledConnection<String, String> connection = preferCurrentELHolderRule.holder.pollThisEventLoopConnections()
-                                                                                      .defaultIfEmpty(null)
-                                                                                      .toBlocking()
-                                                                                      .single();
-        assertThat("Connection available in the eventloop.", connection, is(nullValue()));
 
-        connection = preferCurrentELHolderRule.holder.poll()
-                                                     .defaultIfEmpty(null).toBlocking().single();
+        PooledConnection<String, String> connection = preferCurrentELHolderRule.holder.poll()
+                                                                                      .defaultIfEmpty(null).toBlocking()
+                                                                                      .single();
 
         assertThat("Unexpected connection.", connection, is(connection1));
     }
@@ -100,20 +95,6 @@ public class PreferCurrentEventLoopHolderTest {
                 return null;
             }
         }).get(1, TimeUnit.MINUTES);
-    }
-
-    @Test(timeout = 60000)
-    public void testPollThisEventLoopConnectionsOutOfEl() throws Exception {
-        final PooledConnection<String, String> connection1 = preferCurrentELHolderRule.addConnection();
-        PooledConnection<String, String> connection = preferCurrentELHolderRule.holder.pollThisEventLoopConnections()
-                                                                                      .defaultIfEmpty(null)
-                                                                                      .toBlocking().single();
-        assertThat("Connection available out of the eventloop.", connection, is(nullValue()));
-
-        connection = preferCurrentELHolderRule.holder.poll()
-                                                     .defaultIfEmpty(null)
-                                                     .toBlocking().single();
-        assertThat("Connection not available with poll.", connection, is(connection1));
     }
 
     @Test(timeout = 60000)

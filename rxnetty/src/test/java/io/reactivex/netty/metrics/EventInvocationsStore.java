@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,9 +22,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
 public class EventInvocationsStore<E extends Enum<E> & MetricEventType> implements MetricEventsListener<MetricsEvent<E>> {
 
     private final EnumMap<E, Integer> eventTypeVsInvocations;

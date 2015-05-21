@@ -26,8 +26,6 @@ import java.util.concurrent.TimeUnit;
  *
  * @param <W> Type of object that is written to the client using this pool config.
  * @param <R> Type of object that is read from the the client using this pool config.
- *
- * @author Nitesh Kant
  */
 public class PoolConfig<W, R> {
 

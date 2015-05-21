@@ -47,23 +47,23 @@ public class FlushObservableTest {
     @Rule
     public ExpectedException thrown = ExpectedException.none();
 
-    @Test
+    @Test(timeout = 60000)
     public void testSingleWriteAndFlush() throws Exception {
         _writeFlushAndAssert("msg1");
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultipleWriteAndFlush() throws Exception {
         _writeFlushAndAssert("msg1", "msg2", "msg3");
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultipleFlush() throws Exception {
         _writeFlushAndAssert("msg1");
         _writeFlushAndAssert("msg2");
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFail() throws Exception {
         ChannelPromise newPromise = flushObservableRule.channel.newPromise();
         flushObservableRule.observable.add(newPromise);
@@ -77,7 +77,7 @@ public class FlushObservableTest {
                    contains(Notification.<Void>createOnError(newPromise.cause())));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCancelPendingWrites() throws Throwable {
 
         thrown.expectCause(isA(CancellationException.class));
@@ -89,7 +89,7 @@ public class FlushObservableTest {
                                       .get(1, TimeUnit.MINUTES);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testFlushWithNoWrites() throws Exception {
         List<Notification<Void>> notifications = flushObservableRule.flushAndGetAllNotification();
         assertThat("Unexpected notifications count.", notifications, hasSize(1));

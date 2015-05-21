@@ -32,8 +32,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * are invoked. In case any of the listener threw a non-fatal exception, eventually, the invoked method on this subject
  * will throw a {@link ListenerInvocationException} with all the non-fatal exceptions thrown by all listeners for this
  * call.
- *
- * @author Nitesh Kant
  */
 public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEventsPublisher<E>, MetricEventsListener<E> {
 

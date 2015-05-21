@@ -18,9 +18,6 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.reactivex.netty.client.ClientMetricsEvent;
 
-/**
- * @author Nitesh Kant
- */
 @SuppressWarnings("rawtypes")
 public class HttpClientMetricsEvent<T extends Enum> extends ClientMetricsEvent<T> {
 

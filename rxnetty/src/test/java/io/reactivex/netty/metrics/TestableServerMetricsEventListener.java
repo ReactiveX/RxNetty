@@ -23,9 +23,6 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
 public class TestableServerMetricsEventListener extends HttpServerMetricEventsListener {
 
     private final EventInvocationsStore<ServerMetricsEvent.EventType> serverEventStore;

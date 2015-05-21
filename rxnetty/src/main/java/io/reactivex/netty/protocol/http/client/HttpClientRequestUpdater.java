@@ -34,8 +34,6 @@ import java.util.concurrent.TimeUnit;
  *
  * Semantically, the operations here are exactly the same as those in {@link HttpClientRequest}, the updates are applied
  * (by invoking {@link #update()}) as a single batch to create a new {@link HttpClientRequest} instance.
- *
- * @author Nitesh Kant
  */
 @Experimental
 public abstract class HttpClientRequestUpdater<I, O> implements HttpClientRequestOperations<I, HttpClientRequestUpdater<I, O>> {

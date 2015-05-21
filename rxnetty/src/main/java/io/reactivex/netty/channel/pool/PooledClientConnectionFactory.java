@@ -32,8 +32,6 @@ import io.reactivex.netty.protocol.tcp.client.ClientState;
  <li>{@link PoolConfig#getIdleConnectionsCleanupTimer()}: The schedule for cleaning up idle connections in the pool.</li>
  <li>{@link PoolConfig#getMaxIdleTimeMillis()}: Maximum time a connection can be idle in this pool.</li>
  </ul>
- *
- * @author Nitesh Kant
  */
 public abstract class PooledClientConnectionFactory<W, R> extends ClientConnectionFactory<W, R>
         implements Owner<R, W> {

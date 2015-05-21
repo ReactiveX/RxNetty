@@ -65,8 +65,6 @@ import static io.reactivex.netty.codec.HandlerNames.*;
  *
  * @param <W> The type of objects written to the client owning this state.
  * @param <R> The type of objects read from the client owning this state.
- *
- * @author Nitesh Kant
  */
 public class ClientState<W, R> {
 

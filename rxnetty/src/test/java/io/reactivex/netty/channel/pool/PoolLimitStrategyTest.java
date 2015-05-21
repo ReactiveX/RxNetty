@@ -24,12 +24,9 @@ import org.junit.Test;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
 public class PoolLimitStrategyTest {
 
-    @Test
+    @Test(timeout = 60000)
     public void testMaxConnectionLimit() throws Exception {
 
         MaxConnectionsBasedStrategy strategy = new MaxConnectionsBasedStrategy(3);
@@ -51,7 +48,7 @@ public class PoolLimitStrategyTest {
         Assert.assertTrue("Permit not available after release.", strategy.acquireCreationPermit(startTime, TimeUnit.MILLISECONDS));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCompositeStrategy() throws Exception {
         long startTime = System.currentTimeMillis();
         MaxConnectionsBasedStrategy global = new MaxConnectionsBasedStrategy(1);
@@ -84,7 +81,7 @@ public class PoolLimitStrategyTest {
         Assert.assertEquals("Unexpected available composite permits.", 0, strategy.getAvailablePermits()); // Should be min. of all strategies
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testFirstStrategyHasMorePermits() throws Exception {
         long startTime = System.currentTimeMillis();
         MaxConnectionsBasedStrategy global = new MaxConnectionsBasedStrategy(2);
@@ -108,7 +105,7 @@ public class PoolLimitStrategyTest {
         Assert.assertEquals("Unexpected available composite permits.", 0, strategy.getAvailablePermits()); // Should be min. of all strategies
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIncrementDecrementMaxConnections() throws Exception {
         long startTime = System.currentTimeMillis();
         MaxConnectionsBasedStrategy strategy = new MaxConnectionsBasedStrategy(1);

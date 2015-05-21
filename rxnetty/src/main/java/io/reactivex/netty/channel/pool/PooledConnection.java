@@ -40,8 +40,6 @@ import static io.reactivex.netty.protocol.http.client.HttpClientToConnectionBrid
  *
  * @param <R> Type of object that is read from this connection.
  * @param <W> Type of object that is written to this connection.
- *
- * @author Nitesh Kant
  */
 public class PooledConnection<R, W> extends Connection<R, W> {
 

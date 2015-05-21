@@ -55,8 +55,6 @@ import static io.reactivex.netty.client.ClientMetricsEvent.*;
  *
  * @param <W> Type of object that is written to the client using this factory.
  * @param <R> Type of object that is read from the the client using this factory.
- *
- * @author Nitesh Kant
  */
 public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientConnectionFactory<W, R> {
 

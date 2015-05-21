@@ -27,8 +27,6 @@ import java.util.NoSuchElementException;
  * A pool of servers that returns a "best-suited" {@link Server} every time {@link #next()} is invoked.
  *
  * Typical use of this pool is to implement a load-balancer for distributing load over a pool of target servers.
- *
- * @author Nitesh Kant
  */
 @Experimental
 public interface ServerPool<M extends MetricsEvent<?>> {

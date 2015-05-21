@@ -37,7 +37,7 @@ public class WriteStreamSubscriberTest {
     @Rule
     public final SubscriberRule subscriberRule = new SubscriberRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testOnStart() throws Exception {
         assertThat("Unexpected promise completion state.", subscriberRule.channelPromise.isDone(), is(false));
         subscriberRule.start();
@@ -46,7 +46,7 @@ public class WriteStreamSubscriberTest {
         assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(), is(1L));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testUnsubscribeOnPromiseCancel() throws Exception {
         subscriberRule.start();
 
@@ -59,7 +59,7 @@ public class WriteStreamSubscriberTest {
         assertThat("Subsriber isn't unsubscribed.", subscriberRule.subscriber.isUnsubscribed(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteCompleteBeforeStream() throws Exception {
         subscriberRule.start();
 
@@ -75,7 +75,7 @@ public class WriteStreamSubscriberTest {
         assertThat("Unexpected promise result.", subscriberRule.channelPromise.isSuccess(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteCompleteAfterStream() throws Exception {
         subscriberRule.start();
 
@@ -94,7 +94,7 @@ public class WriteStreamSubscriberTest {
         assertThat("Unexpected promise result.", subscriberRule.channelPromise.isSuccess(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultiWrite() throws Exception {
         subscriberRule.start();
 
@@ -114,7 +114,7 @@ public class WriteStreamSubscriberTest {
         assertThat("Unexpected promise result.", subscriberRule.channelPromise.isSuccess(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFailed() throws Exception {
         subscriberRule.start();
 
@@ -128,7 +128,7 @@ public class WriteStreamSubscriberTest {
         assertThat("Unexpected promise result.", subscriberRule.channelPromise.isSuccess(), is(false));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testStreamError() throws Exception {
         subscriberRule.start();
 

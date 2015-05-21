@@ -39,7 +39,7 @@ public class AbstractConnectionToChannelBridgeTest {
     @Rule
     public final ConnectionHandlerRule connectionHandlerRule = new ConnectionHandlerRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testChannelActive() throws Exception {
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(false);
 
@@ -51,7 +51,7 @@ public class AbstractConnectionToChannelBridgeTest {
         assertThat("Duplicate channel active event sent a notification", subscriber.getOnNextEvents(), hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEagerContentSubscriptionFail() throws Exception {
         connectionHandlerRule.channel.config().setAutoRead(true); // should mandate eager content subscription
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(false);
@@ -65,7 +65,7 @@ public class AbstractConnectionToChannelBridgeTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEagerContentSubscriptionPass() throws Exception {
         connectionHandlerRule.channel.config().setAutoRead(true); // should mandate eager content subscription
 
@@ -80,7 +80,7 @@ public class AbstractConnectionToChannelBridgeTest {
         assertThat("Input subscriber is unsubscribed.", inputSubscriber.isUnsubscribed(), is(false));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testLazyContentSubscription() throws Exception {
         connectionHandlerRule.channel.config().setAutoRead(false);
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(false); //lazy input sub.
@@ -98,7 +98,7 @@ public class AbstractConnectionToChannelBridgeTest {
         connectionHandlerRule.testSendInputMsgs(inputSubscriber, "hello1");
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testInputCompleteOnChannelUnregister() throws Exception {
         connectionHandlerRule.channel.config().setAutoRead(false);
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
@@ -117,7 +117,7 @@ public class AbstractConnectionToChannelBridgeTest {
                    hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultipleInputSubscriptions() throws Exception {
         connectionHandlerRule.channel.config().setAutoRead(false);
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
@@ -132,7 +132,7 @@ public class AbstractConnectionToChannelBridgeTest {
                    hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testInputSubscriptionReset() throws Exception {
         connectionHandlerRule.channel.config().setAutoRead(false);
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
@@ -155,7 +155,7 @@ public class AbstractConnectionToChannelBridgeTest {
                    inputSubscriber.getOnCompletedEvents(), hasSize(0));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testErrorBeforeConnectionActive() throws Exception {
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
         final NullPointerException exception = new NullPointerException();
@@ -167,7 +167,7 @@ public class AbstractConnectionToChannelBridgeTest {
         assertThat("Unexpected notification type post exception.", subscriber.getOnErrorEvents(), hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testErrorPostInputSubscribe() throws Exception {
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
         connectionHandlerRule.activateConnectionAndAssert(subscriber);

@@ -18,9 +18,6 @@ package io.reactivex.netty.client;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
 public class CompositePoolLimitDeterminationStrategy implements PoolLimitDeterminationStrategy {
 
     private final PoolLimitDeterminationStrategy[] strategies;

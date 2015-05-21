@@ -32,7 +32,7 @@ public class Http10Test {
     @Rule
     public final HttpServerRule rule = new HttpServerRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testHttp1_0Response() throws Exception {
         rule.setServer(rule.getServer().sendHttp10ResponseFor10Request(true));
         rule.startServer();
@@ -49,7 +49,7 @@ public class Http10Test {
         rule.assertResponseContent(response);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHttp1_1Response() throws Exception {
         rule.getServer().sendHttp10ResponseFor10Request(true);
         rule.startServer();

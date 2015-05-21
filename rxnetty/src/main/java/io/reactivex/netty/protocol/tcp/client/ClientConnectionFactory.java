@@ -24,8 +24,6 @@ import rx.Observable;
  *
  * @param <W> Type of object that is written to the client using this factory.
  * @param <R> Type of object that is read from the the client using this factory.
- *
- * @author Nitesh Kant
  */
 public abstract class ClientConnectionFactory<W, R> {
 

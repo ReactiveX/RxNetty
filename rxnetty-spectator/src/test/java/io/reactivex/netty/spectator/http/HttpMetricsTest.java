@@ -16,9 +16,6 @@
 
 package io.reactivex.netty.spectator.http;
 
-/**
- * @author Nitesh Kant
- */
 public class HttpMetricsTest {
 /*
 

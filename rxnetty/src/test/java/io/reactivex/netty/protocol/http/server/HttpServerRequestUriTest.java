@@ -29,7 +29,7 @@ import java.util.Map;
 
 public class HttpServerRequestUriTest {
 
-    @Test
+    @Test(timeout = 60000)
     public void testRequestUri() throws Exception {
         String path = "a/b/c";
         String qp1Name = "qp1";
@@ -59,7 +59,7 @@ public class HttpServerRequestUriTest {
         Assert.assertEquals("Unexpected query parameter second value with name: " + qp2Name, qp2Got.get(1), qp2Val2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEmptyQueryString() throws Exception {
         String path = "a/b/c";
         String uri = path + '?';
@@ -69,7 +69,7 @@ public class HttpServerRequestUriTest {
         Assert.assertEquals("Unexpected query string", "", request.getRawQueryString());
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAbsentQueryString() throws Exception {
         String path = "a/b/c";
         String uri = path;

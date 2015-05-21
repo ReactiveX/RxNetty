@@ -17,8 +17,6 @@ package io.reactivex.netty.codec;
 
 /**
  * A list of all handler names added by the framework. This is just to ensure consistency in naming.
- *
- * @author Nitesh Kant
  */
 public enum HandlerNames {
 

@@ -41,9 +41,6 @@ import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * @author Nitesh Kant
- */
 public class TcpServerImpl<R, W> extends TcpServer<R, W> {
 
     private static final Logger logger = LoggerFactory.getLogger(TcpServerImpl.class);
