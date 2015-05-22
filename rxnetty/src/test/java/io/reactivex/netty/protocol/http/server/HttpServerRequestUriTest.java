@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,24 +17,19 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
-import io.reactivex.netty.NoOpChannelHandlerContext;
-import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
 import java.util.Map;
 
-/**
- * @author Nitesh Kant
- */
 public class HttpServerRequestUriTest {
 
-    @Test
+    @Test(timeout = 60000)
     public void testRequestUri() throws Exception {
         String path = "a/b/c";
         String qp1Name = "qp1";
@@ -47,8 +42,8 @@ public class HttpServerRequestUriTest {
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
         HttpServerRequest<ByteBuf> request = newServerRequest(nettyRequest);
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
-        Assert.assertEquals("Unexpected query string", queryString,request.getQueryString());
-        Assert.assertEquals("Unexpected path string", path, request.getPath());
+        Assert.assertEquals("Unexpected query string", queryString, request.getRawQueryString());
+        Assert.assertEquals("Unexpected path string", path, request.getDecodedPath());
         Map<String,List<String>> qpsGot = request.getQueryParameters();
         Assert.assertNotNull("Got null query parameters", qpsGot);
         Assert.assertEquals("Unexpected number of query parameters", 2, qpsGot.size());
@@ -64,29 +59,28 @@ public class HttpServerRequestUriTest {
         Assert.assertEquals("Unexpected query parameter second value with name: " + qp2Name, qp2Got.get(1), qp2Val2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEmptyQueryString() throws Exception {
         String path = "a/b/c";
         String uri = path + '?';
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
         HttpServerRequest<ByteBuf> request = newServerRequest(nettyRequest);
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
-        Assert.assertEquals("Unexpected query string", "", request.getQueryString());
+        Assert.assertEquals("Unexpected query string", "", request.getRawQueryString());
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAbsentQueryString() throws Exception {
         String path = "a/b/c";
         String uri = path;
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, uri);
         HttpServerRequest<ByteBuf> request = newServerRequest(nettyRequest);
         Assert.assertEquals("Unexpected uri string", uri, request.getUri());
-        Assert.assertEquals("Unexpected query string", "", request.getQueryString());
+        Assert.assertEquals("Unexpected query string", "", request.getRawQueryString());
     }
 
     protected HttpServerRequest<ByteBuf> newServerRequest(DefaultHttpRequest nettyRequest) {
-        Channel noOpChannel = new NoOpChannelHandlerContext().channel();
-        return new HttpServerRequest<ByteBuf>(noOpChannel, nettyRequest,
-                                              UnicastContentSubject.<ByteBuf>createWithoutNoSubscriptionTimeout());
+        EmbeddedChannel channel = new EmbeddedChannel();
+        return new HttpServerRequestImpl<ByteBuf>(nettyRequest, channel);
     }
 }

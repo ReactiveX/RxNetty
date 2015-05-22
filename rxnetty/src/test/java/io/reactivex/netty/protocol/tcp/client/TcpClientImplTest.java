@@ -46,7 +46,7 @@ public class TcpClientImplTest {
     @Mock(answer = Answers.RETURNS_MOCKS)
     private ClientState<String, String> state;
 
-    @Test
+    @Test(timeout = 60000)
     public void testCreateConnectionRequest() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         ConnectionRequestImpl<String, String> req =
@@ -58,7 +58,7 @@ public class TcpClientImplTest {
         assertThat("Unexpected address vs map size", client.getRemoteAddrVsConnRequest().isEmpty(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCreateConnectionRequestWithHostAndPort() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         ConnectionRequestImpl<String, String> req =
@@ -74,7 +74,7 @@ public class TcpClientImplTest {
         assertThat("Unexpected request state.", req, is(expectedReq));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCreateConnectionRequestWithAddressAndPort() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         InetAddress localHost = InetAddress.getLoopbackAddress();
@@ -91,7 +91,7 @@ public class TcpClientImplTest {
         assertThat("Unexpected request state.", req, is(expectedReq));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCreateConnectionRequestWithSocketAddress() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         InetSocketAddress sockAddress = new InetSocketAddress("localhost", 80);
@@ -107,7 +107,7 @@ public class TcpClientImplTest {
         assertThat("Unexpected request state.", req, is(expectedReq));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testChannelOption() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         TcpClientImpl<String, String> newClient =
@@ -118,7 +118,7 @@ public class TcpClientImplTest {
         verify(state).channelOption(ChannelOption.AUTO_READ, true);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirst() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -130,7 +130,7 @@ public class TcpClientImplTest {
         verify(state).addChannelHandlerFirst("handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirstWithExecutor() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -143,7 +143,7 @@ public class TcpClientImplTest {
         verify(state).addChannelHandlerFirst(group, "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLast() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -156,7 +156,7 @@ public class TcpClientImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLastWithExecutor() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -169,7 +169,7 @@ public class TcpClientImplTest {
         verify(state).addChannelHandlerLast(group, "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBefore() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -182,7 +182,7 @@ public class TcpClientImplTest {
         verify(state).addChannelHandlerBefore("base", "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBeforeWithExecutor() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -197,7 +197,7 @@ public class TcpClientImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfter() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -210,7 +210,7 @@ public class TcpClientImplTest {
         verify(state).addChannelHandlerAfter("base", "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfterWithExecutor() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -225,7 +225,7 @@ public class TcpClientImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testPipelineConfigurator() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Action1<ChannelPipeline> configurator = new Action1<ChannelPipeline>() {
@@ -241,7 +241,7 @@ public class TcpClientImplTest {
         verify(state).pipelineConfigurator(configurator);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMaxConnections() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         TcpClientImpl<String, String> newClient =
@@ -252,7 +252,7 @@ public class TcpClientImplTest {
         verify(state).maxConnections(10);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIdleConnectionsTimeoutMillis() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         TcpClientImpl<String, String> newClient =
@@ -263,7 +263,7 @@ public class TcpClientImplTest {
         verify(state).maxIdleTimeoutMillis(10);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testConnectionPoolLimitStrategy() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         MaxConnectionsBasedStrategy strategy = new MaxConnectionsBasedStrategy(10);
@@ -275,7 +275,7 @@ public class TcpClientImplTest {
         verify(state).connectionPoolLimitStrategy(strategy);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIdleConnectionCleanupTimer() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         Observable<Long> timer = Observable.never();
@@ -287,7 +287,7 @@ public class TcpClientImplTest {
         verify(state).idleConnectionCleanupTimer(timer);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testNoIdleConnectionCleanup() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         TcpClientImpl<String, String> newClient =
@@ -298,7 +298,7 @@ public class TcpClientImplTest {
         verify(state).noIdleConnectionCleanup();
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testNoConnectionPooling() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         TcpClientImpl<String, String> newClient =
@@ -309,7 +309,7 @@ public class TcpClientImplTest {
         verify(state).noConnectionPooling();
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEnableWireLogging() throws Exception {
         TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
         TcpClientImpl<String, String> newClient =

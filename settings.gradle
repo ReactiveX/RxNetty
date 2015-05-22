@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,5 +14,5 @@
  * limitations under the License.
  */
 rootProject.name='RxNetty'
-include 'rxnetty', 'rxnetty-remote-observable', 'rxnetty-contexts', 'rxnetty-examples', 'rxnetty-servo', 'rxnetty-spectator'
+include 'rxnetty', 'rxnetty-examples', 'rxnetty-spectator'
 

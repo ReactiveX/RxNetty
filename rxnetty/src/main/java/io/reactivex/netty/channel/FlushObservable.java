@@ -46,8 +46,6 @@ import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
  * to the same instance. However, in order to get a predictable write-flush behavior, external synchronization would be
  * required to make sure that {@link #subscribe()} is called after all writes (intended to be flushed via subscribe)
  * have been called.
- *
- * @author Nitesh Kant
  */
 public final class FlushObservable extends Observable<Void> {
 

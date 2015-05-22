@@ -21,8 +21,8 @@ import io.netty.channel.ChannelHandlerInvoker;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.DefaultChannelHandlerInvoker;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
 import io.reactivex.netty.channel.DetachedChannelPipeline.HandlerHolder;
-import io.reactivex.netty.client.NioClientEventLoopGroup;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -37,8 +37,8 @@ import static org.hamcrest.Matchers.*;
 public class DetachedChannelPipelineTest {
 
     private static final ChannelHandlerInvoker MULTI_INVOKER =
-            new DefaultChannelHandlerInvoker(new NioClientEventLoopGroup().next());
-    private static final EventLoopGroup MULTI_GRP = new NioClientEventLoopGroup();
+            new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next());
+    private static final EventLoopGroup MULTI_GRP = new NioEventLoopGroup();
 
     public static final Func0<ChannelHandler> HANDLER_FACTORY = new Func0<ChannelHandler>() {
         @Override
@@ -49,11 +49,11 @@ public class DetachedChannelPipelineTest {
     private static final HandlerHolder HANDLER_1_NO_NAME = new HandlerHolder(HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1 = new HandlerHolder("handler-1", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_GRP =
-            new HandlerHolder(new NioClientEventLoopGroup(), "handler-1", HANDLER_FACTORY);
+            new HandlerHolder(new NioEventLoopGroup(), "handler-1", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_GRP_NO_NAME =
             new HandlerHolder(MULTI_GRP, null, HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_INVOKER =
-            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioClientEventLoopGroup().next()),
+            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next()),
                               "handler-1", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_INVOKER_NO_NAME =
             new HandlerHolder(MULTI_INVOKER,
@@ -62,9 +62,9 @@ public class DetachedChannelPipelineTest {
     private static final HandlerHolder HANDLER_2_NO_NAME = new HandlerHolder(HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2 = new HandlerHolder("handler-2", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2_GRP =
-            new HandlerHolder(new NioClientEventLoopGroup(), "handler-2", HANDLER_FACTORY);
+            new HandlerHolder(new NioEventLoopGroup(), "handler-2", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2_INVOKER =
-            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioClientEventLoopGroup().next()),
+            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next()),
                               "handler-2", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2_GRP_NO_NAME =
             new HandlerHolder(MULTI_GRP, null, HANDLER_FACTORY);
@@ -73,7 +73,7 @@ public class DetachedChannelPipelineTest {
     @Rule
     public final PipelineRule pipelineRule = new PipelineRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testCopy() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1.getNameIfConfigured(), HANDLER_1.getHandlerFactoryIfConfigured());
         pipelineRule.pipeline.addLast(HANDLER_2.getNameIfConfigured(), HANDLER_2.getHandlerFactoryIfConfigured());
@@ -86,7 +86,7 @@ public class DetachedChannelPipelineTest {
                    contains(pipelineRule.pipeline.getHoldersInOrder().toArray()));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddFirst() throws Exception {
         pipelineRule.pipeline.addFirst(HANDLER_1.getNameIfConfigured(), HANDLER_1.getHandlerFactoryIfConfigured());
         pipelineRule.pipeline.addFirst(HANDLER_2.getNameIfConfigured(), HANDLER_2.getHandlerFactoryIfConfigured());
@@ -96,7 +96,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_2, HANDLER_1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddFirstWithGroup() throws Exception {
         pipelineRule.pipeline.addFirst(HANDLER_1_GRP.getGroupIfConfigured(), HANDLER_1_GRP.getNameIfConfigured(),
                                        HANDLER_1_GRP.getHandlerFactoryIfConfigured());
@@ -108,7 +108,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_2_GRP, HANDLER_1_GRP));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddFirstWithInvoker() throws Exception {
         pipelineRule.pipeline.addFirst(HANDLER_1_INVOKER.getInvokerIfConfigured(),
                                        HANDLER_1_INVOKER.getNameIfConfigured(),
@@ -122,7 +122,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_2_INVOKER, HANDLER_1_INVOKER));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddLast() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1.getNameIfConfigured(), HANDLER_1.getHandlerFactoryIfConfigured());
         pipelineRule.pipeline.addLast(HANDLER_2.getNameIfConfigured(), HANDLER_2.getHandlerFactoryIfConfigured());
@@ -132,7 +132,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1, HANDLER_2));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddLastWithGroup() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1_GRP.getGroupIfConfigured(), HANDLER_1_GRP.getNameIfConfigured(),
                                       HANDLER_1_GRP.getHandlerFactoryIfConfigured());
@@ -144,7 +144,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_GRP, HANDLER_2_GRP));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddLastWithInvoker() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1_INVOKER.getInvokerIfConfigured(),
                                       HANDLER_1_INVOKER.getNameIfConfigured(), HANDLER_1_INVOKER.getHandlerFactoryIfConfigured());
@@ -158,7 +158,7 @@ public class DetachedChannelPipelineTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddBefore() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1.getGroupIfConfigured(),
                                       HANDLER_1.getNameIfConfigured(), HANDLER_1.getHandlerFactoryIfConfigured());
@@ -171,7 +171,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_2, HANDLER_1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddBeforeWithGroup() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1_GRP.getGroupIfConfigured(),
                                       HANDLER_1_GRP.getNameIfConfigured(), HANDLER_1_GRP.getHandlerFactoryIfConfigured());
@@ -185,7 +185,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_2_GRP, HANDLER_1_GRP));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddBeforeWithInvoker() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1_INVOKER.getInvokerIfConfigured(),
                                       HANDLER_1_INVOKER.getNameIfConfigured(), HANDLER_1_INVOKER.getHandlerFactoryIfConfigured());
@@ -199,7 +199,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_2_INVOKER, HANDLER_1_INVOKER));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddAfter() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1.getGroupIfConfigured(),
                                       HANDLER_1.getNameIfConfigured(), HANDLER_1.getHandlerFactoryIfConfigured());
@@ -212,7 +212,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1, HANDLER_2));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddAfterWithGroup() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1_GRP.getGroupIfConfigured(),
                                       HANDLER_1_GRP.getNameIfConfigured(), HANDLER_1_GRP.getHandlerFactoryIfConfigured());
@@ -225,7 +225,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_GRP, HANDLER_2_GRP));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddAfterWithInvoker() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1_INVOKER.getInvokerIfConfigured(),
                                       HANDLER_1_INVOKER.getNameIfConfigured(), HANDLER_1_INVOKER.getHandlerFactoryIfConfigured());
@@ -239,7 +239,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_INVOKER, HANDLER_2_INVOKER));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddFirstMulti() throws Exception {
         pipelineRule.pipeline.addFirst(HANDLER_1_NO_NAME.getHandlerFactoryIfConfigured(), HANDLER_2_NO_NAME.getHandlerFactoryIfConfigured());
 
@@ -248,7 +248,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_NO_NAME, HANDLER_2_NO_NAME));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddFirstMultiWithGroup() throws Exception {
         pipelineRule.pipeline.addFirst(MULTI_GRP, HANDLER_1_GRP_NO_NAME.getHandlerFactoryIfConfigured(),
                                        HANDLER_2_GRP_NO_NAME.getHandlerFactoryIfConfigured());
@@ -258,7 +258,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_GRP_NO_NAME, HANDLER_2_GRP_NO_NAME));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddFirstMultiWithInvoker() throws Exception {
         pipelineRule.pipeline.addFirst(MULTI_INVOKER, HANDLER_1_INVOKER_NO_NAME.getHandlerFactoryIfConfigured(),
                                        HANDLER_2_INVOKER_NO_NAME.getHandlerFactoryIfConfigured());
@@ -268,7 +268,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_INVOKER_NO_NAME, HANDLER_2_INVOKER_NO_NAME));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddLastMulti() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1_NO_NAME.getHandlerFactoryIfConfigured(),
                                       HANDLER_2_NO_NAME.getHandlerFactoryIfConfigured());
@@ -278,7 +278,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_NO_NAME, HANDLER_2_NO_NAME));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddLastMultiWithGroup() throws Exception {
         pipelineRule.pipeline.addLast(MULTI_GRP, HANDLER_1_GRP_NO_NAME.getHandlerFactoryIfConfigured(),
                                       HANDLER_2_GRP_NO_NAME.getHandlerFactoryIfConfigured());
@@ -288,7 +288,7 @@ public class DetachedChannelPipelineTest {
                    contains(HANDLER_1_GRP_NO_NAME, HANDLER_2_GRP_NO_NAME));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddLastMultiWithInvoker() throws Exception {
         pipelineRule.pipeline.addLast(MULTI_INVOKER, HANDLER_1_INVOKER_NO_NAME.getHandlerFactoryIfConfigured(),
                                       HANDLER_2_INVOKER_NO_NAME.getHandlerFactoryIfConfigured());

@@ -72,8 +72,8 @@ public class AbstractClientExample {
 
     private static boolean isStarted(Class<? extends AbstractServerExample> serverClass) {
         try {
-            Method method = serverClass.getMethod("isServerStarted");
-            return  (boolean) method.invoke(null);
+            Method method = serverClass.getMethod("isServerStarted", Class.class);
+            return  (boolean) method.invoke(null, serverClass);
         } catch (IllegalAccessException e) {
             System.err.println("Failed to invoke isServerStarted method on the server.");
             e.printStackTrace();
@@ -89,8 +89,8 @@ public class AbstractClientExample {
 
     private static int _getServerPort(Class<? extends AbstractServerExample> serverClass) {
         try {
-            Method method = serverClass.getMethod("getServerPort");
-            return (int) method.invoke(null);
+            Method method = serverClass.getMethod("getServerPort", Class.class);
+            return (int) method.invoke(null, serverClass);
         } catch (IllegalAccessException e) {
             System.err.println("Failed to invoke getServerPort method on the server.");
             e.printStackTrace();

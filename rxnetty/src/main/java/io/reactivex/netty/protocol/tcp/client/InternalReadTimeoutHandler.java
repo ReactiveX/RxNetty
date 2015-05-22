@@ -82,10 +82,10 @@ class InternalReadTimeoutHandler extends ChannelDuplexHandler {
             // channelActive() event has been fired already, which means this.channelActive() will
             // not be invoked. We have to scheduleAfresh here instead.
             scheduleAfresh(ctx);
-        } else {
-            // channelActive() event has not been fired yet.  this.channelActive() will be invoked
-            // and initialization will occur there.
         }
+
+        // channelActive() event has not been fired yet.  this.channelActive() will be invoked
+        // and initialization will occur there.
     }
 
     @Override
@@ -180,7 +180,17 @@ class InternalReadTimeoutHandler extends ChannelDuplexHandler {
 
         lastReadTime = System.nanoTime();
         if (timeoutNanos > 0) {
-            timeout = ctx.executor().schedule(new ReadTimeoutTask(ctx), timeoutNanos, TimeUnit.NANOSECONDS);
+            timeout = _scheduleNextTask(ctx, new ReadTimeoutTask(ctx), timeoutNanos);
+        }
+    }
+
+    private ScheduledFuture<?> _scheduleNextTask(ChannelHandlerContext ctx, ReadTimeoutTask task, long timeoutNanos) {
+        try {
+            return ctx.executor().schedule(task, timeoutNanos, TimeUnit.NANOSECONDS);
+        } catch (Exception e) {
+            logger.error("Failed to schedule read timeout task. Read timeout will not work on channel: "
+                         + ctx.channel(), e);
+            throw e;
         }
     }
 

@@ -18,7 +18,7 @@ package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractServerExample;
-import io.reactivex.netty.protocol.http.serverNew.HttpServer;
+import io.reactivex.netty.protocol.http.server.HttpServer;
 
 import static rx.Observable.*;
 
@@ -37,10 +37,10 @@ public final class HelloWorldServer extends AbstractServerExample {
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
-            server.waitTillShutdown();
+            server.awaitShutdown();
         }
 
         /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
-        serverPort = server.getServerPort();
+        setServerPort(server.getServerPort());
     }
 }

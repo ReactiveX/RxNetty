@@ -23,7 +23,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.examples.ExamplesEnvironment;
-import io.reactivex.netty.examples.http.ssl.SecureHelloWorldClient;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
 

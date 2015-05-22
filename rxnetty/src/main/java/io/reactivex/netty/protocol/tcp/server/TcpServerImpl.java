@@ -41,9 +41,6 @@ import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-/**
- * @author Nitesh Kant
- */
 public class TcpServerImpl<R, W> extends TcpServer<R, W> {
 
     private static final Logger logger = LoggerFactory.getLogger(TcpServerImpl.class);
@@ -172,12 +169,6 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     }
 
     @Override
-    public void startAndWait(ConnectionHandler<R, W> connectionHandler) {
-        start(connectionHandler);
-        waitTillShutdown();
-    }
-
-    @Override
     public TcpServer<R, W> start(final ConnectionHandler<R, W> connectionHandler) {
         if (!serverStateRef.compareAndSet(ServerStatus.Created, ServerStatus.Starting)) {
             throw new IllegalStateException("Server already started");
@@ -220,7 +211,7 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     }
 
     @Override
-    public void waitTillShutdown() {
+    public void awaitShutdown() {
         ServerStatus status = serverStateRef.get();
         switch (status) {
         case Created:
@@ -241,7 +232,7 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     }
 
     @Override
-    public void waitTillShutdown(long duration, TimeUnit timeUnit) {
+    public void awaitShutdown(long duration, TimeUnit timeUnit) {
         ServerStatus status = serverStateRef.get();
         switch (status) {
         case Created:

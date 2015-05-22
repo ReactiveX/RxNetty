@@ -18,9 +18,6 @@ package io.reactivex.netty.client;
 
 import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
 public class CompositePoolLimitDeterminationStrategy implements PoolLimitDeterminationStrategy {
 
     private final PoolLimitDeterminationStrategy[] strategies;
@@ -44,10 +41,10 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
             if (!strategy.acquireCreationPermit(acquireStartTime, timeUnit)) {
                 if (i > 0) {
                     long now = timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
+                    PoolExhaustedException e = new PoolExhaustedException();
                     for (int j = i - 1; j >= 0; j--) {
                         strategies[j].onEvent(ClientMetricsEvent.CONNECT_FAILED, now - acquireStartTime,
-                                              timeUnit, ConnectionPoolImpl.POOL_EXHAUSTED_EXCEPTION,
-                                              null); // release all permits acquired before this failure.
+                                              timeUnit, e, null); // release all permits acquired before this failure.
                     }
                 }
                 return false;

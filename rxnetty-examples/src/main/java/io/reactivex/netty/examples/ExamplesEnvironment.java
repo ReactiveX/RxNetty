@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,18 +16,8 @@
 
 package io.reactivex.netty.examples;
 
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.servo.ServoEventsListenerFactory;
-
 /**
  * A place to specify the environment for all examples.
- *
- * @author Nitesh Kant
  */
 public class ExamplesEnvironment {
-
-    static {
-        RxNetty.useMetricListenersFactory(new ServoEventsListenerFactory("rxnetty-examples-client",
-                                                                         "rxnetty-examples-server"));
-    }
 }

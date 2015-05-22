@@ -17,9 +17,6 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.reactivex.netty.server.ServerMetricsEvent;
 
-/**
- * @author Nitesh Kant
- */
 @SuppressWarnings("rawtypes")
 public class HttpServerMetricsEvent<T extends Enum> extends ServerMetricsEvent<T> {
 

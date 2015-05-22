@@ -21,7 +21,6 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -29,6 +28,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
+import io.reactivex.netty.channel.pool.PoolConfig;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
@@ -36,7 +36,7 @@ import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.ClientState.IdentityServerPool;
-import io.reactivex.netty.protocol.tcp.client.ClientState.LoggingHandlerFactory;
+import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import org.junit.Rule;
@@ -44,9 +44,8 @@ import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.mockito.Matchers;
 import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
@@ -67,7 +66,7 @@ public class ClientStateTest {
     @Rule
     public final ClientStateRule clientStateRule = new ClientStateRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testChannelOption() throws Exception {
         ClientState<String, String> newState = clientStateRule.clientState
                                                               .channelOption(ChannelOption.AUTO_READ, true);
@@ -87,7 +86,7 @@ public class ClientStateTest {
         assertThat("Channel option updated in the old state.", oldStateChannel.config().isAutoRead(), is(false));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirst() throws Exception {
         String handlerName = "test_handler";
         Func0<ChannelHandler> handlerFactory = clientStateRule.newHandler();
@@ -108,7 +107,7 @@ public class ClientStateTest {
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirstWithEventExecGroup() throws Exception {
         String handlerName = "test_handler";
         Func0<ChannelHandler> handlerFactory = clientStateRule.newHandler();
@@ -130,7 +129,7 @@ public class ClientStateTest {
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLast() throws Exception {
         String handlerName = "test_handler";
         Func0<ChannelHandler> handlerFactory = clientStateRule.newHandler();
@@ -151,7 +150,7 @@ public class ClientStateTest {
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLastWithEventExecGroup() throws Exception {
         String handlerName = "test_handler";
         Func0<ChannelHandler> handlerFactory = clientStateRule.newHandler();
@@ -173,7 +172,7 @@ public class ClientStateTest {
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBefore() throws Exception {
         String handlerName = "test_handler";
         String baseHandlerName = "test_handler_base";
@@ -195,7 +194,7 @@ public class ClientStateTest {
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBeforeWithEventExecGroup() throws Exception {
         String handlerName = "test_handler";
         String baseHandlerName = "test_handler_base";
@@ -218,7 +217,7 @@ public class ClientStateTest {
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfter() throws Exception {
         String handlerName = "test_handler";
         String baseHandlerName = "test_handler_base";
@@ -240,7 +239,7 @@ public class ClientStateTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfterWithEventExecGroup() throws Exception {
         String handlerName = "test_handler";
         String baseHandlerName = "test_handler_base";
@@ -263,7 +262,7 @@ public class ClientStateTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testPipelineConfigurator() throws Exception {
         final Action1<ChannelPipeline> pipelineConfigurator = new Action1<ChannelPipeline>() {
             @Override
@@ -286,7 +285,7 @@ public class ClientStateTest {
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testEnableWireLogging() throws Exception {
         ClientState<String, String> newState = clientStateRule.clientState.enableWireLogging(LogLevel.ERROR);
 
@@ -298,14 +297,14 @@ public class ClientStateTest {
                    is(not(newState.getConnectionFactory())));
 
         Mockito.verify(newState.getDetachedPipeline()).addFirst(HandlerNames.WireLogging.getName(),
-                                                                LoggingHandlerFactory.factories.get(LogLevel.ERROR));
+                                                                LoggingHandlerFactory.getFactory(LogLevel.ERROR));
 
 
         Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMaxConnections() throws Exception {
 
         final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
@@ -324,7 +323,7 @@ public class ClientStateTest {
                    is(10));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMaxIdleTimeoutMillis() throws Exception {
         final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
         assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
@@ -340,7 +339,7 @@ public class ClientStateTest {
         assertThat("Max idle time not set.", newState.getPoolConfig().getMaxIdleTimeMillis(), is(10000L));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testConnectionPoolLimitStrategy() throws Exception {
         final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
         assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
@@ -358,7 +357,7 @@ public class ClientStateTest {
                    newState.getPoolConfig().getPoolLimitDeterminationStrategy(), is(strategy));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testIdleConnectionCleanupTimer() throws Exception {
         final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
         assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
@@ -376,7 +375,7 @@ public class ClientStateTest {
                    is(timer));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testNoIdleConnectionCleanup() throws Exception {
         final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
         assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
@@ -400,10 +399,11 @@ public class ClientStateTest {
         assertThat("Idle connection timer errored.", testSubscriber.getOnErrorEvents(), is(empty()));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testNoConnectionPooling() throws Exception {
+        clientStateRule.clientState = clientStateRule.clientState.maxConnections(1);
         final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
+        assertThat("Client state created with pooling", oldPoolConfig, is(notNullValue()));
 
         ClientState<String, String> newState = clientStateRule.clientState.noConnectionPooling();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
@@ -413,7 +413,7 @@ public class ClientStateTest {
         assertThat("Unexpected pool config", newState.getPoolConfig(), is(nullValue()));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRemoteAddress() throws Exception {
         final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
         assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
@@ -428,7 +428,7 @@ public class ClientStateTest {
         assertThat("remote address not set", newState.getRemoteAddress(), is(newAddress));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHasServerPool() throws Exception {
         assertThat("Client state has server pool", clientStateRule.clientState.hasServerPool(), is(false));
 
@@ -439,7 +439,7 @@ public class ClientStateTest {
         assertThat("Client state has server pool", newState.hasServerPool(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testGetServerPool() throws Exception {
         ServerPool<ClientMetricsEvent<?>> pool = clientStateRule.newServerPool(new InetSocketAddress("localhost", 0));
         ClientState<String, String> newState = ClientState.create(new NioEventLoopGroup(), NioSocketChannel.class,
@@ -461,16 +461,7 @@ public class ClientStateTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    mockPipeline = Mockito.mock(DetachedChannelPipeline.class);
-                    Mockito.when(mockPipeline.getChannelInitializer()).thenReturn(new EmptyChannelInitializer());
-                    Mockito.when(mockPipeline.copy()).thenAnswer(new Answer<DetachedChannelPipeline>() {
-                        @Override
-                        public DetachedChannelPipeline answer(InvocationOnMock invocation) throws Throwable {
-                            DetachedChannelPipeline copy = Mockito.mock(DetachedChannelPipeline.class);
-                            Mockito.when(copy.getChannelInitializer()).thenReturn(new EmptyChannelInitializer());
-                            return copy;
-                        }
-                    });
+                    mockPipeline = Mockito.mock(DetachedChannelPipeline.class, Mockito.RETURNS_MOCKS);
 
                     mockServer = TcpServer.newServer(0)
                                           .start(new ConnectionHandler<ByteBuf, ByteBuf>() {
@@ -533,7 +524,7 @@ public class ClientStateTest {
         }
 
         public void verifyMockPipelineAccessPostCopy(ClientState<String, String> newState) {
-            Mockito.verify(mockPipeline).copy();
+            Mockito.verify(mockPipeline).copy(Matchers.<Action1<ChannelPipeline>>anyObject());
             Mockito.verify(newState.getDetachedPipeline()).getChannelInitializer();
         }
 
@@ -581,12 +572,6 @@ public class ClientStateTest {
         }
 
         public static class TestableChannelHandler extends ChannelDuplexHandler {
-        }
-
-        private static class EmptyChannelInitializer extends ChannelInitializer<Channel> {
-            @Override
-            protected void initChannel(Channel ch) throws Exception {
-            }
         }
     }
 }

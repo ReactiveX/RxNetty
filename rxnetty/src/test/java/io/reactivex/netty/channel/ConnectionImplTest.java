@@ -34,7 +34,7 @@ public class ConnectionImplTest {
     @Rule
     public final ConnRule connRule = new ConnRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testWrite() throws Exception {
 
         Observable<ByteBuf> toWrite = Observable.empty();
@@ -44,7 +44,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteWithFlushSelector() throws Exception {
         Observable<ByteBuf> toWrite = Observable.empty();
         FlushSelector<ByteBuf> flushSelector = new FlushSelector<>(1);
@@ -54,7 +54,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteAndFlushOnEach() throws Exception {
         Observable<ByteBuf> toWrite = Observable.empty();
         connRule.connection.writeAndFlushOnEach(toWrite);
@@ -63,7 +63,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteString() throws Exception {
         Observable<String> toWrite = Observable.empty();
         connRule.connection.writeString(toWrite);
@@ -73,7 +73,7 @@ public class ConnectionImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringWithFlushSelector() throws Exception {
         Observable<String> toWrite = Observable.empty();
         FlushSelector<String> flushSelector = new FlushSelector<>(1);
@@ -83,7 +83,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringAndFlushOnEach() throws Exception {
         Observable<String> toWrite = Observable.empty();
         connRule.connection.writeStringAndFlushOnEach(toWrite);
@@ -92,7 +92,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytes() throws Exception {
         Observable<byte[]> toWrite = Observable.empty();
         connRule.connection.writeBytes(toWrite);
@@ -102,7 +102,7 @@ public class ConnectionImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesWithFlushSelector() throws Exception {
         Observable<byte[]> toWrite = Observable.empty();
         FlushSelector<byte[]> flushSelector = new FlushSelector<>(1);
@@ -112,7 +112,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesAndFlushOnEach() throws Exception {
         Observable<byte[]> toWrite = Observable.empty();
         connRule.connection.writeBytesAndFlushOnEach(toWrite);
@@ -121,7 +121,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFileRegion() throws Exception {
         Observable<FileRegion> toWrite = Observable.empty();
         connRule.connection.writeFileRegion(toWrite);
@@ -131,7 +131,7 @@ public class ConnectionImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFileRegionWithFlushSelector() throws Exception {
         Observable<FileRegion> toWrite = Observable.empty();
         FlushSelector<FileRegion> flushSelector = new FlushSelector<>(1);
@@ -141,7 +141,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFileRegionAndFlushOnEach() throws Exception {
         Observable<FileRegion> toWrite = Observable.empty();
         connRule.connection.writeFileRegionAndFlushOnEach(toWrite);
@@ -150,7 +150,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testFlush() throws Exception {
         connRule.connection.flush();
 
@@ -158,7 +158,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testClose() throws Exception {
         connRule.connection.close();
 
@@ -166,7 +166,7 @@ public class ConnectionImplTest {
         Mockito.verifyNoMoreInteractions(connRule.channelOperations);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCloseWithoutFlush() throws Exception {
         connRule.connection.close(false);
 

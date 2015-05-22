@@ -24,13 +24,17 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.PrimitiveConversionHandler;
+import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.PoolConfig;
+import io.reactivex.netty.channel.pool.PooledClientConnectionFactory;
+import io.reactivex.netty.channel.pool.PooledClientConnectionFactoryImpl;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
@@ -39,6 +43,7 @@ import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.client.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
+import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import io.reactivex.netty.protocol.tcp.ssl.DefaultSslCodec;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
@@ -50,19 +55,16 @@ import rx.functions.Func1;
 import javax.net.ssl.SSLEngine;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.EnumMap;
 import java.util.concurrent.TimeUnit;
 
+import static io.reactivex.netty.channel.pool.PoolConfig.*;
 import static io.reactivex.netty.codec.HandlerNames.*;
-import static io.reactivex.netty.protocol.tcp.client.PoolConfig.*;
 
 /**
  * A collection of state that {@link TcpClient} holds. This supports the copy-on-write semantics of {@link TcpClient}
  *
  * @param <W> The type of objects written to the client owning this state.
  * @param <R> The type of objects read from the client owning this state.
- *
- * @author Nitesh Kant
  */
 public class ClientState<W, R> {
 
@@ -240,7 +242,7 @@ public class ClientState<W, R> {
 
     public ClientState<W, R> enableWireLogging(final LogLevel wireLogginLevel) {
         return addChannelHandlerFirst(HandlerNames.WireLogging.getName(),
-                                      LoggingHandlerFactory.factories.get(wireLogginLevel));
+                                      LoggingHandlerFactory.getFactory(wireLogginLevel));
     }
 
     public ClientState<W, R> maxConnections(int maxConnections) {
@@ -308,8 +310,20 @@ public class ClientState<W, R> {
     }
 
     public ClientState<W, R> noConnectionPooling() {
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, (PoolConfig<W, R>)null);
-        toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
+        if (null == poolConfig) {
+            return this; /*If already no pooling, then no copy is needed.*/
+        }
+
+        final ClientState<W, R> toReturn = new ClientState<W, R>(this, (PoolConfig<W, R>) null);
+
+        if (connectionFactory instanceof PooledClientConnectionFactory) {
+            PooledClientConnectionFactory<W, R> pcf = (PooledClientConnectionFactory<W, R>) connectionFactory;
+            ClientConnectionFactory<W, R> delegate = pcf.getConnectDelegate();
+            toReturn.connectionFactory = delegate.copy(toReturn);
+        } else {
+            toReturn.connectionFactory = connectionFactory.copy(toReturn);
+        }
+
         return toReturn;
     }
 
@@ -423,7 +437,10 @@ public class ClientState<W, R> {
         if (connectionFactory instanceof PooledClientConnectionFactory) {
             toReturn.connectionFactory = connectionFactory.copy(toReturn);
         } else {
-            toReturn.connectionFactory = new PooledClientConnectionFactoryImpl<W, R>(toReturn);
+            final PoolConfig<W, R> _poolConfig = toReturn.getPoolConfig();
+            toReturn.connectionFactory = new PooledClientConnectionFactoryImpl<W, R>(toReturn,
+                                                                                     _poolConfig.getIdleConnectionsHolder(),
+                                                                                     connectionFactory.copy(toReturn));
         }
     }
 
@@ -445,34 +462,6 @@ public class ClientState<W, R> {
     @SuppressWarnings("unchecked")
     private <WW, RR> ClientState<WW, RR> cast() {
         return (ClientState<WW, RR>) this;
-    }
-
-    /**
-     * {@link LoggingHandler} is a shaerable handler and hence need not be created for every client. This factory
-     * manages a static map of log level -> instance which can be used directly instead of creating a new factoru per
-     * client.
-     */
-    /*visible for testing*/static class LoggingHandlerFactory implements Func0<ChannelHandler> {
-
-        /*visible for testing*/ static final EnumMap<LogLevel, LoggingHandlerFactory> factories =
-                new EnumMap<LogLevel, LoggingHandlerFactory>(LogLevel.class);
-
-        static {
-            for (LogLevel logLevel : LogLevel.values()) {
-                factories.put(logLevel, new LoggingHandlerFactory(logLevel));
-            }
-        }
-
-        private final LoggingHandler loggingHandler;
-
-        private LoggingHandlerFactory(LogLevel wireLogginLevel) {
-            loggingHandler = new LoggingHandler(wireLogginLevel);
-        }
-
-        @Override
-        public ChannelHandler call() {
-            return loggingHandler;/*logging handler is shareable.*/
-        }
     }
 
     private static class TailHandlerFactory implements Action1<ChannelPipeline> {

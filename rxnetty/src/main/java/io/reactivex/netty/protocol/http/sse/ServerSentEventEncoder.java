@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,15 +19,19 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufProcessor;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.channel.ChannelOutboundHandlerAdapter;
+import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpResponse;
 
 /**
- * An encoder to convert {@link ServerSentEvent} to a {@link io.netty.buffer.ByteBuf}
+ * An encoder to handle {@link ServerSentEvent} encoding for an HTTP server.
  *
- * @author Nitesh Kant
+ * This encoder will encode any {@link ServerSentEvent} to {@link ByteBuf} and also set the appropriate HTTP Response
+ * headers required for <a href="http://www.w3.org/TR/eventsource/">SSE</a>
  */
 @ChannelHandler.Sharable
-public class ServerSentEventEncoder extends MessageToByteEncoder<ServerSentEvent> {
+public class ServerSentEventEncoder extends ChannelOutboundHandlerAdapter {
 
     private static final byte[] EVENT_PREFIX_BYTES = "event: ".getBytes();
     private static final byte[] NEW_LINE_AS_BYTES = "\n".getBytes();
@@ -49,45 +53,68 @@ public class ServerSentEventEncoder extends MessageToByteEncoder<ServerSentEvent
     }
 
     @Override
-    protected void encode(ChannelHandlerContext ctx, ServerSentEvent serverSentEvent, ByteBuf out) throws Exception {
-        if (serverSentEvent.hasEventType()) { // Write event type, if available
-            out.writeBytes(EVENT_PREFIX_BYTES);
-            out.writeBytes(serverSentEvent.getEventType());
-            out.writeBytes(NEW_LINE_AS_BYTES);
-        }
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
 
-        if (serverSentEvent.hasEventId()) { // Write event id, if available
-            out.writeBytes(ID_PREFIX_AS_BYTES);
-            out.writeBytes(serverSentEvent.getEventId());
-            out.writeBytes(NEW_LINE_AS_BYTES);
-        }
+        Object msgToWriteFurther = msg;
 
-        final ByteBuf content = serverSentEvent.content();
+        if (msg instanceof HttpResponse) {
+            HttpResponse response = (HttpResponse) msg;
+            /*Set the content-type for SSE*/
+            response.headers().set(Names.CONTENT_TYPE, "text/event-stream");
+        } else if (msg instanceof ServerSentEvent) {
 
-        if (splitSseData) {
-            while (content.isReadable()) { // Scan the buffer and split on new line into multiple data lines.
-                final int readerIndexAtStart = content.readerIndex();
-                int newLineIndex = content.forEachByte(new ByteBufProcessor() {
-                    @Override
-                    public boolean process(byte value) throws Exception {
-                        return (char) value != '\n';
-                    }
-                });
-                if (-1 == newLineIndex) { // No new line, write the buffer as is.
-                    out.writeBytes(DATA_PREFIX_AS_BYTES);
-                    out.writeBytes(content);
-                    out.writeBytes(NEW_LINE_AS_BYTES);
-                } else { // Write the buffer till the new line and then iterate this loop
-                    out.writeBytes(DATA_PREFIX_AS_BYTES);
-                    out.writeBytes(content, newLineIndex - readerIndexAtStart);
-                    content.readerIndex(content.readerIndex() + 1);
-                    out.writeBytes(NEW_LINE_AS_BYTES);
-                }
+            final ServerSentEvent serverSentEvent = (ServerSentEvent) msg;
+
+            final ByteBuf out = ctx.alloc().buffer();
+            msgToWriteFurther = out;
+
+            if (serverSentEvent.hasEventType()) { // Write event type, if available
+                out.writeBytes(EVENT_PREFIX_BYTES);
+                out.writeBytes(serverSentEvent.getEventType());
+                out.writeBytes(NEW_LINE_AS_BYTES);
             }
-        } else { // write the buffer with data prefix and new line post fix.
-            out.writeBytes(DATA_PREFIX_AS_BYTES);
-            out.writeBytes(content);
-            out.writeBytes(NEW_LINE_AS_BYTES);
+
+            if (serverSentEvent.hasEventId()) { // Write event id, if available
+                out.writeBytes(ID_PREFIX_AS_BYTES);
+                out.writeBytes(serverSentEvent.getEventId());
+                out.writeBytes(NEW_LINE_AS_BYTES);
+            }
+
+            final ByteBuf content;
+            if (serverSentEvent.hasDataAsString()) {
+                /*Allocate ByteBuf only in the eventloop*/
+                content = ctx.alloc().buffer().writeBytes(serverSentEvent.contentAsString().getBytes());
+            } else {
+                content = serverSentEvent.content();
+            }
+
+            if (splitSseData) {
+                while (content.isReadable()) { // Scan the buffer and split on new line into multiple data lines.
+                    final int readerIndexAtStart = content.readerIndex();
+                    int newLineIndex = content.forEachByte(new ByteBufProcessor() {
+                        @Override
+                        public boolean process(byte value) throws Exception {
+                            return (char) value != '\n';
+                        }
+                    });
+                    if (-1 == newLineIndex) { // No new line, write the buffer as is.
+                        out.writeBytes(DATA_PREFIX_AS_BYTES);
+                        out.writeBytes(content);
+                        out.writeBytes(NEW_LINE_AS_BYTES);
+                    } else { // Write the buffer till the new line and then iterate this loop
+                        out.writeBytes(DATA_PREFIX_AS_BYTES);
+                        out.writeBytes(content, newLineIndex - readerIndexAtStart);
+                        content.readerIndex(content.readerIndex() + 1);
+                        out.writeBytes(NEW_LINE_AS_BYTES);
+                    }
+                }
+            } else { // write the buffer with data prefix and new line post fix.
+                out.writeBytes(DATA_PREFIX_AS_BYTES);
+                out.writeBytes(content);
+                out.writeBytes(NEW_LINE_AS_BYTES);
+            }
         }
+
+        ctx.write(msgToWriteFurther, promise);
     }
 }

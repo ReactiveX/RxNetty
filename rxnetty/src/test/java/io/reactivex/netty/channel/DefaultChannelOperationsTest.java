@@ -47,7 +47,7 @@ public class DefaultChannelOperationsTest {
     @Rule
     public final ChannelOpRule channelOpRule = new ChannelOpRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testWrite() throws Exception {
         final String msg = "Hello";
         Observable<Void> writeO = channelOpRule.channelOperations.write(ChannelOpRule.bbJust(msg));
@@ -55,7 +55,7 @@ public class DefaultChannelOperationsTest {
         _testWrite(writeO, msg);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteWithFlushSelector() throws Exception {
         final String msg1 = "Hello1";
         final String msg2 = "Hello2";
@@ -65,7 +65,7 @@ public class DefaultChannelOperationsTest {
         _testWithFlushSelector(writeO, msg1, msg2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteAndFlushOnEach() throws Exception {
         final String msg1 = "Hello1";
         final String msg2 = "Hello2";
@@ -74,7 +74,7 @@ public class DefaultChannelOperationsTest {
         _testWithFlushSelector(writeO, msg1, msg2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteString() throws Exception {
         final String msg = "Hello";
         Observable<Void> writeO = channelOpRule.channelOperations.writeString(Observable.just(msg));
@@ -82,7 +82,7 @@ public class DefaultChannelOperationsTest {
         _testWrite(writeO, msg);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringWithFlushSelector() throws Exception {
         final String msg1 = "Hello1";
         final String msg2 = "Hello2";
@@ -92,7 +92,7 @@ public class DefaultChannelOperationsTest {
         _testWithFlushSelector(writeO, msg1, msg2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteStringAndFlushOnEach() throws Exception {
         final String msg1 = "Hello1";
         final String msg2 = "Hello2";
@@ -101,7 +101,7 @@ public class DefaultChannelOperationsTest {
         _testWithFlushSelector(writeO, msg1, msg2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytes() throws Exception {
         final String msg = "Hello";
         Observable<Void> writeO = channelOpRule.channelOperations.writeBytes(Observable.just(msg.getBytes()));
@@ -109,7 +109,7 @@ public class DefaultChannelOperationsTest {
         _testWrite(writeO, msg);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesWithFlushSelector() throws Exception {
         final String msg1 = "Hello1";
         final String msg2 = "Hello2";
@@ -120,7 +120,7 @@ public class DefaultChannelOperationsTest {
         _testWithFlushSelector(writeO, msg1, msg2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteBytesAndFlushOnEach() throws Exception {
         final String msg1 = "Hello1";
         final String msg2 = "Hello2";
@@ -131,7 +131,7 @@ public class DefaultChannelOperationsTest {
         _testWithFlushSelector(writeO, msg1, msg2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFileRegion() throws Exception {
         FileRegion mock = Mockito.mock(FileRegion.class);
 
@@ -140,7 +140,7 @@ public class DefaultChannelOperationsTest {
         _testWrite(writeO, mock);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFileRegionWithFlushSelector() throws Exception {
         FileRegion mock1 = Mockito.mock(FileRegion.class);
         FileRegion mock2 = Mockito.mock(FileRegion.class);
@@ -152,7 +152,7 @@ public class DefaultChannelOperationsTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteFileRegionAndFlushOnEach() throws Exception {
         FileRegion mock1 = Mockito.mock(FileRegion.class);
         FileRegion mock2 = Mockito.mock(FileRegion.class);
@@ -163,7 +163,7 @@ public class DefaultChannelOperationsTest {
         _testWithFlushSelector(writeO, mock1, mock2);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testFlush() throws Exception {
         String msg = "Hello";
         channelOpRule.channel.write(Unpooled.buffer().writeBytes(msg.getBytes()));
@@ -173,7 +173,7 @@ public class DefaultChannelOperationsTest {
         channelOpRule.verifyOutboundMessages(msg);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCloseWithFlush() throws Exception {
         TestSubscriber<Void> subscriber = new TestSubscriber<>();
         channelOpRule.channelOperations.close().subscribe(subscriber);
@@ -184,7 +184,7 @@ public class DefaultChannelOperationsTest {
         assertThat("Channel not closed.", channelOpRule.channel.isOpen(), is(false));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testCloseWithoutFlush() throws Exception {
         TestSubscriber<Void> subscriber = new TestSubscriber<>();
         channelOpRule.channel.write("Hello");

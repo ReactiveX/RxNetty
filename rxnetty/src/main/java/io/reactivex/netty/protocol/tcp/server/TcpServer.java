@@ -27,7 +27,6 @@ import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.metrics.MetricEventsPublisher;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.pipeline.ssl.SSLEngineFactory;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import rx.functions.Action1;
@@ -45,8 +44,6 @@ import java.util.concurrent.TimeUnit;
  *
  * @param <R> The type of objects read from this server.
  * @param <W> The type of objects written to this server.
- *
- * @author Nitesh Kant
  */
 public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMetricsEvent<?>> {
 
@@ -228,8 +225,7 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      *
      * If the {@link SSLEngine} instance can be statically, created, {@link #secure(SSLEngine)} can be used.
      *
-     * @param sslEngineFactory {@link SSLEngineFactory} for all secured connections created by the newly created server
-     *                                                 instance.
+     * @param sslEngineFactory Factory for all secured connections created by the newly created server instance.
      *
      * @return A new {@link TcpServer} instance.
      */
@@ -294,14 +290,6 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
     public abstract MetricEventsSubject<ServerMetricsEvent<?>> getEventsSubject();
 
     /**
-     * Starts this server and waits till the server is shutdown. This will block the caller thread till the time the
-     * server is shutdown. If blocking the caller is not required, use {@link #start(ConnectionHandler)}
-     *
-     * @param connectionHandler Connection handler that will handle any new server connections to this server.
-     */
-    public abstract void startAndWait(ConnectionHandler<R, W> connectionHandler);
-
-    /**
      * Starts this server.
      *
      * @param connectionHandler Connection handler that will handle any new server connections to this server.
@@ -320,7 +308,7 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      *
      * <b>This does not actually shutdown the server.</b> It just waits for some other action to shutdown.
      */
-    public abstract void waitTillShutdown();
+    public abstract void awaitShutdown();
 
     /**
      * Waits for the shutdown of this server, waiting a maximum of the passed duration.
@@ -330,7 +318,7 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      * @param duration Duration to wait for shutdown.
      * @param timeUnit Timeunit for the duration to wait for shutdown.
      */
-    public abstract void waitTillShutdown(long duration, TimeUnit timeUnit);
+    public abstract void awaitShutdown(long duration, TimeUnit timeUnit);
 
     /**
      * Creates a new server using the passed port.

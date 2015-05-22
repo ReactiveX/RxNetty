@@ -17,7 +17,6 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.ChannelFuture;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.channel.ObservableConnection;
 import rx.Observable;
 
 /**
@@ -25,8 +24,6 @@ import rx.Observable;
  *
  * @param <W> Type of object that is written to the client using this factory.
  * @param <R> Type of object that is read from the the client using this factory.
- *
- * @author Nitesh Kant
  */
 public abstract class ClientConnectionFactory<W, R> {
 
@@ -38,10 +35,10 @@ public abstract class ClientConnectionFactory<W, R> {
     }
 
     /**
-     * Returns an {@link Observable} that always returns a single {@link ObservableConnection}. This is a cold
+     * Returns an {@link Observable} that always returns a single {@link Connection}. This is a cold
      * observable and hence returns a potentially different connection on every subscription.
      *
-     * @return {@link Observable} that always returns a single {@link ObservableConnection}.
+     * @return {@link Observable} that always returns a single {@link Connection}.
      */
     public abstract Observable<? extends Connection<R, W>> connect();
 

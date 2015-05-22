@@ -18,8 +18,8 @@ package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.protocol.http.clientNew.HttpClient;
-import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.HttpClient;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
 import java.nio.charset.Charset;
 
@@ -65,7 +65,7 @@ public class HelloWorldClient extends AbstractClientExample {
          */
         int port = getServerPort(HelloWorldServer.class, args);
 
-        HttpClient.newClient("localhost", port) /*Create a client*/.noConnectionPooling()
+        HttpClient.newClient("localhost", port) /*Create a client*/
                   .createGet("/hello") /*Creates a GET request with URI "/hello"*/
                   .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
                   .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/

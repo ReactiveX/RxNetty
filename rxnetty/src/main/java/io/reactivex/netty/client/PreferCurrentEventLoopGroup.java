@@ -46,8 +46,6 @@ import java.util.concurrent.TimeoutException;
  *
  * The above, although being subtle has benefits around removing queuing while writing data to any channel in the entire
  * request processing.
- *
- * @author Nitesh Kant
  */
 public class PreferCurrentEventLoopGroup implements EventLoopGroup {
 

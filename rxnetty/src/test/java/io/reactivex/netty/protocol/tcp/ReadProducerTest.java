@@ -38,7 +38,7 @@ public class ReadProducerTest {
     @Rule
     public final ProducerRule producerRule = new ProducerRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testTurnOffBackpressureAtStart() throws Exception {
         producerRule.producer.request(Long.MAX_VALUE);
 
@@ -50,7 +50,7 @@ public class ReadProducerTest {
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(Long.MAX_VALUE));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testTurnOffBackpressureLater() throws Exception {
         producerRule.producer.request(1);
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(1L));
@@ -64,7 +64,7 @@ public class ReadProducerTest {
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(Long.MAX_VALUE));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testBackpressure() throws Exception {
         producerRule.producer.request(1);
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(1L));
@@ -75,7 +75,7 @@ public class ReadProducerTest {
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(0L));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRequestedOverflow() throws Exception {
         producerRule.producer.request(1);
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(1L));
@@ -89,7 +89,7 @@ public class ReadProducerTest {
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(Long.MAX_VALUE));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testSupplyMoreThanDemand() throws Exception {
         thrown.expectCause(isA(MissingBackpressureException.class));
 
@@ -104,7 +104,7 @@ public class ReadProducerTest {
         producerRule.producer.sendOnNext("Hello"); /*overflow*/
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testShouldReadMoreOnLessDemand() throws Exception {
         producerRule.producer.request(0);
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(0L));
@@ -112,7 +112,7 @@ public class ReadProducerTest {
                    producerRule.producer.shouldReadMore(producerRule.channel.pipeline().firstContext()), is(false));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testShouldReadMoreOnUnsubscribe() throws Exception {
         producerRule.producer.request(1);
         assertThat("Unexpected requested count.", producerRule.producer.getRequested(), is(1L));

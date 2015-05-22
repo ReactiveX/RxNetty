@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,6 @@ package io.reactivex.netty.channel;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
-/**
- * @author Nitesh Kant
- */
 public class RxDefaultThreadFactory extends DefaultThreadFactory {
 
     public RxDefaultThreadFactory(String threadNamePrefix) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,8 +24,6 @@ import java.util.concurrent.TimeUnit;
  *
  * Theoretically one can register the same listener instance to multiple {@link MetricEventsPublisher}s, however in that
  * case, there will be multiple callbacks to {@link #onSubscribe()} and {@link #onCompleted()}
- *
- * @author Nitesh Kant
  *
  * @param <E> The type of {@link MetricsEvent} this listener listens.
  *

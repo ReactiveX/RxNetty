@@ -38,12 +38,12 @@ public class ConnectionRequestImplTest {
     @Mock(answer = Answers.RETURNS_MOCKS)
     private ClientState<String, String> state;
 
-    @Test
+    @Test(timeout = 60000)
     public void testReadTimeOut() throws Exception {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirst() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -55,7 +55,7 @@ public class ConnectionRequestImplTest {
         verify(state).addChannelHandlerFirst("handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerFirstWithExecutor() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -69,7 +69,7 @@ public class ConnectionRequestImplTest {
         verify(state).addChannelHandlerFirst(group, "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLast() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -82,7 +82,7 @@ public class ConnectionRequestImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerLastWithExecutor() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -96,7 +96,7 @@ public class ConnectionRequestImplTest {
         verify(state).addChannelHandlerLast(group, "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBefore() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -109,7 +109,7 @@ public class ConnectionRequestImplTest {
         verify(state).addChannelHandlerBefore("base", "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerBeforeWithExecutor() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -124,7 +124,7 @@ public class ConnectionRequestImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfter() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -137,7 +137,7 @@ public class ConnectionRequestImplTest {
         verify(state).addChannelHandlerAfter("base", "handler", factory);
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddChannelHandlerAfterWithExecutor() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
         Func0<ChannelHandler> factory = newHandlerFactory();
@@ -152,7 +152,7 @@ public class ConnectionRequestImplTest {
 
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testPipelineConfigurator() throws Exception {
         ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<String, String>(state);
         Action1<ChannelPipeline> configurator = new Action1<ChannelPipeline>() {

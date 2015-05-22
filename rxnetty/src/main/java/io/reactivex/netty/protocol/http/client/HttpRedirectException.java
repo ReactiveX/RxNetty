@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,8 +18,6 @@ package io.reactivex.netty.protocol.http.client;
 /**
  * An exception signifying a failed HTTP redirects. Every exception has an encapsulated {@link Reason} retrievable via
  * {@link #getReason()}
- *
- * @author Nitesh Kant
  */
 public class HttpRedirectException extends RuntimeException {
 

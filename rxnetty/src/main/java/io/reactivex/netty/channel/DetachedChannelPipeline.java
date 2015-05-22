@@ -37,8 +37,6 @@ import java.util.NoSuchElementException;
  *
  * This must NOT be used on an actual channel, it does not support any channel operations. It only supports pipeline
  * modification operations.
- *
- * @author Nitesh Kant
  */
 public class DetachedChannelPipeline {
 

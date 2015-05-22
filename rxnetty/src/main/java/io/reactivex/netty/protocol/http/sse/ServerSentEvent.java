@@ -17,6 +17,7 @@ package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
+import io.netty.buffer.Unpooled;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,8 +42,6 @@ import java.nio.charset.Charset;
  *
  * This is an implementation of {@link ByteBufHolder} so it is required to be explicitly released by calling
  * {@link #release()} when this instance is no longer required.
- *
- * @author Nitesh Kant
  */
 public class ServerSentEvent implements ByteBufHolder {
 
@@ -66,6 +65,9 @@ public class ServerSentEvent implements ByteBufHolder {
     }
 
     private final Type type;
+    /*This is required to make sure we allocate ByteBuf only inside an eventloop, else the ByteBuf pool will grow in the
+    * owner thread*/
+    private final String dataAsString;
     private final ByteBuf data;
     private final ByteBuf eventId;
     private final ByteBuf eventType;
@@ -83,10 +85,19 @@ public class ServerSentEvent implements ByteBufHolder {
     }
 
     protected ServerSentEvent(Type type, ByteBuf eventId, ByteBuf eventType, ByteBuf data) {
+        dataAsString = null;
         this.data = data;
         this.type = type;
         this.eventId = eventId;
         this.eventType = eventType;
+    }
+
+    private ServerSentEvent(String data) {
+        dataAsString = data;
+        this.data = null;
+        type = Type.Data;
+        eventId = null;
+        eventType = null;
     }
 
     /**
@@ -124,30 +135,42 @@ public class ServerSentEvent implements ByteBufHolder {
         return eventType.toString(getSseCharset());
     }
 
+    public boolean hasDataAsString() {
+        return null != dataAsString;
+    }
+
     public String contentAsString() {
-        return data.toString(getSseCharset());
+        return null != dataAsString ? dataAsString : data.toString(getSseCharset());
     }
 
     @Override
     public ByteBuf content() {
-        return data;
+        return null != data ? data : Unpooled.buffer().writeBytes(dataAsString.getBytes(getSseCharset()));
     }
 
     @Override
     public ByteBufHolder copy() {
-        return new ServerSentEvent(type, null != eventId ? eventId.copy() : null,
-                                   null != eventType ? eventType.copy() : null, data.copy());
+        if (hasDataAsString()) {
+            return new ServerSentEvent(dataAsString);
+        } else {
+            return new ServerSentEvent(type, null != eventId? eventId.copy() : null,
+                                       null != eventType? eventType.copy() : null, data.copy());
+        }
     }
 
     @Override
     public ByteBufHolder duplicate() {
-        return new ServerSentEvent(type, null != eventId ? eventId.duplicate() : null,
-                                   null != eventType ? eventType.duplicate() : null, data.duplicate());
+        if (hasDataAsString()) {
+            return new ServerSentEvent(dataAsString);
+        } else {
+            return new ServerSentEvent(type, null != eventId ? eventId.duplicate() : null,
+                                       null != eventType ? eventType.duplicate() : null, data.duplicate());
+        }
     }
 
     @Override
     public int refCnt() {
-        return data.refCnt(); // Ref count is consistent across data, eventId and eventType
+        return hasDataAsString() ? 1 : data.refCnt(); // Ref count is consistent across data, eventId and eventType
     }
 
     @Override
@@ -158,7 +181,9 @@ public class ServerSentEvent implements ByteBufHolder {
         if(hasEventType()) {
             eventType.retain();
         }
-        data.retain();
+        if (!hasDataAsString()) {
+            data.retain();
+        }
         return this;
     }
 
@@ -170,7 +195,9 @@ public class ServerSentEvent implements ByteBufHolder {
         if(hasEventType()) {
             eventType.retain(increment);
         }
-        data.retain(increment);
+        if (!hasDataAsString()) {
+            data.retain(increment);
+        }
         return this;
     }
 
@@ -181,19 +208,15 @@ public class ServerSentEvent implements ByteBufHolder {
 
     @Override
     public ByteBufHolder touch(Object hint) {
-        data.touch(hint);
+        if (!hasDataAsString()) {
+            data.touch(hint);
+        }
         return this;
     }
 
     @Override
     public boolean release() {
-        if(hasEventId()) {
-            eventId.release();
-        }
-        if(hasEventType()) {
-            eventType.release();
-        }
-        return data.release();
+        return data.release(1);
     }
 
     @Override
@@ -244,7 +267,51 @@ public class ServerSentEvent implements ByteBufHolder {
         return new ServerSentEvent(eventId, eventType, data);
     }
 
+    /**
+     * Creates a {@link ServerSentEvent} instance with data.
+     *
+     * @param data Data for the event.
+     *
+     * @return The {@link ServerSentEvent} instance.
+     */
+    public static ServerSentEvent withData(ByteBuf data) {
+        return new ServerSentEvent(data);
+    }
+
+    /**
+     * Creates a {@link ServerSentEvent} instance with data.
+     *
+     * @param data Data for the event.
+     *
+     * @return The {@link ServerSentEvent} instance.
+     */
+    public static ServerSentEvent withData(String data) {
+        return new ServerSentEvent(data);
+    }
+
     protected Charset getSseCharset() {
         return null == sseEncodingCharset ? Charset.forName("UTF-8") : sseEncodingCharset;
+    }
+
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        if (hasEventId()) {
+            sb.append("id: ");
+            sb.append(getEventIdAsString());
+            sb.append('\n');
+        }
+
+        if (hasEventType()) {
+            sb.append("event: ");
+            sb.append(getEventTypeAsString());
+            sb.append('\n');
+        }
+
+        sb.append("data: ");
+        sb.append(contentAsString());
+        sb.append('\n');
+
+        return sb.toString();
     }
 }

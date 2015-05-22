@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,26 +16,8 @@
 
 package io.reactivex.netty.protocol.http.client;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.reactivex.netty.protocol.http.UnicastContentSubject;
-import org.junit.Assert;
-import org.junit.Test;
-import rx.Observable;
-import rx.Subscriber;
-
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
-
-/**
- * @author Nitesh Kant
- */
 public class RedirectOperatorTest {
+/*
 
     @Test
     public void testMaxRedirects() throws Exception {
@@ -179,4 +161,5 @@ public class RedirectOperatorTest {
             return this;
         }
     }
+*/
 }

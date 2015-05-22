@@ -27,8 +27,6 @@ import java.util.concurrent.atomic.AtomicReference;
 /**
  * An implementation of {@link RxEventLoopProvider} that returns the same {@link EventLoopGroup} instance for both
  * client and server.
- *
- * @author Nitesh Kant
  */
 public class SingleNioLoopProvider extends RxEventLoopProvider {
 

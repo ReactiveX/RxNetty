@@ -40,8 +40,6 @@ import java.nio.channels.ClosedChannelException;
  *
  * @param <R> The type of objects read from the server using this bridge.
  * @param <W> The type of objects written to this server using this bridge.
- *
- * @author Nitesh Kant
  */
 public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToChannelBridge<R, W> {
 
@@ -139,7 +137,7 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 }
             });
 
-            connection.getNettyChannel().closeFuture().addListener(new ChannelFutureListener() {
+            connection.unsafeNettyChannel().closeFuture().addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     handlingSubscription.unsubscribe(); // Cancel on connection close.

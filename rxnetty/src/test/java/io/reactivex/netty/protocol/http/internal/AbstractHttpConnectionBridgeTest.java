@@ -45,7 +45,9 @@ import org.mockito.Matchers;
 import org.mockito.Mockito;
 import rx.Producer;
 import rx.Subscriber;
+import rx.functions.Action0;
 import rx.observers.TestSubscriber;
+import rx.subscriptions.Subscriptions;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -59,7 +61,7 @@ public class AbstractHttpConnectionBridgeTest {
     @Rule
     public final HandlerRule handlerRule = new HandlerRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testSetTransferEncoding() throws Exception {
         DefaultHttpRequest reqWithNoContentLength = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/");
         handlerRule.channel.writeAndFlush(reqWithNoContentLength);
@@ -81,7 +83,7 @@ public class AbstractHttpConnectionBridgeTest {
                    isTransferEncodingChunked(reqWithContentLength), is(false));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWritePrimitives() throws Exception {
         handlerRule.channel.writeAndFlush("Hello");
 
@@ -94,12 +96,12 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Unexpected message written.", handlerRule.channel.readOutbound(), instanceOf(ByteBuf.class));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testConnInputSubscriberEvent() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHttpContentSubscriberEventWithNoContentInputSub() throws Exception {
         TestSubscriber<String> subscriber = new TestSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpContentSubscriberEvent<String>(subscriber));
@@ -111,7 +113,7 @@ public class AbstractHttpConnectionBridgeTest {
                    instanceOf(IllegalStateException.class));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHttpTrailerSubscriberEventWithNoContentInputSub() throws Exception {
         TestSubscriber<TrailingHeaders> subscriber = new TestSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(subscriber));
@@ -123,7 +125,7 @@ public class AbstractHttpConnectionBridgeTest {
                    instanceOf(IllegalStateException.class));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHttpContentSub() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -147,7 +149,7 @@ public class AbstractHttpConnectionBridgeTest {
                    handlerRule.connInSub.isUnsubscribed(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHttpTrailerSub() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -172,7 +174,7 @@ public class AbstractHttpConnectionBridgeTest {
                    equalTo(handlerRule.connInputProducerMock));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testContentArrivedBeforeSubscription() throws Exception {
         handlerRule.channel.config().setAutoRead(false);
 
@@ -197,7 +199,7 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Error not received on delayed subscription.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testLazyContentAndTrailerSubWithAutoReadOn() throws Exception {
         handlerRule.channel.config().setAutoRead(true);
 
@@ -225,7 +227,7 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Error not received on lazy subscription.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testLazyContentAndTrailerSubWithAutoReadOff() throws Exception {
         handlerRule.channel.config().setAutoRead(false);
 
@@ -258,7 +260,7 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Error not received on lazy subscription.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHttpChunked() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -308,7 +310,7 @@ public class AbstractHttpConnectionBridgeTest {
                    equalTo(trailer1Value));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testClose() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -337,7 +339,7 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Close before complete did not get invoked.", handlerRule.handler.closedBeforeReceive, is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHeaderUnsubscribeBeforeHeaderReceive() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -346,7 +348,7 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Connection input not unsubscribed.", handlerRule.connInSub.isUnsubscribed(), is(true));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testHeaderUnsubscribeAfterHeaderReceive() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
         /*Headers sent*/
@@ -357,7 +359,7 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Connection input unsubscribed post headers.", handlerRule.connInSub.isUnsubscribed(), is(false));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testConnectionInputCompleteWithNoHeaders() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -381,7 +383,7 @@ public class AbstractHttpConnectionBridgeTest {
         trailerSub.assertNoErrors();
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testConnectionInputCompletePostHeaders() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -412,7 +414,7 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Trailer subscriber did not get an error.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultiSubscribers() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
 
@@ -475,7 +477,7 @@ public class AbstractHttpConnectionBridgeTest {
                     channel = new EmbeddedChannel(handler, eventCatcher);
                     @SuppressWarnings("unchecked")
                     Connection<String, String> connMock = Mockito.mock(Connection.class);
-                    Mockito.when(connMock.getNettyChannel()).thenReturn(channel);
+                    Mockito.when(connMock.unsafeNettyChannel()).thenReturn(channel);
 
                     HandlerRule.this.connMock = connMock;
                     base.evaluate();
@@ -569,7 +571,7 @@ public class AbstractHttpConnectionBridgeTest {
 
         @Override
         protected boolean isOutboundHeader(Object nextItem) {
-            return false;
+            return nextItem instanceof HttpRequest;
         }
 
         @Override
@@ -601,6 +603,17 @@ public class AbstractHttpConnectionBridgeTest {
         @Override
         protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
             closedBeforeReceive = true;
+        }
+
+        @Override
+        protected void onNewContentSubscriber(final ConnectionInputSubscriber inputSubscriber,
+                                              Subscriber<? super String> newSub) {
+            newSub.add(Subscriptions.create(new Action0() {
+                @Override
+                public void call() {
+                    inputSubscriber.unsubscribe();
+                }
+            }));
         }
 
         public static class HttpObject {

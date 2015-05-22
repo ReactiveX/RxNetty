@@ -13,353 +13,498 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package io.reactivex.netty.protocol.http.server;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.DecoderResult;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.DefaultHttpHeaders;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.FullHttpResponse;
-import io.netty.handler.codec.http.HttpChunkedInput;
 import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.ServerCookieEncoder;
-import io.reactivex.netty.channel.DefaultChannelWriter;
-import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.server.ServerChannelMetricEventProvider;
-import io.reactivex.netty.server.ServerMetricsEvent;
+import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
+import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
+import rx.annotations.Experimental;
+import rx.functions.Action1;
 
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.text.ParseException;
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
 
 /**
- * @author Nitesh Kant
+ * An HTTP server response.
+ *
+ * <h2>Thread safety</h2>
+ *
+ * This object is <b>not</b> thread safe and should not be accessed from multiple threads.
+ *
+ * @param <C> The type of objects written as the content of the response.
  */
-public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
+public abstract class HttpServerResponse<C> extends ResponseContentWriter<C> {
 
-    private final HttpResponseHeaders headers;
-    private final HttpResponse nettyResponse;
-    private final AtomicBoolean headerWritten = new AtomicBoolean();
-    private volatile boolean fullResponseWritten;
-    private ChannelFuture headerWriteFuture;
-    private volatile boolean flushOnlyOnReadComplete;
-
-    protected HttpServerResponse(Channel nettyChannel,
-                                 MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
-        this(nettyChannel, HttpVersion.HTTP_1_1, eventsSubject);
-    }
-
-    protected HttpServerResponse(Channel nettyChannel, HttpVersion httpVersion,
-                                 MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
-        this(nettyChannel, new DefaultHttpResponse(httpVersion, HttpResponseStatus.OK), eventsSubject);
-    }
-
-    /*Visible for testing */ HttpServerResponse(Channel nettyChannel, HttpResponse nettyResponse,
-                                                MetricEventsSubject<? extends ServerMetricsEvent<?>> eventsSubject) {
-        super(nettyChannel, eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
-        this.nettyResponse = nettyResponse;
-        headers = new HttpResponseHeaders(nettyResponse);
-    }
-
-    public HttpResponseHeaders getHeaders() {
-        return headers;
-    }
-
-    public void addCookie(Cookie cookie) {
-        headers.add(HttpHeaders.Names.SET_COOKIE, ServerCookieEncoder.encode(cookie));
-    }
-
-    public void setStatus(HttpResponseStatus status) {
-        nettyResponse.setStatus(status);
-    }
-
-    public HttpResponseStatus getStatus() {
-        return nettyResponse.getStatus();
-    }
-
-    @Override
-    public Observable<Void> close() {
-        return close(true);
+    protected HttpServerResponse(OnSubscribe<Void> f) {
+        super(f);
     }
 
     /**
-     * Closes this response with optionally flushing the writes. <br/>
+     * Returns the status of this response. If the status is not explicitly set, the default value is
+     * {@link HttpResponseStatus#OK}
      *
-     * <b>Unless it is required by the usecase, it is generally more optimal to leave the decision of when to flush to
-     * the framework as that enables a gathering write on the underlying socket, which is more optimal.</b>
-     *
-     * @param flush If this close should also flush the writes.
-     *
-     * @return Observable representing the close result.
+     * @return The status of this response.
      */
-    @Override
-    public Observable<Void> close(boolean flush) {
-        return super.close(flush);
-    }
-
-    @Override
-    public Observable<Void> _close(boolean flush) {
-
-        writeHeadersIfNotWritten();
-
-        if (!fullResponseWritten && (headers.isTransferEncodingChunked() || headers.isKeepAlive())) {
-            writeOnChannel(new DefaultLastHttpContent()); // This indicates end of response for netty. If this is not
-            // sent for keep-alive connections, netty's HTTP codec will not know that the response has ended and hence
-            // will ignore the subsequent HTTP header writes. See issue: https://github.com/Netflix/RxNetty/issues/130
-        }
-        return flush ? flush() : Observable.<Void>empty();
-    }
-
-    public void writeChunkedInput(HttpChunkedInput httpChunkedInput) {
-        writeOnChannel(httpChunkedInput);
-    }
+    public abstract HttpResponseStatus getStatus();
 
     /**
-     * Flush semantics of a response are as follows:
-     * <ul>
-        <li>Flush immediately if {@link HttpServerResponse#flush()} is called.</li>
-        <li>Flush at the completion of {@link Observable} returned by
-     {@link RequestHandler#handle(HttpServerRequest, HttpServerResponse)} if and only if
-     {@link #flushOnlyOnChannelReadComplete(boolean)} is set to false (default is false).</li>
-        <li>Flush when {@link ChannelHandlerContext#fireChannelReadComplete()} event is fired by netty. This is done
-     unconditionally and is a no-op if there is nothing to flush.</li>
-     </ul>
+     * Checks if there is a header with the passed name in this response.
+     *
+     * @param name Name of the header.
+     *
+     * @return {@code true} if there is a header with the passed name in this response.
      */
-    public void flushOnlyOnChannelReadComplete(boolean flushOnlyOnReadComplete) {
-        this.flushOnlyOnReadComplete = flushOnlyOnReadComplete;
-    }
-
-    public boolean isFlushOnlyOnReadComplete() {
-        return flushOnlyOnReadComplete;
-    }
-
-    HttpResponse getNettyResponse() {
-        return nettyResponse;
-    }
-
-    boolean isHeaderWritten() {
-        return null != headerWriteFuture && headerWriteFuture.isSuccess();
-    }
-
-    @Override
-    protected ChannelFuture writeOnChannel(Object msg) {
-        /**
-         * The following code either sends a single FullHttpResponse or assures that the headers are written before
-         * writing any content.
-         *
-         * A single FullHttpResponse will be written, if and only if,
-         * -- The passed object (to be written) is a ByteBuf instance and it's readable bytes are equal to the
-         * content-length header value set.
-         * -- There is no content ever to be written (content length header is set to zero).
-         *
-         * We resort to writing a FullHttpResponse in above scenarios to reduce the overhead of write (executing
-         * netty's pipeline)
-         */
-        if (!HttpServerResponse.class.isAssignableFrom(msg.getClass())) {
-            if (msg instanceof ByteBuf) {
-                ByteBuf content = (ByteBuf) msg;
-                long contentLength = headers.getContentLength(-1);
-                if (-1 != contentLength && contentLength == content.readableBytes()) {
-                    if (headerWritten.compareAndSet(false, true)) {
-                        // The passed object (to be written) is a ByteBuf instance and it's readable bytes are equal to the
-                        // content-length header value set.
-                        // So write full response instead of header, content & last HTTP content.
-                        return writeFullResponse((ByteBuf) msg);
-                    }
-                }
-            }
-            writeHeadersIfNotWritten();
-        } else {
-            long contentLength = headers.getContentLength(-1);
-            if (0 == contentLength) {
-                if (headerWritten.compareAndSet(false, true)) {
-                    // There is no content ever to be written (content length header is set to zero).
-                    // So write full response instead of header & last HTTP content.
-                    return writeFullResponse((ByteBuf) msg);
-                }
-            }
-            // There is no reason to call writeHeadersIfNotWritten() as this is the call to actually write the headers.
-        }
-
-        return super.writeOnChannel(msg); // Write the message as is if we did not write FullHttpResponse.
-    }
-
-    private ChannelFuture writeFullResponse(ByteBuf content) {
-        fullResponseWritten = true;
-        FullHttpResponse fhr = new DelegatingFullHttpResponse(nettyResponse, content);
-        return super.writeOnChannel(fhr);
-    }
-
-    protected void writeHeadersIfNotWritten() {
-        if (headerWritten.compareAndSet(false, true)) {
-            /**
-             * This assertion whether the transfer encoding should be chunked or not, should be done here and not
-             * anywhere in the netty's pipeline. The reason is that in close() method we determine whether to write
-             * the LastHttpContent based on whether the transfer encoding is chunked or not.
-             * Now, if we do this determination & updation of transfer encoding in a handler in the pipeline, it may be
-             * that the handler is invoked asynchronously (i.e. when this method is not invoked from the server's
-             * eventloop). In such a scenario there will be a race-condition between close() asserting that the transfer
-             * encoding is chunked and the handler adding the same and thus in some cases, the LastHttpContent will not
-             * be written with transfer-encoding chunked and the response will never finish.
-             */
-            if (!headers.contains(HttpHeaders.Names.CONTENT_LENGTH)) {
-                // If there is no content length we need to specify the transfer encoding as chunked as we always send
-                // data in multiple HttpContent.
-                // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
-                // as expected.
-                headers.add(HttpHeaders.Names.TRANSFER_ENCODING, HttpHeaders.Values.CHUNKED);
-            }
-            headerWriteFuture = super.writeOnChannel(this);
-        }
-    }
+    public abstract boolean containsHeader(CharSequence name);
 
     /**
-     * An implementation of {@link FullHttpResponse} which can be composed of already created headers and content
-     * separately. The implementation provided by netty does not provide a way to do this.
+     * Checks if there is a header with the passed name and value in this response.
+     *
+     * @param name Name of the header.
+     * @param value Value of the header.
+     * @param ignoreCaseValue {@code true} then the value comparision is done ignoring case.
+     *
+     * @return {@code true} if there is a header with the passed name and value in this response.
      */
-    private static class DelegatingFullHttpResponse implements FullHttpResponse {
+    public abstract boolean containsHeader(CharSequence name, CharSequence value, boolean ignoreCaseValue);
 
-        private final HttpResponse headers;
-        private final ByteBuf content;
-        private final HttpHeaders trailingHeaders;
+    /**
+     * Returns the value of a header with the specified name.  If there are more than one values for the specified name,
+     * the first value is returned.
+     *
+     * @param name The name of the header to search
+     * @return The first header value or {@code null} if there is no such header
+     */
+    public abstract String getHeader(CharSequence name);
 
-        public DelegatingFullHttpResponse(HttpResponse headers, ByteBuf content) {
-            this.headers = headers;
-            this.content = content;
-            trailingHeaders = new DefaultHttpHeaders(false);
-        }
+    /**
+     * Returns the value of a header with the specified name.  If there are more than one values for the specified name,
+     * the first value is returned.
+     *
+     * @param name The name of the header to search
+     * @param defaultValue Default if the header does not exist.
+     *
+     * @return The first header value or {@code defaultValue} if there is no such header
+     */
+    public abstract String getHeader(CharSequence name, String defaultValue);
 
-        public static FullHttpResponse newWithNoContent(HttpResponse headers, ByteBufAllocator allocator) {
-            headers.headers().set(HttpHeaders.Names.CONTENT_LENGTH, 0);
-            return new DelegatingFullHttpResponse(headers, allocator.buffer(0));
-        }
+    /**
+     * Returns the values of headers with the specified name
+     *
+     * @param name The name of the headers to search
+     *
+     * @return A {@link java.util.List} of header values which will be empty if no values are found
+     */
+    public abstract List<String> getAllHeaderValues(CharSequence name);
 
-        @Override
-        public FullHttpResponse copy() {
-            DefaultFullHttpResponse copy = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(), content.copy());
-            copy.headers().set(headers());
-            copy.trailingHeaders().set(trailingHeaders());
-            return copy;
-        }
+    /**
+     * Returns the date header value with the specified header name.  If there are more than one header value for the
+     * specified header name, the first value is returned.
+     * The value is parsed as per the
+     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> using the format:
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     *
+     * @param name The name of the header to search
+     *
+     * @return the header value
+     *
+     * @throws ParseException if there is no such header or the header value is not a formatted date
+     */
+    public abstract Date getDateHeader(CharSequence name) throws ParseException;
 
-        @Override
-        public FullHttpResponse duplicate() {
-            DefaultFullHttpResponse dup = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(),
-                                                                      content.duplicate());
-            dup.headers().set(headers());
-            dup.trailingHeaders().set(trailingHeaders());
-            return dup;
-        }
+    /**
+     * Returns the date header value with the specified header name.  If there are more than one header value for the
+     * specified header name, the first value is returned.
+     * The value is parsed as per the
+     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> using the format:
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     *
+     * @param name The name of the header to search
+     * @param defaultValue Default value if there is no header with this name.
+     *
+     * @return the header value or {@code defaultValue} if there is no header with this name.
+     */
+    public abstract Date getDateHeader(CharSequence name, Date defaultValue);
 
-        @Override
-        public FullHttpResponse retain(int increment) {
-            content.retain(increment);
-            return this;
-        }
+    /**
+     * Returns the integer header value with the specified header name.  If there are more than one header value for
+     * the specified header name, the first value is returned.
+     *
+     * @param name The name of the header to search
+     *
+     * @return the header value
+     *
+     * @throws NumberFormatException if there is no such header or the header value is not a number
+     */
+    public abstract int getIntHeader(CharSequence name);
 
-        @Override
-        public FullHttpResponse retain() {
-            content.retain();
-            return this;
-        }
+    /**
+     * Returns the integer header value with the specified header name.  If there are more than one header value for
+     * the specified header name, the first value is returned.
+     *
+     * @param name The name of the header to search
+     * @param defaultValue Default if the header does not exist.
+     *
+     * @return the header value or the {@code defaultValue} if there is no such header or the header value is not a
+     * number
+     */
+    public abstract int getIntHeader(CharSequence name, int defaultValue);
 
-        @Override
-        public FullHttpResponse touch() {
-            content.touch();
-            return this;
-        }
+    /**
+     * Returns a new {@link Set} that contains the names of all headers in this response.  Note that modifying the
+     * returned {@link Set} will not affect the state of this response.
+     */
+    public abstract Set<String> getHeaderNames();
 
-        @Override
-        public FullHttpResponse touch(Object hint) {
-            content.touch(hint);
-            return this;
-        }
+    /**
+     * Adds an HTTP header with the passed {@code name} and {@code value} to this response.
+     *
+     * @param name Name of the header.
+     * @param value Value for the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> addHeader(CharSequence name, Object value);
 
-        @Override
-        public FullHttpResponse setProtocolVersion(HttpVersion version) {
-            headers.setProtocolVersion(version);
-            return this;
-        }
+    /**
+     * Adds the passed {@code cookie} to this response.
+     *
+     * @param cookie Cookie to add.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> addCookie(Cookie cookie);
 
-        @Override
-        public FullHttpResponse setStatus(HttpResponseStatus status) {
-            headers.setStatus(status);
-            return this;
-        }
+    /**
+     * Adds the passed header as a date value to this response. The date is formatted using netty's
+     * {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date as per the
+     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     *
+     * @param name Name of the header.
+     * @param value Value of the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> addDateHeader(CharSequence name, Date value);
 
-        @Override
-        public ByteBuf content() {
-            return content;
-        }
+    /**
+     * Adds multiple date values for the passed header name to this response. The date values are formatted using netty's
+     * {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date as per the
+     * <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into the format:
+     *
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     *
+     * @param name Name of the header.
+     * @param values Values for the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> addDateHeader(CharSequence name, Iterable<Date> values);
 
-        @Override
-        public HttpResponseStatus getStatus() {
-            return headers.getStatus();
-        }
+    /**
+     * Adds an HTTP header with the passed {@code name} and {@code values} to this response.
+     *
+     * @param name Name of the header.
+     * @param values Values for the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> addHeader(CharSequence name, Iterable<Object> values);
 
-        @Override
-        public HttpResponseStatus status() {
-            return headers.status();
-        }
+    /**
+     * Overwrites the current value, if any, of the passed header to the passed date value for this response. The date is
+     * formatted using netty's {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the date
+     * as per the <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a> into
+     * the format:
+     * <p/>
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     *
+     * @param name Name of the header.
+     * @param value Value of the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> setDateHeader(CharSequence name, Date value);
 
-        @Override
-        public HttpVersion getProtocolVersion() {
-            return headers.getProtocolVersion();
-        }
+    /**
+     * Overwrites the current value, if any, of the passed header to the passed value for this response.
+     *
+     * @param name Name of the header.
+     * @param value Value of the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> setHeader(CharSequence name, Object value);
 
-        @Override
-        public HttpVersion protocolVersion() {
-            return headers.protocolVersion();
-        }
+    /**
+     * Overwrites the current value, if any, of the passed header to the passed date values for this response. The date
+     * is formatted using netty's {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the
+     * date as per the <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a>
+     * into the format:
+     * <p/>
+     * <PRE>"E, dd MMM yyyy HH:mm:ss z"</PRE>
+     *
+     * @param name Name of the header.
+     * @param values Values of the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> setDateHeader(CharSequence name, Iterable<Date> values);
 
-        @Override
-        public HttpHeaders headers() {
-            return headers.headers();
-        }
+    /**
+     * Overwrites the current value, if any, of the passed header to the passed values for this response.
+     *
+     * @param name Name of the header.
+     * @param values Values of the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> setHeader(CharSequence name, Iterable<Object> values);
 
-        @Override
-        public HttpHeaders trailingHeaders() {
-            return trailingHeaders;
-        }
+    /**
+     * Removes the passed header from this response.
+     *
+     * @param name Name of the header.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> removeHeader(CharSequence name);
 
-        @Override
-        public DecoderResult getDecoderResult() {
-            return DecoderResult.SUCCESS;
-        }
+    /**
+     * Sets the status for the response.
+     *
+     * @param status Status to set.
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> setStatus(HttpResponseStatus status);
 
-        @Override
-        public DecoderResult decoderResult() {
-            return getDecoderResult();
-        }
+    /**
+     * Sets the HTTP transfer encoding to chunked for this response. This delegates to
+     * {@link HttpHeaders#setTransferEncodingChunked(HttpMessage)}
+     *
+     * @return {@code this}
+     */
+    public abstract HttpServerResponse<C> setTransferEncodingChunked();
 
-        @Override
-        public void setDecoderResult(DecoderResult result) {
-            // No op as we use this only for write.
-        }
+    /**
+     * This is a performance optimization to <em>not</em> flush the channel on every response send.
+     *
+     * <h2>When NOT to use</h2>
+     * This can be used
+     * only when the processing for a server is not asynchronous, in which case, one would have to flush the responses
+     * written explicitly (done on completion of the {@link Observable} written). Something like this:
+     *
+     <PRE>
+     resp.sendHeaders()
+         .writeStringAndFlushOnEach(Observable.interval(1, TimeUnit.SECONDS))
+                                              .map(aLong -> "Interval =>" + aLong)
+                                   )
+     </PRE>
+     *
+     * <h2>When to use</h2>
+     *
+     * This can be used when the response is written synchronously from a {@link RequestHandler}, something like:
+     *
+     <PRE>
+     response.writeString(Observable.just("Hello world");
+     </PRE>
+     *
+     * When set, this will make the channel to be flushed only when all the requests available on the channel are
+     * read. Thus, making it possible to do a gathering write for all pipelined requests on a connection. This reduces
+     * the number of system calls and is helpful in "Hello World" benchmarks.
+     */
+    public abstract HttpServerResponse<C> flushOnlyOnReadComplete();
 
-        @Override
-        public int refCnt() {
-            return content.refCnt();
-        }
+    /**
+     * Converts this response to enable writing {@link ServerSentEvent}s.
+     *
+     * @return This response with writing of {@link ServerSentEvent} enabled.
+     */
+    @Experimental
+    public abstract HttpServerResponse<ServerSentEvent> transformToServerSentEvents();
 
-        @Override
-        public boolean release() {
-            return content.release();
-        }
+    /**
+     * Enables wire logging at the passed level for this response.
+     *
+     * @param wireLogginLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
+     *                        logging is enabled at this level for {@link LoggingHandler}
+     *
+     * @return {@code this}.
+     */
+    public abstract HttpServerResponse<C> enableWireLogging(LogLevel wireLogginLevel);
 
-        @Override
-        public boolean release(int decrement) {
-            return content.release(decrement);
-        }
-    }
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the first position of the pipeline as specified by
+     * {@link ChannelPipeline#addFirst(String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerFirst(String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the first position of the pipeline as specified by
+     * {@link ChannelPipeline#addFirst(EventExecutorGroup, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the last position of the pipeline as specified by
+     * {@link ChannelPipeline#addLast(String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerLast(String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added at the last position of the pipeline as specified by
+     * {@link ChannelPipeline#addLast(EventExecutorGroup, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                                      ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addBefore(String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param baseName  the name of the existing handler
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerBefore(String baseName, String name,
+                                                                        ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addBefore(EventExecutorGroup, String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param baseName  the name of the existing handler
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
+                                                                        String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addAfter(String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param baseName  the name of the existing handler
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerAfter(String baseName, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to the {@link ChannelPipeline} for the connection used by this response. The
+     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
+     * specified by {@link ChannelPipeline#addAfter(EventExecutorGroup, String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param baseName  the name of the existing handler
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> addChannelHandlerAfter(EventExecutorGroup group,
+                                                                       String baseName, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Configures the {@link ChannelPipeline} for the connection used by this response.
+     *
+     * @param pipelineConfigurator Action to configure {@link ChannelPipeline}.
+     *
+     * @return {@code this} with proper types.
+     */
+    public abstract <CC> HttpServerResponse<CC> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
+
+    /**
+     * Disposes this response. If the response is not yet set then this will attempt to send an error response if the
+     * connection is still open.
+     *
+     * @return An {@link Observable}, subscription to which will dispose this response.
+     */
+    public abstract Observable<Void> dispose();
+
+    /**
+     * Returns the underlying channel on which this response was received.
+     *
+     * @return The underlying channel on which this response was received.
+     */
+    public abstract Channel unsafeNettyChannel();
 }

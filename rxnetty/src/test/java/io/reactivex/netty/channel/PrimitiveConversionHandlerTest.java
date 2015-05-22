@@ -33,7 +33,7 @@ public class PrimitiveConversionHandlerTest {
     @Rule
     public final ConverterRule converterRule = new ConverterRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteString() throws Exception {
         String msg = "Hello";
         converterRule.channel.writeAndFlush(msg);
@@ -46,7 +46,7 @@ public class PrimitiveConversionHandlerTest {
         assertThat("Unexpected content of buffer written.", asBB.toString(Charset.defaultCharset()), equalTo(msg));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testWriteByteArray() throws Exception {
         byte[] msg = "Hello".getBytes();
         converterRule.channel.writeAndFlush(msg);

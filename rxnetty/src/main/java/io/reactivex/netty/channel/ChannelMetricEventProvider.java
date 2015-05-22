@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,15 +18,13 @@ package io.reactivex.netty.channel;
 import io.reactivex.netty.metrics.MetricsEvent;
 
 /**
- * An {@link ObservableConnection} and the underlying netty channel is the same irrespective of whether it is used by
+ * An {@link Connection} and the underlying netty channel is the same irrespective of whether it is used by
  * the client or the server. However, the metric events are specific to clients and servers, so, this class makes it
  * possible to use the same ObservableConnection both with client and server.
  *
  * <h2>Event types</h2>
  * Since our event model does not have a common type, this class also does not check for type safety but assumes that
  * the provider is providing the correct event types (matching with the attached publisher)
- *
- * @author Nitesh Kant
  */
 public abstract class ChannelMetricEventProvider {
 

@@ -18,7 +18,6 @@ package io.reactivex.netty.protocol.tcp.client;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ClientConnectionSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -27,17 +26,15 @@ import rx.functions.Func1;
 
 /**
  * An implementation of {@link ClientConnectionFactory} that creates a new connection for every call to
- * {@link #connect()} and closes the physical connection when {@link ObservableConnection#close()} is
+ * {@link #connect()} and closes the physical connection when {@link Connection#close()} is
  * invoked.
  *
  * @param <W> Type of object that is written to the client using this factory.
  * @param <R> Type of object that is read from the the client using this factory.
- *
- * @author Nitesh Kant
  */
 public final class UnpooledClientConnectionFactory<W, R> extends ClientConnectionFactory<W, R> {
 
-    protected UnpooledClientConnectionFactory(ClientState<W, R> clientState) {
+    public UnpooledClientConnectionFactory(ClientState<W, R> clientState) {
         super(clientState);
     }
 

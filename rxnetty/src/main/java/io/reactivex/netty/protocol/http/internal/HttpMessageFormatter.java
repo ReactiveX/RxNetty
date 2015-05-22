@@ -37,14 +37,7 @@ public final class HttpMessageFormatter {
                .append(version.text())
                .append('\n');
 
-        while (headers.hasNext()) {
-            Entry<String, String> next = headers.next();
-            builder.append(next.getKey())
-                   .append(": ")
-                   .append(next.getValue())
-                   .append('\n');
-        }
-        builder.append('\n');
+        printHeaders(headers, builder);
 
         return builder.toString();
     }
@@ -59,14 +52,20 @@ public final class HttpMessageFormatter {
                .append(status.reasonPhrase())
                .append('\n');
 
+        printHeaders(headers, builder);
+
+        return builder.toString();
+    }
+
+    private static void printHeaders(Iterator<Entry<String, String>> headers, StringBuilder builder) {
         while (headers.hasNext()) {
             Entry<String, String> next = headers.next();
             builder.append(next.getKey())
                    .append(": ")
-                   .append(next.getValue());
+                   .append(next.getValue())
+                   .append('\n');
         }
-        builder.append('\n');
 
-        return builder.toString();
+        builder.append('\n');
     }
 }

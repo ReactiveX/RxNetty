@@ -25,8 +25,6 @@ import java.util.concurrent.TimeUnit;
  * A convenience implementation for {@link MetricEventsListener} for receiving {@link HttpServerMetricsEvent}. This
  * implementation receives the events and provides convenience methods representing those events with clear arguments
  * that are expected with that event type.
- *
- * @author Nitesh Kant
  */
 public abstract class HttpServerMetricEventsListener extends ServerMetricEventsListener<ServerMetricsEvent<?>> {
 

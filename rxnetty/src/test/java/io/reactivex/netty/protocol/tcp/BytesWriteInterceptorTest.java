@@ -34,7 +34,7 @@ public class BytesWriteInterceptorTest {
     @Rule
     public final InspectorRule inspectorRule = new InspectorRule();
 
-    @Test
+    @Test(timeout = 60000)
     public void testAddSubscriber() throws Exception {
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
         inspectorRule.interceptor.addSubscriber(sub1);
@@ -47,7 +47,7 @@ public class BytesWriteInterceptorTest {
         assertThat("Subscriber not removed post unsubscribe", inspectorRule.interceptor.getSubscribers(), is(empty()));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRequestMore() throws Exception {
 
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
@@ -68,7 +68,7 @@ public class BytesWriteInterceptorTest {
         assertThat("Unexpected items requested.", mockProducer.getRequested(), is(1L));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRequestMorePostFlush() throws Exception {
 
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
@@ -97,7 +97,7 @@ public class BytesWriteInterceptorTest {
         assertThat("Unexpected items requested.", mockProducer.getRequested(), is(1L));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testMultiSubscribers() throws Exception {
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
         MockProducer producer1 = InspectorRule.setupSubscriber(sub1);

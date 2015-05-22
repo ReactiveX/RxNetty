@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,6 @@ import java.util.concurrent.TimeUnit;
  * One of the major concerns in publishing metric events is the object allocation overhead and having a Clock instance
  * can attribute to such overheads. This is the reason why this class also provides static convenience methods to mark
  * start and end of times to reduce some boiler plate code.
- *
- * @author Nitesh Kant
  */
 public class Clock {
 

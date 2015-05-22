@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -15,9 +15,6 @@
  */
 package io.reactivex.netty.client;
 
-/**
- * @author Nitesh Kant
- */
 public class PoolExhaustedException extends Exception {
 
     private static final long serialVersionUID = -6299997509113653123L;

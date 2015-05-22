@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,6 @@ package io.reactivex.netty.metrics;
 
 import rx.Subscription;
 
-/**
- * @author Nitesh Kant
- */
 public interface MetricEventsPublisher<E extends MetricsEvent<?>> {
 
     Subscription subscribe(MetricEventsListener<? extends E> listener);

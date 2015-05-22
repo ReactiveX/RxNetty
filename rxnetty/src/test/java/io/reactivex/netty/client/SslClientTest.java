@@ -16,8 +16,8 @@
 package io.reactivex.netty.client;
 
 import io.netty.buffer.ByteBuf;
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.pipeline.ssl.DefaultFactories;
+import io.reactivex.netty.protocol.http.client.HttpClient;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
@@ -25,37 +25,50 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 import org.junit.Assert;
 import org.junit.Test;
 import rx.Observable;
+import rx.functions.Func1;
+import rx.observers.TestSubscriber;
 
 import javax.net.ssl.SSLException;
-import java.util.concurrent.TimeUnit;
 
-/**
- * @author Nitesh Kant
- */
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.*;
+
 public class SslClientTest {
 
-    @Test
+    @Test(timeout = 60000)
     public void testReleaseOnSslFailure() throws Exception {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.newHttpServerBuilder(0, new RequestHandler<ByteBuf, ByteBuf>() {
-            @Override
-            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
-                return Observable.empty();
-            }
-        }).build().start();
+        int serverPort = HttpServer.newServer()
+                                   .start(new RequestHandler<ByteBuf, ByteBuf>() {
+                                       @Override
+                                       public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
+                                                                      HttpServerResponse<ByteBuf> response) {
+                                           return Observable.empty();
+                                       }
+                                   })
+                                   .getServerPort();
 
         final MaxConnectionsBasedStrategy strategy = new MaxConnectionsBasedStrategy(1);
-        try {
-            // The connect fails because the server does not support SSL.
-            RxNetty.<ByteBuf, ByteBuf>newTcpClientBuilder("localhost", server.getServerPort())
-                   .withConnectionPoolLimitStrategy(strategy)
-                   .withSslEngineFactory(DefaultFactories.trustAll())
-                   .build().connect().toBlocking().toFuture().get(1, TimeUnit.MINUTES);
-        } catch (Exception e) {
-            if (!(e.getCause() instanceof SSLException)) {
-                throw e;
-            }
-        }
 
+        // The connect fails because the server does not support SSL.
+        TestSubscriber<ByteBuf> subscriber = new TestSubscriber<>();
+        HttpClient.newClient("127.0.0.1", serverPort)
+                  .connectionPoolLimitStrategy(strategy)
+                  .unsafeSecure()
+                  .createGet("/")
+                  .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
+                      @Override
+                      public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
+                          return response.getContent();
+                      }
+                  })
+                  .subscribe(subscriber);
+
+        subscriber.awaitTerminalEvent();
+
+        assertThat("Unexpected error notifications.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0), is(instanceOf(SSLException.class)));
+
+        Thread.sleep(10000); //TODO: Fix me: Seems to be a race-condition
         Assert.assertEquals("Unexpected available permits.", 1, strategy.getAvailablePermits());
     }
 }

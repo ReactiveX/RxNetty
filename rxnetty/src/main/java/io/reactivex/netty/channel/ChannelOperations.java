@@ -25,8 +25,6 @@ import rx.functions.Func1;
  * A list of user initiated operations that can be done on a channel.
  *
  * @param <W> Type of data that can be written on the associated channel.
- *
- * @author Nitesh Kant
  */
 public interface ChannelOperations<W> {
 

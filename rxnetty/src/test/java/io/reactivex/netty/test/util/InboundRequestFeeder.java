@@ -16,6 +16,7 @@
 package io.reactivex.netty.test.util;
 
 import io.netty.channel.ChannelConfig;
+import io.netty.channel.ChannelHandler.Sharable;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -32,11 +33,13 @@ import java.util.concurrent.atomic.AtomicInteger;
  * requested by {@link ChannelConfig#getMaxMessagesPerRead()}, followed by
  * {@link ChannelHandlerContext#fireChannelReadComplete()}
  */
+@Sharable
 public class InboundRequestFeeder extends ChannelOutboundHandlerAdapter {
 
     private final ConcurrentLinkedQueue<Object> feed = new ConcurrentLinkedQueue<>();
     private final AtomicInteger readRequestedCount = new AtomicInteger();
-    private boolean readPending;
+    private int pendingReads;
+    private boolean sending;
     private ChannelHandlerContext ctx;
 
     @Override
@@ -49,35 +52,46 @@ public class InboundRequestFeeder extends ChannelOutboundHandlerAdapter {
         this.ctx = ctx;
 
         readRequestedCount.incrementAndGet();
-        readPending = true;
+        pendingReads++;
 
-        if (_sendMessages(ctx) > 0) {
-            readPending = false;
-        }
+        _sendMessages(ctx);
     }
 
     public void addToTheFeed(Object... msgs) {
         if (null != msgs && msgs.length > 0) {
             Collections.addAll(feed, msgs);
-            if (readPending) {
+            if (pendingReads > 0) {
                 _sendMessages(ctx);
             }
         }
     }
 
-    private int _sendMessages(ChannelHandlerContext ctx) {
+    private void _sendMessages(ChannelHandlerContext ctx) {
+        if (sending) {
+            return;
+        }
+        sending = true;
         int sentInThisIteration = 0;
-        do {
+        while (true) {
             Object next = feed.poll();
             if (null == next) {
                 break;
             }
             sentInThisIteration++;
             ctx.fireChannelRead(next);
-        } while (sentInThisIteration < ctx.channel().config().getMaxMessagesPerRead());
 
-        ctx.fireChannelReadComplete();
-        return sentInThisIteration;
+            if (sentInThisIteration >= ctx.channel().config().getMaxMessagesPerRead()) {
+                sentInThisIteration = 0;
+                pendingReads--;
+                ctx.fireChannelReadComplete();
+            }
+
+            if (pendingReads <= 0) {
+                break;
+            }
+        }
+
+        sending = false;
     }
 
     public int getReadRequestedCount() {

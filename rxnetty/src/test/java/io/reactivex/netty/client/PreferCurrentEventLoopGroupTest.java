@@ -28,7 +28,7 @@ import static org.junit.Assert.*;
 
 public class PreferCurrentEventLoopGroupTest {
 
-    @Test
+    @Test(timeout = 60000)
     public void testNextInEventloop() throws Exception {
         final PreferCurrentEventLoopGroup group = new PreferCurrentEventLoopGroup(new NioEventLoopGroup(4));
         Set<EventExecutor> children = group.children();

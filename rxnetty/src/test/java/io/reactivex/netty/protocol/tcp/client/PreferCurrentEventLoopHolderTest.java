@@ -19,12 +19,16 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.Future;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
+import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
+import io.reactivex.netty.channel.pool.PoolConfig;
+import io.reactivex.netty.channel.pool.PooledConnection;
+import io.reactivex.netty.channel.pool.PooledConnection.Owner;
 import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.tcp.client.PooledConnection.Owner;
 import io.reactivex.netty.protocol.tcp.client.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
 import org.junit.Rule;
 import org.junit.Test;
@@ -52,15 +56,10 @@ public class PreferCurrentEventLoopHolderTest {
     public void testPollOutOfEventloop() throws Exception {
         PooledConnection<String, String> connection1 = preferCurrentELHolderRule.addConnection();
 
-        /*Make sure the connection is not available in the eventloop*/
-        PooledConnection<String, String> connection = preferCurrentELHolderRule.holder.pollThisEventLoopConnections()
-                                                                                      .defaultIfEmpty(null)
-                                                                                      .toBlocking()
-                                                                                      .single();
-        assertThat("Connection available in the eventloop.", connection, is(nullValue()));
 
-        connection = preferCurrentELHolderRule.holder.poll()
-                                                     .defaultIfEmpty(null).toBlocking().single();
+        PooledConnection<String, String> connection = preferCurrentELHolderRule.holder.poll()
+                                                                                      .defaultIfEmpty(null).toBlocking()
+                                                                                      .single();
 
         assertThat("Unexpected connection.", connection, is(connection1));
     }
@@ -96,20 +95,6 @@ public class PreferCurrentEventLoopHolderTest {
                 return null;
             }
         }).get(1, TimeUnit.MINUTES);
-    }
-
-    @Test(timeout = 60000)
-    public void testPollThisEventLoopConnectionsOutOfEl() throws Exception {
-        final PooledConnection<String, String> connection1 = preferCurrentELHolderRule.addConnection();
-        PooledConnection<String, String> connection = preferCurrentELHolderRule.holder.pollThisEventLoopConnections()
-                                                                                      .defaultIfEmpty(null)
-                                                                                      .toBlocking().single();
-        assertThat("Connection available out of the eventloop.", connection, is(nullValue()));
-
-        connection = preferCurrentELHolderRule.holder.poll()
-                                                     .defaultIfEmpty(null)
-                                                     .toBlocking().single();
-        assertThat("Connection not available with poll.", connection, is(connection1));
     }
 
     @Test(timeout = 60000)

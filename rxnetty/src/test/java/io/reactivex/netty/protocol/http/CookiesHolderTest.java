@@ -35,7 +35,7 @@ import static org.hamcrest.Matchers.*;
 
 public class CookiesHolderTest {
 
-    @Test
+    @Test(timeout = 60000)
     public void testClientResponseHolder() throws Exception {
         DefaultHttpResponse headers = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         String cookie1Name = "PREF";
@@ -65,7 +65,7 @@ public class CookiesHolderTest {
         assertThat("Unexpected cookie domain.", cookieFound.domain(), equalTo(cookie1Domain));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testServerRequestHolder() throws Exception {
         DefaultHttpRequest headers = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "");
         String cookie1Name = "PREF";

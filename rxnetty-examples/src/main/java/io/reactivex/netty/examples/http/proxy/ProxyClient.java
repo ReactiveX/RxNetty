@@ -18,8 +18,8 @@ package io.reactivex.netty.examples.http.proxy;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.protocol.http.clientNew.HttpClient;
-import io.reactivex.netty.protocol.http.clientNew.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.HttpClient;
+import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
 import java.nio.charset.Charset;
 
@@ -37,7 +37,7 @@ import java.nio.charset.Charset;
  * the port on which the server started to this class as a program argument:
  *
  <PRE>
-    java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
+    java io.reactivex.netty.examples.http.proxy.ProxyClient [server port]
  </PRE>
  *
  * <h2>Existing HTTP server</h2>
@@ -46,7 +46,7 @@ import java.nio.charset.Charset;
  * {@link ProxyServer}) by passing the port fo the existing server similar to the case above:
  *
  <PRE>
- java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
+ java io.reactivex.netty.examples.http.proxy.ProxyClient [server port]
  </PRE>
  *
  * In all the above usages, this client will print the response received from the server.
@@ -63,7 +63,7 @@ public class ProxyClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that port.</li>
          </ul>
          */
-        int port = 8088;
+        int port = getServerPort(ProxyServer.class, args);
 
         HttpClient.newClient("localhost", port) /*Create a client*/.noConnectionPooling()
                   .createGet("/hello") /*Creates a GET request with URI "/hello"*/

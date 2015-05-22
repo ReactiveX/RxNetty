@@ -36,9 +36,6 @@ import io.netty.util.concurrent.GlobalEventExecutor;
 
 import java.net.SocketAddress;
 
-/**
- * @author Nitesh Kant
- */
 public class NoOpChannelHandlerContext implements ChannelHandlerContext {
 
     private final DefaultAttributeMap attributeMap = new DefaultAttributeMap();

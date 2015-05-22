@@ -1,4 +1,0 @@
-dependencies {
-    compile project(':rxnetty')
-    testCompile project(':rxnetty-servo')
-}

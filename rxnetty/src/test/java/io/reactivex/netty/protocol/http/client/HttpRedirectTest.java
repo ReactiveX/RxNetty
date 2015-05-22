@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,188 +16,243 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.protocol.http.server.HttpServer;
-import io.reactivex.netty.protocol.http.server.HttpServerBuilder;
-import io.reactivex.netty.server.RxServerThreadFactory;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import io.netty.handler.codec.http.HttpVersion;
+import org.junit.Rule;
 import org.junit.Test;
-import rx.Observable;
-import rx.functions.Action0;
-import rx.functions.Func1;
+import rx.observers.TestSubscriber;
 
-import java.nio.charset.Charset;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import static org.hamcrest.MatcherAssert.*;
+import static org.hamcrest.Matchers.*;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-
-/**
- * @author Nitesh Kant
- */
 public class HttpRedirectTest {
 
-    private static HttpServer<ByteBuf, ByteBuf> server;
+    @Rule
+    public final HttpClientRule clientRule = new HttpClientRule();
 
-    private static int port;
+    @Test(timeout = 60000)
+    public void testNoLocation() throws Exception {
 
-    @BeforeClass
-    public static void init() {
-        server = new HttpServerBuilder<ByteBuf, ByteBuf>(port, new RequestProcessor())
-                .eventLoop(new NioEventLoopGroup(10, new RxServerThreadFactory()))
-                .enableWireLogging(LogLevel.DEBUG).build().start();
-        port = server.getServerPort(); // Using ephemeral ports
-        System.out.println("Mock server using ephemeral port; " + port);
+        final String requestUri = "/";
+
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(requestUri);
+
+        assertRequestWritten(requestUri);
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.SEE_OTHER);
+        clientRule.feedResponseAndComplete(response);
+
+        subscriber.awaitTerminalEvent();
+
+        assertThat("Unexpected error notifications count.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0),
+                   is(instanceOf(HttpRedirectException.class)));
+
     }
 
-    @AfterClass
-    public static void shutDown() throws InterruptedException {
-        server.shutdown();
+    @Test(timeout = 60000)
+    public void testInvalidRedirectLocation() throws Exception {
+
+        final String requestUri = "/";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(requestUri);
+
+        assertRequestWritten(requestUri);
+        sendRedirects(" "); // blank is an invalid URI
+
+        subscriber.awaitTerminalEvent();
+
+        assertThat("Unexpected error notifications count.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0),
+                   is(instanceOf(HttpRedirectException.class)));
+
     }
 
-    @Test(expected = HttpRedirectException.class)
+    @Test(timeout = 60000)
     public void testTooManyRedirect() throws Throwable {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
-        HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                                                    .followRedirect(2).build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config).enableWireLogging(LogLevel.ERROR)
-                .build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirectLimited?redirectsRequested=6"));
-        assertEquals("Hello world", content);
+
+        final String requestUri = "/";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(requestUri);
+
+        assertRequestWritten(requestUri);
+        sendRedirects("/blah", "/blah");
+
+        subscriber.awaitTerminalEvent();
+
+        assertThat("Unexpected error notifications count.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0),
+                   is(instanceOf(HttpRedirectException.class)));
     }
 
-    @Test(expected = HttpRedirectException.class)
+    @Test(timeout = 60000)
     public void testRedirectLoop() throws Throwable {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
-        HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                                                    .followRedirect(2).build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config).enableWireLogging(LogLevel.ERROR)
-                .build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirectLoop?redirectsRequested=6"));
-        assertEquals("Hello world", content);
+
+        final String requestUri = "/blah";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(requestUri);
+
+        assertRequestWritten(requestUri);
+        sendRedirects(requestUri);
+
+        subscriber.awaitTerminalEvent();
+
+        assertThat("Unexpected error notifications count.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0),
+                   is(instanceOf(HttpRedirectException.class)));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testAbsoluteRedirect() throws Throwable {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
-        HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                                                    .build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config).enableWireLogging(LogLevel.ERROR)
-                .build();
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("test/redirectAbsolute");
-        HttpClientResponse<ByteBuf> response = client.submit(request)
-                                                      .map(new Func1<HttpClientResponse<ByteBuf>, HttpClientResponse<ByteBuf>>() {
-                                                          @Override
-                                                          public HttpClientResponse<ByteBuf> call(
-                                                                  HttpClientResponse<ByteBuf> response) {
-                                                              response.ignoreContent();
-                                                              return response;
-                                                          }
-                                                      })
-                                                      .doOnCompleted(new Action0() {
-                                                          @Override
-                                                          public void call() {
-                                                              System.out.println("HttpRedirectTest.call");
-                                                          }
-                                                      })
-                                                      .toBlocking().toFuture().get(1, TimeUnit.MINUTES);
-        assertEquals("Unexpected response code.", HttpResponseStatus.MOVED_PERMANENTLY, response.getStatus());
-        String locationHeader = response.getHeaders().get("Location");
-        assertNotNull("Location header not found.", locationHeader);
-        assertTrue("Location was not absolute.", locationHeader.startsWith("http"));
+
+        final String requestUri = "/blah";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(requestUri);
+
+        assertRequestWritten(requestUri);
+        sendRedirects("http://localhost:8888/blah");
+
+        subscriber.awaitTerminalEvent();
+        subscriber.assertNoErrors();
+
+        assertThat("Unexpected onNext notifications count.", subscriber.getOnNextEvents(), hasSize(1));
+        HttpClientResponse<ByteBuf> response = subscriber.getOnNextEvents().get(0);
+        assertThat("Unexpected response.", response, is(notNullValue()));
+        assertThat("Unexpected response status.", response.getStatus().code(), is(HttpResponseStatus.SEE_OTHER.code()));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRedirectNoConnPool() throws Throwable {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
-        HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                                                    .build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config).enableWireLogging(LogLevel.ERROR)
-                .build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirect"));
-        assertEquals("Hello world", content);
+
+        final String requestUri = "/";
+
+        HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(true).noConnectionPooling();
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(client, requestUri);
+
+        assertRequestWritten(requestUri);
+        sendRedirects("/blah", "/blah");
+
+        subscriber.awaitTerminalEvent();
+
+        assertThat("Unexpected error notifications count.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0),
+                   is(instanceOf(HttpRedirectException.class)));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testRedirectWithConnPool() throws Throwable {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
-        HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                                                    .build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config).enableWireLogging(LogLevel.ERROR).withMaxConnections(10).build();
-        String content = invokeBlockingCall(client, HttpClientRequest.createGet("test/redirect"));
-        assertEquals("Hello world", content);
+        HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(true).maxConnections(10);
+
+        final String requestUri = "/";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(client, requestUri);
+        assertRequestWritten(requestUri);
+
+        sendRedirects("/blah", "/blah");
+
+        subscriber.awaitTerminalEvent();
+
+        assertThat("Unexpected error notifications count.", subscriber.getOnErrorEvents(), hasSize(1));
+        assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0),
+                   is(instanceOf(HttpRedirectException.class)));
     }
 
-    @Test
+    @Test(timeout = 60000)
     public void testNoRedirect() {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null).setFollowRedirect(false);
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createGet("test/redirect");
-        HttpClient.HttpClientConfig config = builder.readTimeout(20000, TimeUnit.MILLISECONDS)
-                                                    .build();
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config)
-                .build();
-        HttpClientResponse<ByteBuf> response = client.submit(request).toBlocking().single();
-        assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
+        HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(false);
+
+        final String requestUri = "/";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(client, requestUri);
+
+        assertRequestWritten(requestUri);
+        sendRedirects("/blah2");
+
+        subscriber.awaitTerminalEvent();
+        subscriber.assertNoErrors();
+
+        assertThat("Unexpected onNext notifications count.", subscriber.getOnNextEvents(), hasSize(1));
+        HttpClientResponse<ByteBuf> response = subscriber.getOnNextEvents().get(0);
+        assertThat("Unexpected response.", response, is(notNullValue()));
+        assertThat("Unexpected response status.", response.getStatus().code(), is(HttpResponseStatus.SEE_OTHER.code()));
     }
 
-
-    @Test
+    @Test(timeout = 60000)
     public void testRedirectPost() throws Throwable {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
-        HttpClient.HttpClientConfig config = builder.setFollowRedirect(true).build();
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost")
-                                                              .withContent("Hello world");
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config)
-                .build();
-        String content = invokeBlockingCall(client, request);
-        assertEquals("Hello world", content);
+
+        final String requestUri = "/";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(HttpMethod.POST, requestUri);
+
+        final HttpResponseStatus responseStatus = HttpResponseStatus.FOUND;
+
+        clientRule.assertRequestHeadersWritten(HttpMethod.POST, requestUri);
+        sendRedirects(responseStatus, "/blah");
+
+        subscriber.awaitTerminalEvent();
+        subscriber.assertNoErrors();
+
+        assertThat("Unexpected onNext notifications count.", subscriber.getOnNextEvents(), hasSize(1));
+        HttpClientResponse<ByteBuf> response = subscriber.getOnNextEvents().get(0);
+        assertThat("Unexpected response.", response, is(notNullValue()));
+        assertThat("Unexpected response status.", response.getStatus().code(), is(responseStatus.code()));
     }
 
-    @Test
-    public void testNoRedirectPost() {
-        HttpClient.HttpClientConfig.Builder builder = new HttpClient.HttpClientConfig.Builder(null);
-        HttpClient.HttpClientConfig config = builder.build();
-        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("test/redirectPost")
-                                                              .withContent("Hello world");
-        HttpClient<ByteBuf, ByteBuf> client = new HttpClientBuilder<ByteBuf, ByteBuf>("localhost", port)
-                .config(config)
-                .build();
-        HttpClientResponse<ByteBuf> response = client.submit(request).toBlocking().single();
-        assertEquals(HttpResponseStatus.MOVED_PERMANENTLY.code(), response.getStatus().code());
+    @Test(timeout = 60000)
+    public void testRedirectPostWith303() throws Throwable {
+
+        final String requestUri = "/";
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(HttpMethod.POST, requestUri);
+
+        clientRule.assertRequestHeadersWritten(HttpMethod.POST, requestUri);
+        sendRedirects(HttpResponseStatus.SEE_OTHER, "/blah");
+
+        sendResponse(HttpResponseStatus.OK);
+
+        subscriber.awaitTerminalEvent();
+        subscriber.assertNoErrors();
+
+        assertThat("Unexpected onNext notifications count.", subscriber.getOnNextEvents(), hasSize(1));
+        HttpClientResponse<ByteBuf> response = subscriber.getOnNextEvents().get(0);
+        assertThat("Unexpected response.", response, is(notNullValue()));
+        assertThat("Unexpected response status.", response.getStatus().code(), is(HttpResponseStatus.OK.code()));
     }
 
-    private static String invokeBlockingCall(HttpClient<ByteBuf, ByteBuf> client, HttpClientRequest<ByteBuf> request)
-            throws Throwable {
-        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
-        try {
-            return response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<String>>() {
-                @Override
-                public Observable<String> call(HttpClientResponse<ByteBuf> response) {
-                    return response.getContent().map(new Func1<ByteBuf, String>() {
-                        @Override
-                        public String call(ByteBuf byteBuf) {
-                            return byteBuf.toString(Charset.defaultCharset());
-                        }
-                    });
-                }
-            }).toBlocking().toFuture().get(1, TimeUnit.MINUTES);
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof HttpRedirectException) {
-                throw e.getCause();
-            }
-            throw e;
+    private static TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(HttpClient<ByteBuf, ByteBuf> client,
+                                                                           HttpMethod method, String uri) {
+        final HttpClientRequest<ByteBuf, ByteBuf> req = client.createRequest(method, uri);
+        TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = new TestSubscriber<>();
+        req.subscribe(subscriber);
+        return subscriber;
+    }
+
+    private void assertRequestWritten(String uri) {
+        clientRule.assertRequestHeadersWritten(HttpMethod.GET, uri);
+    }
+
+    private static TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(HttpClient<ByteBuf, ByteBuf> client,
+                                                                           String uri) {
+        return sendRequest(client, HttpMethod.GET, uri);
+    }
+
+    private TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(String uri) {
+        return sendRequest(clientRule.getHttpClient().followRedirects(1), uri);
+    }
+
+    private TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(HttpMethod method, String uri) {
+        return sendRequest(clientRule.getHttpClient().followRedirects(1), method, uri);
+    }
+
+    private void sendRedirects(String... locations) {
+        sendRedirects(HttpResponseStatus.SEE_OTHER, locations);
+    }
+
+    private void sendRedirects(HttpResponseStatus redirectStatus, String... locations) {
+        for (String location : locations) {
+            HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, redirectStatus);
+            response.headers().set(Names.LOCATION, location);
+            clientRule.feedResponseAndComplete(response);
         }
+    }
+
+    private void sendResponse(HttpResponseStatus redirectStatus) {
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, redirectStatus);
+        clientRule.feedResponseAndComplete(response);
     }
 }

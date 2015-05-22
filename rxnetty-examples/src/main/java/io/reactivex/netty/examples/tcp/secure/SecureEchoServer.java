@@ -17,9 +17,9 @@
 package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.codec.StringLineDecoder;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
-import io.reactivex.netty.protocol.text.StringLineDecoder;
 
 import java.nio.charset.Charset;
 
@@ -29,23 +29,20 @@ import java.nio.charset.Charset;
  */
 public final class SecureEchoServer extends AbstractServerExample {
 
-    static TcpServer<ByteBuf, ByteBuf> serverIfRunning;
-
     public static void main(final String[] args) {
-        serverIfRunning = TcpServer.newServer(0)
-                                   .unsafeSecure()
-                                   .start(connection -> connection
-                                           .writeStringAndFlushOnEach(connection.getInput()
-                                                                                .map(bb -> bb.toString(
-                                                                                        Charset.defaultCharset()))
-                                                                                .doOnNext(logger::error)
-                                                                                .map(msg -> "echo => " + msg)));
+        TcpServer<ByteBuf, ByteBuf> server = TcpServer.newServer(0)
+                                                      .unsafeSecure()
+                                                      .start(connection ->
+                     connection.writeStringAndFlushOnEach(connection.getInput()
+                                                                    .map(bb -> bb.toString(Charset.defaultCharset()))
+                                                                    .doOnNext(logger::error)
+                                                                    .map(msg -> "echo => " + msg)));
 
         if (shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
-            serverIfRunning.waitTillShutdown();
+            server.awaitShutdown();
         }
 
-        serverPort = serverIfRunning.getServerPort();
+        setServerPort(server.getServerPort());
     }
 }

@@ -22,8 +22,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * An implementation of {@link PoolLimitDeterminationStrategy} that limits the pool based on a maximum connections limit.
  * This limit can be increased or decreased at runtime.
- *
- * @author Nitesh Kant
  */
 public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrategy {
 
