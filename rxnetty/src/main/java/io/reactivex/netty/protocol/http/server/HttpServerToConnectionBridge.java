@@ -25,51 +25,61 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.channel.ChannelOperations;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
-import io.reactivex.netty.server.ServerMetricsEvent;
+import io.reactivex.netty.protocol.http.server.events.HttpServerEventPublisher;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
 import java.util.ArrayDeque;
 import java.util.Queue;
 
-import static io.reactivex.netty.protocol.http.server.HttpServerMetricsEvent.*;
+import static java.util.concurrent.TimeUnit.*;
 
 public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridge<C> {
-
-    private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
 
     private volatile boolean activeContentSubscriberExists;
 
     private final Object contentSubGuard = new Object();
     private Queue<HttpContentSubscriberEvent<?>> pendingContentSubs; /*Guarded by contentSubGuard*/
+    private final HttpServerEventPublisher eventPublisher;
+    private int lastSeenResponseCode;
 
-    public HttpServerToConnectionBridge(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject) {
-        this.eventsSubject = eventsSubject;
+    public HttpServerToConnectionBridge(HttpServerEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     protected void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, final long startTimeMillis) {
-        eventsSubject.onEvent(RESPONSE_WRITE_START);
+        HttpResponse response = (HttpResponse) httpMsg;
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onResponseWriteStart();
+        }
+        lastSeenResponseCode = response.status().code();
     }
 
     @Override
     protected void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
                                               final long headerWriteStartTime) {
-        promise.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if (future.isSuccess()) {
-                    eventsSubject.onEvent(RESPONSE_WRITE_SUCCESS, Clock.onEndMillis(headerWriteStartTime));
-                } else {
-                    eventsSubject.onEvent(RESPONSE_WRITE_FAILED, Clock.onEndMillis(headerWriteStartTime),
-                                          future.cause());
+        final int _responseCode = lastSeenResponseCode;
+
+        if (eventPublisher.publishingEnabled()) {
+            promise.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if (eventPublisher.publishingEnabled()) {
+                        long endMillis = Clock.onEndMillis(headerWriteStartTime);
+                        if (future.isSuccess()) {
+                            eventPublisher.onResponseWriteSuccess(endMillis, MILLISECONDS, _responseCode);
+                        } else {
+                            eventPublisher.onResponseWriteFailed(endMillis, MILLISECONDS,
+                                                                 future.cause());
+                        }
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     @Override
@@ -123,19 +133,24 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     protected Object newHttpObject(Object nextItem, Channel channel) {
-        eventsSubject.onEvent(REQUEST_HEADERS_RECEIVED);
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onRequestHeadersReceived();
+        }
         return new HttpServerRequestImpl<>((HttpRequest) nextItem, channel);
     }
 
     @Override
     protected void onContentReceived() {
-        eventsSubject.onEvent(REQUEST_CONTENT_RECEIVED);
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onRequestContentReceived();
+        }
     }
 
     @Override
     protected void onContentReceiveComplete(long receiveStartTimeMillis) {
-        eventsSubject.onEvent(REQUEST_RECEIVE_COMPLETE,
-                              Clock.onEndMillis(receiveStartTimeMillis));
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onRequestReceiveComplete(Clock.onEndMillis(receiveStartTimeMillis), MILLISECONDS);
+        }
     }
 
     @Override

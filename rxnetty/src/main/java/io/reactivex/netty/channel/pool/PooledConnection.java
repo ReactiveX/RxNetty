@@ -19,8 +19,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -47,13 +47,15 @@ public class PooledConnection<R, W> extends Connection<R, W> {
 
     private final Owner<R, W> owner;
     private final Connection<R, W> unpooledDelegate;
+    private final TcpClientEventListener eventListener;
 
     private volatile long lastReturnToPoolTimeMillis;
     private volatile boolean releasedAtLeastOnce;
     private volatile long maxIdleTimeMillis;
     private final Observable<Void> releaseObservable;
 
-    private PooledConnection(Owner<R, W> owner, PoolConfig<W, R> poolConfig, Connection<R, W> unpooledDelegate) {
+    private PooledConnection(Owner<R, W> owner, PoolConfig<W, R> poolConfig, Connection<R, W> unpooledDelegate,
+                             TcpClientEventListener eventListener) {
         super(unpooledDelegate);
         if (null == owner) {
             throw new IllegalArgumentException("Pooled connection owner can not be null");
@@ -61,9 +63,14 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         if (null == unpooledDelegate) {
             throw new IllegalArgumentException("Connection delegate can not be null");
         }
-        if (null == unpooledDelegate) {
+        if (null == poolConfig) {
             throw new IllegalArgumentException("Pool config can not be null");
         }
+        if (null == eventListener) {
+            throw new IllegalArgumentException("Event listener can not be null");
+        }
+
+        this.eventListener = eventListener;
         this.owner = owner;
         this.unpooledDelegate = unpooledDelegate;
         maxIdleTimeMillis = poolConfig.getMaxIdleTimeMillis();
@@ -202,7 +209,9 @@ public class PooledConnection<R, W> extends Connection<R, W> {
             @SuppressWarnings("unchecked")
             @Override
             public void call() {
-                getEventsSubject().onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION);
+                if (getEventPublisher().publishingEnabled()) {
+                    eventListener.onPooledConnectionEviction();
+                }
             }
         });
     }
@@ -237,8 +246,10 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     }
 
     public static <R, W> PooledConnection<R, W> create(Owner<R, W> owner, PoolConfig<W, R> poolConfig,
-                                                       Connection<R, W> unpooledDelegate) {
-        final PooledConnection<R, W> toReturn = new PooledConnection<>(owner, poolConfig, unpooledDelegate);
+                                                       Connection<R, W> unpooledDelegate,
+                                                       TcpClientEventListener eventListener) {
+        final PooledConnection<R, W> toReturn = new PooledConnection<>(owner, poolConfig, unpooledDelegate,
+                                                                       eventListener);
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }

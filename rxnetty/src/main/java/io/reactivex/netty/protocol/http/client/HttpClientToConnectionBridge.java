@@ -25,9 +25,8 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.events.Clock;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
@@ -36,7 +35,7 @@ import rx.Subscriber;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
-import static io.reactivex.netty.protocol.http.client.HttpClientMetricsEvent.*;
+import static java.util.concurrent.TimeUnit.*;
 
 public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridge<C> {
 
@@ -49,29 +48,38 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR = AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
     public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
 
-    private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    private final HttpClientEventPublisher eventPublisher;
 
-    public HttpClientToConnectionBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
-        this.eventsSubject = eventsSubject;
+    public HttpClientToConnectionBridge(HttpClientEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     protected void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
-        eventsSubject.onEvent(REQUEST_WRITE_START);
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onRequestWriteStart();
+        }
     }
 
     @Override
-    protected void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise, final long headerWriteStartTime) {
-        promise.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if (future.isSuccess()) {
-                    eventsSubject.onEvent(REQUEST_WRITE_COMPLETE, headerWriteStartTime);
-                } else {
-                    eventsSubject.onEvent(REQUEST_WRITE_FAILED, headerWriteStartTime, future.cause());
+    protected void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
+                                              final long headerWriteStartTimeMillis) {
+        if (eventPublisher.publishingEnabled()) {
+            promise.addListener(new ChannelFutureListener() {
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if (eventPublisher.publishingEnabled()) {
+                        if (future.isSuccess()) {
+                            eventPublisher.onRequestWriteComplete(Clock.onEndMillis(headerWriteStartTimeMillis),
+                                                                  MILLISECONDS);
+                        } else {
+                            eventPublisher.onRequestWriteFailed(Clock.onEndMillis(headerWriteStartTimeMillis),
+                                                                MILLISECONDS, future.cause());
+                        }
+                    }
                 }
-            }
-        });
+            });
+        }
     }
 
     @Override
@@ -108,8 +116,13 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     protected Object newHttpObject(Object nextItem, Channel channel) {
-        eventsSubject.onEvent(RESPONSE_HEADER_RECEIVED);
-        final HttpClientResponseImpl<C> rxResponse = new HttpClientResponseImpl<>((HttpResponse) nextItem, channel);
+        final HttpResponse nettyResponse = (HttpResponse) nextItem;
+
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onResponseHeadersReceived(nettyResponse.status().code());
+        }
+
+        final HttpClientResponseImpl<C> rxResponse = new HttpClientResponseImpl<>(nettyResponse, channel);
         Long keepAliveTimeoutSeconds = rxResponse.getKeepAliveTimeoutSeconds();
         if (null != keepAliveTimeoutSeconds) {
             channel.attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).set(keepAliveTimeoutSeconds * 1000);
@@ -124,15 +137,17 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     protected void onContentReceived() {
-        eventsSubject.onEvent(RESPONSE_CONTENT_RECEIVED);
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onResponseContentReceived();
+        }
     }
 
     @Override
     protected void onContentReceiveComplete(long receiveStartTimeMillis) {
         connectionInputSubscriber.onCompleted(); /*Unsubscribe from the input and hence close/release connection*/
-        eventsSubject.onEvent(RESPONSE_RECEIVE_COMPLETE,
-                              Clock.onEndMillis(receiveStartTimeMillis));
-
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onResponseReceiveComplete(Clock.onEndMillis(receiveStartTimeMillis), MILLISECONDS);
+        }
     }
 
     @Override

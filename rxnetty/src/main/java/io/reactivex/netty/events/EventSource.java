@@ -13,12 +13,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.metrics;
+package io.reactivex.netty.events;
 
 import rx.Subscription;
 
-public interface MetricEventsPublisher<E extends MetricsEvent<?>> {
+/**
+ * An event source to which {@link EventListener}s can subscribe to receive events.
+ */
+public interface EventSource<T extends EventListener> {
 
-    Subscription subscribe(MetricEventsListener<? extends E> listener);
-
+    /**
+     * Subscribes the passed {@code listener} for events published by this source.
+     *
+     * @param listener Listener for events published by this source.
+     *
+     * @return Subscription, from which one can unsubscribe to stop receiving events.
+     */
+    Subscription subscribe(T listener);
 }

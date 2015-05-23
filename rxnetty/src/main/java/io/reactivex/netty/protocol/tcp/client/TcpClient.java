@@ -26,11 +26,10 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
-import io.reactivex.netty.client.ServerPool;
-import io.reactivex.netty.metrics.MetricEventsPublisher;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.functions.Action1;
@@ -55,7 +54,7 @@ import java.util.concurrent.TimeUnit;
  * @param <W> The type of objects written to this client.
  * @param <R> The type of objects read from this client.
  */
-public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMetricsEvent<?>> {
+public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListener> {
 
     public static final String TCP_CLIENT_NO_NAME = "TcpClient-no-name";
 
@@ -402,11 +401,12 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
      */
     public abstract TcpClient<W, R> unsafeSecure();
 
-    public abstract MetricEventsSubject<ClientMetricsEvent<?>> getEventsSubject();
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return newClient(TCP_CLIENT_NO_NAME, serverPool);
-    }
+    /**
+     * Returns the event publisher for this client.
+     *
+     * @return The event publisher for this client.
+     */
+    public abstract TcpClientEventPublisher getEventPublisher();
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
         return newClient(TCP_CLIENT_NO_NAME, host, port);
@@ -414,10 +414,6 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(String name, String host, int port) {
         return new TcpClientImpl<>(name, new InetSocketAddress(host, port));
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(String name, ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return new TcpClientImpl<ByteBuf, ByteBuf>(name, serverPool);
     }
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
@@ -429,18 +425,6 @@ public abstract class TcpClient<W, R> implements MetricEventsPublisher<ClientMet
                                                         Class<? extends Channel> channelClass, String name, String host,
                                                         int port) {
         return new TcpClientImpl<>(name, eventLoopGroup, channelClass, new InetSocketAddress(host, port));
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass,
-                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return newClient(eventLoopGroup, channelClass, TCP_CLIENT_NO_NAME, serverPool);
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String name,
-                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return new TcpClientImpl<>(name, eventLoopGroup, channelClass, serverPool);
     }
 
     public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress remoteAddress) {

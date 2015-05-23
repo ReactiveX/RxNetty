@@ -29,13 +29,10 @@ import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.pool.PoolConfig;
-import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
-import io.reactivex.netty.client.ServerPool;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.metrics.MetricEventsSubject;
-import io.reactivex.netty.protocol.tcp.client.ClientState.IdentityServerPool;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -428,33 +425,12 @@ public class ClientStateTest {
         assertThat("remote address not set", newState.getRemoteAddress(), is(newAddress));
     }
 
-    @Test(timeout = 60000)
-    public void testHasServerPool() throws Exception {
-        assertThat("Client state has server pool", clientStateRule.clientState.hasServerPool(), is(false));
-
-        ServerPool<ClientMetricsEvent<?>> pool = clientStateRule.newServerPool(new InetSocketAddress("localhost", 0));
-        ClientState<String, String> newState = ClientState.create(new NioEventLoopGroup(), NioSocketChannel.class,
-                                                                  pool);
-
-        assertThat("Client state has server pool", newState.hasServerPool(), is(true));
-    }
-
-    @Test(timeout = 60000)
-    public void testGetServerPool() throws Exception {
-        ServerPool<ClientMetricsEvent<?>> pool = clientStateRule.newServerPool(new InetSocketAddress("localhost", 0));
-        ClientState<String, String> newState = ClientState.create(new NioEventLoopGroup(), NioSocketChannel.class,
-                                                                  pool);
-
-        assertThat("Client state has server pool", newState.getServerPool(), is(pool));
-
-    }
-
     public static class ClientStateRule extends ExternalResource {
 
         private ClientState<String, String> clientState;
         private TcpServer<ByteBuf, ByteBuf> mockServer;
         private DetachedChannelPipeline mockPipeline;
-        private MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+        private TcpClientEventPublisher eventPublisher;
 
         @Override
         public Statement apply(final Statement base, Description description) {
@@ -471,11 +447,10 @@ public class ClientStateTest {
                                                   return newConnection.close();
                                               }
                                           });
-                    eventsSubject = new MetricEventsSubject<>();
-                    clientState = ClientState.create(mockPipeline, eventsSubject, new NioEventLoopGroup(),
+                    eventPublisher = new TcpClientEventPublisher();
+                    clientState = ClientState.create(mockPipeline, eventPublisher, new NioEventLoopGroup(),
                                                      NioSocketChannel.class,
-                                                     new IdentityServerPool(new InetSocketAddress("localhost",
-                                                                                                  mockServer.getServerPort())));
+                                                     new InetSocketAddress("localhost", mockServer.getServerPort()));
                     Mockito.verify(mockPipeline).getChannelInitializer();
                     base.evaluate();
                 }
@@ -532,43 +507,6 @@ public class ClientStateTest {
             final ClientState<String, String> current = clientState;
             clientState = newState;
             return current;
-        }
-
-        public ServerPool<ClientMetricsEvent<?>> newServerPool(final SocketAddress socketAddress) {
-            return new ServerPool<ClientMetricsEvent<?>>() {
-
-                private final Server<ClientMetricsEvent<?>> server = new Server<ClientMetricsEvent<?>>() {
-                    @Override
-                    public SocketAddress getAddress() {
-                        return socketAddress;
-                    }
-
-                    @Override
-                    public Observable<Void> getLifecycle() {
-                        return Observable.empty();
-                    }
-
-                    @Override
-                    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
-                                        Throwable throwable,
-                                        Object value) {
-                    }
-
-                    @Override
-                    public void onCompleted() {
-                    }
-
-                    @Override
-                    public void onSubscribe() {
-                    }
-                };
-
-                @Override
-                public Server<ClientMetricsEvent<?>> next() {
-                    return server;
-                }
-            };
-
         }
 
         public static class TestableChannelHandler extends ChannelDuplexHandler {

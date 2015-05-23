@@ -83,54 +83,13 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
         return maxConnections.get() - limitEnforcer.get();
     }
 
-    private void onConnectFailed() {
-        limitEnforcer.decrementAndGet();
-    }
-
-    private void onConnectionEviction() {
-        limitEnforcer.decrementAndGet();
-    }
-
     @Override
     public MaxConnectionsBasedStrategy copy() {
         return new MaxConnectionsBasedStrategy(originalMaxConnLimit);
     }
 
     @Override
-    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
-                        Object value) {
-        if (event.getType() instanceof ClientMetricsEvent.EventType) {
-            switch ((ClientMetricsEvent.EventType) event.getType()) {
-                case ConnectStart:
-                    break;
-                case ConnectSuccess:
-                    break;
-                case ConnectFailed:
-                    onConnectFailed();
-                    break;
-                case PooledConnectionReuse:
-                    break;
-                case PooledConnectionEviction:
-                    onConnectionEviction();
-                    break;
-                case ConnectionCloseStart:
-                    break;
-                case ConnectionCloseSuccess:
-                    break;
-                case ConnectionCloseFailed:
-                    break;
-            }
-        }
-    }
-
-    @Override
-    public void onCompleted() {
-        // No Op.
-    }
-
-    @Override
-    public void onSubscribe() {
-        // No Op.
-
+    public void releasePermit() {
+        limitEnforcer.decrementAndGet();
     }
 }

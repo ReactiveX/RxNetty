@@ -20,10 +20,8 @@ import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.ClientChannelMetricEventProvider;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.tcp.BackpressureManagingHandler.RequestReadIfRequiredEvent;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -199,9 +197,9 @@ public class AbstractConnectionToChannelBridgeTest {
                 public void evaluate() throws Throwable {
                     channel = new EmbeddedChannel(new ChannelDuplexHandler());
                     ctx = channel.pipeline().firstContext();
-                    MetricEventsSubject<ClientMetricsEvent<?>> subject = new MetricEventsSubject<>();
-                    ClientChannelMetricEventProvider provider = ClientChannelMetricEventProvider.INSTANCE;
-                    handler = new AbstractConnectionToChannelBridge<String, String>("foo", subject, provider) { };
+                    TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
+                    handler = new AbstractConnectionToChannelBridge<String, String>("foo", eventPublisher,
+                                                                                    eventPublisher) { };
                     base.evaluate();
                 }
             };

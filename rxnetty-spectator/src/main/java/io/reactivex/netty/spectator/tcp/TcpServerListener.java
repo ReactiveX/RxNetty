@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,20 +18,17 @@ package io.reactivex.netty.spectator.tcp;
 
 import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Timer;
-import io.reactivex.netty.metrics.ServerMetricEventsListener;
-import io.reactivex.netty.server.ServerMetricsEvent;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventListener;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.newCounter;
-import static io.reactivex.netty.spectator.SpectatorUtils.newGauge;
-import static io.reactivex.netty.spectator.SpectatorUtils.newTimer;
+import static io.reactivex.netty.spectator.SpectatorUtils.*;
 
 /**
  * TcpServerListener.
  */
-public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMetricEventsListener<T> {
+public class TcpServerListener extends TcpServerEventListener {
 
     private final AtomicInteger liveConnections;
     private final AtomicInteger inflightConnections;
@@ -51,7 +48,7 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
     private final Counter failedFlushes;
     private final Timer flushTimes;
 
-    protected TcpServerListener(String monitorId) {
+    public TcpServerListener(String monitorId) {
         liveConnections = newGauge("liveConnections", monitorId, new AtomicInteger());
         inflightConnections = newGauge("inflightConnections", monitorId, new AtomicInteger());
         pendingConnectionClose = newGauge("pendingConnectionClose", monitorId, new AtomicInteger());
@@ -72,36 +69,36 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
     }
 
     @Override
-    protected void onConnectionHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onConnectionHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         inflightConnections.decrementAndGet();
         failedConnections.increment();
     }
 
     @Override
-    protected void onConnectionHandlingSuccess(long duration, TimeUnit timeUnit) {
+    public void onConnectionHandlingSuccess(long duration, TimeUnit timeUnit) {
         inflightConnections.decrementAndGet();
         connectionProcessingTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onConnectionHandlingStart(long duration, TimeUnit timeUnit) {
+    public void onConnectionHandlingStart(long duration, TimeUnit timeUnit) {
         inflightConnections.incrementAndGet();
     }
 
     @Override
-    protected void onConnectionCloseStart() {
+    public void onConnectionCloseStart() {
         pendingConnectionClose.incrementAndGet();
     }
 
     @Override
-    protected void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
+    public void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
         liveConnections.decrementAndGet();
         pendingConnectionClose.decrementAndGet();
         connectionCloseTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         liveConnections.decrementAndGet();
         pendingConnectionClose.decrementAndGet();
         connectionCloseTimes.record(duration, timeUnit);
@@ -109,60 +106,48 @@ public class TcpServerListener<T extends ServerMetricsEvent<?>> extends ServerMe
     }
 
     @Override
-    protected void onNewClientConnected() {
+    public void onNewClientConnected() {
         liveConnections.incrementAndGet();
     }
 
     @Override
-    protected void onByteRead(long bytesRead) {
+    public void onByteRead(long bytesRead) {
         this.bytesRead.increment(bytesRead);
     }
 
     @Override
-    protected void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         pendingFlushes.decrementAndGet();
         failedFlushes.increment();
     }
 
     @Override
-    protected void onFlushSuccess(long duration, TimeUnit timeUnit) {
+    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
         pendingFlushes.decrementAndGet();
         flushTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onFlushStart() {
+    public void onFlushStart() {
         pendingFlushes.incrementAndGet();
     }
 
     @Override
-    protected void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         pendingWrites.decrementAndGet();
         failedWrites.increment();
     }
 
     @Override
-    protected void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
         pendingWrites.decrementAndGet();
         this.bytesWritten.increment(bytesWritten);
         writeTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onWriteStart() {
+    public void onWriteStart() {
         pendingWrites.incrementAndGet();
-    }
-
-    @Override
-    public void onCompleted() {
-    }
-
-    @Override
-    public void onSubscribe() {
-    }
-
-    public static TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>> newListener(String monitorId) {
-        return new TcpServerListener<ServerMetricsEvent<ServerMetricsEvent.EventType>>(monitorId);
     }
 
     public long getLiveConnections() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,30 +13,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.metrics;
+package io.reactivex.netty.events;
 
 /**
- * An interface usually implemented as an {@link Enum} representing a metric event.
+ * A listener to subscribe to events published by an {@link EventSource}
  */
-@SuppressWarnings("rawtypes")
-public interface MetricsEvent<T extends Enum> {
-
-    T getType();
-
-    boolean isTimed();
-
-    boolean isError();
+public interface EventListener {
 
     /**
-     * This interface is a "best-practice" rather than a contract as a more strongly required contract is for the event
-     * type to be an enum.
+     * Marks the end of all event callbacks. No methods on this listener will ever be called once this method is called.
      */
-    interface MetricEventType {
+    void onCompleted();
 
-        boolean isTimed();
-
-        boolean isError();
-
-        Class<?> getOptionalDataType();
-    }
+    /**
+     * A callback when this listener is subscribed to an {@link EventSource}.
+     */
+    void onSubscribe();
 }

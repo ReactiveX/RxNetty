@@ -26,7 +26,6 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
-import io.reactivex.netty.client.ClientChannelMetricEventProvider;
 import rx.Observable;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -53,8 +52,8 @@ public class ClientEmbeddedConnectionFactory<W, R> extends ClientConnectionFacto
     public Observable<? extends Connection<R, W>> connect() {
         EmbeddedChannel newChannel = channelFactory.call();
         clientState.getDetachedPipeline().copyTo(new EmbeddedChannelPipelineDelegate(newChannel));
-        final ConnectionImpl<R, W> conn = ConnectionImpl.create(newChannel, clientState.getEventsSubject(),
-                                                                ClientChannelMetricEventProvider.INSTANCE);
+        final ConnectionImpl<R, W> conn = ConnectionImpl.create(newChannel, clientState.getEventPublisher(),
+                                                                clientState.getEventPublisher());
         return Observable.just(conn);
     }
 

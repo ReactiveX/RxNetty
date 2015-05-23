@@ -264,7 +264,7 @@ public class PooledClientConnectionFactoryImplTest {
                     holder = new FIFOIdleConnectionsHolder<>();
                     factory = PooledClientConnectionFactoryImpl.create(holder, delegateFactory).call(state);
                     eventsListener = new TrackableMetricEventsListener();
-                    state.getEventsSubject().subscribe(eventsListener);
+                    state.getEventPublisher().subscribe(eventsListener);
                     base.evaluate();
                 }
             };
@@ -349,7 +349,7 @@ public class PooledClientConnectionFactoryImplTest {
                 public void call(Subscriber<? super Connection<R, W>> subscriber) {
                     EmbeddedChannel channel = new EmbeddedChannel();
                     ClientConnectionToChannelBridge.addToPipeline(subscriber, channel.pipeline(),
-                                                                  state.getEventsSubject(), false);
+                                                                  state.getEventPublisher(), false);
                     channel.connect(new InetSocketAddress("localhost", 0));
                     channel.pipeline().fireChannelActive();
                 }

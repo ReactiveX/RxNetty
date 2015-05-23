@@ -19,8 +19,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.FileRegion;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.channel.events.ConnectionEventListener;
+import io.reactivex.netty.events.Clock;
+import io.reactivex.netty.events.EventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -33,6 +34,8 @@ import rx.functions.Func1;
 import rx.subscriptions.Subscriptions;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+import static java.util.concurrent.TimeUnit.*;
 
 /**
  * Default implementation for {@link ChannelOperations}.
@@ -52,8 +55,6 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
     private final Channel nettyChannel;
 
-    @SuppressWarnings("rawtypes")
-    private final MetricEventsSubject eventsSubject;
     private final Observable<Void> closeObservable;
     private final Observable<Void> flushAndCloseObservable;
 
@@ -64,13 +65,10 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
         }
     };
 
-    public DefaultChannelOperations(final Channel nettyChannel, final MetricEventsSubject<?> eventsSubject,
-                                    final ChannelMetricEventProvider metricEventProvider) {
+    public DefaultChannelOperations(final Channel nettyChannel, ConnectionEventListener eventListener,
+                                    EventPublisher eventPublisher) {
         this.nettyChannel = nettyChannel;
-        this.eventsSubject = eventsSubject;
-
-        closeObservable = Observable.create(new OnSubscribeForClose(metricEventProvider, nettyChannel));
-
+        closeObservable = Observable.create(new OnSubscribeForClose(eventListener, eventPublisher, nettyChannel));
         flushAndCloseObservable = closeObservable.doOnSubscribe(new Action0() {
             @Override
             public void call() {
@@ -208,11 +206,14 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
     private class OnSubscribeForClose implements OnSubscribe<Void> {
 
-        private final ChannelMetricEventProvider metricEventProvider;
         private final Channel nettyChannel;
+        private final ConnectionEventListener eventListener;
+        private final EventPublisher eventPublisher;
 
-        public OnSubscribeForClose(ChannelMetricEventProvider metricEventProvider, Channel nettyChannel) {
-            this.metricEventProvider = metricEventProvider;
+        public OnSubscribeForClose(ConnectionEventListener eventListener, EventPublisher eventPublisher,
+                                   Channel nettyChannel) {
+            this.eventListener = eventListener;
+            this.eventPublisher = eventPublisher;
             this.nettyChannel = nettyChannel;
         }
 
@@ -224,11 +225,14 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
             ChannelCloseListener closeListener;
             if (CLOSE_ISSUED_UPDATER.compareAndSet(DefaultChannelOperations.this, 0, 1)) {
-                eventsSubject.onEvent(metricEventProvider.getChannelCloseStartEvent());
+                if (eventPublisher.publishingEnabled()) {
+                    eventListener.onConnectionCloseStart();
+                }
 
                 nettyChannel.close(); // close only once.
 
-                closeListener = new ChannelCloseListener(eventsSubject, closeStartTimeMillis, subscriber);
+                closeListener = new ChannelCloseListener(eventListener, eventPublisher, closeStartTimeMillis,
+                                                         subscriber);
             } else {
                 closeListener = new ChannelCloseListener(subscriber);
             }
@@ -241,35 +245,35 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
             private final long closeStartTimeMillis;
             private final Subscriber<? super Void> subscriber;
-            @SuppressWarnings("rawtypes")
-            private final MetricEventsSubject eventsSubjectNullIfNoEventPub;
+            private final ConnectionEventListener eventListener;
+            private final EventPublisher eventPublisher;
 
-            public ChannelCloseListener(MetricEventsSubject<?> eventsSubject, long closeStartTimeMillis,
-                                        Subscriber<? super Void> subscriber) {
-                eventsSubjectNullIfNoEventPub = eventsSubject;
+            public ChannelCloseListener(ConnectionEventListener eventListener, EventPublisher eventPublisher,
+                                        long closeStartTimeMillis, Subscriber<? super Void> subscriber) {
+                this.eventListener = eventListener;
+                this.eventPublisher = eventPublisher;
                 this.closeStartTimeMillis = closeStartTimeMillis;
                 this.subscriber = subscriber;
             }
 
             public ChannelCloseListener(Subscriber<? super Void> subscriber) {
-                this(null, -1, subscriber);
+                this(null, null, -1, subscriber);
             }
 
             @SuppressWarnings("unchecked")
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess()) {
-                    if (null != eventsSubjectNullIfNoEventPub) {
-                        eventsSubjectNullIfNoEventPub.onEvent(metricEventProvider.getChannelCloseSuccessEvent(),
-                                                              Clock.onEndMillis(closeStartTimeMillis));
+                    if (null != eventListener && eventPublisher.publishingEnabled()) {
+                        eventListener.onConnectionCloseSuccess(Clock.onEndMillis(closeStartTimeMillis), MILLISECONDS);
                     }
                     if (!subscriber.isUnsubscribed()) {
                         subscriber.onCompleted();
                     }
                 } else {
-                    if (null != eventsSubjectNullIfNoEventPub) {
-                        eventsSubjectNullIfNoEventPub.onEvent(metricEventProvider.getChannelCloseFailedEvent(),
-                                                              Clock.onEndMillis(closeStartTimeMillis), future.cause());
+                    if (null != eventListener && eventPublisher.publishingEnabled()) {
+                        eventListener.onConnectionCloseFailed(Clock.onEndMillis(closeStartTimeMillis), MILLISECONDS,
+                                                              future.cause());
                     }
                     if (!subscriber.isUnsubscribed()) {
                         subscriber.onError(future.cause());

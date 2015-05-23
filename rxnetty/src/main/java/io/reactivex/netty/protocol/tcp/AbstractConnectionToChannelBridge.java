@@ -20,10 +20,10 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
-import io.reactivex.netty.channel.ChannelMetricEventProvider;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.channel.events.ConnectionEventListener;
+import io.reactivex.netty.events.EventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Producer;
@@ -70,25 +70,23 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         CLOSED_CHANNEL_EXCEPTION.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
     }
 
-    @SuppressWarnings("rawtypes")
-    protected final MetricEventsSubject eventsSubject;
-    protected final ChannelMetricEventProvider metricEventProvider;
+    protected final ConnectionEventListener eventListener;
+    protected final EventPublisher eventPublisher;
     private Subscriber<? super Connection<R, W>> newConnectionSub;
     private ReadProducer<R> readProducer;
     private boolean raiseErrorOnInputSubscription;
     private boolean connectionEmitted;
 
-    protected AbstractConnectionToChannelBridge(String thisHandlerName, MetricEventsSubject<?> eventsSubject,
-                                                ChannelMetricEventProvider metricEventProvider) {
+    protected AbstractConnectionToChannelBridge(String thisHandlerName, ConnectionEventListener eventListener,
+                                                EventPublisher eventPublisher) {
         super(thisHandlerName);
-        this.eventsSubject = eventsSubject;
-        this.metricEventProvider = metricEventProvider;
+        this.eventListener = eventListener;
+        this.eventPublisher = eventPublisher;
     }
 
     protected AbstractConnectionToChannelBridge(String thisHandlerName, Subscriber<? super Connection<R, W>> connSub,
-                                                MetricEventsSubject<?> eventsSubject,
-                                                ChannelMetricEventProvider metricEventProvider) {
-        this(thisHandlerName, eventsSubject, metricEventProvider);
+                                                ConnectionEventListener eventListener, EventPublisher eventPublisher) {
+        this(thisHandlerName, eventListener, eventPublisher);
         newConnectionSub = connSub;
     }
 
@@ -201,7 +199,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
     private void createNewConnection(Channel channel) {
         if (isValidToEmit(newConnectionSub)) {
-            Connection<R, W> connection = ConnectionImpl.create(channel, eventsSubject, metricEventProvider);
+            Connection<R, W> connection = ConnectionImpl.create(channel, eventListener, eventPublisher);
             newConnectionSub.onNext(connection);
             connectionEmitted = true;
             checkEagerSubscriptionIfConfigured(connection, channel);

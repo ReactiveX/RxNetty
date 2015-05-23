@@ -20,13 +20,11 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.ConnectionSubscriberEvent;
 import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
-import io.reactivex.netty.server.ServerChannelMetricEventProvider;
-import io.reactivex.netty.server.ServerMetricsEvent;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -35,8 +33,10 @@ import rx.Subscription;
 
 import java.nio.channels.ClosedChannelException;
 
+import static java.util.concurrent.TimeUnit.*;
+
 /**
- * An implementation of {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge} for servers.
+ * An implementation of {@link AbstractConnectionToChannelBridge} for servers.
  *
  * @param <R> The type of objects read from the server using this bridge.
  * @param <W> The type of objects written to this server using this bridge.
@@ -47,16 +47,16 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     private static final String HANDLER_NAME = "server-conn-channel-bridge";
 
     private final ConnectionHandler<R, W> connectionHandler;
-    private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
+    private final TcpServerEventPublisher eventPublisher;
     private final boolean isSecure;
     private final NewConnectionSubscriber newConnectionSubscriber;
     private final ConnectionSubscriberEvent<R, W> connectionSubscriberEvent;
 
     private ServerConnectionToChannelBridge(ConnectionHandler<R, W> connectionHandler,
-                                           MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject, boolean isSecure) {
-        super(HANDLER_NAME, eventsSubject, ServerChannelMetricEventProvider.INSTANCE);
+                                            TcpServerEventPublisher eventPublisher, boolean isSecure) {
+        super(HANDLER_NAME, eventPublisher, eventPublisher);
         this.connectionHandler = connectionHandler;
-        this.eventsSubject = eventsSubject;
+        this.eventPublisher = eventPublisher;
         this.isSecure = isSecure;
         newConnectionSubscriber = new NewConnectionSubscriber();
         connectionSubscriberEvent = new ConnectionSubscriberEvent<>(newConnectionSubscriber);
@@ -73,10 +73,10 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
     public static <R, W> ServerConnectionToChannelBridge<R, W> addToPipeline(ChannelPipeline pipeline,
                                                                              ConnectionHandler<R, W> connectionHandler,
-                                                                             MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
+                                                                             TcpServerEventPublisher eventPublisher,
                                                                              boolean isSecure) {
         ServerConnectionToChannelBridge<R, W> toAdd = new ServerConnectionToChannelBridge<>(connectionHandler,
-                                                                                            eventsSubject, isSecure);
+                                                                                            eventPublisher, isSecure);
         pipeline.addLast(HANDLER_NAME, toAdd);
         return toAdd;
     }
@@ -97,11 +97,15 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
         @Override
         public void onNext(final Connection<R, W> connection) {
-            final long startTimeMillis = Clock.newStartTimeMillis();
-            eventsSubject.onEvent(ServerMetricsEvent.NEW_CLIENT_CONNECTED);
+            final long startTimeMillis = eventPublisher.publishingEnabled() ? Clock.newStartTimeMillis() : -1;
+            if (eventPublisher.publishingEnabled()) {
+                eventPublisher.onNewClientConnected();
+            }
             Observable<Void> handledObservable;
             try {
-                eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_START, Clock.onEndMillis(startTimeMillis));
+                if (eventPublisher.publishingEnabled()) {
+                    eventPublisher.onConnectionHandlingStart(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                }
                 handledObservable = connectionHandler.handle(connection);
             } catch (Throwable throwable) {
                 handledObservable = Observable.error(throwable);
@@ -114,16 +118,19 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             handlingSubscription = handledObservable.subscribe(new Subscriber<Void>() {
                 @Override
                 public void onCompleted() {
-                    eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_SUCCESS,
-                                          Clock.onEndMillis(startTimeMillis));
+                    if (eventPublisher.publishingEnabled()) {
+                        eventPublisher.onConnectionHandlingSuccess(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                    }
                     connection.closeNow();
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    eventsSubject.onEvent(ServerMetricsEvent.CONNECTION_HANDLING_FAILED,
-                                          Clock.onEndMillis(startTimeMillis), e);
                     if (!(e instanceof ClosedChannelException)) {
+                        if (eventPublisher.publishingEnabled()) {
+                            eventPublisher.onConnectionHandlingFailed(Clock.onEndMillis(startTimeMillis), MILLISECONDS,
+                                                                      e);
+                        }
                         /*Since, this is always reading input for new requests, it will always get a closed channel
                         exception on connection close from client. No point in logging that error.*/
                         logger.error("Error processing connection.", e);

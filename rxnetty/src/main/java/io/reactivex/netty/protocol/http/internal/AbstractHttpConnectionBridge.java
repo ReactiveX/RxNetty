@@ -34,7 +34,7 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.metrics.Clock;
+import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import org.slf4j.Logger;

@@ -23,15 +23,13 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.pool.PooledConnection;
-import io.reactivex.netty.client.ClientChannelMetricEventProvider;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.ConnectionCreationFailedEvent;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent;
 import io.reactivex.netty.protocol.tcp.ConnectionSubscriberEvent;
 import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscriber;
@@ -40,6 +38,8 @@ import rx.observers.SafeSubscriber;
 import rx.subscriptions.Subscriptions;
 
 import java.net.SocketAddress;
+
+import static java.util.concurrent.TimeUnit.*;
 
 /**
  * An implementation of {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge} for clients.
@@ -63,18 +63,20 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     private static final Logger logger = LoggerFactory.getLogger(ClientConnectionToChannelBridge.class);
     private static final String HANDLER_NAME = "client-conn-channel-bridge";
 
+    private final TcpClientEventPublisher eventPublisher;
     private final boolean isSecure;
     private long connectStartTimeMillis;
 
-    private ClientConnectionToChannelBridge(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
-                                            boolean isSecure) {
-        super(HANDLER_NAME, eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+    private ClientConnectionToChannelBridge(TcpClientEventPublisher eventPublisher, boolean isSecure) {
+        super(HANDLER_NAME, eventPublisher, eventPublisher);
+        this.eventPublisher = eventPublisher;
         this.isSecure = isSecure;
     }
 
     private ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
-                                            MetricEventsSubject<?> eventsSubject, boolean isSecure) {
-        super(HANDLER_NAME, connSub, eventsSubject, ClientChannelMetricEventProvider.INSTANCE);
+                                            TcpClientEventPublisher eventPublisher, boolean isSecure) {
+        super(HANDLER_NAME, connSub, eventPublisher, eventPublisher);
+        this.eventPublisher = eventPublisher;
         this.isSecure = isSecure;
     }
 
@@ -113,22 +115,27 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     @Override
     public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
                         ChannelPromise promise) throws Exception {
+
         connectStartTimeMillis = Clock.newStartTimeMillis();
 
-        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_START);
-
-        promise.addListener(new ChannelFutureListener() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if (!future.isSuccess()) {
-                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, Clock.onEndMillis(connectStartTimeMillis),
-                                          future.cause());
-                } else {
-                    eventsSubject.onEvent(ClientMetricsEvent.CONNECT_SUCCESS, Clock.onEndMillis(connectStartTimeMillis));
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onConnectStart();
+            promise.addListener(new ChannelFutureListener() {
+                @SuppressWarnings("unchecked")
+                @Override
+                public void operationComplete(ChannelFuture future) throws Exception {
+                    if (eventPublisher.publishingEnabled()) {
+                        long endTimeMillis = Clock.onEndMillis(connectStartTimeMillis);
+                        if (!future.isSuccess()) {
+                            eventPublisher.onConnectFailed(endTimeMillis, MILLISECONDS, future.cause());
+                        } else {
+                            eventPublisher.onConnectSuccess(endTimeMillis, MILLISECONDS);
+                        }
+                    }
                 }
-            }
-        });
+            });
+        }
+
         super.connect(ctx, remoteAddress, localAddress, promise);
     }
 
@@ -185,22 +192,25 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
     @SuppressWarnings("unchecked")
     private void onConnectFailedEvent(ConnectionCreationFailedEvent event) {
-        eventsSubject.onEvent(ClientMetricsEvent.CONNECT_FAILED, connectStartTimeMillis, event.getThrowable());
+        if (eventPublisher.publishingEnabled()) {
+            eventPublisher.onConnectFailed(connectStartTimeMillis, MILLISECONDS, event.getThrowable());
+        }
     }
 
     public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(ChannelPipeline pipeline,
-                                                                             MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                                                                             TcpClientEventPublisher eventPublisher,
                                                                              boolean isSecure) {
-        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(eventsSubject, isSecure);
+        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(eventPublisher, isSecure);
         pipeline.addLast(HANDLER_NAME, toAdd);
         return toAdd;
     }
 
     public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(Subscriber<? super Connection<R, W>> sub,
                                                                              ChannelPipeline pipeline,
-                                                                             MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+                                                                             TcpClientEventPublisher eventPublisher,
                                                                              boolean isSecure) {
-        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(sub, eventsSubject, isSecure);
+        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(sub, eventPublisher,
+                                                                                            isSecure);
         pipeline.addLast(HANDLER_NAME, toAdd);
         return toAdd;
     }

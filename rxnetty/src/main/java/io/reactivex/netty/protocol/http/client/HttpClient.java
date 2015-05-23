@@ -29,10 +29,9 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
-import io.reactivex.netty.client.ServerPool;
-import io.reactivex.netty.metrics.MetricEventsPublisher;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
@@ -57,7 +56,7 @@ import java.util.concurrent.TimeUnit;
  * @param <I> The type of the content of request.
  * @param <O> The type of the content of response.
  */
-public abstract class HttpClient<I, O> implements MetricEventsPublisher<ClientMetricsEvent<?>> {
+public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsListener> {
 
     public static final String HTTP_CLIENT_NO_NAME = "TcpClient-no-name";
 
@@ -491,20 +490,12 @@ public abstract class HttpClient<I, O> implements MetricEventsPublisher<ClientMe
      */
     public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
 
-    public static HttpClient<ByteBuf, ByteBuf> newClient(ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return newClient(HTTP_CLIENT_NO_NAME, serverPool);
-    }
-
     public static HttpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
         return newClient(HTTP_CLIENT_NO_NAME, host, port);
     }
 
     public static HttpClient<ByteBuf, ByteBuf> newClient(String name, String host, int port) {
         return _newClient(TcpClient.newClient(name, new InetSocketAddress(host, port)));
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(String name, ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return _newClient(TcpClient.newClient(name, serverPool));
     }
 
     public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
@@ -516,18 +507,6 @@ public abstract class HttpClient<I, O> implements MetricEventsPublisher<ClientMe
                                                         Class<? extends Channel> channelClass, String name, String host,
                                                         int port) {
         return _newClient(TcpClient.newClient(eventLoopGroup, channelClass, name, new InetSocketAddress(host, port)));
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass,
-                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return newClient(eventLoopGroup, channelClass, HTTP_CLIENT_NO_NAME, serverPool);
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String name,
-                                                        ServerPool<ClientMetricsEvent<?>> serverPool) {
-        return _newClient(TcpClient.newClient(eventLoopGroup, channelClass, name, serverPool));
     }
 
     public static HttpClient<ByteBuf, ByteBuf> newClient(SocketAddress remoteAddress) {

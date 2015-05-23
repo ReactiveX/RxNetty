@@ -24,10 +24,9 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventListener;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventPublisher;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import io.reactivex.netty.server.ServerMetricsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscription;
@@ -164,11 +163,6 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     }
 
     @Override
-    public MetricEventsSubject<ServerMetricsEvent<?>> getEventsSubject() {
-        return state.getEventsSubject();
-    }
-
-    @Override
     public TcpServer<R, W> start(final ConnectionHandler<R, W> connectionHandler) {
         if (!serverStateRef.compareAndSet(ServerStatus.Created, ServerStatus.Starting)) {
             throw new IllegalStateException("Server already started");
@@ -177,8 +171,8 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
             Action1<ChannelPipeline> handlerFactory = new Action1<ChannelPipeline>() {
                 @Override
                 public void call(ChannelPipeline pipeline) {
-                    ServerConnectionToChannelBridge.addToPipeline(pipeline, connectionHandler, state.getEventsSubject(),
-                                                                  state.isSecure());
+                    ServerConnectionToChannelBridge.addToPipeline(pipeline, connectionHandler,
+                                                                  state.getEventPublisher(), state.isSecure());
                 }
             };
             final ServerState<R, W> newState = state.pipelineConfigurator(handlerFactory);
@@ -253,8 +247,13 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     }
 
     @Override
-    public Subscription subscribe(MetricEventsListener<? extends ServerMetricsEvent<?>> listener) {
-        return state.getEventsSubject().subscribe(listener);
+    public TcpServerEventPublisher getEventPublisher() {
+        return state.getEventPublisher();
+    }
+
+    @Override
+    public Subscription subscribe(TcpServerEventListener listener) {
+        return state.getEventPublisher().subscribe(listener);
     }
 
     private static <RR, WW> TcpServer<RR, WW> copy(ServerState<RR, WW> newState) {

@@ -14,13 +14,12 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.metrics;
+package io.reactivex.netty.events;
 
 import java.util.concurrent.TimeUnit;
 
 /**
- * A simple utility to wrap start and end times of a call, typically used to give
- * {@link io.reactivex.netty.metrics.MetricEventsListener} callbacks.
+ * A simple utility to wrap start and end times of a call.
  *
  * <h2>Thread Safety</h2>
  *

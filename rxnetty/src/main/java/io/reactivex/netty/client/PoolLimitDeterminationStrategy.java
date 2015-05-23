@@ -16,14 +16,12 @@
 
 package io.reactivex.netty.client;
 
-import io.reactivex.netty.metrics.MetricEventsListener;
-
 import java.util.concurrent.TimeUnit;
 
 /**
  * A strategy to delegate the decision pertaining to connection pool size limits.
  */
-public interface PoolLimitDeterminationStrategy extends MetricEventsListener<ClientMetricsEvent<?>> {
+public interface PoolLimitDeterminationStrategy {
 
     /**
      * Attempts to acquire a creation permit.
@@ -35,6 +33,11 @@ public interface PoolLimitDeterminationStrategy extends MetricEventsListener<Cli
      */
     boolean acquireCreationPermit(long acquireStartTime, TimeUnit timeUnit);
 
+    /**
+     * Returns the number of creation permits available.
+     *
+     * @return The number of creation permits available.
+     */
     int getAvailablePermits();
 
     /**
@@ -43,4 +46,9 @@ public interface PoolLimitDeterminationStrategy extends MetricEventsListener<Cli
      * @return A copy of this strategy without copying any state.
      */
     PoolLimitDeterminationStrategy copy();
+
+    /**
+     * Release a previously acquired permit.
+     */
+    void releasePermit();
 }

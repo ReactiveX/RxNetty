@@ -21,7 +21,8 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.channel.events.ConnectionEventListener;
+import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -44,16 +45,15 @@ import rx.functions.Func1;
 public abstract class Connection<R, W> implements ChannelOperations<W> {
 
     private final Channel nettyChannel;
-    @SuppressWarnings("rawtypes")
-    private final MetricEventsSubject eventsSubject;
-    private final ChannelMetricEventProvider metricEventProvider;
 
     protected final MarkAwarePipeline markAwarePipeline;
+    private final ConnectionEventListener eventListener;
+    private final EventPublisher eventPublisher;
 
-    protected Connection(final Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
-                         ChannelMetricEventProvider metricEventProvider) {
-        this.eventsSubject = eventsSubject;
-        this.metricEventProvider = metricEventProvider;
+    protected Connection(final Channel nettyChannel, ConnectionEventListener eventListener,
+                         EventPublisher eventPublisher) {
+        this.eventListener = eventListener;
+        this.eventPublisher = eventPublisher;
         if (null == nettyChannel) {
             throw new IllegalArgumentException("Channel can not be null");
         }
@@ -62,8 +62,8 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
     }
 
     protected Connection(Connection<R, W> toCopy) {
-        eventsSubject = toCopy.eventsSubject;
-        metricEventProvider = toCopy.metricEventProvider;
+        eventListener = toCopy.eventListener;
+        eventPublisher = toCopy.eventPublisher;
         nettyChannel = toCopy.nettyChannel;
         markAwarePipeline = toCopy.markAwarePipeline;
     }
@@ -158,21 +158,20 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
         });
     }
 
-    @SuppressWarnings("rawtypes")
-    protected MetricEventsSubject getEventsSubject() {
-        return eventsSubject;
+    public ConnectionEventListener getEventListener() {
+        return eventListener;
     }
 
-    protected ChannelMetricEventProvider getMetricEventProvider() {
-        return metricEventProvider;
+    public EventPublisher getEventPublisher() {
+        return eventPublisher;
     }
 
     /*
-     * In order to make sure that the connection is correctly initialized, the listener needs to be added post
-     * constructor. Otherwise, there is a race-condition of the channel closed before the connection is completely
-     * created and the Connection.close() call on channel close can access the Connection object which isn't
-     * constructed completely. IOW, "this" escapes from the constructor if the listener is added in the constructor.
-     */
+         * In order to make sure that the connection is correctly initialized, the listener needs to be added post
+         * constructor. Otherwise, there is a race-condition of the channel closed before the connection is completely
+         * created and the Connection.close() call on channel close can access the Connection object which isn't
+         * constructed completely. IOW, "this" escapes from the constructor if the listener is added in the constructor.
+         */
     protected void connectCloseToChannelClose() {
         nettyChannel.closeFuture().addListener(new ChannelFutureListener() {
             @Override

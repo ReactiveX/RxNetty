@@ -15,10 +15,8 @@
  */
 package io.reactivex.netty.channel.pool;
 
-import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.client.CompositePoolLimitDeterminationStrategy;
 import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.metrics.MetricEventsListener;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -40,9 +38,7 @@ public class PoolLimitStrategyTest {
 
         Assert.assertFalse("Invalid permit acquire success.", strategy.acquireCreationPermit(startTime, TimeUnit.MILLISECONDS));
 
-        strategy.onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION, MetricEventsListener.NO_DURATION,
-                         MetricEventsListener.NO_TIME_UNIT, MetricEventsListener.NO_ERROR,
-                         MetricEventsListener.NO_VALUE);
+        strategy.releasePermit();
 
         Assert.assertEquals("Unexpected available permits.", 1, strategy.getAvailablePermits());
         Assert.assertTrue("Permit not available after release.", strategy.acquireCreationPermit(startTime, TimeUnit.MILLISECONDS));
@@ -67,9 +63,7 @@ public class PoolLimitStrategyTest {
         Assert.assertEquals("Unexpected available local permits.", 1, local.getAvailablePermits());
         Assert.assertEquals("Unexpected available composite permits.", 0, strategy.getAvailablePermits()); // Should be min. of all strategies
 
-        strategy.onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION, MetricEventsListener.NO_DURATION,
-                         MetricEventsListener.NO_TIME_UNIT, MetricEventsListener.NO_ERROR,
-                         MetricEventsListener.NO_VALUE);
+        strategy.releasePermit();
 
         Assert.assertEquals("Unexpected available global permits.", 1, global.getAvailablePermits());
         Assert.assertEquals("Unexpected available local permits.", 2, local.getAvailablePermits());
@@ -95,9 +89,7 @@ public class PoolLimitStrategyTest {
 
         Assert.assertFalse("Invalid permit acquire success.", strategy.acquireCreationPermit(startTime, TimeUnit.MILLISECONDS));
 
-        strategy.onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION, MetricEventsListener.NO_DURATION,
-                         MetricEventsListener.NO_TIME_UNIT, MetricEventsListener.NO_ERROR,
-                         MetricEventsListener.NO_VALUE);
+        strategy.releasePermit();
 
         Assert.assertTrue("Invalid permit acquire failure.", strategy.acquireCreationPermit(startTime, TimeUnit.MILLISECONDS));
         Assert.assertEquals("Unexpected available global permits.", 1, global.getAvailablePermits());
@@ -119,9 +111,7 @@ public class PoolLimitStrategyTest {
         Assert.assertEquals("Unexpected available permits.", 1, strategy.getAvailablePermits());
         Assert.assertTrue("Permit not available after release.", strategy.acquireCreationPermit(startTime, TimeUnit.MILLISECONDS));
 
-        strategy.onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION, MetricEventsListener.NO_DURATION,
-                         MetricEventsListener.NO_TIME_UNIT, MetricEventsListener.NO_ERROR,
-                         MetricEventsListener.NO_VALUE);
+        strategy.releasePermit();
         strategy.decrementMaxConnections(1);
 
         Assert.assertEquals("Unexpected available permits.", 0, strategy.getAvailablePermits());

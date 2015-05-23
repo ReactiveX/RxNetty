@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,22 +18,18 @@ package io.reactivex.netty.spectator.http;
 
 import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Timer;
-
-import io.reactivex.netty.metrics.HttpServerMetricEventsListener;
-import io.reactivex.netty.server.ServerMetricsEvent;
+import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
 import io.reactivex.netty.spectator.tcp.TcpServerListener;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.newCounter;
-import static io.reactivex.netty.spectator.SpectatorUtils.newGauge;
-import static io.reactivex.netty.spectator.SpectatorUtils.newTimer;
+import static io.reactivex.netty.spectator.SpectatorUtils.*;
 
 /**
  * HttpServerListener.
  */
-public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>> {
+public class HttpServerListener extends HttpServerEventsListener {
 
     private final AtomicInteger requestBacklog;
     private final AtomicInteger inflightRequests;
@@ -43,10 +39,9 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
     private final Timer responseWriteTimes;
     private final Timer requestReadTimes;
 
-    private final HttpServerMetricEventsListenerImpl delegate;
+    private final TcpServerListener tcpDelegate;
 
-    protected HttpServerListener(String monitorId) {
-        super(monitorId);
+    public HttpServerListener(String monitorId) {
         requestBacklog = newGauge("requestBacklog", monitorId, new AtomicInteger());
         inflightRequests = newGauge("inflightRequests", monitorId, new AtomicInteger());
         responseWriteTimes = newTimer("responseWriteTimes", monitorId);
@@ -54,13 +49,7 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
         processedRequests = newCounter("processedRequests", monitorId);
         failedRequests = newCounter("failedRequests", monitorId);
         responseWriteFailed = newCounter("responseWriteFailed", monitorId);
-        delegate = new HttpServerMetricEventsListenerImpl();
-    }
-
-    @Override
-    public void onEvent(ServerMetricsEvent<?> event, long duration, TimeUnit timeUnit, Throwable throwable,
-                        Object value) {
-        delegate.onEvent(event, duration, timeUnit, throwable, value);
+        tcpDelegate = new TcpServerListener(monitorId);
     }
 
     public long getRequestBacklog() {
@@ -94,111 +83,163 @@ public class HttpServerListener extends TcpServerListener<ServerMetricsEvent<?>>
     public static HttpServerListener newHttpListener(String monitorId) {
         return new HttpServerListener(monitorId);
     }
+    
+    @Override
+    public void onRequestHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        processedRequests.increment();
+        inflightRequests.decrementAndGet();
+        failedRequests.increment();
+    }
 
-    private class HttpServerMetricEventsListenerImpl extends HttpServerMetricEventsListener {
+    @Override
+    public void onRequestHandlingSuccess(long duration, TimeUnit timeUnit) {
+        inflightRequests.decrementAndGet();
+        processedRequests.increment();
+    }
 
-        @Override
-        protected void onRequestHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            processedRequests.increment();
-            inflightRequests.decrementAndGet();
-            failedRequests.increment();
-        }
+    @Override
+    public void onResponseWriteSuccess(long duration, TimeUnit timeUnit, int responseCode) {
+        responseWriteTimes.record(duration, timeUnit);
+    }
 
-        @Override
-        protected void onRequestHandlingSuccess(long duration, TimeUnit timeUnit) {
-            inflightRequests.decrementAndGet();
-            processedRequests.increment();
-        }
+    @Override
+    public void onResponseWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        responseWriteFailed.increment();
+    }
 
-        @Override
-        protected void onResponseContentWriteSuccess(long duration, TimeUnit timeUnit) {
-            responseWriteTimes.record(duration, timeUnit);
-        }
+    @Override
+    public void onRequestReceiveComplete(long duration, TimeUnit timeUnit) {
+        requestReadTimes.record(duration, timeUnit);
+    }
 
-        @Override
-        protected void onResponseHeadersWriteSuccess(long duration, TimeUnit timeUnit) {
-            responseWriteTimes.record(duration, timeUnit);
-        }
+    @Override
+    public void onRequestHandlingStart(long duration, TimeUnit timeUnit) {
+        requestBacklog.decrementAndGet();
+    }
 
-        @Override
-        protected void onResponseContentWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            responseWriteFailed.increment();
-        }
+    @Override
+    public void onNewRequestReceived() {
+        requestBacklog.incrementAndGet();
+        inflightRequests.incrementAndGet();
+    }
 
-        @Override
-        protected void onResponseHeadersWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            responseWriteFailed.increment();
-        }
+    @Override
+    public void onConnectionHandlingFailed(long duration, TimeUnit timeUnit,
+                                           Throwable throwable) {
+        tcpDelegate.onConnectionHandlingFailed(duration, timeUnit, throwable);
+    }
 
-        @Override
-        protected void onRequestReceiveComplete(long duration, TimeUnit timeUnit) {
-            requestReadTimes.record(duration, timeUnit);
-        }
+    @Override
+    public void onConnectionHandlingSuccess(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onConnectionHandlingSuccess(duration, timeUnit);
+    }
 
-        @Override
-        protected void onRequestHandlingStart(long duration, TimeUnit timeUnit) {
-            requestBacklog.decrementAndGet();
-        }
+    @Override
+    public void onConnectionHandlingStart(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onConnectionHandlingStart(duration, timeUnit);
+    }
 
-        @Override
-        protected void onNewRequestReceived() {
-            requestBacklog.incrementAndGet();
-            inflightRequests.incrementAndGet();
-        }
+    @Override
+    public void onConnectionCloseStart() {
+        tcpDelegate.onConnectionCloseStart();
+    }
 
-        @Override
-        protected void onConnectionHandlingFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            HttpServerListener.this.onConnectionHandlingFailed(duration, timeUnit, throwable);
-        }
+    @Override
+    public void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onConnectionCloseSuccess(duration, timeUnit);
+    }
 
-        @Override
-        protected void onConnectionHandlingSuccess(long duration, TimeUnit timeUnit) {
-            HttpServerListener.this.onConnectionHandlingSuccess(duration, timeUnit);
-        }
+    @Override
+    public void onConnectionCloseFailed(long duration, TimeUnit timeUnit,
+                                        Throwable throwable) {
+        tcpDelegate.onConnectionCloseFailed(duration, timeUnit, throwable);
+    }
 
-        @Override
-        protected void onConnectionHandlingStart(long duration, TimeUnit timeUnit) {
-            HttpServerListener.this.onConnectionHandlingStart(duration, timeUnit);
-        }
+    @Override
+    public void onNewClientConnected() {
+        tcpDelegate.onNewClientConnected();
+    }
 
-        @Override
-        protected void onNewClientConnected() {
-            HttpServerListener.this.onNewClientConnected();
-        }
+    @Override
+    public void onByteRead(long bytesRead) {
+        tcpDelegate.onByteRead(bytesRead);
+    }
 
-        @Override
-        protected void onByteRead(long bytesRead) {
-            HttpServerListener.this.onByteRead(bytesRead);
-        }
+    @Override
+    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        tcpDelegate.onFlushFailed(duration, timeUnit, throwable);
+    }
 
-        @Override
-        protected void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            HttpServerListener.this.onFlushFailed(duration, timeUnit, throwable);
-        }
+    @Override
+    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onFlushSuccess(duration, timeUnit);
+    }
 
-        @Override
-        protected void onFlushSuccess(long duration, TimeUnit timeUnit) {
-            HttpServerListener.this.onFlushSuccess(duration, timeUnit);
-        }
+    @Override
+    public void onFlushStart() {
+        tcpDelegate.onFlushStart();
+    }
 
-        @Override
-        protected void onFlushStart() {
-            HttpServerListener.this.onFlushStart();
-        }
+    @Override
+    public void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        tcpDelegate.onWriteFailed(duration, timeUnit, throwable);
+    }
 
-        @Override
-        protected void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-            HttpServerListener.this.onWriteFailed(duration, timeUnit, throwable);
-        }
+    @Override
+    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+        tcpDelegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    }
 
-        @Override
-        protected void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-            HttpServerListener.this.onWriteSuccess(duration, timeUnit, bytesWritten);
-        }
+    @Override
+    public void onWriteStart() {
+        tcpDelegate.onWriteStart();
+    }
 
-        @Override
-        protected void onWriteStart() {
-            HttpServerListener.this.onWriteStart();
-        }
+    public long getLiveConnections() {
+        return tcpDelegate.getLiveConnections();
+    }
+
+    public long getInflightConnections() {
+        return tcpDelegate.getInflightConnections();
+    }
+
+    public long getFailedConnections() {
+        return tcpDelegate.getFailedConnections();
+    }
+
+    public Timer getConnectionProcessingTimes() {
+        return tcpDelegate.getConnectionProcessingTimes();
+    }
+
+    public long getPendingWrites() {
+        return tcpDelegate.getPendingWrites();
+    }
+
+    public long getPendingFlushes() {
+        return tcpDelegate.getPendingFlushes();
+    }
+
+    public long getBytesWritten() {
+        return tcpDelegate.getBytesWritten();
+    }
+
+    public Timer getWriteTimes() {
+        return tcpDelegate.getWriteTimes();
+    }
+
+    public long getBytesRead() {
+        return tcpDelegate.getBytesRead();
+    }
+
+    public long getFailedWrites() {
+        return tcpDelegate.getFailedWrites();
+    }
+
+    public long getFailedFlushes() {
+        return tcpDelegate.getFailedFlushes();
+    }
+
+    public Timer getFlushTimes() {
+        return tcpDelegate.getFlushTimes();
     }
 }

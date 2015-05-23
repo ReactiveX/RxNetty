@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.metrics;
+package io.reactivex.netty.events;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -23,7 +23,7 @@ import java.util.Map;
 
 public class ListenerInvocationException extends RuntimeException {
 
-    private Map<MetricEventsListener<?>, Throwable> exceptions;
+    private Map<EventListener, Throwable> exceptions;
     private String message;
 
     private static final long serialVersionUID = -4381062024201397997L;
@@ -31,18 +31,18 @@ public class ListenerInvocationException extends RuntimeException {
     @SuppressWarnings("rawtypes")
     protected ListenerInvocationException() {
         super("Metric event listener invocation failed.");
-        exceptions = new HashMap<MetricEventsListener<?>, Throwable>();
+        exceptions = new HashMap<>();
         message = super.getMessage();
     }
 
-    protected void addException(MetricEventsListener<?> listener, Throwable error) {
+    protected void addException(EventListener listener, Throwable error) {
         exceptions.put(listener, error);
     }
 
     protected void finish() {
         exceptions = Collections.unmodifiableMap(exceptions);
         StringBuilder msgBuilder = new StringBuilder(getMessage()).append(". Errors: \n");
-        for (Map.Entry<MetricEventsListener<?>, Throwable> exceptionEntry : exceptions.entrySet()) {
+        for (Map.Entry<EventListener, Throwable> exceptionEntry : exceptions.entrySet()) {
             msgBuilder.append("Listener: ");
             msgBuilder.append(exceptionEntry.getKey().getClass().getSimpleName());
             msgBuilder.append("\n Error:");
@@ -53,7 +53,7 @@ public class ListenerInvocationException extends RuntimeException {
         message = msgBuilder.toString();
     }
 
-    public Map<MetricEventsListener<?>, Throwable> getExceptions() {
+    public Map<EventListener, Throwable> getExceptions() {
         return exceptions;
     }
 

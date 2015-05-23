@@ -40,11 +40,8 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
             PoolLimitDeterminationStrategy strategy = strategies[i];
             if (!strategy.acquireCreationPermit(acquireStartTime, timeUnit)) {
                 if (i > 0) {
-                    long now = timeUnit.convert(System.currentTimeMillis(), TimeUnit.MILLISECONDS);
-                    PoolExhaustedException e = new PoolExhaustedException();
                     for (int j = i - 1; j >= 0; j--) {
-                        strategies[j].onEvent(ClientMetricsEvent.CONNECT_FAILED, now - acquireStartTime,
-                                              timeUnit, e, null); // release all permits acquired before this failure.
+                        strategies[j].releasePermit(); // release all permits acquired before this failure.
                     }
                 }
                 return false;
@@ -79,24 +76,9 @@ public class CompositePoolLimitDeterminationStrategy implements PoolLimitDetermi
     }
 
     @Override
-    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
-                        Throwable throwable, Object value) {
+    public void releasePermit() {
         for (PoolLimitDeterminationStrategy strategy : strategies) {
-            strategy.onEvent(event, duration, timeUnit, throwable, value);
-        }
-    }
-
-    @Override
-    public void onCompleted() {
-        for (PoolLimitDeterminationStrategy strategy : strategies) {
-            strategy.onCompleted();
-        }
-    }
-
-    @Override
-    public void onSubscribe() {
-        for (PoolLimitDeterminationStrategy strategy : strategies) {
-            strategy.onCompleted();
+            strategy.releasePermit();
         }
     }
 }

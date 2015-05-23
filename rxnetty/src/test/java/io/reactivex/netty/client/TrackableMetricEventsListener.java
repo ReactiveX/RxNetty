@@ -16,12 +16,12 @@
 
 package io.reactivex.netty.client;
 
-import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
-public class TrackableMetricEventsListener implements MetricEventsListener<ClientMetricsEvent<?>> {
+public class TrackableMetricEventsListener extends TcpClientEventListener {
 
     private final AtomicLong creationCount = new AtomicLong();
     private final AtomicLong failedCount = new AtomicLong();
@@ -34,44 +34,54 @@ public class TrackableMetricEventsListener implements MetricEventsListener<Clien
     private final AtomicLong releaseSucceededCount = new AtomicLong();
     private final AtomicLong releaseFailedCount = new AtomicLong();
 
-    public void onConnectionCreation() {
+    @Override
+    public void onConnectSuccess(long duration, TimeUnit timeUnit) {
         creationCount.incrementAndGet();
     }
 
-    public void onConnectFailed() {
+    @Override
+    public void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         failedCount.incrementAndGet();
     }
 
-    public void onConnectionReuse() {
-        reuseCount.incrementAndGet();
-    }
-
-    public void onConnectionEviction() {
-        evictionCount.incrementAndGet();
-    }
-
-    public void onAcquireAttempted() {
-        acquireAttemptedCount.incrementAndGet();
-    }
-
-    public void onAcquireSucceeded() {
-        acquireSucceededCount.incrementAndGet();
-    }
-
-    public void onAcquireFailed() {
-        acquireFailedCount.incrementAndGet();
-    }
-
-    public void onReleaseAttempted() {
+    @Override
+    public void onPoolReleaseStart() {
         releaseAttemptedCount.incrementAndGet();
     }
 
-    public void onReleaseSucceeded() {
+    @Override
+    public void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
         releaseSucceededCount.incrementAndGet();
     }
 
-    public void onReleaseFailed() {
+    @Override
+    public void onPoolReleaseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         releaseFailedCount.incrementAndGet();
+    }
+
+    @Override
+    public void onPooledConnectionEviction() {
+        evictionCount.incrementAndGet();
+    }
+
+    @Override
+    public void onPooledConnectionReuse() {
+        reuseCount.incrementAndGet();
+    }
+
+    @Override
+    public void onPoolAcquireStart() {
+        acquireAttemptedCount.incrementAndGet();
+    }
+
+    @Override
+    public void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
+        acquireSucceededCount.incrementAndGet();
+    }
+
+    @Override
+    public void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+        acquireFailedCount.incrementAndGet();
     }
 
     public long getAcquireAttemptedCount() {
@@ -112,54 +122,5 @@ public class TrackableMetricEventsListener implements MetricEventsListener<Clien
 
     public long getReuseCount() {
         return reuseCount.longValue();
-    }
-
-    @Override
-    public void onEvent(ClientMetricsEvent<?> event, long duration, TimeUnit timeUnit,
-                        Throwable throwable, Object value) {
-        if (event.getType() instanceof ClientMetricsEvent.EventType) {
-            switch ((ClientMetricsEvent.EventType) event.getType()) {
-                case ConnectSuccess:
-                    onConnectionCreation();
-                    break;
-                case ConnectFailed:
-                    onConnectFailed();
-                    break;
-                case PooledConnectionReuse:
-                    onConnectionReuse();
-                    break;
-                case PooledConnectionEviction:
-                    onConnectionEviction();
-                    break;
-                case PoolAcquireStart:
-                    onAcquireAttempted();
-                    break;
-                case PoolAcquireSuccess:
-                    onAcquireSucceeded();
-                    break;
-                case PoolAcquireFailed:
-                    onAcquireFailed();
-                    break;
-                case PoolReleaseStart:
-                    onReleaseAttempted();
-                    break;
-                case PoolReleaseSuccess:
-                    onReleaseSucceeded();
-                    break;
-                case PoolReleaseFailed:
-                    onReleaseFailed();
-                    break;
-            }
-        }
-    }
-
-    @Override
-    public void onCompleted() {
-        // No op
-    }
-
-    @Override
-    public void onSubscribe() {
-        // No op.
     }
 }

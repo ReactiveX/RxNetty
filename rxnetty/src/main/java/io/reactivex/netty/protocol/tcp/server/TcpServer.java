@@ -25,10 +25,10 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.metrics.MetricEventsPublisher;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventListener;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventPublisher;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import io.reactivex.netty.server.ServerMetricsEvent;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
  * @param <R> The type of objects read from this server.
  * @param <W> The type of objects written to this server.
  */
-public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMetricsEvent<?>> {
+public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListener> {
 
     /**
      * Creates a new server instance, inheriting all configurations from this server and adding a
@@ -287,8 +287,6 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      */
     public abstract int getServerPort();
 
-    public abstract MetricEventsSubject<ServerMetricsEvent<?>> getEventsSubject();
-
     /**
      * Starts this server.
      *
@@ -319,6 +317,13 @@ public abstract class TcpServer<R, W> implements MetricEventsPublisher<ServerMet
      * @param timeUnit Timeunit for the duration to wait for shutdown.
      */
     public abstract void awaitShutdown(long duration, TimeUnit timeUnit);
+
+    /**
+     * Returns the event publisher for this server.
+     *
+     * @return The event publisher for this server.
+     */
+    public abstract TcpServerEventPublisher getEventPublisher();
 
     /**
      * Creates a new server using the passed port.

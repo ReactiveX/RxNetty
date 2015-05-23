@@ -32,10 +32,9 @@ import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.PrimitiveConversionHandler;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventPublisher;
 import io.reactivex.netty.protocol.tcp.ssl.DefaultSslCodec;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import io.reactivex.netty.server.ServerMetricsEvent;
 import rx.exceptions.Exceptions;
 import rx.functions.Action1;
 import rx.functions.Func0;
@@ -52,7 +51,7 @@ import javax.net.ssl.SSLEngine;
  */
 public final class ServerState<R, W> {
 
-    private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
+    private final TcpServerEventPublisher eventPublisher;
 
     private final int port;
     private final boolean secure;
@@ -66,7 +65,7 @@ public final class ServerState<R, W> {
         bootstrap.childOption(ChannelOption.AUTO_READ, false); // by default do not read content unless asked.
         bootstrap.group(parent, child);
         bootstrap.channel(channelClass);
-        eventsSubject = new MetricEventsSubject<ServerMetricsEvent<?>>();
+        eventPublisher = new TcpServerEventPublisher();
         detachedPipeline = new DetachedChannelPipeline();
         detachedPipeline.addLast(HandlerNames.PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
             @Override
@@ -84,7 +83,7 @@ public final class ServerState<R, W> {
         detachedPipeline = toCopy.detachedPipeline;
         secure = toCopy.secure;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
-        eventsSubject = toCopy.eventsSubject.copy();
+        eventPublisher = toCopy.eventPublisher.copy();
     }
 
     private ServerState(ServerState<?, ?> toCopy, final DetachedChannelPipeline newPipeline) {
@@ -94,7 +93,7 @@ public final class ServerState<R, W> {
         detachedPipeline = newPipeline;
         secure = toCopy.secure;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
-        eventsSubject = toCopyCast.eventsSubject.copy();
+        eventPublisher = toCopyCast.eventPublisher.copy();
     }
 
     private ServerState(ServerState<?, ?> toCopy, final SslCodec sslCodec) {
@@ -104,7 +103,7 @@ public final class ServerState<R, W> {
         detachedPipeline = toCopy.detachedPipeline.copy().configure(sslCodec);
         secure = true;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
-        eventsSubject = toCopyCast.eventsSubject.copy();
+        eventPublisher = toCopyCast.eventPublisher.copy();
     }
 
     public ServerState(ServerState<R, W> toCopy, final int port) {
@@ -113,7 +112,7 @@ public final class ServerState<R, W> {
         detachedPipeline = toCopy.detachedPipeline;
         secure = toCopy.secure;
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());
-        eventsSubject = toCopy.eventsSubject.copy();
+        eventPublisher = toCopy.eventPublisher.copy();
     }
 
     public <T> ServerState<R, W> channelOption(ChannelOption<T> option, T value) {
@@ -229,8 +228,8 @@ public final class ServerState<R, W> {
         return new ServerState<R, W>(this, port);
     }
 
-    public MetricEventsSubject<ServerMetricsEvent<?>> getEventsSubject() {
-        return eventsSubject;
+    public TcpServerEventPublisher getEventPublisher() {
+        return eventPublisher;
     }
 
     public static <RR, WW> ServerState<RR, WW> create(int port) {
