@@ -18,6 +18,7 @@ package io.reactivex.netty.client;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.Future;
+import io.reactivex.netty.protocol.client.PreferCurrentEventLoopGroup;
 import org.junit.Test;
 
 import java.util.Set;

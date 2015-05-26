@@ -22,8 +22,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.client.ClientChannelMetricEventProvider;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import io.reactivex.netty.test.util.FlushSelector;
 import org.junit.Rule;
 import org.junit.Test;
@@ -254,8 +253,8 @@ public class DefaultChannelOperationsTest {
                     writeObservableSubscribers = new ArrayList<>();
                     /*Since, the appropriate handler is not added to the pipeline that handles O<> writes.*/
                     channel = new EmbeddedChannel(new HandleObservableWrite(writeObservableSubscribers));
-                    channelOperations = new DefaultChannelOperations<>(channel, new MetricEventsSubject<>(),
-                                                                       ClientChannelMetricEventProvider.INSTANCE);
+                    TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
+                    channelOperations = new DefaultChannelOperations<>(channel, eventPublisher, eventPublisher);
                     base.evaluate();
                 }
             };

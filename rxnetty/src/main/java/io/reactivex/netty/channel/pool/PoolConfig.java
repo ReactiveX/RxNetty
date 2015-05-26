@@ -15,8 +15,8 @@
  */
 package io.reactivex.netty.channel.pool;
 
-import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
 import rx.Observable;
 
 import java.util.concurrent.TimeUnit;

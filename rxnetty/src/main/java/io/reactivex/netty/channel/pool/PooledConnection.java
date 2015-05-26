@@ -19,8 +19,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.ClientMetricsEvent;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -53,7 +54,8 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     private volatile long maxIdleTimeMillis;
     private final Observable<Void> releaseObservable;
 
-    private PooledConnection(Owner<R, W> owner, PoolConfig<W, R> poolConfig, Connection<R, W> unpooledDelegate) {
+    private PooledConnection(Owner<R, W> owner, PoolConfig<W, R> poolConfig, Connection<R, W> unpooledDelegate,
+                             TcpClientEventListener eventListener) {
         super(unpooledDelegate);
         if (null == owner) {
             throw new IllegalArgumentException("Pooled connection owner can not be null");
@@ -61,9 +63,13 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         if (null == unpooledDelegate) {
             throw new IllegalArgumentException("Connection delegate can not be null");
         }
-        if (null == unpooledDelegate) {
+        if (null == poolConfig) {
             throw new IllegalArgumentException("Pool config can not be null");
         }
+        if (null == eventListener) {
+            throw new IllegalArgumentException("Event listener can not be null");
+        }
+
         this.owner = owner;
         this.unpooledDelegate = unpooledDelegate;
         maxIdleTimeMillis = poolConfig.getMaxIdleTimeMillis();
@@ -197,14 +203,8 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      * @return {@link Observable} representing the result of the discard, this will typically be resulting in a close
      * on the underlying {@link Connection}.
      */
-    public Observable<Void> discard() {
-        return unpooledDelegate.close().finallyDo(new Action0() {
-            @SuppressWarnings("unchecked")
-            @Override
-            public void call() {
-                getEventsSubject().onEvent(ClientMetricsEvent.POOLED_CONNECTION_EVICTION);
-            }
-        });
+    /*package private, externally shouldn't be discardable.*/Observable<Void> discard() {
+        return unpooledDelegate.close();
     }
 
     /**
@@ -216,7 +216,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      */
     public boolean isUsable() {
         final Channel nettyChannel = unsafeNettyChannel();
-        Boolean discardConn = nettyChannel.attr(DISCARD_CONNECTION).get();
+        Boolean discardConn = nettyChannel.attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).get();
 
         if (!nettyChannel.isActive() || Boolean.TRUE == discardConn) {
             return false;
@@ -237,8 +237,10 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     }
 
     public static <R, W> PooledConnection<R, W> create(Owner<R, W> owner, PoolConfig<W, R> poolConfig,
-                                                       Connection<R, W> unpooledDelegate) {
-        final PooledConnection<R, W> toReturn = new PooledConnection<>(owner, poolConfig, unpooledDelegate);
+                                                       Connection<R, W> unpooledDelegate,
+                                                       TcpClientEventListener eventListener) {
+        final PooledConnection<R, W> toReturn = new PooledConnection<>(owner, poolConfig, unpooledDelegate,
+                                                                       eventListener);
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }

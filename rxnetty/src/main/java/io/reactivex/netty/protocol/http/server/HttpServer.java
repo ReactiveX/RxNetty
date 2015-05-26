@@ -25,10 +25,10 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.metrics.MetricEventsPublisher;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import io.reactivex.netty.server.ServerMetricsEvent;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * @param <I> The type of objects received as content from a request in this server.
  * @param <O> The type of objects written as content from a response in this server.
  */
-public abstract class HttpServer<I, O> implements MetricEventsPublisher<ServerMetricsEvent<?>> {
+public abstract class HttpServer<I, O> implements EventSource<HttpServerEventsListener> {
 
     /**
      * Creates a new server instance, inheriting all configurations from this server and adding a {@link ChannelOption}

@@ -25,13 +25,10 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
-import io.reactivex.netty.client.ServerPool;
-import io.reactivex.netty.client.ServerPool.Server;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.metrics.MetricEventsListener;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import rx.Observable;
 import rx.Subscription;
@@ -60,25 +57,12 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
         this(name, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class, remoteAddress);
     }
 
-    protected TcpClientImpl(String name, ServerPool<ClientMetricsEvent<?>> serverPool) {
-        this(name, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class, serverPool);
-    }
-
     protected TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
                             SocketAddress remoteAddress) {
         this.name = name;
         state = ClientState.create(eventLoopGroup, channelClass, remoteAddress);
         remoteAddrVsConnRequest = new ConcurrentHashMap<>();
         thisConnectionRequest = new ConnectionRequestImpl<>(state);
-    }
-
-    protected TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
-                            ServerPool<ClientMetricsEvent<?>> serverPool) {
-        this.name = name;
-        state = ClientState.create(eventLoopGroup, channelClass, serverPool);
-        remoteAddrVsConnRequest = new ConcurrentHashMap<>();
-        ConcurrentHashMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> stateMap = new ConcurrentHashMap<>();
-        thisConnectionRequest = new ConnectionRequestImpl<>(state, stateMap);
     }
 
     protected TcpClientImpl(String name, ClientState<W, R> state) {
@@ -92,12 +76,7 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
         this.state = state;
         name = client.name;
         remoteAddrVsConnRequest = new ConcurrentHashMap<>(); // Since, the state has changed, no existing requests are valid.
-        if (state.hasServerPool()) {
-            ConcurrentHashMap<Server<ClientMetricsEvent<?>>, ClientState<W, R>> stateMap = new ConcurrentHashMap<>();
-            thisConnectionRequest = new ConnectionRequestImpl<>(this.state, stateMap);
-        } else {
-            thisConnectionRequest = new ConnectionRequestImpl<W, R>(this.state);
-        }
+        thisConnectionRequest = new ConnectionRequestImpl<W, R>(this.state);
     }
 
     @Override
@@ -255,17 +234,12 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     @Override
-    public MetricEventsSubject<ClientMetricsEvent<?>> getEventsSubject() {
-        return getClientState().getEventsSubject();
+    public TcpClientEventPublisher getEventPublisher() {
+        return state.getEventPublisher();
     }
 
     private <WW, RR> TcpClientImpl<WW, RR> copy(ClientState<WW, RR> state) {
         return new TcpClientImpl<WW, RR>(this, state);
-    }
-
-    @Override
-    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
-        return state.getEventsSubject().subscribe(listener);
     }
 
     /*Visible for testing*/ ClientState<W, R> getClientState() {
@@ -274,5 +248,10 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     /*Visible for testing*/ Map<SocketAddress, ConnectionRequest<W, R>> getRemoteAddrVsConnRequest() {
         return Collections.unmodifiableMap(remoteAddrVsConnRequest);
+    }
+
+    @Override
+    public Subscription subscribe(TcpClientEventListener listener) {
+        return state.getEventPublisher().subscribe(listener);
     }
 }

@@ -75,8 +75,4 @@ public abstract class IdleConnectionsHolder<W, R> {
     }
 
     protected abstract <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState);
-
-    protected Observable<Void> discard(PooledConnection<R, W> toDiscard) {
-        return toDiscard.discard();
-    }
 }

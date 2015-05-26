@@ -22,6 +22,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.HttpRedirectException;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import org.slf4j.Logger;
@@ -56,18 +57,21 @@ public class Redirector<I, O> implements Func1<HttpClientResponse<O>, Observable
     private final AtomicInteger redirectCount; // Can be shared across multiple event loops, so needs to be thread-safe.
     private volatile HttpResponseStatus lastRedirectStatus;
     private final TcpClient<?, HttpClientResponse<O>> client;
+    private final HttpClientEventPublisher eventPublisher;
 
     private RawRequest<I, O> originalRequest;
 
-    public Redirector(int maxHops, TcpClient<?, HttpClientResponse<O>> client) {
+    public Redirector(int maxHops, TcpClient<?, HttpClientResponse<O>> client,
+                      HttpClientEventPublisher eventPublisher) {
         this.maxHops = maxHops;
         this.client = client;
+        this.eventPublisher = eventPublisher;
         visitedLocations = new ArrayList<>();
         redirectCount = new AtomicInteger();
     }
 
-    public Redirector(TcpClient<?, HttpClientResponse<O>> client) {
-        this(DEFAULT_MAX_REDIRECTS, client);
+    public Redirector(TcpClient<?, HttpClientResponse<O>> client, HttpClientEventPublisher eventPublisher) {
+        this(DEFAULT_MAX_REDIRECTS, client, eventPublisher);
     }
 
     public void setOriginalRequest(RawRequest<I, O> originalRequest) {
@@ -166,7 +170,7 @@ public class Redirector<I, O> implements Func1<HttpClientResponse<O>, Observable
                                                 redirectUri, this);
         }
 
-        return HttpClientRequestImpl.create(redirectRequest, client);
+        return HttpClientRequestImpl.create(redirectRequest, client, eventPublisher);
     }
 
     protected static String getNettyRequestUri(URI uri, String originalUriString, int redirectStatus) {

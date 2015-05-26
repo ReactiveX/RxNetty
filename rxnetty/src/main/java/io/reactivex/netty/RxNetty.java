@@ -24,6 +24,7 @@ public final class RxNetty {
     private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider(1, Runtime.getRuntime().availableProcessors());
 
     private static volatile boolean usingNativeTransport;
+    private static volatile boolean disableEventPublishing;
 
     private RxNetty() {
     }
@@ -87,6 +88,29 @@ public final class RxNetty {
      */
     public static void disableNativeTransport() {
         usingNativeTransport = false;
+    }
+
+    /**
+     * Enables publishing of events for RxNetty.
+     */
+    public static void enableEventPublishing() {
+        disableEventPublishing = false;
+    }
+
+    /**
+     * Disables publishing of events for RxNetty.
+     */
+    public static void disableEventPublishing() {
+        disableEventPublishing = true;
+    }
+
+    /**
+     * Returns {@code true} if event publishing is disabled.
+     *
+     * @return {@code true} if event publishing is disabled.
+     */
+    public static boolean isEventPublishingDisabled() {
+        return disableEventPublishing;
     }
 
     public static boolean isUsingNativeTransport() {

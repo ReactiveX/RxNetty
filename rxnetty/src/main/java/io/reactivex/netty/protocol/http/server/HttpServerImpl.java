@@ -33,12 +33,11 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.metrics.Clock;
-import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.protocol.http.server.events.HttpServerEventPublisher;
+import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import io.reactivex.netty.server.ServerMetricsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -49,114 +48,128 @@ import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
+import rx.subscriptions.CompositeSubscription;
 
 import javax.net.ssl.SSLEngine;
 import java.util.concurrent.TimeUnit;
 
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
+import static io.reactivex.netty.events.Clock.*;
+import static java.util.concurrent.TimeUnit.*;
 
 public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpServerImpl.class);
 
     private final TcpServer<HttpServerRequest<I>, Object> server;
+    private final HttpServerEventPublisher eventPublisher;
     private boolean sendHttp10ResponseFor10Request;
 
-    private HttpServerImpl(TcpServer<HttpServerRequest<I>, Object> server) {
+    private HttpServerImpl(TcpServer<HttpServerRequest<I>, Object> server, HttpServerEventPublisher eventPublisher) {
         this.server = server;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
     public <T> HttpServer<I, O> channelOption(ChannelOption<T> option, T value) {
-        return _copy(server.channelOption(option, value));
+        return _copy(server.channelOption(option, value), eventPublisher);
     }
 
     @Override
     public <T> HttpServer<I, O> clientChannelOption(ChannelOption<T> option, T value) {
-        return _copy(server.clientChannelOption(option, value));
+        return _copy(server.clientChannelOption(option, value), eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerFirst(name, handlerFactory)));
+        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerFirst(name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerFirst(group, name, handlerFactory)));
+        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerFirst(group, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerLast(name, handlerFactory)));
+        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerLast(name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                              Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerLast(group, name, handlerFactory)));
+        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerLast(group, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerBefore(String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerBefore(baseName, name, handlerFactory)));
+        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerBefore(baseName, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerBefore(group, baseName, name,
-                                                                                  handlerFactory)));
+                                                                                  handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerAfter(String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerAfter(baseName, name, handlerFactory)));
+        return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerAfter(baseName, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpServerImpl.<II>castServer(server.addChannelHandlerAfter(group, baseName, name,
-                                                                                 handlerFactory)));
+                                                                                 handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpServer<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        return _copy(HttpServerImpl.<II>castServer(server.pipelineConfigurator(pipelineConfigurator)));
+        return _copy(HttpServerImpl.<II>castServer(server.pipelineConfigurator(pipelineConfigurator)),
+                     eventPublisher);
     }
 
     @Override
     public HttpServer<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
-        return _copy(server.secure(sslEngineFactory));
+        return _copy(server.secure(sslEngineFactory), eventPublisher);
     }
 
     @Override
     public HttpServer<I, O> secure(SSLEngine sslEngine) {
-        return _copy(server.secure(sslEngine));
+        return _copy(server.secure(sslEngine), eventPublisher);
     }
 
     @Override
     public HttpServer<I, O> secure(SslCodec sslCodec) {
-        return _copy(server.secure(sslCodec));
+        return _copy(server.secure(sslCodec), eventPublisher);
     }
 
     @Override
     public HttpServer<I, O> unsafeSecure() {
-        return _copy(server.unsafeSecure());
+        return _copy(server.unsafeSecure(), eventPublisher);
     }
 
     @Override
     public HttpServer<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
-        return _copy(server.enableWireLogging(wireLoggingLevel));
+        return _copy(server.enableWireLogging(wireLoggingLevel), eventPublisher);
     }
 
     @Override
     public HttpServer<I, O> sendHttp10ResponseFor10Request(boolean sendHttp10ResponseFor10Request) {
-        HttpServerImpl<I, O> toReturn = _copy(server);
+        HttpServerImpl<I, O> toReturn = _copy(server, eventPublisher);
         toReturn.sendHttp10ResponseFor10Request = sendHttp10ResponseFor10Request;
         return toReturn;
     }
@@ -187,21 +200,17 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
         server.awaitShutdown(duration, timeUnit);
     }
 
-    @Override
-    public Subscription subscribe(MetricEventsListener<? extends ServerMetricsEvent<?>> listener) {
-        return server.subscribe(listener);
-    }
-
     static HttpServer<ByteBuf, ByteBuf> create(final TcpServer<ByteBuf, ByteBuf> tcpServer) {
+        final HttpServerEventPublisher eventPublisher = new HttpServerEventPublisher(tcpServer.getEventPublisher());
         return new HttpServerImpl<>(
                 tcpServer.<HttpServerRequest<ByteBuf>, Object>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
                         pipeline.addLast(HandlerNames.HttpServerEncoder.getName(), new HttpResponseEncoder());
                         pipeline.addLast(HandlerNames.HttpServerDecoder.getName(), new HttpRequestDecoder());
-                        pipeline.addLast(new HttpServerToConnectionBridge<>(tcpServer.getEventsSubject()));
+                        pipeline.addLast(new HttpServerToConnectionBridge<>(eventPublisher));
                     }
-                }));
+                }), eventPublisher);
     }
 
     @SuppressWarnings("unchecked")
@@ -209,8 +218,17 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
         return (TcpServer<HttpServerRequest<II>, Object>)rawTypes;
     }
 
-    private static <II, OO> HttpServerImpl<II, OO> _copy(TcpServer<HttpServerRequest<II>, Object> newServer) {
-        return new HttpServerImpl<>(newServer);
+    private static <II, OO> HttpServerImpl<II, OO> _copy(TcpServer<HttpServerRequest<II>, Object> newServer,
+                                                         HttpServerEventPublisher oldEventPublisher) {
+        return new HttpServerImpl<>(newServer, oldEventPublisher.copy(newServer.getEventPublisher()));
+    }
+
+    @Override
+    public Subscription subscribe(HttpServerEventsListener listener) {
+        final CompositeSubscription cs = new CompositeSubscription();
+        cs.add(server.subscribe(listener));
+        cs.add(eventPublisher.subscribe(listener));
+        return cs;
     }
 
     private class HttpServerConnectionHandler implements ConnectionHandler<HttpServerRequest<I>, Object> {
@@ -261,13 +279,15 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     @Override
                     public void onNext(HttpServerRequest<I> request) {
 
-                        final long startTimeMillis = Clock.newStartTimeMillis();
+                        final long startMillis = eventPublisher.publishingEnabled() ? newStartTimeMillis() : -1;
 
-                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.NEW_REQUEST_RECEIVED);
+                        if (eventPublisher.publishingEnabled()) {
+                            eventPublisher.onNewRequestReceived();
+                        }
 
                         final HttpServerResponse<O> response = newResponse(request);
 
-                        final Subscription processingSubscription = handleRequest(request, startTimeMillis, response)
+                        final Subscription processingSubscription = handleRequest(request, startMillis, response)
                                                                         .doOnTerminate(new Action0() {
                                                                             @Override
                                                                             public void call() {
@@ -316,34 +336,45 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                                                     .write(Observable.<O>empty());
                 }
 
-                return requestHandlingResult.lift(new Operator<Void, Void>() {
-                    @Override
-                    public Subscriber<? super Void> call(final Subscriber<? super Void> o) {
-                        server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_START,
-                                                          Clock.onEndMillis(startTimeMillis));
-                        return new Subscriber<Void>(o) {
-                            @Override
-                            public void onCompleted() {
-                                server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_SUCCESS,
-                                                                  Clock.onEndMillis(startTimeMillis));
-                                o.onCompleted();
+                if (eventPublisher.publishingEnabled()) {
+                    requestHandlingResult = requestHandlingResult.lift(new Operator<Void, Void>() {
+                        @Override
+                        public Subscriber<? super Void> call(final Subscriber<? super Void> o) {
+
+                            if (eventPublisher.publishingEnabled()) {
+                                eventPublisher.onRequestHandlingStart(onEndMillis(startTimeMillis), MILLISECONDS);
                             }
 
-                            @Override
-                            public void onError(Throwable e) {
-                                server.getEventsSubject().onEvent(HttpServerMetricsEvent.REQUEST_HANDLING_FAILED,
-                                                                  Clock.onEndMillis(startTimeMillis), e);
-                                logger.error("Unexpected error processing a request.", e);
-                                o.onError(e);
-                            }
+                            return new Subscriber<Void>(o) {
+                                @Override
+                                public void onCompleted() {
+                                    if (eventPublisher.publishingEnabled()) {
+                                        eventPublisher.onRequestHandlingSuccess(onEndMillis(startTimeMillis),
+                                                                                MILLISECONDS);
+                                    }
+                                    o.onCompleted();
+                                }
 
-                            @Override
-                            public void onNext(Void aVoid) {
-                                // No Op, its a void
-                            }
-                        };
-                    }
-                }).onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
+                                @Override
+                                public void onError(Throwable e) {
+                                    if (eventPublisher.publishingEnabled()) {
+                                        eventPublisher.onRequestHandlingFailed(onEndMillis(startTimeMillis),
+                                                                               MILLISECONDS, e);
+                                    }
+                                    logger.error("Unexpected error processing a request.", e);
+                                    o.onError(e);
+                                }
+
+                                @Override
+                                public void onNext(Void aVoid) {
+                                    // No Op, its a void
+                                }
+                            };
+                        }
+                    });
+                }
+
+                return requestHandlingResult.onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
                     @Override
                     public Observable<Void> call(Throwable throwable) {
                         return response.setStatus(INTERNAL_SERVER_ERROR)

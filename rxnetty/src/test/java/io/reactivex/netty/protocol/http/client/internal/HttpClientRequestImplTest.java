@@ -36,12 +36,12 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
-import io.reactivex.netty.client.ClientChannelMetricEventProvider;
-import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import io.reactivex.netty.test.util.FlushSelector;
 import io.reactivex.netty.test.util.TcpConnectionRequestMock;
 import org.junit.Rule;
@@ -782,6 +782,7 @@ public class HttpClientRequestImplTest {
         private EmbeddedChannel channel;
         @SuppressWarnings("rawtypes")
         private Subscriber cis;
+        private HttpClientEventPublisher httpPublisher;
 
         @Override
         public Statement apply(final Statement base, Description description) {
@@ -804,8 +805,8 @@ public class HttpClientRequestImplTest {
                         }
                     });
 
-                    connMock = ConnectionImpl.create(channel, new MetricEventsSubject<>(),
-                                                     ClientChannelMetricEventProvider.INSTANCE);
+                    TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
+                    connMock = ConnectionImpl.create(channel, eventPublisher, eventPublisher);
 
                     @SuppressWarnings("unchecked")
                     final
@@ -869,13 +870,15 @@ public class HttpClientRequestImplTest {
                     Mockito.when(clientMock.enableWireLogging(Matchers.<LogLevel>anyObject()))
                                            .thenAnswer(returnThisMock);
 
-                    Mockito.when(clientMock.getEventsSubject()).thenAnswer(Mockito.RETURNS_MOCKS);
+                    Mockito.when(clientMock.getEventPublisher()).thenAnswer(Mockito.RETURNS_MOCKS);
 
                     RequestRule.this.clientMock = clientMock;
 
+                    httpPublisher = new HttpClientEventPublisher(clientMock.getEventPublisher());
                     request = (HttpClientRequestImpl<Object, ByteBuf>) HttpClientRequestImpl.create(HttpVersion.HTTP_1_1,
                                                                                                     HttpMethod.GET, "/",
-                                                                                                    RequestRule.this.clientMock);
+                                                                                                    RequestRule.this.clientMock,
+                                                                                                    httpPublisher);
                     base.evaluate();
                 }
             };
@@ -883,7 +886,8 @@ public class HttpClientRequestImplTest {
 
         public void createNewRequest(HttpMethod method, String uri) {
             request = (HttpClientRequestImpl<Object, ByteBuf>) HttpClientRequestImpl.create(HttpVersion.HTTP_1_1,
-                                                                                            method, uri, clientMock);
+                                                                                            method, uri, clientMock,
+                                                                                            httpPublisher);
         }
 
         public void assertCopy(HttpClientRequestImpl<Object, ByteBuf> newReq) {

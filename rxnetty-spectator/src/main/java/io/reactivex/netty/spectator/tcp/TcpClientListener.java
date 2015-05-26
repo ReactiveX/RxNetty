@@ -18,8 +18,7 @@ package io.reactivex.netty.spectator.tcp;
 
 import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Timer;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.metrics.ClientMetricEventsListener;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,7 +28,8 @@ import static io.reactivex.netty.spectator.SpectatorUtils.*;
 /**
  * TcpClientListener
  */
-public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMetricEventsListener<T> {
+public class TcpClientListener extends TcpClientEventListener {
+
     private final AtomicInteger liveConnections;
     private final Counter connectionCount;
     private final AtomicInteger pendingConnects;
@@ -62,7 +62,7 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
     private final Counter failedFlushes;
     private final Timer flushTimes;
 
-    protected TcpClientListener(String monitorId) {
+    public TcpClientListener(String monitorId) {
         liveConnections = newGauge("liveConnections", monitorId, new AtomicInteger());
         connectionCount = newCounter("connectionCount", monitorId);
         pendingConnects = newGauge("pendingConnects", monitorId, new AtomicInteger());
@@ -93,119 +93,119 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
     }
 
     @Override
-    protected void onByteRead(long bytesRead) {
+    public void onByteRead(long bytesRead) {
         this.bytesRead.increment(bytesRead);
     }
 
     @Override
-    protected void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         pendingFlushes.decrementAndGet();
         failedFlushes.increment();
     }
 
     @Override
-    protected void onFlushSuccess(long duration, TimeUnit timeUnit) {
+    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
         pendingFlushes.decrementAndGet();
         flushTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onFlushStart() {
+    public void onFlushStart() {
         pendingFlushes.incrementAndGet();
     }
 
     @Override
-    protected void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         pendingWrites.decrementAndGet();
         failedWrites.increment();
     }
 
     @Override
-    protected void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
         pendingWrites.decrementAndGet();
         this.bytesWritten.increment(bytesWritten);
         writeTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onWriteStart() {
+    public void onWriteStart() {
         pendingWrites.incrementAndGet();
     }
 
     @Override
-    protected void onPoolReleaseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onPoolReleaseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         pendingPoolReleases.decrementAndGet();
         poolReleases.increment();
         failedPoolReleases.increment();
     }
 
     @Override
-    protected void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
+    public void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
         pendingPoolReleases.decrementAndGet();
         poolReleases.increment();
         poolReleaseTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onPoolReleaseStart() {
+    public void onPoolReleaseStart() {
         pendingPoolReleases.incrementAndGet();
     }
 
     @Override
-    protected void onPooledConnectionEviction() {
+    public void onPooledConnectionEviction() {
         poolEvictions.increment();
     }
 
     @Override
-    protected void onPooledConnectionReuse() {
+    public void onPooledConnectionReuse() {
         poolReuse.increment();
     }
 
     @Override
-    protected void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         pendingPoolAcquires.decrementAndGet();
         poolAcquires.increment();
         failedPoolAcquires.increment();
     }
 
     @Override
-    protected void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
+    public void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
         pendingPoolAcquires.decrementAndGet();
         poolAcquires.increment();
         poolAcquireTimes.record(duration, timeUnit);
     }
 
     @Override
-    protected void onPoolAcquireStart() {
+    public void onPoolAcquireStart() {
         pendingPoolAcquires.incrementAndGet();
     }
 
     @Override
-    protected void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         liveConnections.decrementAndGet(); // Even though the close failed, the connection isn't live.
         pendingConnectionClose.decrementAndGet();
         failedConnectionClose.increment();
     }
 
     @Override
-    protected void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
+    public void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
         liveConnections.decrementAndGet();
         pendingConnectionClose.decrementAndGet();
     }
 
     @Override
-    protected void onConnectionCloseStart() {
+    public void onConnectionCloseStart() {
         pendingConnectionClose.incrementAndGet();
     }
 
     @Override
-    protected void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+    public void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
         pendingConnects.decrementAndGet();
         failedConnects.increment();
     }
 
     @Override
-    protected void onConnectSuccess(long duration, TimeUnit timeUnit) {
+    public void onConnectSuccess(long duration, TimeUnit timeUnit) {
         pendingConnects.decrementAndGet();
         liveConnections.incrementAndGet();
         connectionCount.increment();
@@ -213,16 +213,8 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
     }
 
     @Override
-    protected void onConnectStart() {
+    public void onConnectStart() {
         pendingConnects.incrementAndGet();
-    }
-
-    @Override
-    public void onCompleted() {
-    }
-
-    @Override
-    public void onSubscribe() {
     }
 
     public long getLiveConnections() {
@@ -323,9 +315,5 @@ public class TcpClientListener<T extends ClientMetricsEvent<?>> extends ClientMe
 
     public long getPoolReleases() {
         return poolReleases.count();
-    }
-
-    public static TcpClientListener<ClientMetricsEvent<ClientMetricsEvent.EventType>> newListener(String monitorId) {
-        return new TcpClientListener<ClientMetricsEvent<ClientMetricsEvent.EventType>>(monitorId);
     }
 }

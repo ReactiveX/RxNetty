@@ -20,7 +20,7 @@ import io.netty.util.concurrent.FastThreadLocal;
 import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
 import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
 import io.reactivex.netty.channel.pool.PooledConnection;
-import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
+import io.reactivex.netty.protocol.client.PreferCurrentEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -31,6 +31,8 @@ import rx.functions.Actions;
 import rx.functions.Func0;
 
 import java.util.Set;
+
+import static io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.*;
 
 /**
  * An {@link io.reactivex.netty.channel.pool.IdleConnectionsHolder} implementation that can identify if the calling thread is an {@link EventLoop} in
@@ -138,7 +140,8 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
                     if (null == holderForThisEl) {
                         logger.error("Unrecognized eventloop: " + Thread.currentThread().getName() +
                                      ". Returned connection can not be added to the pool. Closing the connection.");
-                        toAdd.discard().subscribe(Actions.empty(), new Action1<Throwable>() {
+                        toAdd.unsafeNettyChannel().attr(DISCARD_CONNECTION).set(true);
+                        toAdd.close().subscribe(Actions.empty(), new Action1<Throwable>() {
                             @Override
                             public void call(Throwable throwable) {
                                 logger.error("Failed to discard connection.", throwable);

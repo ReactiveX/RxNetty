@@ -22,6 +22,7 @@ import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
+import io.reactivex.netty.test.util.MockPoolLimitDeterminationStrategy;
 import org.junit.Assert;
 import org.junit.Test;
 import rx.Observable;
@@ -47,8 +48,7 @@ public class SslClientTest {
                                    })
                                    .getServerPort();
 
-        final MaxConnectionsBasedStrategy strategy = new MaxConnectionsBasedStrategy(1);
-
+        MockPoolLimitDeterminationStrategy strategy = new MockPoolLimitDeterminationStrategy(1);
         // The connect fails because the server does not support SSL.
         TestSubscriber<ByteBuf> subscriber = new TestSubscriber<>();
         HttpClient.newClient("127.0.0.1", serverPort)
@@ -68,7 +68,8 @@ public class SslClientTest {
         assertThat("Unexpected error notifications.", subscriber.getOnErrorEvents(), hasSize(1));
         assertThat("Unexpected error.", subscriber.getOnErrorEvents().get(0), is(instanceOf(SSLException.class)));
 
-        Thread.sleep(10000); //TODO: Fix me: Seems to be a race-condition
+        Assert.assertEquals("Unexpected acquire counts.", 1, strategy.getAcquireCount());
+        Assert.assertEquals("Unexpected release counts.", 1, strategy.getReleaseCount());
         Assert.assertEquals("Unexpected available permits.", 1, strategy.getAvailablePermits());
     }
 }

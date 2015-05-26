@@ -25,10 +25,10 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.client.ClientMetricsEvent;
-import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.metrics.MetricEventsListener;
+import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl;
 import io.reactivex.netty.protocol.http.client.internal.Redirector;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -45,10 +45,12 @@ import java.util.concurrent.TimeUnit;
 public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     private final TcpClient<?, HttpClientResponse<O>> client;
+    private final HttpClientEventPublisher eventPublisher;
     private int maxRedirects;
 
-    protected HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client) {
+    protected HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client, HttpClientEventPublisher eventPublisher) {
         this.client = client;
+        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -103,165 +105,171 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public HttpClientRequest<I, O> createRequest(HttpVersion version, HttpMethod method, String uri) {
-        return HttpClientRequestImpl.create(version, method, uri, client, maxRedirects);
+        return HttpClientRequestImpl.create(version, method, uri, client, eventPublisher, maxRedirects);
     }
 
     @Override
     public HttpClient<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
-        return _copy(client.readTimeOut(timeOut, timeUnit));
+        return _copy(client.readTimeOut(timeOut, timeUnit), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> followRedirects(int maxRedirects) {
-        HttpClientImpl<I, O> toReturn = _copy(client);
+        HttpClientImpl<I, O> toReturn = _copy(client, eventPublisher);
         toReturn.maxRedirects = maxRedirects;
         return toReturn;
     }
 
     @Override
     public HttpClient<I, O> followRedirects(boolean follow) {
-        HttpClientImpl<I, O> toReturn = _copy(client);
+        HttpClientImpl<I, O> toReturn = _copy(client, eventPublisher);
         toReturn.maxRedirects = follow ? Redirector.DEFAULT_MAX_REDIRECTS : HttpClientRequestImpl.NO_REDIRECTS;
         return toReturn;
     }
 
     @Override
     public <T> HttpClient<I, O> channelOption(ChannelOption<T> option, T value) {
-        return _copy(client.channelOption(option, value));
+        return _copy(client.channelOption(option, value), eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory)), eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(group, name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(group, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory)), eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                              Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(group, name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(group, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(baseName, name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(baseName, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(group, baseName, name,
-                                                                                  handlerFactory)));
+                                                                                  handlerFactory)), eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(baseName, name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(baseName, name, handlerFactory)),
+                     eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(group, baseName, name,
-                                                                                 handlerFactory)));
+                                                                                 handlerFactory)), eventPublisher);
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        return _copy(HttpClientImpl.<OO>castClient(client.pipelineConfigurator(pipelineConfigurator)));
+        return _copy(HttpClientImpl.<OO>castClient(client.pipelineConfigurator(pipelineConfigurator)), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> maxConnections(int maxConnections) {
-        return _copy(client.maxConnections(maxConnections));
+        return _copy(client.maxConnections(maxConnections), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
-        return _copy(client.idleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis));
+        return _copy(client.idleConnectionsTimeoutMillis(idleConnectionsTimeoutMillis), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy) {
-        return _copy(client.connectionPoolLimitStrategy(strategy));
+        return _copy(client.connectionPoolLimitStrategy(strategy), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer) {
-        return _copy(client.idleConnectionCleanupTimer(idleConnectionCleanupTimer));
+        return _copy(client.idleConnectionCleanupTimer(idleConnectionCleanupTimer), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> noIdleConnectionCleanup() {
-        return _copy(client.noIdleConnectionCleanup());
+        return _copy(client.noIdleConnectionCleanup(), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> noConnectionPooling() {
-        return _copy(client.noConnectionPooling());
+        return _copy(client.noConnectionPooling(), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
-        return _copy(client.secure(sslEngineFactory));
+        return _copy(client.secure(sslEngineFactory), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> secure(SSLEngine sslEngine) {
-        return _copy(client.secure(sslEngine));
+        return _copy(client.secure(sslEngine), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> secure(SslCodec sslCodec) {
-        return _copy(client.secure(sslCodec));
+        return _copy(client.secure(sslCodec), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> unsafeSecure() {
-        return _copy(client.unsafeSecure());
+        return _copy(client.unsafeSecure(), eventPublisher);
     }
 
     @Override
     public HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
-        return _copy(client.enableWireLogging(wireLoggingLevel));
+        return _copy(client.enableWireLogging(wireLoggingLevel), eventPublisher);
     }
 
     @Override
-    public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
-        return client.subscribe(listener);
+    public Subscription subscribe(HttpClientEventsListener listener) {
+        return null;
     }
 
     public static HttpClient<ByteBuf, ByteBuf> create(final TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        final HttpClientEventPublisher eventPublisher = new HttpClientEventPublisher(tcpClient.getEventPublisher());
         return new HttpClientImpl<>(
                 tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
                         pipeline.addLast(HandlerNames.HttpClientCodec.getName(), new HttpClientCodec());
-                        pipeline.addLast(new HttpClientToConnectionBridge<>(tcpClient.getEventsSubject()));
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(eventPublisher));
                     }
-                }));
+                }), eventPublisher);
     }
 
     public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(final TcpClient<ByteBuf, ByteBuf> tcpClient) {
+        final HttpClientEventPublisher eventPublisher = new HttpClientEventPublisher(tcpClient.getEventPublisher());
         return new HttpClientImpl<>(
                 tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
-                        pipeline.addLast(new HttpClientToConnectionBridge<>(tcpClient.getEventsSubject()));
+                        pipeline.addLast(new HttpClientToConnectionBridge<>(eventPublisher));
                     }
-                }));
+                }), eventPublisher);
     }
 
     @SuppressWarnings("unchecked")
@@ -269,7 +277,8 @@ public class HttpClientImpl<I, O> extends HttpClient<I, O> {
         return (TcpClient<?, HttpClientResponse<OO>>) rawTypes;
     }
 
-    private static <II, OO> HttpClientImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient) {
-        return new HttpClientImpl<>(newClient);
+    private static <II, OO> HttpClientImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient,
+                                                         HttpClientEventPublisher oldEventPublisher) {
+        return new HttpClientImpl<>(newClient, oldEventPublisher.copy(newClient.getEventPublisher()));
     }
 }

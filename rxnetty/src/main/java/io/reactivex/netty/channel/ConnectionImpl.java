@@ -17,7 +17,8 @@ package io.reactivex.netty.channel;
 
 import io.netty.channel.Channel;
 import io.netty.channel.FileRegion;
-import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.channel.events.ConnectionEventListener;
+import io.reactivex.netty.events.EventPublisher;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -29,15 +30,14 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
 
     private final ChannelOperations<W> delegate;
 
-    private ConnectionImpl(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
-                           ChannelMetricEventProvider metricEventProvider) {
-        super(nettyChannel, eventsSubject, metricEventProvider);
-        delegate = new DefaultChannelOperations<>(nettyChannel, eventsSubject, metricEventProvider);
+    private ConnectionImpl(Channel nettyChannel, ConnectionEventListener eventListener, EventPublisher eventPublisher) {
+        super(nettyChannel, eventListener, eventPublisher);
+        delegate = new DefaultChannelOperations<>(nettyChannel, eventListener, eventPublisher);
     }
 
-    private ConnectionImpl(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
-                           ChannelMetricEventProvider metricEventProvider, ChannelOperations<W> delegate) {
-        super(nettyChannel, eventsSubject, metricEventProvider);
+    private ConnectionImpl(Channel nettyChannel, ConnectionEventListener eventListener, EventPublisher eventPublisher,
+                           ChannelOperations<W> delegate) {
+        super(nettyChannel, eventListener, eventPublisher);
         this.delegate = delegate;
     }
 
@@ -124,18 +124,18 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
         delegate.closeNow();
     }
 
-    public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, MetricEventsSubject<?> eventsSubject,
-                                                     ChannelMetricEventProvider metricEventProvider) {
-        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventsSubject, metricEventProvider);
+    public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, ConnectionEventListener eventListener,
+                                                     EventPublisher eventPublisher) {
+        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventListener, eventPublisher);
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }
 
     /*Visible for testing*/static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel,
-                                                                     MetricEventsSubject<?> eventsSubject,
-                                                                     ChannelMetricEventProvider metricEventProvider,
+                                                                     ConnectionEventListener eventListener,
+                                                                     EventPublisher eventPublisher,
                                                                      ChannelOperations<W> delegate) {
-        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventsSubject, metricEventProvider,
+        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventListener, eventPublisher,
                                                                    delegate);
         toReturn.connectCloseToChannelClose();
         return toReturn;

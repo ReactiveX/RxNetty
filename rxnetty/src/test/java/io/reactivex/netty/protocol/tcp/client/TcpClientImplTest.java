@@ -22,7 +22,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Answers;
