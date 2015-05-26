@@ -29,6 +29,7 @@ import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 import rx.Subscriber;
@@ -46,7 +47,6 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
      * {@link io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl#getKeepAliveTimeoutSeconds()}
      */
     public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR = AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
-    public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
 
     private final HttpClientEventPublisher eventPublisher;
 
@@ -100,7 +100,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
              * If the close is triggerred by the user, the channel will be active.
              * If the response, isn't complete, then the connection can not be used.
              */
-            connectionInputSubscriber.getChannel().attr(DISCARD_CONNECTION).set(true);
+            connectionInputSubscriber.getChannel().attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true);
         }
     }
 
@@ -129,7 +129,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
         }
 
         if (!rxResponse.isKeepAlive()) {
-            channel.attr(DISCARD_CONNECTION).set(true); /*Discard connection when done with this response.*/
+            channel.attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true); /*Discard connection when done with this response.*/
         }
 
         return rxResponse;

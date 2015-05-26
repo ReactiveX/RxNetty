@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.client;
+package io.reactivex.netty.protocol.client;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -90,6 +90,24 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
 
     @Override
     public void releasePermit() {
-        limitEnforcer.decrementAndGet();
+        /**
+         * As opposed to limitEnforcer.decrementAndGet() we follow this model as this does not change the limitEnforcer
+         * value unless there are enough permits.
+         * If we were to use decrementAndGet(), in case of overflow (from max allowed limit) we would have to decrement
+         * the limitEnforcer. This may show temporary overflows in getMaxConnections() which may be disturbing for a
+         * user. However, even if we use decrementAndGet() the counter corrects itself over time.
+         * This is just a more semantically correct implementation with similar performance characterstics as
+         * decrementAndGet()
+         */
+        for (;;) {
+            final int currentValue = limitEnforcer.get();
+            final int newValue = currentValue - 1;
+            if (newValue >= 0) {
+                if (!limitEnforcer.compareAndSet(currentValue, newValue)) {
+                    continue;
+                }
+            }
+            break;
+        }
     }
 }

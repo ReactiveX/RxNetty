@@ -28,7 +28,7 @@ public abstract class TcpServerEventListener extends ConnectionEventListener {
     /**
      * Event whenever a new client connection is accepted.
      */
-    protected void onNewClientConnected() { }
+    public void onNewClientConnected() { }
 
     /**
      * Event when any connection handling starts.

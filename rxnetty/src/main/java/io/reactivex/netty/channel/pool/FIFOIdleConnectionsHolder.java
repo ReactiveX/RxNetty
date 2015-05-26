@@ -42,12 +42,7 @@ public class FIFOIdleConnectionsHolder<W, R> extends IdleConnectionsHolder<W, R>
             public void call(Subscriber<? super PooledConnection<R, W>> subscriber) {
                 PooledConnection<R, W> idleConnection;
                 while (!subscriber.isUnsubscribed() && (idleConnection = idleConnections.poll()) != null) {
-                    if (!idleConnection.isUsable()) {
-                        discard(idleConnection);
-                    } else {
-                        subscriber.onNext(idleConnection);
-                        break;
-                    }
+                    subscriber.onNext(idleConnection);
                 }
                 if (!subscriber.isUnsubscribed()) {
                     subscriber.onCompleted();

@@ -19,14 +19,48 @@ import io.reactivex.netty.channel.events.ConnectionEventPublisher;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.events.ListenersHolder;
+import io.reactivex.netty.events.internal.SafeEventListener;
 import rx.Subscription;
 import rx.functions.Action1;
+import rx.functions.Action3;
+import rx.functions.Action4;
 import rx.subscriptions.CompositeSubscription;
 
 import java.util.concurrent.TimeUnit;
 
 public final class TcpServerEventPublisher extends TcpServerEventListener
         implements EventSource<TcpServerEventListener>, EventPublisher {
+
+    private static final Action1<TcpServerEventListener> NEW_CLIENT_ACTION = new Action1<TcpServerEventListener>() {
+        @Override
+        public void call(TcpServerEventListener l) {
+            l.onNewClientConnected();
+        }
+    };
+
+    private static final Action3<TcpServerEventListener, Long, TimeUnit> HANDLE_START_ACTION =
+            new Action3<TcpServerEventListener, Long, TimeUnit>() {
+                @Override
+                public void call(TcpServerEventListener l, Long duration, TimeUnit timeUnit) {
+                    l.onConnectionHandlingStart(duration, timeUnit);
+                }
+            };
+
+    private static final Action3<TcpServerEventListener, Long, TimeUnit> HANDLE_SUCCESS_ACTION =
+            new Action3<TcpServerEventListener, Long, TimeUnit>() {
+                @Override
+                public void call(TcpServerEventListener l, Long duration, TimeUnit timeUnit) {
+                    l.onConnectionHandlingSuccess(duration, timeUnit);
+                }
+            };
+
+    private static final Action4<TcpServerEventListener, Long, TimeUnit, Throwable> HANDLE_FAILED_ACTION =
+            new Action4<TcpServerEventListener, Long, TimeUnit, Throwable>() {
+                @Override
+                public void call(TcpServerEventListener l, Long duration, TimeUnit timeUnit, Throwable t) {
+                    l.onConnectionHandlingFailed(duration, timeUnit, t);
+                }
+            };
 
     private final ListenersHolder<TcpServerEventListener> listeners;
     private final ConnectionEventPublisher<TcpServerEventListener> connDelegate;
@@ -43,42 +77,22 @@ public final class TcpServerEventPublisher extends TcpServerEventListener
 
     @Override
     public void onNewClientConnected() {
-        listeners.invokeListeners(new Action1<TcpServerEventListener>() {
-            @Override
-            public void call(TcpServerEventListener listener) {
-                listener.onNewClientConnected();
-            }
-        });
+        listeners.invokeListeners(NEW_CLIENT_ACTION);
     }
 
     @Override
     public void onConnectionHandlingStart(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(new Action1<TcpServerEventListener>() {
-            @Override
-            public void call(TcpServerEventListener listener) {
-                listener.onConnectionHandlingStart(duration, timeUnit);
-            }
-        });
+        listeners.invokeListeners(HANDLE_START_ACTION, duration, timeUnit);
     }
 
     @Override
     public void onConnectionHandlingSuccess(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(new Action1<TcpServerEventListener>() {
-            @Override
-            public void call(TcpServerEventListener listener) {
-                listener.onConnectionHandlingSuccess(duration, timeUnit);
-            }
-        });
+        listeners.invokeListeners(HANDLE_SUCCESS_ACTION, duration, timeUnit);
     }
 
     @Override
     public void onConnectionHandlingFailed(final long duration, final TimeUnit timeUnit, final Throwable throwable) {
-        listeners.invokeListeners(new Action1<TcpServerEventListener>() {
-            @Override
-            public void call(TcpServerEventListener listener) {
-                listener.onConnectionHandlingFailed(duration, timeUnit, throwable);
-            }
-        });
+        listeners.invokeListeners(HANDLE_FAILED_ACTION, duration, timeUnit, throwable);
     }
 
     @Override
@@ -142,6 +156,10 @@ public final class TcpServerEventPublisher extends TcpServerEventListener
 
     @Override
     public Subscription subscribe(TcpServerEventListener listener) {
+        if (!SafeEventListener.class.isAssignableFrom(listener.getClass())) {
+            listener = new SafeTcpServerEventListener(listener);
+        }
+
         CompositeSubscription cs = new CompositeSubscription();
         cs.add(listeners.subscribe(listener));
         cs.add(connDelegate.subscribe(listener));
@@ -150,5 +168,13 @@ public final class TcpServerEventPublisher extends TcpServerEventListener
 
     public TcpServerEventPublisher copy() {
         return new TcpServerEventPublisher(this);
+    }
+
+    /*Visible for testing*/ListenersHolder<TcpServerEventListener> getListeners() {
+        return listeners;
+    }
+
+    /*Visible for testing*/ConnectionEventPublisher<TcpServerEventListener> getConnDelegate() {
+        return connDelegate;
     }
 }

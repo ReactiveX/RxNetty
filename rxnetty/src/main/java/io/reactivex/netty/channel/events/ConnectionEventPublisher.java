@@ -21,6 +21,9 @@ import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.events.ListenersHolder;
 import rx.Subscription;
 import rx.functions.Action1;
+import rx.functions.Action2;
+import rx.functions.Action3;
+import rx.functions.Action4;
 
 import java.util.concurrent.TimeUnit;
 
@@ -31,6 +34,79 @@ import java.util.concurrent.TimeUnit;
  */
 public final class ConnectionEventPublisher<T extends ConnectionEventListener> extends ConnectionEventListener
         implements EventSource<T>, EventPublisher {
+
+    private final Action2<T, Long> bytesReadAction = new Action2<T, Long>() {
+        @Override
+        public void call(T l, Long bytesRead) {
+            l.onByteRead(bytesRead);
+        }
+    };
+
+    private final Action1<T> flushStartAction = new Action1<T>() {
+        @Override
+        public void call(T l) {
+            l.onFlushStart();
+        }
+    };
+
+    private final Action3<T, Long, TimeUnit> flushSuccessAction = new Action3<T, Long, TimeUnit>() {
+                @Override
+                public void call(T l, Long duration, TimeUnit timeUnit) {
+                    l.onFlushSuccess(duration, timeUnit);
+                }
+            };
+
+    private final Action4<T, Long, TimeUnit, Throwable> flushFailedAction =
+            new Action4<T, Long, TimeUnit, Throwable>() {
+                @Override
+                public void call(T l, Long duration, TimeUnit timeUnit, Throwable t) {
+                    l.onFlushFailed(duration, timeUnit, t);
+                }
+            };
+
+    private final Action1<T> writeStartAction = new Action1<T>() {
+        @Override
+        public void call(T l) {
+            l.onWriteStart();
+        }
+    };
+
+    private final Action4<T, Long, TimeUnit, Long> writeSuccessAction = new Action4<T, Long, TimeUnit, Long>() {
+        @Override
+        public void call(T l, Long duration, TimeUnit timeUnit, Long bytesWritten) {
+            l.onWriteSuccess(duration, timeUnit, bytesWritten);
+        }
+    };
+
+    private final Action4<T, Long, TimeUnit, Throwable> writeFailedAction =
+            new Action4<T, Long, TimeUnit, Throwable>() {
+                @Override
+                public void call(T l, Long duration, TimeUnit timeUnit, Throwable t) {
+                    l.onWriteFailed(duration, timeUnit, t);
+                }
+            };
+
+    private final Action1<T> closeStartAction = new Action1<T>() {
+        @Override
+        public void call(T l) {
+            l.onConnectionCloseStart();
+        }
+    };
+
+    private final Action3<T, Long, TimeUnit> closeSuccessAction = new Action3<T, Long, TimeUnit>() {
+        @Override
+        public void call(T l, Long duration, TimeUnit timeUnit) {
+            l.onConnectionCloseSuccess(duration, timeUnit);
+        }
+    };
+
+    private final Action4<T, Long, TimeUnit, Throwable> closeFailedAction =
+            new Action4<T, Long, TimeUnit, Throwable>() {
+                @Override
+                public void call(T l, Long duration, TimeUnit timeUnit, Throwable t) {
+                    l.onConnectionCloseFailed(duration, timeUnit, t);
+                }
+            };
 
     private final ListenersHolder<T> listeners;
 
@@ -44,102 +120,52 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
 
     @Override
     public void onByteRead(final long bytesRead) {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onByteRead(bytesRead);
-            }
-        });
+        listeners.invokeListeners(bytesReadAction, bytesRead);
     }
 
     @Override
     public void onFlushStart() {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onFlushStart();
-            }
-        });
+        listeners.invokeListeners(flushStartAction);
     }
 
     @Override
     public void onFlushSuccess(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onFlushSuccess(duration, timeUnit);
-            }
-        });
+        listeners.invokeListeners(flushSuccessAction, duration, timeUnit);
     }
 
     @Override
     public void onFlushFailed(final long duration, final TimeUnit timeUnit, final Throwable throwable) {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onFlushFailed(duration, timeUnit, throwable);
-            }
-        });
+        listeners.invokeListeners(flushFailedAction, duration, timeUnit, throwable);
     }
 
     @Override
     public void onWriteStart() {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onWriteStart();
-            }
-        });
+        listeners.invokeListeners(writeStartAction);
     }
 
     @Override
     public void onWriteSuccess(final long duration, final TimeUnit timeUnit, final long bytesWritten) {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onWriteSuccess(duration, timeUnit, bytesWritten);
-            }
-        });
+        listeners.invokeListeners(writeSuccessAction, duration, timeUnit, bytesWritten);
     }
 
     @Override
     public void onWriteFailed(final long duration, final TimeUnit timeUnit, final Throwable throwable) {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onWriteFailed(duration, timeUnit, throwable);
-            }
-        });
+        listeners.invokeListeners(writeFailedAction, duration, timeUnit, throwable);
     }
 
     @Override
     public void onConnectionCloseStart() {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onConnectionCloseStart();
-            }
-        });
+        listeners.invokeListeners(closeStartAction);
     }
 
     @Override
     public void onConnectionCloseSuccess(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onConnectionCloseSuccess(duration, timeUnit);
-            }
-        });
+        listeners.invokeListeners(closeSuccessAction, duration, timeUnit);
     }
 
     @Override
     public void onConnectionCloseFailed(final long duration, final TimeUnit timeUnit, final Throwable throwable) {
-        listeners.invokeListeners(new Action1<T>() {
-            @Override
-            public void call(T t) {
-                t.onConnectionCloseFailed(duration, timeUnit, throwable);
-            }
-        });
+        listeners.invokeListeners(closeFailedAction, duration, timeUnit, throwable);
     }
 
     @Override
@@ -154,5 +180,9 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
 
     public ConnectionEventPublisher<T> copy() {
         return new ConnectionEventPublisher<>(this);
+    }
+
+    /*Visible for testing*/ ListenersHolder<T> getListeners() {
+        return listeners;
     }
 }

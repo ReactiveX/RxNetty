@@ -16,14 +16,13 @@
 package io.reactivex.netty.channel.pool;
 
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.PoolExhaustedException;
-import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.events.Clock;
+import io.reactivex.netty.protocol.client.PoolExhaustedException;
+import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 import io.reactivex.netty.protocol.tcp.client.ClientState;
 import io.reactivex.netty.protocol.tcp.client.UnpooledClientConnectionFactory;
-import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,11 +31,10 @@ import rx.Observable.OnSubscribe;
 import rx.Observable.Operator;
 import rx.Subscriber;
 import rx.Subscription;
+import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Actions;
 import rx.functions.Func1;
-
-import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.*;
 
@@ -89,7 +87,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                                                             public Boolean call( PooledConnection<R, W> c) {
                                                                 boolean isUsable = c.isUsable();
                                                                 if (!isUsable) {
-                                                                    idleConnectionsHolder.discard(c);
+                                                                    discardNow(c);
                                                                 }
                                                                 return isUsable;
                                                             }
@@ -100,18 +98,6 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
 
         eventPublisher = clientState.getEventPublisher();
         limitDeterminationStrategy = clientState.getPoolConfig().getPoolLimitDeterminationStrategy();
-
-        eventPublisher.subscribe(new TcpClientEventListener() {
-            @Override
-            public void onPooledConnectionEviction() {
-                limitDeterminationStrategy.releasePermit();
-            }
-
-            @Override
-            public void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-                limitDeterminationStrategy.releasePermit();
-            }
-        });
 
         // In case, there is no cleanup required, this observable should never give a tick.
         idleConnCleanupSubscription = poolConfig.getIdleConnectionsCleanupTimer()
@@ -161,7 +147,15 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
 
     @Override
     public Observable<Void> discard(PooledConnection<R, W> connection) {
-        return idleConnectionsHolder.discard(connection);
+        return connection.discard().doOnSubscribe(new Action0() {
+            @Override
+            public void call() {
+                if (eventPublisher.publishingEnabled()) {
+                    eventPublisher.onPooledConnectionEviction();
+                }
+                limitDeterminationStrategy.releasePermit();/*Since, an idle connection took a permit*/
+            }
+        });
     }
 
     @Override
@@ -201,6 +195,12 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                                                                           poolConfig, connection, eventPublisher);
                                        }
                                    })
+                                   .doOnError(new Action1<Throwable>() {
+                                       @Override
+                                       public void call(Throwable throwable) {
+                                           limitDeterminationStrategy.releasePermit(); /*Before connect we acquired.*/
+                                       }
+                                   })
                                    .unsafeSubscribe(subscriber);
                 } else {
                     idleConnectionsHolder.poll()
@@ -208,6 +208,15 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                                                  new PoolExhaustedException("Client connection pool exhausted.")))
                                          .unsafeSubscribe(subscriber);
                 }
+            }
+        });
+    }
+
+    private void discardNow(PooledConnection<R, W> toDiscard) {
+        discard(toDiscard).subscribe(Actions.empty(), new Action1<Throwable>() {
+            @Override
+            public void call(Throwable throwable) {
+                logger.error("Error discarding connection.", throwable);
             }
         });
     }
@@ -223,7 +232,6 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
     }
 
     private class IdleConnectionCleanupTask implements Func1<Long, Observable<Void>> {
-
         @Override
         public Observable<Void> call(Long aLong) {
             return idleConnectionsHolder.peek()
@@ -232,15 +240,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                                             public Void call(PooledConnection<R, W> connection) {
                                                 if (!connection.isUsable()) {
                                                     idleConnectionsHolder.remove(connection);
-                                                    discard(connection)
-                                                        .subscribe(Actions.empty(),
-                                                                   new Action1<Throwable>() {
-                                                                       @Override
-                                                                       public void call(Throwable throwable) {
-                                                                           logger.error("Failed to discard connection.",
-                                                                                        throwable);
-                                                                       }
-                                                                   });
+                                                    discardNow(connection);
                                                 }
                                                 return null;
                                             }
@@ -268,13 +268,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                     eventPublisher.onPoolReleaseStart();
                 }
                 if (isShutdown() || !connection.isUsable()) {
-                    idleConnectionsHolder.discard(connection)
-                                         .subscribe(Actions.empty(), new Action1<Throwable>() {
-                                             @Override
-                                             public void call(Throwable throwable) {
-                                                 logger.error("Error discarding connection.", throwable);
-                                             }
-                                         });
+                    discardNow(connection);
                 } else {
                     idleConnectionsHolder.add(connection);
                 }

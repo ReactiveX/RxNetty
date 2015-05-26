@@ -18,15 +18,91 @@ package io.reactivex.netty.protocol.http.client.events;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.events.ListenersHolder;
+import io.reactivex.netty.events.internal.SafeEventListener;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import rx.Subscription;
 import rx.functions.Action1;
+import rx.functions.Action2;
+import rx.functions.Action3;
+import rx.functions.Action4;
 import rx.subscriptions.CompositeSubscription;
 
 import java.util.concurrent.TimeUnit;
 
 public final class HttpClientEventPublisher extends HttpClientEventsListener
         implements EventSource<HttpClientEventsListener>, EventPublisher {
+
+    private static final Action1<HttpClientEventsListener> REQUEST_SUBMIT_ACTION =
+            new Action1<HttpClientEventsListener>() {
+                @Override
+                public void call(HttpClientEventsListener listener) {
+                    listener.onRequestSubmitted();
+                }
+            };
+
+    private static final Action1<HttpClientEventsListener> REQUEST_WRITE_START_ACTION =
+            new Action1<HttpClientEventsListener>() {
+                @Override
+                public void call(HttpClientEventsListener listener) {
+                    listener.onRequestWriteStart();
+                }
+            };
+
+    private static final Action3<HttpClientEventsListener, Long, TimeUnit> REQUEST_WRITE_COMPLETE_ACTION =
+            new Action3<HttpClientEventsListener, Long, TimeUnit>() {
+                @Override
+                public void call(HttpClientEventsListener listener, Long duration, TimeUnit timeUnit) {
+                    listener.onRequestWriteComplete(duration, timeUnit);
+                }
+            };
+
+    private static final Action4<HttpClientEventsListener, Long, TimeUnit, Throwable> REQUEST_WRITE_FAILED_ACTION =
+            new Action4<HttpClientEventsListener, Long, TimeUnit, Throwable>() {
+                @Override
+                public void call(HttpClientEventsListener listener, Long duration, TimeUnit timeUnit, Throwable t) {
+                    listener.onRequestWriteFailed(duration, timeUnit, t);
+                }
+            };
+
+    private static final Action2<HttpClientEventsListener, Integer> RESP_HEADER_RECIEVED_ACTION =
+            new Action2<HttpClientEventsListener, Integer>() {
+                @Override
+                public void call(HttpClientEventsListener listener, Integer responseCode) {
+                    listener.onResponseHeadersReceived(responseCode);
+                }
+            };
+
+    private static final Action1<HttpClientEventsListener> RESP_CONTENT_RECIEVED_ACTION =
+            new Action1<HttpClientEventsListener>() {
+                @Override
+                public void call(HttpClientEventsListener listener) {
+                    listener.onResponseContentReceived();
+                }
+            };
+
+    private static final Action3<HttpClientEventsListener, Long, TimeUnit> RESP_RECIEVE_COMPLETE_ACTION =
+            new Action3<HttpClientEventsListener, Long, TimeUnit>() {
+                @Override
+                public void call(HttpClientEventsListener listener, Long duration, TimeUnit timeUnit) {
+                    listener.onResponseReceiveComplete(duration, timeUnit);
+                }
+            };
+
+    private static final Action2<HttpClientEventsListener, Throwable> RESP_FAILED_ACTION =
+            new Action2<HttpClientEventsListener, Throwable>() {
+                @Override
+                public void call(HttpClientEventsListener listener, Throwable t) {
+                    listener.onResponseFailed(t);
+                }
+            };
+
+    private static final Action3<HttpClientEventsListener, Long, TimeUnit> PROCESSING_COMPLETE_ACTION =
+            new Action3<HttpClientEventsListener, Long, TimeUnit>() {
+                @Override
+                public void call(HttpClientEventsListener listener, Long duration, TimeUnit timeUnit) {
+                    listener.onRequestProcessingComplete(duration, timeUnit);
+                }
+            };
 
     private final ListenersHolder<HttpClientEventsListener> listeners;
     private final TcpClientEventPublisher tcpDelegate;
@@ -43,92 +119,47 @@ public final class HttpClientEventPublisher extends HttpClientEventsListener
 
     @Override
     public void onRequestSubmitted() {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onRequestSubmitted();
-            }
-        });
+        listeners.invokeListeners(REQUEST_SUBMIT_ACTION);
     }
 
     @Override
     public void onRequestWriteStart() {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onRequestWriteStart();
-            }
-        });
+        listeners.invokeListeners(REQUEST_WRITE_START_ACTION);
     }
 
     @Override
     public void onRequestWriteComplete(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onRequestWriteComplete(duration, timeUnit);
-            }
-        });
+        listeners.invokeListeners(REQUEST_WRITE_COMPLETE_ACTION, duration, timeUnit);
     }
 
     @Override
     public void onRequestWriteFailed(final long duration, final TimeUnit timeUnit, final Throwable throwable) {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onRequestWriteFailed(duration, timeUnit, throwable);
-            }
-        });
+        listeners.invokeListeners(REQUEST_WRITE_FAILED_ACTION, duration, timeUnit, throwable);
     }
 
     @Override
     public void onResponseHeadersReceived(final int responseCode) {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onResponseHeadersReceived(responseCode);
-            }
-        });
+        listeners.invokeListeners(RESP_HEADER_RECIEVED_ACTION, responseCode);
     }
 
     @Override
     public void onResponseContentReceived() {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onResponseContentReceived();
-            }
-        });
+        listeners.invokeListeners(RESP_CONTENT_RECIEVED_ACTION);
     }
 
     @Override
     public void onResponseReceiveComplete(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onResponseReceiveComplete(duration, timeUnit);
-            }
-        });
+        listeners.invokeListeners(RESP_RECIEVE_COMPLETE_ACTION, duration, timeUnit);
     }
 
     @Override
     public void onResponseFailed(final Throwable throwable) {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onResponseFailed(throwable);
-            }
-        });
+        listeners.invokeListeners(RESP_FAILED_ACTION, throwable);
     }
 
     @Override
     public void onRequestProcessingComplete(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(new Action1<HttpClientEventsListener>() {
-            @Override
-            public void call(HttpClientEventsListener listener) {
-                listener.onRequestProcessingComplete(duration, timeUnit);
-            }
-        });
+        listeners.invokeListeners(PROCESSING_COMPLETE_ACTION, duration, timeUnit);
     }
 
     @Override
@@ -247,6 +278,10 @@ public final class HttpClientEventPublisher extends HttpClientEventsListener
 
     @Override
     public Subscription subscribe(HttpClientEventsListener listener) {
+        if (!SafeEventListener.class.isAssignableFrom(listener.getClass())) {
+            listener = new SafeHttpClientEventsListener(listener);
+        }
+
         CompositeSubscription cs = new CompositeSubscription();
         cs.add(listeners.subscribe(listener));
         cs.add(tcpDelegate.subscribe(listener));
@@ -255,5 +290,13 @@ public final class HttpClientEventPublisher extends HttpClientEventsListener
 
     public HttpClientEventPublisher copy(TcpClientEventPublisher newTcpDelegate) {
         return new HttpClientEventPublisher(listeners.copy(), newTcpDelegate);
+    }
+
+    /*Visible for testing*/ListenersHolder<HttpClientEventsListener> getListeners() {
+        return listeners;
+    }
+
+    /*Visible for testing*/TcpClientEventPublisher getTcpDelegate() {
+        return tcpDelegate;
     }
 }

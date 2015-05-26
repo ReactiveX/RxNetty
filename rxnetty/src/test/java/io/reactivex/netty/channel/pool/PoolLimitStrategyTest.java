@@ -15,8 +15,8 @@
  */
 package io.reactivex.netty.channel.pool;
 
-import io.reactivex.netty.client.CompositePoolLimitDeterminationStrategy;
-import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.protocol.client.CompositePoolLimitDeterminationStrategy;
+import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
 import org.junit.Assert;
 import org.junit.Test;
 

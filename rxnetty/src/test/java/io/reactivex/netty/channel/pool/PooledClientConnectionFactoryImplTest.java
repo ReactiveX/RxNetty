@@ -17,10 +17,9 @@ package io.reactivex.netty.channel.pool;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.client.PoolExhaustedException;
 import io.reactivex.netty.client.TrackableMetricEventsListener;
-import io.reactivex.netty.protocol.http.client.HttpClientToConnectionBridge;
+import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.protocol.client.PoolExhaustedException;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientState;
@@ -90,7 +89,7 @@ public class PooledClientConnectionFactoryImplTest {
         pooledFactoryRule.assertNoIdleConnection();
 
         /*This attribute will discard on close*/
-        connection.unsafeNettyChannel().attr(HttpClientToConnectionBridge.DISCARD_CONNECTION).set(true);
+        connection.unsafeNettyChannel().attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true);
 
         /* Close will discard */
         pooledFactoryRule.closeAndAwait(connection); /*Throw error or close quietly*/
@@ -119,7 +118,7 @@ public class PooledClientConnectionFactoryImplTest {
         PooledConnection<String, String> idleConnection = _testRelease();
 
         /*Force discard by next idle connection reap*/
-        idleConnection.unsafeNettyChannel().attr(HttpClientToConnectionBridge.DISCARD_CONNECTION).set(true);
+        idleConnection.unsafeNettyChannel().attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true);
 
         pooledFactoryRule.testScheduler.advanceTimeBy(1, TimeUnit.MINUTES);
 

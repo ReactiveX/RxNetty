@@ -16,7 +16,7 @@
 package io.reactivex.netty.channel.pool;
 
 import io.reactivex.netty.channel.pool.PooledConnection.Owner;
-import io.reactivex.netty.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
 import io.reactivex.netty.protocol.tcp.client.ClientState;
 

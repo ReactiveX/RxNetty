@@ -20,7 +20,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollEventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.client.PreferCurrentEventLoopGroup;
+import io.reactivex.netty.protocol.client.PreferCurrentEventLoopGroup;
 
 import java.util.concurrent.atomic.AtomicReference;
 

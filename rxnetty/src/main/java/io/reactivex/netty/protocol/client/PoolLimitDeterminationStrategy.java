@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.client;
+package io.reactivex.netty.protocol.client;
 
 import java.util.concurrent.TimeUnit;
 

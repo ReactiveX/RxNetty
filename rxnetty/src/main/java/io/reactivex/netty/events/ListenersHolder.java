@@ -22,13 +22,16 @@ import rx.Subscription;
 import rx.exceptions.Exceptions;
 import rx.functions.Action0;
 import rx.functions.Action1;
+import rx.functions.Action2;
+import rx.functions.Action3;
+import rx.functions.Action4;
 import rx.subscriptions.CompositeSubscription;
 import rx.subscriptions.Subscriptions;
 
 import java.util.ArrayList;
-import java.util.List;
+import java.util.Collection;
 import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A holder for storing {@link EventListener} providing utility methods for any {@link EventSource} implementation that
@@ -47,14 +50,11 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
     }
 
     public ListenersHolder(ListenersHolder<T> toCopy) {
-        /**
-         * Since, the listeners can change, this is copying the modified holders in a new list as opposed to passing
-         * the listeners list to copy in CopyOnWriteArrayList constructor.
-         */
-        final List<ListenerHolder<T>> lToCopy = new ArrayList<>(toCopy.listeners.size());
 
-        for (final ListenerHolder<T> holder : toCopy.listeners) {
-            // Add the subscription to the existing list, so that on unsubscribe, it is also removed from this list.
+        listeners = new CopyOnWriteArrayList<>(toCopy.listeners);
+
+        for (final ListenerHolder<T> holder : listeners) {
+            // Add the subscription to the existing holder, so that on unsubscribe, it is also removed from this list.
             holder.subscription.add(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {
@@ -62,30 +62,17 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
                 }
             }));
         }
-
-        listeners = new CopyOnWriteArrayList<>(lToCopy);
     }
 
     @Override
     public Subscription subscribe(final T listener) {
         final CompositeSubscription cs = new CompositeSubscription();
-        cs.add(Subscriptions.create(new Action0() {
-            @Override
-            public void call() {
-                /**
-                 * Why do we add {@link ListenerHolder} but remove {@link T}?
-                 * Since {@link ListenerHolder} requires the associated {@link Subscription}, and then
-                 * {@link Subscription} will require the {@link ListenerHolder}, there will be a circular dependency.
-                 *
-                 * Instead, by having {@link ListenerHolder} implement equals/hashcode to only look for the
-                 * enclosing {@link T} instance, it is possible to add {@link ListenerHolder} but remove {@link T}
-                 */
-                listeners.remove(listener);
-            }
-        }));
+
+        ListenerHolder.configureRemoval(cs, listener, listeners);
 
         final ListenerHolder<T> holder = new ListenerHolder<>(listener, cs);
         listeners.add(holder);
+        holder.onSubscribe();
         return cs;
     }
 
@@ -118,11 +105,124 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
      */
     public void invokeListeners(Action1<T> invocationAction) {
         ListenerInvocationException exception = null;
+        for (final ListenerHolder<T> listener : listeners) {
+            if (!listener.subscription.isUnsubscribed()) {
+                try {
+                    invocationAction.call(listener.delegate);
+                } catch (Throwable e) {
+                    exception = handleListenerError(exception, listener, e);
+                }
+            }
+        }
+
+        if (null != exception) {
+            exception.finish();
+            /*Do not bubble event notification errors to the caller, event notifications are best effort.*/
+            logger.error("Error occured while invoking event listeners.", exception);
+        }
+    }
+
+    /**
+     * Invoke listeners with an action expressed by the passed {@code invocationAction}. This method does the necessary
+     * validations required for invoking a listener and also guards against a listener throwing exceptions on invocation.
+     *
+     * @param invocationAction The action to perform on all listeners.
+     * @param duration Duration.
+     * @param timeUnit Time unit for the duration.
+     */
+    public void invokeListeners(Action3<T, Long, TimeUnit> invocationAction, long duration, TimeUnit timeUnit) {
+        ListenerInvocationException exception = null;
         for (ListenerHolder<T> listener : listeners) {
-            try {
-                invocationAction.call(listener.delegate);
-            } catch (Throwable e) {
-                exception = handleListenerError(exception, listener, e);
+            if (!listener.subscription.isUnsubscribed()) {
+                try {
+                    invocationAction.call(listener.delegate, duration, timeUnit);
+                } catch (Throwable e) {
+                    exception = handleListenerError(exception, listener, e);
+                }
+            }
+        }
+
+        if (null != exception) {
+            exception.finish();
+            /*Do not bubble event notification errors to the caller, event notifications are best effort.*/
+            logger.error("Error occured while invoking event listeners.", exception);
+        }
+    }
+
+    /**
+     * Invoke listeners with an action expressed by the passed {@code invocationAction}. This method does the necessary
+     * validations required for invoking a listener and also guards against a listener throwing exceptions on invocation.
+     *
+     * @param invocationAction The action to perform on all listeners.
+     * @param duration Duration.
+     * @param timeUnit Time unit for the duration.
+     * @param throwable An error.
+     */
+    public void invokeListeners(Action4<T, Long, TimeUnit, Throwable> invocationAction, long duration,
+                                TimeUnit timeUnit, Throwable throwable) {
+        ListenerInvocationException exception = null;
+        for (ListenerHolder<T> listener : listeners) {
+            if (!listener.subscription.isUnsubscribed()) {
+                try {
+                    invocationAction.call(listener.delegate, duration, timeUnit, throwable);
+                } catch (Throwable e) {
+                    exception = handleListenerError(exception, listener, e);
+                }
+            }
+        }
+
+        if (null != exception) {
+            exception.finish();
+            /*Do not bubble event notification errors to the caller, event notifications are best effort.*/
+            logger.error("Error occured while invoking event listeners.", exception);
+        }
+    }
+
+    /**
+     * Invoke listeners with an action expressed by the passed {@code invocationAction}. This method does the necessary
+     * validations required for invoking a listener and also guards against a listener throwing exceptions on invocation.
+     *
+     * @param invocationAction The action to perform on all listeners.
+     * @param duration Duration.
+     * @param timeUnit Time unit for the duration.
+     * @param arg Any arbitrary argument
+     */
+    public <A> void invokeListeners(Action4<T, Long, TimeUnit, A> invocationAction, long duration,
+                                    TimeUnit timeUnit, A arg) {
+        ListenerInvocationException exception = null;
+        for (ListenerHolder<T> listener : listeners) {
+            if (!listener.subscription.isUnsubscribed()) {
+                try {
+                    invocationAction.call(listener.delegate, duration, timeUnit, arg);
+                } catch (Throwable e) {
+                    exception = handleListenerError(exception, listener, e);
+                }
+            }
+        }
+
+        if (null != exception) {
+            exception.finish();
+            /*Do not bubble event notification errors to the caller, event notifications are best effort.*/
+            logger.error("Error occured while invoking event listeners.", exception);
+        }
+    }
+
+    /**
+     * Invoke listeners with an action expressed by the passed {@code invocationAction}. This method does the necessary
+     * validations required for invoking a listener and also guards against a listener throwing exceptions on invocation.
+     *
+     * @param invocationAction The action to perform on all listeners.
+     * @param arg Any arbitrary argument
+     */
+    public <A> void invokeListeners(Action2<T, A> invocationAction, A arg) {
+        ListenerInvocationException exception = null;
+        for (ListenerHolder<T> listener : listeners) {
+            if (!listener.subscription.isUnsubscribed()) {
+                try {
+                    invocationAction.call(listener.delegate, arg);
+                } catch (Throwable e) {
+                    exception = handleListenerError(exception, listener, e);
+                }
             }
         }
 
@@ -147,21 +247,33 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
         return new ListenersHolder<>(this);
     }
 
+    /*Visible for testing*/Collection<T> getAllListeners() {
+        final Collection<T> toReturn = new ArrayList<>();
+        for (ListenerHolder<T> listener : listeners) {
+            toReturn.add(listener.delegate);
+        }
+        return toReturn;
+    }
+
+    /*Visible for testing*/CopyOnWriteArrayList<ListenerHolder<T>> getActualListenersList() {
+        return listeners;
+    }
+
     private static class ListenerHolder<T extends EventListener> implements EventListener {
+
+        private static final CompositeSubscription EMPTY_SUB_FOR_REMOVAL = new CompositeSubscription();
 
         private final T delegate;
         private final CompositeSubscription subscription;
-        private final AtomicBoolean isDone;
 
         public ListenerHolder(T delegate, CompositeSubscription subscription) {
             this.delegate = delegate;
             this.subscription = subscription;
-            isDone = new AtomicBoolean();
         }
 
         @Override
         public void onCompleted() {
-            if (isDone.compareAndSet(false, true)) {
+            if (!subscription.isUnsubscribed()) {
                 try {
                     delegate.onCompleted();
                 } finally {
@@ -172,9 +284,32 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
 
         @Override
         public void onSubscribe() {
-            if (!isDone.get()) {
+            if (!subscription.isUnsubscribed()) {
                 delegate.onSubscribe();
             }
+        }
+
+        public static <X extends EventListener> ListenerHolder<X> forRemoval(X listenerToRemove) {
+            return new ListenerHolder<>(listenerToRemove, EMPTY_SUB_FOR_REMOVAL);
+        }
+
+        public static <X extends EventListener> void configureRemoval(CompositeSubscription cs,
+                                                                      final X listenerToRemove,
+                                                                      final CopyOnWriteArrayList<ListenerHolder<X>> removeFrom) {
+            cs.add(Subscriptions.create(new Action0() {
+                @Override
+                public void call() {
+                    /**
+                     * Why do we add {@link ListenerHolder} but remove {@link X}?
+                     * Since {@link ListenerHolder} requires the associated {@link Subscription}, and then
+                     * {@link Subscription} will require the {@link ListenerHolder}, there will be a circular dependency.
+                     *
+                     * Instead, by having {@link ListenerHolder} implement equals/hashcode to only look for the
+                     * enclosing {@link X} instance, it is possible to add {@link ListenerHolder} but remove {@link X}
+                     */
+                    removeFrom.remove(forRemoval(listenerToRemove));
+                }
+            }));
         }
 
         @Override

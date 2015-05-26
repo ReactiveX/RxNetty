@@ -21,6 +21,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
+import io.netty.util.AttributeKey;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.pool.PooledConnection;
 import io.reactivex.netty.events.Clock;
@@ -59,6 +60,8 @@ import static java.util.concurrent.TimeUnit.*;
  * @param <W> Type written to the connection held by this handler.
  */
 public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToChannelBridge<R, W> {
+
+    public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_discard_connection");
 
     private static final Logger logger = LoggerFactory.getLogger(ClientConnectionToChannelBridge.class);
     private static final String HANDLER_NAME = "client-conn-channel-bridge";
@@ -221,7 +224,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
      * <h2>Connection reuse</h2>
      *
      * For cases, where the {@link Connection} is pooled, reuse should be indicated explicitly via
-     * {@link io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent}. There can be multiple {@link io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent}s
+     * {@link ConnectionInputSubscriberResetEvent}. There can be multiple {@link ConnectionInputSubscriberResetEvent}s
      * sent to the same channel and hence the same instance of {@link AbstractConnectionToChannelBridge}.
      *
      * @param <I> Type read from the connection held by the event.

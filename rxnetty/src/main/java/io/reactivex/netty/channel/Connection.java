@@ -167,11 +167,11 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
     }
 
     /*
-         * In order to make sure that the connection is correctly initialized, the listener needs to be added post
-         * constructor. Otherwise, there is a race-condition of the channel closed before the connection is completely
-         * created and the Connection.close() call on channel close can access the Connection object which isn't
-         * constructed completely. IOW, "this" escapes from the constructor if the listener is added in the constructor.
-         */
+     * In order to make sure that the connection is correctly initialized, the listener needs to be added post
+     * constructor. Otherwise, there is a race-condition of the channel closed before the connection is completely
+     * created and the Connection.close() call on channel close can access the Connection object which isn't
+     * constructed completely. IOW, "this" escapes from the constructor if the listener is added in the constructor.
+     */
     protected void connectCloseToChannelClose() {
         nettyChannel.closeFuture().addListener(new ChannelFutureListener() {
             @Override
