@@ -73,8 +73,7 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
                         if (future.isSuccess()) {
                             eventPublisher.onResponseWriteSuccess(endMillis, MILLISECONDS, _responseCode);
                         } else {
-                            eventPublisher.onResponseWriteFailed(endMillis, MILLISECONDS,
-                                                                 future.cause());
+                            eventPublisher.onResponseWriteFailed(endMillis, MILLISECONDS, future.cause());
                         }
                     }
                 }
