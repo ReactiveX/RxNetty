@@ -31,6 +31,9 @@ public enum HandlerNames {
     WsServerDecoder("ws-server-request-decoder"),
     WsServerEncoder("ws-server-response-encoder"),
     WsServerUpgradeHandler("ws-server-upgrade-handler"),
+    WsClientDecoder("ws-client-request-decoder"),
+    WsClientEncoder("ws-client-response-encoder"),
+    WsClientUpgradeHandler("ws-client-upgrade-handler"),
     SseClientCodec("sse-client-codec"),
     SseServerCodec("sse-server-codec"),
     ;

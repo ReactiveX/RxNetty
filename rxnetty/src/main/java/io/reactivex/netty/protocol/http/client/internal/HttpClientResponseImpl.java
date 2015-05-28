@@ -27,6 +27,7 @@ import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
@@ -59,12 +60,16 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     public static final String KEEP_ALIVE_TIMEOUT_HEADER_ATTR = "timeout";
 
     private final HttpResponse nettyResponse;
+    private final Connection<?, ?> connection;
     private final CookiesHolder cookiesHolder;
-    private final Channel nettyChannel;
 
-    public HttpClientResponseImpl(HttpResponse nettyResponse, Channel nettyChannel) {
+    private HttpClientResponseImpl(HttpResponse nettyResponse) {
+        this(nettyResponse, UnusableConnection.create());
+    }
+
+    private HttpClientResponseImpl(HttpResponse nettyResponse, Connection<?, ?> connection) {
         this.nettyResponse = nettyResponse;
-        this.nettyChannel = nettyChannel;
+        this.connection = connection;
         cookiesHolder = CookiesHolder.newClientResponseHolder(nettyResponse.headers());
     }
 
@@ -261,8 +266,8 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
         return Observable.create(new OnSubscribe<X>() {
             @Override
             public void call(Subscriber<? super X> subscriber) {
-                nettyChannel.pipeline()
-                            .fireUserEventTriggered(new HttpContentSubscriberEvent<X>(subscriber));
+                unsafeNettyChannel().pipeline()
+                                    .fireUserEventTriggered(new HttpContentSubscriberEvent<X>(subscriber));
             }
         });
     }
@@ -280,7 +285,12 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public Channel unsafeNettyChannel() {
-        return nettyChannel;
+        return unsafeConnection().unsafeNettyChannel();
+    }
+
+    @Override
+    public Connection<?, ?> unsafeConnection() {
+        return connection;
     }
 
     /**
@@ -313,5 +323,19 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
             }
         }
         return null;
+    }
+
+    /*Visible for the client bridge*/static <C> HttpClientResponseImpl<C> unsafeCreate(HttpResponse nettyResponse) {
+        return new HttpClientResponseImpl<C>(nettyResponse);
+    }
+
+    public static <C> HttpClientResponse<C> newInstance(HttpClientResponse<C> unsafeInstance,
+                                                        Connection<?, ?> connection) {
+        HttpClientResponseImpl<C> cast = (HttpClientResponseImpl<C>) unsafeInstance;
+        return new HttpClientResponseImpl<C>(cast.nettyResponse, connection);
+    }
+
+    public static <C> HttpClientResponse<C> newInstance(HttpResponse nettyResponse, Connection<?, ?> connection) {
+        return new HttpClientResponseImpl<C>(nettyResponse, connection);
     }
 }

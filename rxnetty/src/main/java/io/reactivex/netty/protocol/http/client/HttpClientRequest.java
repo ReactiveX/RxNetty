@@ -26,6 +26,7 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
+import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import rx.Observable;
 import rx.annotations.Experimental;
 import rx.functions.Action1;
@@ -644,6 +645,8 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @return A new {@link HttpClientRequest} instance.
      */
     public abstract HttpClientRequest<I, O> enableWireLogging(LogLevel wireLoggingLevel);
+
+    public abstract WebSocketRequest<O> requestWebSocketUpgrade();
 
     /**
      * Checks whether a header with the passed name exists for this request.

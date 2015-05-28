@@ -22,6 +22,7 @@ import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
@@ -385,6 +386,13 @@ public abstract class HttpClientResponse<T> {
      * @return The underlying channel on which this response was received.
      */
     public abstract Channel unsafeNettyChannel();
+
+    /**
+     * Returns the underlying connection on which this response was received.
+     *
+     * @return The underlying connection on which this response was received.
+     */
+    public abstract Connection<?, ?> unsafeConnection();
 
     public String toString() {
         return HttpMessageFormatter.formatResponse(getHttpVersion(), getStatus(), headerIterator());

@@ -420,8 +420,8 @@ public class HttpClientRequestImplTest {
 
         requestRule.assertCopy(newReq2, newReq);
 
-        HttpRequest newReqHeaders = newReq2.getRawRequest().getHeaders();
-        HttpRequest origReqHeaders = newReq.getRawRequest().getHeaders();
+        HttpRequest newReqHeaders = newReq2.unsafeRawRequest().getHeaders();
+        HttpRequest origReqHeaders = newReq.unsafeRawRequest().getHeaders();
 
         assertThat("Header not removed.", newReqHeaders.headers().contains(headerName), is(false));
         assertThat("Header removed from original request.", origReqHeaders.headers().contains(headerName),
@@ -764,7 +764,7 @@ public class HttpClientRequestImplTest {
 
         DefaultFullHttpResponse nettyResponse = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1,
                                                                             HttpResponseStatus.ACCEPTED);
-        HttpClientResponseImpl<Object> response = new HttpClientResponseImpl<>(nettyResponse, requestRule.channel);
+        HttpClientResponse<Object> response = HttpClientResponseImpl.newInstance(nettyResponse, requestRule.connMock);
         requestRule.addToConnectionInput(response);
 
         subscriber.assertTerminalEvent();
@@ -897,10 +897,10 @@ public class HttpClientRequestImplTest {
         public void assertCopy(HttpClientRequestImpl<Object, ByteBuf> oldReq,
                                HttpClientRequestImpl<Object, ByteBuf> newReq) {
             assertThat("Request not copied.", newReq, not(equalTo(oldReq)));
-            assertThat("Underlying raw request not copied.", newReq.getRawRequest(),
-                       not(equalTo(oldReq.getRawRequest())));
-            assertThat("Underlying raw request headers not copied.", newReq.getRawRequest().getHeaders(),
-                       not(equalTo(oldReq.getRawRequest().getHeaders())));
+            assertThat("Underlying raw request not copied.", newReq.unsafeRawRequest(),
+                       not(equalTo(oldReq.unsafeRawRequest())));
+            assertThat("Underlying raw request headers not copied.", newReq.unsafeRawRequest().getHeaders(),
+                       not(equalTo(oldReq.unsafeRawRequest().getHeaders())));
         }
 
         public void assertHeaderAdded(HttpClientRequestImpl<Object, ByteBuf> newReq, String headerName,
@@ -912,8 +912,8 @@ public class HttpClientRequestImplTest {
                                       HttpClientRequestImpl<Object, ByteBuf> newReq, String headerName,
                                       String... headerVals) {
 
-            HttpRequest newReqHeaders = newReq.getRawRequest().getHeaders();
-            HttpRequest origReqHeaders = oldReq.getRawRequest().getHeaders();
+            HttpRequest newReqHeaders = newReq.unsafeRawRequest().getHeaders();
+            HttpRequest origReqHeaders = oldReq.unsafeRawRequest().getHeaders();
 
             assertThat("New header not added.", newReqHeaders.headers().contains(headerName), is(true));
             assertThat("Unexpected header value.", newReqHeaders.headers().getAll(headerName), contains(headerVals));
@@ -1017,7 +1017,7 @@ public class HttpClientRequestImplTest {
 
             HttpRequest headers = (HttpRequest) reqOnNextEvents.get(0);
             assertThat("Unexpected headers in the created raw request.", headers,
-                       is(request.getRawRequest().getHeaders()));
+                       is(request.unsafeRawRequest().getHeaders()));
 
             assertThat("Unexpected type of last item in raw request Observable.",
                        reqOnNextEvents.get(reqOnNextEvents.size() - 1),
@@ -1051,7 +1051,7 @@ public class HttpClientRequestImplTest {
             RawRequest<Object, ByteBuf> rawRequest = getRawRequest(newReq);
 
             assertThat("Unexpected headers in the created raw request.", rawRequest.getHeaders(),
-                       is(request.getRawRequest().getHeaders()));
+                       is(request.unsafeRawRequest().getHeaders()));
 
             assertThat("Unexpected content in the created raw request.", rawRequest.getContent(), is(contentWritten));
             return rawRequest;
@@ -1062,7 +1062,7 @@ public class HttpClientRequestImplTest {
 
             HttpClientRequestImpl<Object, ByteBuf> asClientReq = (HttpClientRequestImpl<Object, ByteBuf>) newReq;
 
-            return asClientReq.getRawRequest();
+            return asClientReq.unsafeRawRequest();
         }
 
         public TestTrailerFactory newTrailerFactory() {

@@ -32,7 +32,7 @@ import rx.functions.Action1;
 import rx.functions.Actions;
 import rx.functions.Func1;
 
-import static io.reactivex.netty.protocol.http.client.HttpClientToConnectionBridge.*;
+import static io.reactivex.netty.protocol.http.client.internal.HttpClientToConnectionBridge.*;
 
 /**
  * An implementation of {@link Connection} which is pooled and reused.

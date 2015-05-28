@@ -62,4 +62,31 @@ public final class WsSecUtils {
         encoded.release();
         return encodedString;
     }
+
+    /**
+     * Creates an arbitrary number of random bytes
+     *
+     * @param size the number of random bytes to create
+     * @return An array of random bytes
+     */
+    public static byte[] randomBytes(int size) {
+        byte[] bytes = new byte[size];
+
+        for (int index = 0; index < size; index++) {
+            bytes[index] = (byte) randomNumber(0, 255);
+        }
+
+        return bytes;
+    }
+
+    /**
+     * Generates a pseudo-random number
+     *
+     * @param minimum The minimum allowable value
+     * @param maximum The maximum allowable value
+     * @return A pseudo-random number
+     */
+    public static int randomNumber(int minimum, int maximum) {
+        return (int) (Math.random() * maximum + minimum);
+    }
 }

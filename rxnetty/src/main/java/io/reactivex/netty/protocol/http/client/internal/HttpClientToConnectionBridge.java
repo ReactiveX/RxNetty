@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.http.client;
+package io.reactivex.netty.protocol.http.client.internal;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
@@ -27,7 +27,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
-import io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
@@ -122,7 +121,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
             eventPublisher.onResponseHeadersReceived(nettyResponse.status().code());
         }
 
-        final HttpClientResponseImpl<C> rxResponse = new HttpClientResponseImpl<>(nettyResponse, channel);
+        final HttpClientResponseImpl<C> rxResponse = HttpClientResponseImpl.unsafeCreate(nettyResponse);
         Long keepAliveTimeoutSeconds = rxResponse.getKeepAliveTimeoutSeconds();
         if (null != keepAliveTimeoutSeconds) {
             channel.attr(KEEP_ALIVE_TIMEOUT_MILLIS_ATTR).set(keepAliveTimeoutSeconds * 1000);

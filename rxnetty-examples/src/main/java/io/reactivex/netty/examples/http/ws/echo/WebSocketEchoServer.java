@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.ws;
+package io.reactivex.netty.examples.http.ws.echo;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractServerExample;
@@ -32,14 +32,16 @@ public final class WebSocketEchoServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(8088)
+        server = HttpServer.newServer(0)
                            .start(acceptAllUpgrades(conn ->
-                                   conn.writeAndFlushOnEach(conn.getInputForWrite()
-                                                                 .doOnNext(frame -> {
-                                                                     String msg = frame.content()
-                                                                                       .toString(defaultCharset());
-                                                                     logger.info(msg);
-                                                                 }))
+                                                            conn.writeAndFlushOnEach(conn.getInputForWrite()
+                                                                                         .doOnNext(frame -> {
+                                                                                             String msg =
+                                                                                                     frame.content()
+                                                                                                          .toString(
+                                                                                                                  defaultCharset());
+                                                                                             logger.info(msg);
+                                                                                         }))
                                   )
                            );
 

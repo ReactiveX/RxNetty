@@ -21,10 +21,6 @@ import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpHeaders.Values;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.WebSocket07FrameDecoder;
-import io.netty.handler.codec.http.websocketx.WebSocket07FrameEncoder;
-import io.netty.handler.codec.http.websocketx.WebSocket08FrameDecoder;
-import io.netty.handler.codec.http.websocketx.WebSocket08FrameEncoder;
 import io.netty.handler.codec.http.websocketx.WebSocket13FrameDecoder;
 import io.netty.handler.codec.http.websocketx.WebSocket13FrameEncoder;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
@@ -81,7 +77,7 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
 
             wsUpEvt.request.discardContent()
                            .onErrorResumeNext(Observable.<Void>empty()) // In case, the request content was read, ignore.
-                           .concatWith(state.getUpgradeResponse().sendHeaders())
+                           .concatWith(state.getUpgradeResponse().setTransferEncodingChunked().sendHeaders())
                            .doOnCompleted(new Action0() {
                                @Override
                                public void call() {
@@ -113,31 +109,25 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
     private static String configureResponseForWs(State state) {
 
         String acceptGuid;
-        WebSocketFrameEncoder wsEncoder;
-        WebSocketFrameDecoder wsDecoder;
 
         switch (state.getVersion()) {
         case V07:
             acceptGuid = WebSocketServerHandshaker07.WEBSOCKET_07_ACCEPT_GUID;
-            wsEncoder = new WebSocket07FrameEncoder(false);
-            wsDecoder = new WebSocket07FrameDecoder(true, state.isAllowExtensions(),
-                                                    state.getMaxFramePayloadLength());
             break;
         case V08:
             acceptGuid = WebSocketServerHandshaker08.WEBSOCKET_08_ACCEPT_GUID;
-            wsEncoder = new WebSocket08FrameEncoder(false);
-            wsDecoder = new WebSocket08FrameDecoder(true, state.isAllowExtensions(),
-                                                    state.getMaxFramePayloadLength());
             break;
         case V13:
             acceptGuid = WebSocketServerHandshaker13.WEBSOCKET_13_ACCEPT_GUID;
-            wsEncoder = new WebSocket13FrameEncoder(false);
-            wsDecoder = new WebSocket13FrameDecoder(true, state.isAllowExtensions(),
-                                                    state.getMaxFramePayloadLength());
             break;
         default:
             return "Unsupported web socket version: " + state.getVersion();
         }
+
+        WebSocketFrameEncoder wsEncoder = new WebSocket13FrameEncoder(false /*servers should set this to false.*/);
+        WebSocketFrameDecoder wsDecoder = new WebSocket13FrameDecoder(true/*servers should set this to true.*/,
+                                                                      state.isAllowExtensions(),
+                                                                      state.getMaxFramePayloadLength());
 
         final HttpServerResponse<?> upgradeResponse = state.getUpgradeResponse();
         final MarkAwarePipeline pipeline = upgradeResponse.unsafeConnection().getResettableChannelPipeline();
