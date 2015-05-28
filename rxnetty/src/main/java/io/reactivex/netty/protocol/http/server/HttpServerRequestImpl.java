@@ -27,6 +27,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
+import io.reactivex.netty.protocol.http.ws.server.WebSocketHandshaker;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -276,6 +277,11 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
     @Override
     public Observable<Void> dispose() {
         return discardContent().onErrorResumeNext(Observable.<Void>empty());
+    }
+
+    @Override
+    public boolean isWebSocketUpgradeRequested() {
+        return WebSocketHandshaker.isUpgradeRequested(this);
     }
 
     @Override

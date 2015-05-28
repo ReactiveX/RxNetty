@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.http.sse;
+package io.reactivex.netty.protocol.http.sse.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufProcessor;
@@ -21,6 +21,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToMessageDecoder;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent.Type;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,7 +110,7 @@ public class ServerSentEventDecoder extends MessageToMessageDecoder<HttpContent>
     private ByteBuf lastEventType;
     private ByteBuf incompleteData; // Can be field value of name, according to the current state.
 
-    private ServerSentEvent.Type currentFieldType;
+    private Type currentFieldType;
 
     private State state = State.ReadFieldName;
 

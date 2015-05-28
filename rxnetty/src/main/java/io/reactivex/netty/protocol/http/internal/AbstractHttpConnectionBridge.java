@@ -129,8 +129,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             @SuppressWarnings({"unchecked", "rawtypes"})
             ConnectionInputSubscriberEvent orig = (ConnectionInputSubscriberEvent) evt;
             /*Local copy to refer from the channel close listener. As the instance level copy can change*/
-            final ConnectionInputSubscriber _connectionInputSubscriber =
-                    new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection());
+            final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
 
             connectionInputSubscriber = _connectionInputSubscriber;
             ctx.channel().closeFuture().addListener(new ChannelFutureListener() {
@@ -151,6 +150,10 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         }
 
         super.userEventTriggered(ctx, eventToPropagateFurther);
+    }
+
+    protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig) {
+        return new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection(), false);
     }
 
     protected final void onChannelClose(ConnectionInputSubscriber connectionInputSubscriber) {
@@ -444,13 +447,14 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         private Producer producer;
 
         @SuppressWarnings("rawtypes")
-        public ConnectionInputSubscriber(Subscriber subscriber, Connection connection) {
+        public ConnectionInputSubscriber(Subscriber subscriber, Connection connection,
+                                         final boolean unsubscribeOnHeadersUnsubscribe) {
             state = new State();
             state.headerSub = subscriber;
             state.headerSub.add(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {
-                    if (!state.receiveStarted()) {
+                    if (unsubscribeOnHeadersUnsubscribe || !state.receiveStarted()) {
                         unsubscribe(); // If the receive has not yet started, unsubscribe from input, which closes connection
                     }
                 }

@@ -23,6 +23,7 @@ import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
 import rx.Subscriber;
 
@@ -352,6 +353,15 @@ public abstract class HttpClientResponse<T> {
      * @return {@code this}
      */
     public abstract HttpClientResponse<T> removeHeader(CharSequence name);
+
+    /**
+     * Returns the content as a stream of <a href="http://www.w3.org/TR/eventsource/">Server sent events</a>.
+     * There can only be one {@link Subscriber} to the returned {@link Observable}, any subsequent subscriptions will
+     * get an error.
+     *
+     * @return Stream of content as {@link ServerSentEvent} messages.
+     */
+    public abstract Observable<ServerSentEvent> getContentAsServerSentEvents();
 
     /**
      * Returns the content as a stream. There can only be one {@link Subscriber} to the returned {@link Observable}, any

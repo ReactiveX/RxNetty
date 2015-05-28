@@ -68,8 +68,7 @@ public class CookieTest {
         EmbeddedChannel channel = new EmbeddedChannel();
         TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
         Connection<ByteBuf, ByteBuf> connection = ConnectionImpl.create(channel, eventPublisher, eventPublisher);
-
-        HttpServerResponse<ByteBuf> response = HttpServerResponseImpl.create(connection, nettyResponse);
+        HttpServerResponse<ByteBuf> response = HttpServerResponseImpl.create(null, connection, nettyResponse);
         String cookieName = "name";
         String cookieValue = "value";
         response.addCookie(new DefaultCookie(cookieName, cookieValue));

@@ -14,10 +14,11 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.protocol.http.sse;
+package io.reactivex.netty.protocol.http.sse.client;
 
 import io.netty.channel.ChannelHandlerContext;
 import io.reactivex.netty.NoOpChannelHandlerContext;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import org.junit.Test;
 
 import java.util.ArrayList;

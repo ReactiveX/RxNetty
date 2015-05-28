@@ -35,6 +35,7 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventPublisher;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
+import io.reactivex.netty.protocol.http.ws.server.Ws7To13UpgradeHandler;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
@@ -208,6 +209,7 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     public void call(ChannelPipeline pipeline) {
                         pipeline.addLast(HandlerNames.HttpServerEncoder.getName(), new HttpResponseEncoder());
                         pipeline.addLast(HandlerNames.HttpServerDecoder.getName(), new HttpRequestDecoder());
+                        pipeline.addLast(HandlerNames.WsServerUpgradeHandler.getName(), new Ws7To13UpgradeHandler());
                         pipeline.addLast(new HttpServerToConnectionBridge<>(eventPublisher));
                     }
                 }), eventPublisher);
@@ -288,10 +290,12 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                         final HttpServerResponse<O> response = newResponse(request);
 
                         final Subscription processingSubscription = handleRequest(request, startMillis, response)
-                                                                        .doOnTerminate(new Action0() {
+                                                                        .doOnTerminate( new Action0() {
                                                                             @Override
                                                                             public void call() {
-                                                                                if (!newConnection.unsafeNettyChannel().config().isAutoRead()) {
+                                                                                if (!newConnection.unsafeNettyChannel()
+                                                                                                  .config()
+                                                                                                  .isAutoRead()) {
                                                                                     request(1);
                                                                                 }
                                                                             }
@@ -377,6 +381,7 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                 return requestHandlingResult.onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
                     @Override
                     public Observable<Void> call(Throwable throwable) {
+                        logger.error("Unexpected error while processing request.", throwable);
                         return response.setStatus(INTERNAL_SERVER_ERROR)
                                        .dispose()
                                        .concatWith(newConnection.close())
@@ -409,7 +414,8 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                 } else {
                     responseHeaders = new DefaultHttpResponse(version, OK);
                 }
-                HttpServerResponse<O> response = HttpServerResponseImpl.create(newConnection, responseHeaders);
+                HttpServerResponse<O> response = HttpServerResponseImpl.create(request, newConnection,
+                                                                               responseHeaders);
                 setConnectionHeader(request, response);
                 return response;
             }

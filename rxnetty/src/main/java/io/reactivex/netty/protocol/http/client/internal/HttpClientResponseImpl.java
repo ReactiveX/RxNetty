@@ -16,16 +16,23 @@
 package io.reactivex.netty.protocol.http.client.internal;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.client.ServerSentEventDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -231,12 +238,31 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     }
 
     @Override
+    public Observable<ServerSentEvent> getContentAsServerSentEvents() {
+        if (containsHeader(Names.CONTENT_TYPE, "text/event-stream", false)) {
+            ChannelPipeline pipeline = unsafeNettyChannel().pipeline();
+            ChannelHandlerContext decoderCtx = pipeline.context(HttpResponseDecoder.class);
+            if (null != decoderCtx) {
+                pipeline.addAfter(decoderCtx.name(), HandlerNames.SseClientCodec.getName(),
+                                  new ServerSentEventDecoder());
+            }
+            return _contentObservable();
+        }
+
+        return Observable.error(new IllegalStateException("Response is not a server sent event response."));
+    }
+
+    @Override
     public Observable<T> getContent() {
-        return Observable.create(new OnSubscribe<T>() {
+        return _contentObservable();
+    }
+
+    protected <X> Observable<X> _contentObservable() {
+        return Observable.create(new OnSubscribe<X>() {
             @Override
-            public void call(Subscriber<? super T> subscriber) {
+            public void call(Subscriber<? super X> subscriber) {
                 nettyChannel.pipeline()
-                            .fireUserEventTriggered(new HttpContentSubscriberEvent<T>(subscriber));
+                            .fireUserEventTriggered(new HttpContentSubscriberEvent<X>(subscriber));
             }
         });
     }

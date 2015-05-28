@@ -23,9 +23,9 @@ import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
-import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
 import rx.annotations.Experimental;
 import rx.functions.Action1;
@@ -639,19 +639,11 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * passed level for the newly created client instance.
      *
      * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
-     *                        logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
+     *                        logging is enabled at this level for {@link LoggingHandler}
      *
      * @return A new {@link HttpClientRequest} instance.
      */
     public abstract HttpClientRequest<I, O> enableWireLogging(LogLevel wireLoggingLevel);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and adding a handler that would
-     * convert content as a {@link ServerSentEvent}.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract HttpClientRequest<O, ServerSentEvent> expectServerSentEvents();
 
     /**
      * Checks whether a header with the passed name exists for this request.

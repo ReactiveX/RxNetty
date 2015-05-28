@@ -66,9 +66,8 @@ public class HelloSseClient extends AbstractClientExample {
 
         HttpClient.newClient("localhost", port) /*Create a client*/
                 .createGet("/sse") /*Creates a GET request with URI "/hello"*/
-                .expectServerSentEvents() /*Enable reading SSE*/
                 .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
-                .flatMap(HttpClientResponse::getContent)
+                .flatMap(HttpClientResponse::getContentAsServerSentEvents)
                 /*Since, the server sends an infinite stream, take only 10 items*/
                 .take(10)
                   /*Block till the response comes to avoid JVM exit.*/
