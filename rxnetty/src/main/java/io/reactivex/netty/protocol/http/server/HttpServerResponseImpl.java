@@ -32,7 +32,9 @@ import io.reactivex.netty.channel.MarkAwarePipeline;
 import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
-import io.reactivex.netty.protocol.http.sse.ServerSentEventEncoder;
+import io.reactivex.netty.protocol.http.sse.server.ServerSentEventEncoder;
+import io.reactivex.netty.protocol.http.ws.server.WebSocketHandler;
+import io.reactivex.netty.protocol.http.ws.server.WebSocketHandshaker;
 import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import rx.Observable;
 import rx.Subscriber;
@@ -224,6 +226,11 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     }
 
     @Override
+    public ResponseContentWriter<C> sendHeaders() {
+        return state.sendHeaders();
+    }
+
+    @Override
     public HttpServerResponse<ServerSentEvent> transformToServerSentEvents() {
         return addChannelHandlerAfter(HandlerNames.HttpServerEncoder.getName(), HandlerNames.SseServerCodec.getName(),
                                       new ServerSentEventEncoder());
@@ -293,6 +300,13 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     }
 
     @Override
+    public WebSocketHandshaker acceptWebSocketUpgrade(WebSocketHandler handler) {
+        return WebSocketHandshaker.isUpgradeRequested(state.request)
+                ? WebSocketHandshaker.newHandshaker(state.request, this, handler)
+                : WebSocketHandshaker.newErrorHandshaker(new IllegalStateException("WebSocket upgrade was not requested."));
+    }
+
+    @Override
     public Observable<Void> dispose() {
         return Observable.defer(new Func0<Observable<Void>>() {
             @Override
@@ -313,6 +327,11 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public Channel unsafeNettyChannel() {
         return state.connection.unsafeNettyChannel();
+    }
+
+    @Override
+    public Connection<?, ?> unsafeConnection() {
+        return state.connection;
     }
 
     @Override
@@ -403,9 +422,10 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
         return state.sendHeaders().writeBytesAndFlushOnEach(msgs);
     }
 
-    public static <T> HttpServerResponse<T> create(@SuppressWarnings("rawtypes") Connection connection,
+    public static <T> HttpServerResponse<T> create(HttpServerRequest<?> request,
+                                                   @SuppressWarnings("rawtypes") Connection connection,
                                                    HttpResponse headers) {
-        final State<T> newState = new State<>(headers, connection);
+        final State<T> newState = new State<>(headers, connection, request);
         return new HttpServerResponseImpl<>(newState);
     }
 
@@ -424,11 +444,14 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
 
         @SuppressWarnings("rawtypes")
         private final Connection connection;
+        private final HttpServerRequest<?> request;
         private boolean headersSent; /*Class is not thread safe*/
 
-        private State(HttpResponse headers, @SuppressWarnings("rawtypes") Connection connection) {
+        private State(HttpResponse headers, @SuppressWarnings("rawtypes") Connection connection,
+                      HttpServerRequest<?> request) {
             this.headers = headers;
             this.connection = connection;
+            this.request = request;
         }
 
         private boolean allowUpdate() {

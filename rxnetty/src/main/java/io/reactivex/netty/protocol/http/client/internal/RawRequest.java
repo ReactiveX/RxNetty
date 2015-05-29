@@ -140,6 +140,7 @@ public final class RawRequest<I, O> {
         HttpRequest headersCopy = _copyHeaders(uri, headers.method());
         return create(headersCopy, content, hasTrailers, redirector);
     }
+
     public RawRequest<I, O> followRedirect(Redirector<I, O> redirectHandler) {
         return create(headers, content, hasTrailers, redirectHandler);
     }

@@ -106,11 +106,10 @@ public class ServerSentEventEndToEndTest {
 
         return HttpClient.newClient("127.0.0.1", sseServer.getServerPort())
                          .createGet("/")
-                         .expectServerSentEvents()
-                         .flatMap(new Func1<HttpClientResponse<ServerSentEvent>, Observable<ServerSentEvent>>() {
+                         .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ServerSentEvent>>() {
                              @Override
-                             public Observable<ServerSentEvent> call(HttpClientResponse<ServerSentEvent> resp) {
-                                 return resp.getContent();
+                             public Observable<ServerSentEvent> call(HttpClientResponse<ByteBuf> resp) {
+                                 return resp.getContentAsServerSentEvents();
                              }
                          });
     }

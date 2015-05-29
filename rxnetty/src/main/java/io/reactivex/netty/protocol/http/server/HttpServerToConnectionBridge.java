@@ -29,6 +29,7 @@ import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventPublisher;
+import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
@@ -73,8 +74,7 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
                         if (future.isSuccess()) {
                             eventPublisher.onResponseWriteSuccess(endMillis, MILLISECONDS, _responseCode);
                         } else {
-                            eventPublisher.onResponseWriteFailed(endMillis, MILLISECONDS,
-                                                                 future.cause());
+                            eventPublisher.onResponseWriteFailed(endMillis, MILLISECONDS, future.cause());
                         }
                     }
                 }
@@ -129,6 +129,11 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
     @Override
     protected boolean isOutboundHeader(Object nextItem) {
         return nextItem instanceof HttpResponse;
+    }
+
+    @Override
+    protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig) {
+        return new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection(), true);
     }
 
     @Override

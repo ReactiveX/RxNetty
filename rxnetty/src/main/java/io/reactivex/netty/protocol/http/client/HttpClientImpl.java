@@ -30,6 +30,7 @@ import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl;
+import io.reactivex.netty.protocol.http.client.internal.HttpClientToConnectionBridge;
 import io.reactivex.netty.protocol.http.client.internal.Redirector;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;

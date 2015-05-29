@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.protocol.http.sse;
+package io.reactivex.netty.protocol.http.sse.server;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;

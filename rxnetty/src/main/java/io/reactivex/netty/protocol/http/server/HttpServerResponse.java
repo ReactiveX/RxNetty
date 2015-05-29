@@ -25,7 +25,10 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.ws.server.WebSocketHandler;
+import io.reactivex.netty.protocol.http.ws.server.WebSocketHandshaker;
 import rx.Observable;
 import rx.annotations.Experimental;
 import rx.functions.Action1;
@@ -328,6 +331,14 @@ public abstract class HttpServerResponse<C> extends ResponseContentWriter<C> {
     public abstract HttpServerResponse<C> flushOnlyOnReadComplete();
 
     /**
+     * Sends the headers for this response when the returned {@code Observable} is subscribed. Alternatively, one can
+     * continue to write contents using the returned {@link ResponseContentWriter}
+     *
+     * @return {@link ResponseContentWriter} which can be subscribed to only send the headers or to write payload.
+     */
+    public abstract ResponseContentWriter<C> sendHeaders();
+
+    /**
      * Converts this response to enable writing {@link ServerSentEvent}s.
      *
      * @return This response with writing of {@link ServerSentEvent} enabled.
@@ -494,6 +505,17 @@ public abstract class HttpServerResponse<C> extends ResponseContentWriter<C> {
     public abstract <CC> HttpServerResponse<CC> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
+     * Accepts the upgrade to websockets, if requested and after sending a successful handshake response,
+     * invokes the passed handler to handle the websocket connection.
+     *
+     * If any changes to this response are required for the handshake, they should be done before invoking this method.
+     *
+     * @return {@link WebSocketHandshaker} for sending a handshake to the client. Subscription to the handshaker, will
+     * send the handshake.
+     */
+    public abstract WebSocketHandshaker acceptWebSocketUpgrade(WebSocketHandler handler);
+
+    /**
      * Disposes this response. If the response is not yet set then this will attempt to send an error response if the
      * connection is still open.
      *
@@ -507,4 +529,11 @@ public abstract class HttpServerResponse<C> extends ResponseContentWriter<C> {
      * @return The underlying channel on which this response was received.
      */
     public abstract Channel unsafeNettyChannel();
+
+    /**
+     * Returns the underlying connection on which this response was received.
+     *
+     * @return The underlying connection on which this response was received.
+     */
+    public abstract Connection<?, ?> unsafeConnection();
 }

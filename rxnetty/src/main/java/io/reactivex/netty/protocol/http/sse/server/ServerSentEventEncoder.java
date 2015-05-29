@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.http.sse;
+package io.reactivex.netty.protocol.http.sse.server;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufProcessor;
@@ -23,11 +23,12 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpResponse;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 
 /**
- * An encoder to handle {@link ServerSentEvent} encoding for an HTTP server.
+ * An encoder to handle {@link io.reactivex.netty.protocol.http.sse.ServerSentEvent} encoding for an HTTP server.
  *
- * This encoder will encode any {@link ServerSentEvent} to {@link ByteBuf} and also set the appropriate HTTP Response
+ * This encoder will encode any {@link io.reactivex.netty.protocol.http.sse.ServerSentEvent} to {@link ByteBuf} and also set the appropriate HTTP Response
  * headers required for <a href="http://www.w3.org/TR/eventsource/">SSE</a>
  */
 @ChannelHandler.Sharable

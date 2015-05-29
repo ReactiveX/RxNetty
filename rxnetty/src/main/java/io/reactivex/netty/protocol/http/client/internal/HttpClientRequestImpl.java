@@ -23,7 +23,6 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
@@ -32,8 +31,8 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
 import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
-import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
-import io.reactivex.netty.protocol.http.sse.ServerSentEventDecoder;
+import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
+import io.reactivex.netty.protocol.http.ws.client.internal.WebSocketRequestImpl;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
 import rx.Subscriber;
@@ -334,13 +333,8 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequest<O, ServerSentEvent> expectServerSentEvents() {
-        return addChannelHandlerLast(HandlerNames.SseClientCodec.getName(), new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ServerSentEventDecoder();
-            }
-        });
+    public WebSocketRequest<O> requestWebSocketUpgrade() {
+        return WebSocketRequestImpl.createNew(this);
     }
 
     @Override
@@ -443,7 +437,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         return new HttpClientRequestImpl<I, O>(r, client, eventPublisher);
     }
 
-    /*Visible for testing*/ RawRequest<I, O> getRawRequest() {
+    public RawRequest<I, O> unsafeRawRequest() {
         return rawRequest;
     }
 
@@ -494,13 +488,19 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         }
 
         @Override
-        public Observable<HttpClientResponse<O>> call(Connection<HttpClientResponse<O>, ?> conn) {
+        public Observable<HttpClientResponse<O>> call(final Connection<HttpClientResponse<O>, ?> conn) {
             final Observable<HttpClientResponse<O>> input = conn.getInput();
 
             return writeRequest(conn).lift(new RequestWriteMetricsOperator(eventPublisher))
                                      .map(new VoidToAnythingCast<HttpClientResponse<O>>())
                                      .ignoreElements()
-                                     .concatWith(input.take(1));
+                                     .concatWith(input.take(1))
+                                     .map(new Func1<HttpClientResponse<O>, HttpClientResponse<O>>() {
+                                         @Override
+                                         public HttpClientResponse<O> call(HttpClientResponse<O> r) {
+                                             return HttpClientResponseImpl.newInstance(r, conn);
+                                         }
+                                     });
         }
 
         @SuppressWarnings("unchecked")

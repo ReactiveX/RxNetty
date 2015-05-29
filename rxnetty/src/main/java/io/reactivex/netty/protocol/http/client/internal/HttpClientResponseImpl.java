@@ -16,16 +16,24 @@
 package io.reactivex.netty.protocol.http.client.internal;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.ClientCookieEncoder;
 import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.client.ServerSentEventDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -52,12 +60,16 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     public static final String KEEP_ALIVE_TIMEOUT_HEADER_ATTR = "timeout";
 
     private final HttpResponse nettyResponse;
+    private final Connection<?, ?> connection;
     private final CookiesHolder cookiesHolder;
-    private final Channel nettyChannel;
 
-    public HttpClientResponseImpl(HttpResponse nettyResponse, Channel nettyChannel) {
+    private HttpClientResponseImpl(HttpResponse nettyResponse) {
+        this(nettyResponse, UnusableConnection.create());
+    }
+
+    private HttpClientResponseImpl(HttpResponse nettyResponse, Connection<?, ?> connection) {
         this.nettyResponse = nettyResponse;
-        this.nettyChannel = nettyChannel;
+        this.connection = connection;
         cookiesHolder = CookiesHolder.newClientResponseHolder(nettyResponse.headers());
     }
 
@@ -231,12 +243,31 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     }
 
     @Override
+    public Observable<ServerSentEvent> getContentAsServerSentEvents() {
+        if (containsHeader(Names.CONTENT_TYPE, "text/event-stream", false)) {
+            ChannelPipeline pipeline = unsafeNettyChannel().pipeline();
+            ChannelHandlerContext decoderCtx = pipeline.context(HttpResponseDecoder.class);
+            if (null != decoderCtx) {
+                pipeline.addAfter(decoderCtx.name(), HandlerNames.SseClientCodec.getName(),
+                                  new ServerSentEventDecoder());
+            }
+            return _contentObservable();
+        }
+
+        return Observable.error(new IllegalStateException("Response is not a server sent event response."));
+    }
+
+    @Override
     public Observable<T> getContent() {
-        return Observable.create(new OnSubscribe<T>() {
+        return _contentObservable();
+    }
+
+    protected <X> Observable<X> _contentObservable() {
+        return Observable.create(new OnSubscribe<X>() {
             @Override
-            public void call(Subscriber<? super T> subscriber) {
-                nettyChannel.pipeline()
-                            .fireUserEventTriggered(new HttpContentSubscriberEvent<T>(subscriber));
+            public void call(Subscriber<? super X> subscriber) {
+                unsafeNettyChannel().pipeline()
+                                    .fireUserEventTriggered(new HttpContentSubscriberEvent<X>(subscriber));
             }
         });
     }
@@ -254,7 +285,12 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public Channel unsafeNettyChannel() {
-        return nettyChannel;
+        return unsafeConnection().unsafeNettyChannel();
+    }
+
+    @Override
+    public Connection<?, ?> unsafeConnection() {
+        return connection;
     }
 
     /**
@@ -287,5 +323,19 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
             }
         }
         return null;
+    }
+
+    /*Visible for the client bridge*/static <C> HttpClientResponseImpl<C> unsafeCreate(HttpResponse nettyResponse) {
+        return new HttpClientResponseImpl<C>(nettyResponse);
+    }
+
+    public static <C> HttpClientResponse<C> newInstance(HttpClientResponse<C> unsafeInstance,
+                                                        Connection<?, ?> connection) {
+        HttpClientResponseImpl<C> cast = (HttpClientResponseImpl<C>) unsafeInstance;
+        return new HttpClientResponseImpl<C>(cast.nettyResponse, connection);
+    }
+
+    public static <C> HttpClientResponse<C> newInstance(HttpResponse nettyResponse, Connection<?, ?> connection) {
+        return new HttpClientResponseImpl<C>(nettyResponse, connection);
     }
 }

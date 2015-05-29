@@ -411,6 +411,13 @@ public abstract class HttpServerRequest<T> {
     public abstract Observable<Void> dispose();
 
     /**
+     * Checks to see if upgrade to websocket protocol is requested by this HTTP request.
+     *
+     * @return {@code true} if upgrade to websocket is requested.
+     */
+    public abstract boolean isWebSocketUpgradeRequested();
+
+    /**
      * Package private method to get the decoder result from netty.
      *
      * @return Decoder result.
