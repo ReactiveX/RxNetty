@@ -771,7 +771,13 @@ public class HttpClientRequestImplTest {
         subscriber.assertNoErrors();
 
         assertThat("Unexpected response count received.", subscriber.getOnNextEvents(), hasSize(1));
-        assertThat("Unexpected response received.", subscriber.getOnNextEvents().get(0), is((Object) response));
+        assertThat("Unexpected response received.", subscriber.getOnNextEvents().get(0),
+                   instanceOf(HttpClientResponse.class));
+        @SuppressWarnings("unchecked")
+        HttpClientResponse<Object> actual = (HttpClientResponse<Object>) subscriber.getOnNextEvents().get(0);
+
+        assertThat("Unexpected response received.", actual.getStatus(), is(HttpResponseStatus.ACCEPTED));
+        assertThat("Unexpected response received.", actual.getHttpVersion(), is(HttpVersion.HTTP_1_1));
     }
 
     public static class RequestRule extends ExternalResource {

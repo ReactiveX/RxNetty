@@ -466,11 +466,14 @@ public class ClientStateTest {
             ChannelFuture connect = state.getBootstrap().connect();
 
             final AtomicReference<Channel> channelToReturn = new AtomicReference<>();
+            final AtomicReference<Throwable> error = new AtomicReference<>();
             connect.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if (future.isSuccess()) {
                         channelToReturn.set(future.channel());
+                    } else {
+                        error.set(future.cause());
                     }
                 }
             });
