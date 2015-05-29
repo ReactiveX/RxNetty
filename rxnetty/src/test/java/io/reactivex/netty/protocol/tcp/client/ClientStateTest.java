@@ -480,6 +480,7 @@ public class ClientStateTest {
 
             connect.sync().await(1, TimeUnit.MINUTES);
 
+            assertThat("Exception in connect.", error.get(), is(nullValue()));
             final Channel toReturn = channelToReturn.get();
 
             assertThat("Connect failed, channel is null.", toReturn, is(notNullValue()));
