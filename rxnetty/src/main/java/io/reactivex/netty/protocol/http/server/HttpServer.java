@@ -34,6 +34,7 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -373,6 +374,46 @@ public abstract class HttpServer<I, O> implements EventSource<HttpServerEventsLi
                                                          EventLoopGroup clientGroup,
                                                          Class<? extends ServerChannel> channelClass) {
         return _newServer(TcpServer.newServer(port, serverGroup, clientGroup, channelClass));
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param socketAddress Socket address for the server.
+     * @return A new {@link HttpServer}
+     */
+    public static HttpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress) {
+        return _newServer(TcpServer.newServer(socketAddress));
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param socketAddress Socket address for the server.
+     * @param eventLoopGroup Eventloop group to be used for server as well as client sockets.
+     * @param channelClass The class to be used for server channel.
+     *
+     * @return A new {@link HttpServer}
+     */
+    public static HttpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress, EventLoopGroup eventLoopGroup,
+                                                         Class<? extends ServerChannel> channelClass) {
+        return _newServer(TcpServer.newServer(socketAddress, eventLoopGroup, eventLoopGroup, channelClass));
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param socketAddress Socket address for the server.
+     * @param serverGroup Eventloop group to be used for server sockets.
+     * @param clientGroup Eventloop group to be used for client sockets.
+     * @param channelClass The class to be used for server channel.
+     *
+     * @return A new {@link HttpServer}
+     */
+    public static HttpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress, EventLoopGroup serverGroup,
+                                                         EventLoopGroup clientGroup,
+                                                         Class<? extends ServerChannel> channelClass) {
+        return _newServer(TcpServer.newServer(socketAddress, serverGroup, clientGroup, channelClass));
     }
 
     private static HttpServer<ByteBuf, ByteBuf> _newServer(TcpServer<ByteBuf, ByteBuf> tcpServer) {

@@ -38,7 +38,6 @@ import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
@@ -65,41 +64,6 @@ public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListe
      * before subscription.
      */
     public abstract ConnectionRequest<W, R> createConnectionRequest();
-
-    /**
-     * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
-     * This method overrides the default host and port configured for this client.
-     *
-     * @param host Target host to connect.
-     * @param port Port on the host to connect.
-     *
-     * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
-     * before subscription.
-     */
-    public abstract ConnectionRequest<W, R> createConnectionRequest(String host, int port);
-
-    /**
-     * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
-     * This method overrides the default host and port configured for this client.
-     *
-     * @param host Target host to connect.
-     * @param port Port on the host to connect.
-     *
-     * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
-     * before subscription.
-     */
-    public abstract ConnectionRequest<W, R> createConnectionRequest(InetAddress host, int port);
-
-    /**
-     * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
-     * This method overrides the default remote address configured for this client.
-     *
-     * @param remoteAddress Remote address to connect.
-     *
-     * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
-     * before subscription.
-     */
-    public abstract ConnectionRequest<W, R> createConnectionRequest(SocketAddress remoteAddress);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and adding a

@@ -34,6 +34,8 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -288,6 +290,13 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
     public abstract int getServerPort();
 
     /**
+     * Returns the address at which this server is running.
+     *
+     * @return The address at which this server is running.
+     */
+    public abstract SocketAddress getServerAddress();
+
+    /**
      * Starts this server.
      *
      * @param connectionHandler Connection handler that will handle any new server connections to this server.
@@ -326,13 +335,22 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
     public abstract TcpServerEventPublisher getEventPublisher();
 
     /**
+     * Creates a new server using an ephemeral port.
+     *
+     * @return A new {@link TcpServer}
+     */
+    public static TcpServer<ByteBuf, ByteBuf> newServer() {
+        return newServer(0);
+    }
+
+    /**
      * Creates a new server using the passed port.
      *
      * @param port Port for the server. {@code 0} to use ephemeral port.
      * @return A new {@link TcpServer}
      */
     public static TcpServer<ByteBuf, ByteBuf> newServer(int port) {
-        return new TcpServerImpl<ByteBuf, ByteBuf>(port);
+        return new TcpServerImpl<ByteBuf, ByteBuf>(new InetSocketAddress(port));
     }
 
     /**
@@ -346,7 +364,7 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
      */
     public static TcpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup eventLoopGroup,
                                                          Class<? extends ServerChannel> channelClass) {
-        return new TcpServerImpl<ByteBuf, ByteBuf>(port, eventLoopGroup, eventLoopGroup, channelClass);
+        return newServer(port, eventLoopGroup, eventLoopGroup, channelClass);
     }
 
     /**
@@ -362,6 +380,46 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
     public static TcpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup serverGroup,
                                                          EventLoopGroup clientGroup,
                                                          Class<? extends ServerChannel> channelClass) {
-        return new TcpServerImpl<ByteBuf, ByteBuf>(port, serverGroup, clientGroup, channelClass);
+        return newServer(new InetSocketAddress(port), serverGroup, clientGroup, channelClass);
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param socketAddress Socket address for the server.
+     * @return A new {@link TcpServer}
+     */
+    public static TcpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress) {
+        return new TcpServerImpl<ByteBuf, ByteBuf>(socketAddress);
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param socketAddress Socket address for the server.
+     * @param eventLoopGroup Eventloop group to be used for server as well as client sockets.
+     * @param channelClass The class to be used for server channel.
+     *
+     * @return A new {@link TcpServer}
+     */
+    public static TcpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress, EventLoopGroup eventLoopGroup,
+                                                         Class<? extends ServerChannel> channelClass) {
+        return new TcpServerImpl<ByteBuf, ByteBuf>(socketAddress, eventLoopGroup, eventLoopGroup, channelClass);
+    }
+
+    /**
+     * Creates a new server using the passed port.
+     *
+     * @param socketAddress Socket address for the server.
+     * @param serverGroup Eventloop group to be used for server sockets.
+     * @param clientGroup Eventloop group to be used for client sockets.
+     * @param channelClass The class to be used for server channel.
+     *
+     * @return A new {@link TcpServer}
+     */
+    public static TcpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress, EventLoopGroup serverGroup,
+                                                         EventLoopGroup clientGroup,
+                                                         Class<? extends ServerChannel> channelClass) {
+        return new TcpServerImpl<ByteBuf, ByteBuf>(socketAddress, serverGroup, clientGroup, channelClass);
     }
 }

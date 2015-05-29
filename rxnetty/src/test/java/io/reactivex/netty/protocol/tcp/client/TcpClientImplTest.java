@@ -27,14 +27,10 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Answers;
 import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.mockito.runners.MockitoJUnitRunner;
 import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
@@ -54,57 +50,6 @@ public class TcpClientImplTest {
 
         assertThat("Request not having the same state as client.", req.getClientState(),
                    is(sameInstance(client.getClientState())));
-
-        assertThat("Unexpected address vs map size", client.getRemoteAddrVsConnRequest().isEmpty(), is(true));
-    }
-
-    @Test(timeout = 60000)
-    public void testCreateConnectionRequestWithHostAndPort() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
-        ConnectionRequestImpl<String, String> req =
-                (ConnectionRequestImpl<String, String>) client.createConnectionRequest("localhost", 80);
-
-        InetSocketAddress sockAddress = new InetSocketAddress("localhost", 80);
-        Mockito.verify(state).remoteAddress(sockAddress);
-
-        assertThat("Unexpected address vs map size", client.getRemoteAddrVsConnRequest().size(), is(1));
-        ConnectionRequest<String, String> expectedReq = client.getRemoteAddrVsConnRequest().get(sockAddress);
-        assertThat("Unexpected address vs map contents", expectedReq, is(notNullValue()));
-
-        assertThat("Unexpected request state.", req, is(expectedReq));
-    }
-
-    @Test(timeout = 60000)
-    public void testCreateConnectionRequestWithAddressAndPort() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
-        InetAddress localHost = InetAddress.getLoopbackAddress();
-        ConnectionRequestImpl<String, String> req =
-                (ConnectionRequestImpl<String, String>) client.createConnectionRequest(localHost, 80);
-
-        InetSocketAddress sockAddress = new InetSocketAddress(localHost, 80);
-        Mockito.verify(state).remoteAddress(sockAddress);
-
-        assertThat("Unexpected address vs map size", client.getRemoteAddrVsConnRequest().size(), is(1));
-        ConnectionRequest<String, String> expectedReq = client.getRemoteAddrVsConnRequest().get(sockAddress);
-        assertThat("Unexpected address vs map contents", expectedReq, is(notNullValue()));
-
-        assertThat("Unexpected request state.", req, is(expectedReq));
-    }
-
-    @Test(timeout = 60000)
-    public void testCreateConnectionRequestWithSocketAddress() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<String, String>("", state);
-        InetSocketAddress sockAddress = new InetSocketAddress("localhost", 80);
-        ConnectionRequestImpl<String, String> req =
-                (ConnectionRequestImpl<String, String>) client.createConnectionRequest(sockAddress);
-
-        Mockito.verify(state).remoteAddress(sockAddress);
-
-        assertThat("Unexpected address vs map size", client.getRemoteAddrVsConnRequest().size(), is(1));
-        ConnectionRequest<String, String> expectedReq = client.getRemoteAddrVsConnRequest().get(sockAddress);
-        assertThat("Unexpected address vs map contents", expectedReq, is(notNullValue()));
-
-        assertThat("Unexpected request state.", req, is(expectedReq));
     }
 
     @Test(timeout = 60000)
