@@ -41,6 +41,7 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
+import java.net.SocketAddress;
 
 /**
  * A collection of state that {@link TcpServer} holds.
@@ -53,14 +54,14 @@ public final class ServerState<R, W> {
 
     private final TcpServerEventPublisher eventPublisher;
 
-    private final int port;
+    private final SocketAddress socketAddress;
     private final boolean secure;
     private final ServerBootstrap bootstrap;
     private final DetachedChannelPipeline detachedPipeline;
 
-    private ServerState(int port, EventLoopGroup parent, EventLoopGroup child,
+    private ServerState(SocketAddress socketAddress, EventLoopGroup parent, EventLoopGroup child,
                         Class<? extends ServerChannel> channelClass) {
-        this.port = port;
+        this.socketAddress = socketAddress;
         bootstrap = new ServerBootstrap();
         bootstrap.childOption(ChannelOption.AUTO_READ, false); // by default do not read content unless asked.
         bootstrap.group(parent, child);
@@ -78,7 +79,7 @@ public final class ServerState<R, W> {
     }
 
     private ServerState(ServerState<R, W> toCopy, final ServerBootstrap newBootstrap) {
-        port = toCopy.port;
+        socketAddress = toCopy.socketAddress;
         bootstrap = newBootstrap;
         detachedPipeline = toCopy.detachedPipeline;
         secure = toCopy.secure;
@@ -88,7 +89,7 @@ public final class ServerState<R, W> {
 
     private ServerState(ServerState<?, ?> toCopy, final DetachedChannelPipeline newPipeline) {
         final ServerState<R, W> toCopyCast = toCopy.cast();
-        port = toCopy.port;
+        socketAddress = toCopy.socketAddress;
         bootstrap = toCopyCast.bootstrap.clone();
         detachedPipeline = newPipeline;
         secure = toCopy.secure;
@@ -98,7 +99,7 @@ public final class ServerState<R, W> {
 
     private ServerState(ServerState<?, ?> toCopy, final SslCodec sslCodec) {
         final ServerState<R, W> toCopyCast = toCopy.cast();
-        port = toCopy.port;
+        socketAddress = toCopy.socketAddress;
         bootstrap = toCopyCast.bootstrap.clone();
         detachedPipeline = toCopy.detachedPipeline.copy().configure(sslCodec);
         secure = true;
@@ -106,8 +107,8 @@ public final class ServerState<R, W> {
         eventPublisher = toCopyCast.eventPublisher.copy();
     }
 
-    public ServerState(ServerState<R, W> toCopy, final int port) {
-        this.port = port;
+    public ServerState(ServerState<R, W> toCopy, final SocketAddress socketAddress) {
+        this.socketAddress = socketAddress;
         bootstrap = toCopy.bootstrap.clone();
         detachedPipeline = toCopy.detachedPipeline;
         secure = toCopy.secure;
@@ -224,30 +225,32 @@ public final class ServerState<R, W> {
         }));
     }
 
-    public ServerState<R, W> serverPort(int port) {
-        return new ServerState<R, W>(this, port);
+    public ServerState<R, W> serverAddress(SocketAddress socketAddress) {
+        return new ServerState<R, W>(this, socketAddress);
     }
 
     public TcpServerEventPublisher getEventPublisher() {
         return eventPublisher;
     }
 
-    public static <RR, WW> ServerState<RR, WW> create(int port) {
-        return create(port, RxNetty.getRxEventLoopProvider().globalServerEventLoop(), NioServerSocketChannel.class);
+    public static <RR, WW> ServerState<RR, WW> create(SocketAddress socketAddress) {
+        return create(socketAddress, RxNetty.getRxEventLoopProvider().globalServerEventLoop(),
+                      NioServerSocketChannel.class);
     }
 
-    public static <RR, WW> ServerState<RR, WW> create(int port, EventLoopGroup group,
+    public static <RR, WW> ServerState<RR, WW> create(SocketAddress socketAddress, EventLoopGroup group,
                                                       Class<? extends ServerChannel> channelClass) {
-        return create(port, group, group, channelClass);
+        return create(socketAddress, group, group, channelClass);
     }
 
-    public static <RR, WW> ServerState<RR, WW> create(int port, EventLoopGroup parent, EventLoopGroup child,
+    public static <RR, WW> ServerState<RR, WW> create(SocketAddress socketAddress, EventLoopGroup parent,
+                                                      EventLoopGroup child,
                                                       Class<? extends ServerChannel> channelClass) {
-        return new ServerState<>(port, parent, child, channelClass);
+        return new ServerState<>(socketAddress, parent, child, channelClass);
     }
 
-    public int getServerPort() {
-        return port;
+    public SocketAddress getServerAddress() {
+        return socketAddress;
     }
 
     public boolean isSecure() {

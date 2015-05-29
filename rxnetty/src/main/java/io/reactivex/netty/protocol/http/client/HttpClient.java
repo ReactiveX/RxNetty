@@ -63,9 +63,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a GET request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -74,9 +72,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a POST request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -85,9 +81,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a PUT request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -96,9 +90,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a DELETE request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -107,9 +99,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a HEAD request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -118,9 +108,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates an OPTIONS request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -129,9 +117,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a PATCH request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -140,9 +126,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a TRACE request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -151,9 +135,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     /**
      * Creates a CONNECT request for the passed URI.
      *
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -163,9 +145,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      * Creates a request for the passed HTTP method and URI.
      *
      * @param method Http Method.
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */
@@ -176,9 +156,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      *
      * @param version HTTP version
      * @param method Http Method.
-     * @param uri The URI for the request. The URI can be relative or absolute. If the URI is relative
-     *            (missing host and port information), the target host and port are inferred from the {@link HttpClient}
-     *            that created the request. If the URI is absolute, the host and port are used from the URI.
+     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
      *
      * @return New {@link HttpClientRequest}.
      */

@@ -37,20 +37,13 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Collections;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 
 public class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     private final ClientState<W, R> state;
     private final String name;
-    private final ConcurrentMap<SocketAddress, ConnectionRequest<W, R>> remoteAddrVsConnRequest; //TODO: Weak reference
     private final ConnectionRequestImpl<W, R> thisConnectionRequest;
 
     protected TcpClientImpl(String name, SocketAddress remoteAddress) {
@@ -61,52 +54,24 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
                             SocketAddress remoteAddress) {
         this.name = name;
         state = ClientState.create(eventLoopGroup, channelClass, remoteAddress);
-        remoteAddrVsConnRequest = new ConcurrentHashMap<>();
         thisConnectionRequest = new ConnectionRequestImpl<>(state);
     }
 
     protected TcpClientImpl(String name, ClientState<W, R> state) {
         this.name = name;
         this.state = state;
-        remoteAddrVsConnRequest = new ConcurrentHashMap<>();
         thisConnectionRequest = new ConnectionRequestImpl<>(state);
     }
 
     protected TcpClientImpl(TcpClientImpl<?, ?> client, ClientState<W, R> state) {
         this.state = state;
         name = client.name;
-        remoteAddrVsConnRequest = new ConcurrentHashMap<>(); // Since, the state has changed, no existing requests are valid.
         thisConnectionRequest = new ConnectionRequestImpl<W, R>(this.state);
     }
 
     @Override
     public ConnectionRequest<W, R> createConnectionRequest() {
         return thisConnectionRequest;
-    }
-
-    @Override
-    public ConnectionRequest<W, R> createConnectionRequest(String host, int port) {
-        return createConnectionRequest(new InetSocketAddress(host, port));
-    }
-
-    @Override
-    public ConnectionRequest<W, R> createConnectionRequest(InetAddress host, int port) {
-        return createConnectionRequest(new InetSocketAddress(host, port));
-    }
-
-    @Override
-    public ConnectionRequest<W, R> createConnectionRequest(SocketAddress remoteAddress) {
-        final ConnectionRequest<W, R> connectionRequest = remoteAddrVsConnRequest.get(remoteAddress);
-
-        if (null != connectionRequest) {
-            return connectionRequest;
-        }
-
-        ConnectionRequestImpl<W, R> newRequest = new ConnectionRequestImpl<>(state.remoteAddress(remoteAddress));
-
-        ConnectionRequest<W, R> existingReq = remoteAddrVsConnRequest.putIfAbsent(remoteAddress, newRequest);
-
-        return null != existingReq ? existingReq : newRequest;
     }
 
     @Override
@@ -244,10 +209,6 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     /*Visible for testing*/ ClientState<W, R> getClientState() {
         return state;
-    }
-
-    /*Visible for testing*/ Map<SocketAddress, ConnectionRequest<W, R>> getRemoteAddrVsConnRequest() {
-        return Collections.unmodifiableMap(remoteAddrVsConnRequest);
     }
 
     @Override

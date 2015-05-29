@@ -167,7 +167,7 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
         }
     }
 
-    static class WebSocket7To13UpgradeAcceptedEvent {
+    public static class WebSocket7To13UpgradeAcceptedEvent {
 
         private final Subscriber<? super Void> acceptUpgradeSubscriber;
         private final WebSocketHandler handler;

@@ -17,11 +17,10 @@
 package io.reactivex.netty.examples.http.ws.echo;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
-
-import static io.reactivex.netty.protocol.http.ws.server.WebSocketHandlers.*;
-import static java.nio.charset.Charset.*;
+import rx.Observable;
 
 /**
  * An Web socket echo server that echoes back all frames received.
@@ -32,18 +31,17 @@ public final class WebSocketEchoServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(0)
-                           .start(acceptAllUpgrades(conn ->
-                                                            conn.writeAndFlushOnEach(conn.getInputForWrite()
-                                                                                         .doOnNext(frame -> {
-                                                                                             String msg =
-                                                                                                     frame.content()
-                                                                                                          .toString(
-                                                                                                                  defaultCharset());
-                                                                                             logger.info(msg);
-                                                                                         }))
-                                  )
-                           );
+        server = HttpServer.newServer()
+                           .start((req, resp) -> {
+                               if (req.isWebSocketUpgradeRequested()) {
+                                   return resp.acceptWebSocketUpgrade(wsConn ->
+                                                                              wsConn.writeAndFlushOnEach(wsConn.getInputForWrite()));
+                               } else if (req.getUri().startsWith("/hello")) {
+                                   return resp.writeString(Observable.just("Hello World"));
+                               } else {
+                                   return resp.setStatus(HttpResponseStatus.NOT_FOUND);
+                               }
+                           });
 
         /*Wait for shutdown if not called from another class (passed an arg)*/
         if (shouldWaitForShutdown(args)) {

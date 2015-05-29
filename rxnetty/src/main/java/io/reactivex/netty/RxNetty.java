@@ -54,30 +54,7 @@ public final class RxNetty {
      *
      * So, this method should be called conditionally when the caller is sure that the OS supports the native protocol.
      *
-     * Alternatively, this can be done selectively per client and server instance by doing the following:
-     *
-     * <h2>Http Server</h2>
-     <pre>
-     * {@code
-       RxNetty.newHttpServerBuilder(8888, new RequestHandler<Object, Object>() {
-            @Override
-            public Observable<Void> handle(HttpServerRequest<Object> request, HttpServerResponse<Object> response) {
-            return null;
-            }
-       }).channel(EpollServerSocketChannel.class)
-         .eventLoop(new EpollEventLoopGroup());
-      }
-     </pre>
-     *
-     * <h2>Http Client</h2>
-     *
-     <pre>
-     {@code
-     RxNetty.newHttpClientBuilder("localhost", 8888)
-            .channel(EpollSocketChannel.class)
-            .eventloop(new EpollEventLoopGroup());
-     }
-     </pre>
+     * Alternatively, this can be done selectively per client and server instance.
      */
     public static void useNativeTransportIfApplicable() {
         usingNativeTransport = true;

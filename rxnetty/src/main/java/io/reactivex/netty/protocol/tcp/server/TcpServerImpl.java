@@ -50,14 +50,14 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     private ChannelFuture bindFuture;
     protected final AtomicReference<ServerStatus> serverStateRef;
 
-    public TcpServerImpl(int port) {
-        state = ServerState.create(port);
+    public TcpServerImpl(SocketAddress socketAddress) {
+        state = ServerState.create(socketAddress);
         serverStateRef = new AtomicReference<>(ServerStatus.Created);
     }
 
-    public TcpServerImpl(int port, EventLoopGroup parent, EventLoopGroup child,
+    public TcpServerImpl(SocketAddress socketAddress, EventLoopGroup parent, EventLoopGroup child,
                          Class<? extends ServerChannel> channelClass) {
-        state = ServerState.create(port, parent, child, channelClass);
+        state = ServerState.create(socketAddress, parent, child, channelClass);
         serverStateRef = new AtomicReference<>(ServerStatus.Created);
     }
 
@@ -152,14 +152,23 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
 
     @Override
     public int getServerPort() {
+        SocketAddress localAddress;
         if (null != bindFuture && bindFuture.isDone()) {
-            SocketAddress localAddress = bindFuture.channel().localAddress();
-            if (localAddress instanceof InetSocketAddress) {
-                return ((InetSocketAddress) localAddress).getPort();
-            }
+            localAddress = bindFuture.channel().localAddress();
+        } else {
+            localAddress = state.getServerAddress();
         }
 
-        return state.getServerPort();
+        if (localAddress instanceof InetSocketAddress) {
+            return ((InetSocketAddress) localAddress).getPort();
+        } else {
+            return 0;
+        }
+    }
+
+    @Override
+    public SocketAddress getServerAddress() {
+        return state.getServerAddress();
     }
 
     @Override
@@ -176,7 +185,7 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
                 }
             };
             final ServerState<R, W> newState = state.pipelineConfigurator(handlerFactory);
-            bindFuture = newState.getBootstrap().bind(newState.getServerPort()).sync();
+            bindFuture = newState.getBootstrap().bind(newState.getServerAddress()).sync();
             if (!bindFuture.isSuccess()) {
                 throw new RuntimeException(bindFuture.cause());
             }

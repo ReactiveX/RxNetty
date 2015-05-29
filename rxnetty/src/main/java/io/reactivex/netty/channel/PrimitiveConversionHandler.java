@@ -22,8 +22,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 
 /**
- * A {@link ChannelHandler} to support directly writing primitives like {@link String} and {@link byte[]} on a
- * {@link Connection}.
+ * A {@link ChannelHandler} to support directly writing primitives like String and byte arrays on a {@link Connection}.
  */
 @Sharable
 public class PrimitiveConversionHandler extends ChannelOutboundHandlerAdapter {
