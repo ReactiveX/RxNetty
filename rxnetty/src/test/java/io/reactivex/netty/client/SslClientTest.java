@@ -16,12 +16,15 @@
 package io.reactivex.netty.client;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.channel.pool.PoolConfig;
+import io.reactivex.netty.channel.pool.PooledConnectionProvider;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.RequestHandler;
+import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import io.reactivex.netty.test.util.MockPoolLimitDeterminationStrategy;
 import org.junit.Assert;
 import org.junit.Test;
@@ -30,6 +33,8 @@ import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
 import javax.net.ssl.SSLException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -38,21 +43,27 @@ public class SslClientTest {
 
     @Test(timeout = 60000)
     public void testReleaseOnSslFailure() throws Exception {
-        int serverPort = HttpServer.newServer()
-                                   .start(new RequestHandler<ByteBuf, ByteBuf>() {
-                                       @Override
-                                       public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
-                                                                      HttpServerResponse<ByteBuf> response) {
-                                           return Observable.empty();
-                                       }
-                                   })
-                                   .getServerPort();
+        HttpServer<ByteBuf, ByteBuf> server =
+                HttpServer.newServer()
+                          .start(new RequestHandler<ByteBuf, ByteBuf>() {
+                              @Override
+                              public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
+                                                             HttpServerResponse<ByteBuf> response) {
+                                  return Observable.empty();
+                              }
+                          });
+        final SocketAddress serverAddress = new InetSocketAddress("127.0.0.1", server.getServerPort());
 
         MockPoolLimitDeterminationStrategy strategy = new MockPoolLimitDeterminationStrategy(1);
+
         // The connect fails because the server does not support SSL.
         TestSubscriber<ByteBuf> subscriber = new TestSubscriber<>();
-        HttpClient.newClient("127.0.0.1", serverPort)
-                  .connectionPoolLimitStrategy(strategy)
+        final PoolConfig<ByteBuf, ByteBuf> config = new PoolConfig<>();
+        config.limitDeterminationStrategy(strategy);
+
+        ConnectionProvider<ByteBuf, ByteBuf> connectionProvider = PooledConnectionProvider.create(config, serverAddress);
+
+        HttpClient.newClient(connectionProvider)
                   .unsafeSecure()
                   .createGet("/")
                   .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {

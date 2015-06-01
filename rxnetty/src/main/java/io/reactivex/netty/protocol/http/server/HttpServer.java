@@ -297,6 +297,13 @@ public abstract class HttpServer<I, O> implements EventSource<HttpServerEventsLi
     public abstract int getServerPort();
 
     /**
+     * Returns the address at which this server is running.
+     *
+     * @return The address at which this server is running.
+     */
+    public abstract SocketAddress getServerAddress();
+
+    /**
      * Starts this server.
      *
      * @param requestHandler Connection handler that will handle any new client connections to this server.

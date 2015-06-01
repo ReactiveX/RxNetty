@@ -17,10 +17,10 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.channel.EventLoop;
 import io.netty.util.concurrent.FastThreadLocal;
+import io.reactivex.netty.channel.client.PreferCurrentEventLoopGroup;
 import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
 import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
 import io.reactivex.netty.channel.pool.PooledConnection;
-import io.reactivex.netty.protocol.client.PreferCurrentEventLoopGroup;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -56,8 +56,6 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
     private final IdleConnectionsHolder<W, R>[] allElHolders;
     private final Observable<PooledConnection<R, W>> pollObservable;
     private final Observable<PooledConnection<R, W>> peekObservable;
-    private final PreferCurrentEventLoopGroup eventLoopGroup;
-    private final IdleConnectionsHolderFactory<W, R> holderFactory;
 
     PreferCurrentEventLoopHolder(PreferCurrentEventLoopGroup eventLoopGroup) {
         this(eventLoopGroup, new FIFOIdleConnectionsHolderFactory<W, R>());
@@ -65,8 +63,6 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
     PreferCurrentEventLoopHolder(PreferCurrentEventLoopGroup eventLoopGroup,
                                  final IdleConnectionsHolderFactory<W, R> holderFactory) {
-        this.eventLoopGroup = eventLoopGroup;
-        this.holderFactory = holderFactory;
         Set<EventLoop> children = eventLoopGroup.children();
         @SuppressWarnings("unchecked")
         final
@@ -163,12 +159,6 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
             }
         }
         return false;
-    }
-
-    @Override
-    protected <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState) {
-        return new PreferCurrentEventLoopHolder<WW, RR>(eventLoopGroup,
-                                                        holderFactory.copy(newState));
     }
 
     public interface IdleConnectionsHolderFactory<W, R> extends Func0<IdleConnectionsHolder<W, R>> {

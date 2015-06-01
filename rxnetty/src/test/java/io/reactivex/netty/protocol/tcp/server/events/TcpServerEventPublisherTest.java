@@ -76,80 +76,75 @@ public class TcpServerEventPublisherTest {
     public void testOnByteRead() throws Exception {
         rule.publisher.onByteRead(1);
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.BytesRead); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.BytesRead); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnFlushStart() throws Exception {
         rule.publisher.onFlushStart();
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.FlushStart); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.FlushStart); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnFlushSuccess() throws Exception {
         rule.publisher.onFlushSuccess(1, MILLISECONDS);
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.FlushSuccess); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.FlushSuccess); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnFlushFailed() throws Exception {
         rule.publisher.onFlushFailed(1, MILLISECONDS, new NullPointerException());
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.FlushFailed); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.FlushFailed); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnWriteStart() throws Exception {
         rule.publisher.onWriteStart();
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.WriteStart); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.WriteStart); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnWriteSuccess() throws Exception {
         rule.publisher.onWriteSuccess(1, MILLISECONDS, 10);
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.WriteSuccess); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.WriteSuccess); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnWriteFailed() throws Exception {
         rule.publisher.onWriteFailed(1, MILLISECONDS, new NullPointerException());
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.WriteFailed); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.WriteFailed); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnConnectionCloseStart() throws Exception {
         rule.publisher.onConnectionCloseStart();
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.CloseStart); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.CloseStart); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnConnectionCloseSuccess() throws Exception {
         rule.publisher.onConnectionCloseSuccess(1, MILLISECONDS);
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.CloseSuccess); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.CloseSuccess); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testOnConnectionCloseFailed() throws Exception {
         rule.publisher.onConnectionCloseFailed(1, MILLISECONDS, new NullPointerException());
 
-        rule.listener.getConnDelegate().assertMethodsCalledAfterSubscription(Event.CloseFailed); // Test for Connection publisher should verify rest
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.CloseFailed); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
     public void testPublishingEnabled() throws Exception {
         assertThat("Publishing not enabled.", rule.publisher.publishingEnabled(), is(true));
-    }
-
-    @Test(timeout = 60000)
-    public void testSubscribe() throws Exception {
-        rule.listener.getConnDelegate().assertMethodsCalled(Event.Subscribe);
     }
 
     @Test(timeout = 60000)

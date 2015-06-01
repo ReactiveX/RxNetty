@@ -16,18 +16,21 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.Observable;
 import rx.observers.TestSubscriber;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -49,22 +52,26 @@ public class HttpServerRule extends ExternalResource {
         };
     }
 
-    public void startServer() {
+    public SocketAddress startServer() {
         server.start(new RequestHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(HttpServerRequest<ByteBuf> request,
                                            HttpServerResponse<ByteBuf> response) {
-                return response.setHeader(Names.CONTENT_LENGTH, WELCOME_SERVER_MSG.getBytes().length)
+                return response.setHeader(CONTENT_LENGTH, WELCOME_SERVER_MSG.getBytes().length)
                                .writeString(Observable.just(WELCOME_SERVER_MSG));
             }
         });
         client = HttpClient.newClient("127.0.0.1", server.getServerPort());
-
+        return server.getServerAddress();
     }
 
     public void startServer(RequestHandler<ByteBuf, ByteBuf> handler) {
         server.start(handler);
         client = HttpClient.newClient("127.0.0.1", server.getServerPort());
+    }
+
+    public void setupClient(HttpClient<ByteBuf, ByteBuf> client) {
+        this.client = client;
     }
 
     public HttpClientResponse<ByteBuf> sendRequest(HttpClientRequest<ByteBuf, ByteBuf> request) {
@@ -91,6 +98,14 @@ public class HttpServerRule extends ExternalResource {
         assertThat("Unexpected content items.", subscriber.getOnNextEvents(), hasSize(1));
         assertThat("Unexpected content.", subscriber.getOnNextEvents().get(0).toString(Charset.defaultCharset()),
                    equalTo(WELCOME_SERVER_MSG));
+    }
+
+    public <W, R> ConnectionProvider<W, R> newConnectionFactoryForClient() {
+        return ConnectionProvider.forHost(getServerAddress());
+    }
+
+    public SocketAddress getServerAddress() {
+        return new InetSocketAddress("127.0.0.1", server.getServerPort());
     }
 
     public void setServer(HttpServer<ByteBuf, ByteBuf> server) {

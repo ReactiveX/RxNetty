@@ -17,11 +17,11 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
@@ -161,7 +161,7 @@ public abstract class HttpClientResponse<T> {
      *
      * @throws ParseException if there is no such header or the header value is not a formatted date
      */
-    public abstract Date getDateHeader(CharSequence name) throws ParseException;
+    public abstract long getDateHeader(CharSequence name) throws ParseException;
 
     /**
      * Returns the date header value with the specified header name.  If there are more than one header value for the
@@ -175,7 +175,7 @@ public abstract class HttpClientResponse<T> {
      *
      * @return the header value or {@code defaultValue} if there is no header with this name.
      */
-    public abstract Date getDateHeader(CharSequence name, Date defaultValue);
+    public abstract long getDateHeader(CharSequence name, long defaultValue);
 
     /**
      * Returns the value of the {@code "Host"} header.

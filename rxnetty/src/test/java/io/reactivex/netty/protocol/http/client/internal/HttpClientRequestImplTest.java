@@ -23,25 +23,23 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.handler.codec.http.ClientCookieEncoder;
-import io.netty.handler.codec.http.DefaultCookie;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
+import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory;
 import io.reactivex.netty.test.util.FlushSelector;
 import io.reactivex.netty.test.util.TcpConnectionRequestMock;
 import org.junit.Rule;
@@ -69,6 +67,8 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.*;
@@ -225,7 +225,7 @@ public class HttpClientRequestImplTest {
 
         requestRule.assertCopy(newReq);
 
-        requestRule.assertHeaderAdded(newReq, Names.COOKIE, ClientCookieEncoder.encode(cookie));
+        requestRule.assertHeaderAdded(newReq, COOKIE.toString(), ClientCookieEncoder.STRICT.encode(cookie));
     }
 
     @Test(timeout = 60000)
@@ -433,7 +433,7 @@ public class HttpClientRequestImplTest {
         HttpClientRequestImpl<Object, ByteBuf> newReq =
                 (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setKeepAlive(false);
 
-        requestRule.assertHeaderAdded(newReq, Names.CONNECTION, Values.CLOSE);
+        requestRule.assertHeaderAdded(newReq, CONNECTION.toString(), CLOSE.toString());
     }
 
     @Test(timeout = 60000)
@@ -441,7 +441,7 @@ public class HttpClientRequestImplTest {
         HttpClientRequestImpl<Object, ByteBuf> newReq =
                 (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setTransferEncodingChunked();
 
-        requestRule.assertHeaderAdded(newReq, Names.TRANSFER_ENCODING, Values.CHUNKED);
+        requestRule.assertHeaderAdded(newReq, TRANSFER_ENCODING.toString(), CHUNKED.toString());
 
     }
 
@@ -788,7 +788,6 @@ public class HttpClientRequestImplTest {
         private EmbeddedChannel channel;
         @SuppressWarnings("rawtypes")
         private Subscriber cis;
-        private HttpClientEventPublisher httpPublisher;
 
         @Override
         public Statement apply(final Statement base, Description description) {
@@ -812,6 +811,11 @@ public class HttpClientRequestImplTest {
                     });
 
                     TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
+
+                    channel.attr(TcpEventPublisherFactory.EVENT_PUBLISHER).set(eventPublisher);
+                    channel.attr(TcpEventPublisherFactory.TCP_CLIENT_EVENT_LISTENER).set(eventPublisher);
+                    channel.attr(TcpEventPublisherFactory.CONNECTION_EVENT_LISTENER).set(eventPublisher);
+
                     connMock = ConnectionImpl.create(channel, eventPublisher, eventPublisher);
 
                     @SuppressWarnings("unchecked")
@@ -876,15 +880,12 @@ public class HttpClientRequestImplTest {
                     Mockito.when(clientMock.enableWireLogging(Matchers.<LogLevel>anyObject()))
                                            .thenAnswer(returnThisMock);
 
-                    Mockito.when(clientMock.getEventPublisher()).thenAnswer(Mockito.RETURNS_MOCKS);
-
                     RequestRule.this.clientMock = clientMock;
 
-                    httpPublisher = new HttpClientEventPublisher(clientMock.getEventPublisher());
                     request = (HttpClientRequestImpl<Object, ByteBuf>) HttpClientRequestImpl.create(HttpVersion.HTTP_1_1,
                                                                                                     HttpMethod.GET, "/",
-                                                                                                    RequestRule.this.clientMock,
-                                                                                                    httpPublisher);
+                                                                                                    RequestRule.this.clientMock
+                    );
                     base.evaluate();
                 }
             };
@@ -892,8 +893,8 @@ public class HttpClientRequestImplTest {
 
         public void createNewRequest(HttpMethod method, String uri) {
             request = (HttpClientRequestImpl<Object, ByteBuf>) HttpClientRequestImpl.create(HttpVersion.HTTP_1_1,
-                                                                                            method, uri, clientMock,
-                                                                                            httpPublisher);
+                                                                                            method, uri, clientMock
+            );
         }
 
         public void assertCopy(HttpClientRequestImpl<Object, ByteBuf> newReq) {

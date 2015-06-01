@@ -18,11 +18,9 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
@@ -30,11 +28,9 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.events.EventSource;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
-import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -42,7 +38,6 @@ import rx.functions.Func1;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -350,66 +345,6 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     public abstract <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code maxConnections} as the maximum number of concurrent connections created by the newly created client instance.
-     *
-     * @param maxConnections Maximum number of concurrent connections to be created by this client.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> maxConnections(int maxConnections);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code idleConnectionsTimeoutMillis} as the time elapsed before an idle connections will be closed by the newly
-     * created client instance.
-     *
-     * @param idleConnectionsTimeoutMillis Time elapsed before an idle connections will be closed by the newly
-     * created client instance
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code strategy} as the strategy to control the maximum concurrent connections created by the
-     * newly created client instance.
-     *
-     * @param strategy Strategy to control the maximum concurrent connections created by the
-     * newly created client instance.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code poolIdleCleanupScheduler} for detecting and cleaning idle connections by the newly created client instance.
-     *
-     * @param idleConnectionCleanupTimer Timer to trigger idle connections cleanup.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and disabling idle connection
-     * cleanup for the newly created client instance.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> noIdleConnectionCleanup();
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and disabling connection
-     * pooling for the newly created client instance.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> noConnectionPooling();
-
-    /**
      * Creates a new client instance, inheriting all configurations from this client and using the passed
      * {@code sslEngineFactory} for all secured connections created by the newly created client instance.
      *
@@ -469,45 +404,10 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
 
     public static HttpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
-        return newClient(HTTP_CLIENT_NO_NAME, host, port);
+        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(new InetSocketAddress(host, port)));
     }
 
-    public static HttpClient<ByteBuf, ByteBuf> newClient(String name, String host, int port) {
-        return _newClient(TcpClient.newClient(name, new InetSocketAddress(host, port)));
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String host, int port) {
-        return newClient(eventLoopGroup, channelClass, HTTP_CLIENT_NO_NAME, host, port);
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String name, String host,
-                                                        int port) {
-        return _newClient(TcpClient.newClient(eventLoopGroup, channelClass, name, new InetSocketAddress(host, port)));
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(SocketAddress remoteAddress) {
-        return newClient(HTTP_CLIENT_NO_NAME, remoteAddress);
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(String name, SocketAddress remoteAddress) {
-        return _newClient(TcpClient.newClient(name, remoteAddress));
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass,
-                                                        SocketAddress remoteAddress) {
-        return newClient(eventLoopGroup, channelClass, HTTP_CLIENT_NO_NAME, remoteAddress);
-    }
-
-    public static HttpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String name,
-                                                        SocketAddress remoteAddress) {
-        return _newClient(TcpClient.newClient(eventLoopGroup, channelClass, name, remoteAddress));
-    }
-
-    private static HttpClient<ByteBuf, ByteBuf> _newClient(TcpClient<ByteBuf, ByteBuf> tcpClient) {
-        return HttpClientImpl.create(tcpClient);
+    public static HttpClient<ByteBuf, ByteBuf> newClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
+        return HttpClientImpl.create(connectionProvider);
     }
 }

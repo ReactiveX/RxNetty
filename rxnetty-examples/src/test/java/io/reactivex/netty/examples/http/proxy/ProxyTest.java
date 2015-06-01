@@ -17,8 +17,8 @@
 package io.reactivex.netty.examples.http.proxy;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
@@ -44,7 +44,7 @@ public class ProxyTest extends ExamplesEnvironment {
 
         HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         expectedHeader.headers().add("X-Proxied-By", "RxNetty");
-        expectedHeader.headers().add(Names.TRANSFER_ENCODING, Values.CHUNKED);
+        expectedHeader.headers().add(HttpHeaderNames.TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
         String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
                                                                           expectedHeader.status(),
                                                                           expectedHeader.headers().iterator());

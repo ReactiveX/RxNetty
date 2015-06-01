@@ -37,7 +37,7 @@ public final class ProxyServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(0)
+        server = HttpServer.newServer()
                            .start((req, resp) -> {
                                       HttpClientRequest<ByteBuf, ByteBuf> outReq =
                                               targetClient.createRequest(req.getHttpMethod(), req.getUri());
@@ -73,7 +73,7 @@ public final class ProxyServer extends AbstractServerExample {
     }
 
     private static int startTargetServer() {
-        return HttpServer.newServer(0)
+        return HttpServer.newServer()
                          .start((req, resp) -> resp.writeString(just("HelloWorld!")))
                          .getServerPort();
     }

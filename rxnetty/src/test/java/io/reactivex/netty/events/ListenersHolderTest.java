@@ -40,8 +40,6 @@ public class ListenersHolderTest {
 
         ListenerWithSub l = holderRule.addAListener();
 
-        assertThat("On subscribe not called on listener.", l.listener.getOnSubscribeCount(), is(1));
-
         holderRule.assertListenerAdded(l.listener);
 
         l.subscription.unsubscribe();
@@ -55,9 +53,6 @@ public class ListenersHolderTest {
         final TestEventListener listener2 = new TestEventListener();
         Subscription subscription1 = holderRule.getHolder().subscribe(listener1);
         Subscription subscription2 = holderRule.getHolder().subscribe(listener2);
-
-        assertThat("On subscribe not called on first listener.", listener1.getOnSubscribeCount(), is(1));
-        assertThat("On subscribe not called on second listener.", listener2.getOnSubscribeCount(), is(1));
 
         holderRule.assertListenerAdded(listener1, listener2);
 
@@ -499,7 +494,6 @@ public class ListenersHolderTest {
     public static class TestEventListener implements EventListener {
 
         private int onCompletedCount;
-        private int onSubscribeCount;
         private int eventInvocationCount;
         private final boolean raiseErrorOnAllInvocations;
         private long duration;
@@ -567,17 +561,8 @@ public class ListenersHolderTest {
             }
         }
 
-        @Override
-        public void onSubscribe() {
-            onSubscribeCount++;
-        }
-
         public int getOnCompletedCount() {
             return onCompletedCount;
-        }
-
-        public int getOnSubscribeCount() {
-            return onSubscribeCount;
         }
 
         public int getEventInvocationCount() {

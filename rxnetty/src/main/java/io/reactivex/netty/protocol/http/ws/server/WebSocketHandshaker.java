@@ -15,8 +15,7 @@
  */
 package io.reactivex.netty.protocol.http.ws.server;
 
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
@@ -26,6 +25,8 @@ import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import rx.Observable;
 import rx.Subscriber;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 /**
  * The websocket handshaker for sending handshake response back to the client.
  *
@@ -89,17 +90,18 @@ public abstract class WebSocketHandshaker extends Observable<Void> {
     }
 
     public static boolean isUpgradeRequested(HttpServerRequest<?> upgradeRequest) {
-        return null != upgradeRequest && upgradeRequest.containsHeader(Names.UPGRADE)
-                                      && upgradeRequest.getHeader(Names.UPGRADE).equalsIgnoreCase(Values.WEBSOCKET);
+        return null != upgradeRequest && upgradeRequest.containsHeader(HttpHeaderNames.UPGRADE)
+                                      && WEBSOCKET.equalsIgnoreCase(upgradeRequest.getHeader(HttpHeaderNames.UPGRADE));
     }
 
     public static boolean isUpgradeRequested(HttpRequest upgradeRequest) {
-        return null != upgradeRequest && upgradeRequest.headers().contains(Names.UPGRADE)
-                                      && upgradeRequest.headers().get(Names.UPGRADE).equalsIgnoreCase(Values.WEBSOCKET);
+        return null != upgradeRequest && upgradeRequest.headers().contains(HttpHeaderNames.UPGRADE)
+                                      && WEBSOCKET.equalsIgnoreCase(upgradeRequest.headers()
+                                                                                  .get(HttpHeaderNames.UPGRADE));
     }
 
     private static WebSocketVersion getWsVersion(HttpServerRequest<?> request) {
-        String version = request.getHeader(Names.SEC_WEBSOCKET_VERSION);
+        String version = request.getHeader(SEC_WEBSOCKET_VERSION);
 
         switch (version) {
         case "0":

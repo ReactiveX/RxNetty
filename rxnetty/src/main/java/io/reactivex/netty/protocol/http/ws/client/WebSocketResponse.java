@@ -15,25 +15,28 @@
  */
 package io.reactivex.netty.protocol.http.ws.client;
 
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.ws.WebSocketConnection;
 import rx.Observable;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 
 public abstract class WebSocketResponse<T> extends HttpClientResponse<T> {
 
     public abstract Observable<WebSocketConnection> getWebSocketConnection();
 
     public String getAcceptedSubProtocol() {
-        return getHeader(Names.SEC_WEBSOCKET_PROTOCOL);
+        return getHeader(SEC_WEBSOCKET_PROTOCOL);
     }
 
     public boolean isUpgraded() {
         return getStatus().equals(HttpResponseStatus.SWITCHING_PROTOCOLS)
-               && containsHeader(Names.CONNECTION, Values.UPGRADE, false)
-               && containsHeader(Names.UPGRADE, Values.WEBSOCKET, false)
-               && containsHeader(Names.SEC_WEBSOCKET_ACCEPT);
+               && containsHeader(CONNECTION, HttpHeaderValues.UPGRADE, false)
+               && containsHeader(HttpHeaderNames.UPGRADE, WEBSOCKET, false)
+               && containsHeader(SEC_WEBSOCKET_ACCEPT);
     }
 }

@@ -23,7 +23,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 final class SafeHttpServerEventsListener extends HttpServerEventsListener implements SafeEventListener {
 
     private final AtomicBoolean completed = new AtomicBoolean();
-    private final AtomicBoolean subscribed = new AtomicBoolean();
     private final HttpServerEventsListener delegate;
 
     public SafeHttpServerEventsListener(HttpServerEventsListener delegate) {
@@ -34,13 +33,6 @@ final class SafeHttpServerEventsListener extends HttpServerEventsListener implem
     public void onCompleted() {
         if (completed.compareAndSet(false, true)) {
             delegate.onCompleted();
-        }
-    }
-
-    @Override
-    public void onSubscribe() {
-        if (subscribed.compareAndSet(false, true)) {
-            delegate.onSubscribe();
         }
     }
 

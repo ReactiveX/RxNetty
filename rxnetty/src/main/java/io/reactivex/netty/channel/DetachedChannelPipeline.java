@@ -44,16 +44,6 @@ public class DetachedChannelPipeline {
 
     private final LinkedList<HandlerHolder> holdersInOrder;
 
-    private final ChannelInitializer<Channel> channelInitializer = new ChannelInitializer<Channel>() {
-        @Override
-        protected void initChannel(Channel ch) throws Exception {
-            final ChannelPipeline pipeline = ch.pipeline();
-            synchronized (holdersInOrder) {
-                unguardedCopyToPipeline(pipeline);
-            }
-        }
-    };
-
     private final Action1<ChannelPipeline> nullableTail;
 
     public DetachedChannelPipeline() {
@@ -77,7 +67,25 @@ public class DetachedChannelPipeline {
     }
 
     public ChannelInitializer<Channel> getChannelInitializer() {
-        return channelInitializer;
+        return getChannelInitializer(new Action1<Channel>() {
+            @Override
+            public void call(Channel channel) {
+                // No Op...
+            }
+        });
+    }
+
+    public ChannelInitializer<Channel> getChannelInitializer(final Action1<Channel> channelInitializer) {
+        return new ChannelInitializer<Channel>() {
+            @Override
+            protected void initChannel(Channel ch) throws Exception {
+                channelInitializer.call(ch);
+                final ChannelPipeline pipeline = ch.pipeline();
+                synchronized (holdersInOrder) {
+                    unguardedCopyToPipeline(pipeline);
+                }
+            }
+        };
     }
 
     public DetachedChannelPipeline copy() {

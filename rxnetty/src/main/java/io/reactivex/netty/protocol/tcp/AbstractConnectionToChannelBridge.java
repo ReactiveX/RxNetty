@@ -18,6 +18,7 @@ package io.reactivex.netty.protocol.tcp;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
+import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
 import io.reactivex.netty.channel.Connection;
@@ -70,8 +71,11 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         CLOSED_CHANNEL_EXCEPTION.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
     }
 
-    protected final ConnectionEventListener eventListener;
-    protected final EventPublisher eventPublisher;
+    private final AttributeKey<ConnectionEventListener> eventListenerAttributeKey;
+    private final AttributeKey<EventPublisher> eventPublisherAttributeKey;
+
+    protected ConnectionEventListener eventListener;
+    protected EventPublisher eventPublisher;
     private Subscriber<? super Connection<R, W>> newConnectionSub;
     private ReadProducer<R> readProducer;
     private boolean raiseErrorOnInputSubscription;
@@ -80,14 +84,54 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     protected AbstractConnectionToChannelBridge(String thisHandlerName, ConnectionEventListener eventListener,
                                                 EventPublisher eventPublisher) {
         super(thisHandlerName);
+        if (null == eventListener) {
+            throw new IllegalArgumentException("Event listener can not be null.");
+        }
+        if (null == eventPublisher) {
+            throw new IllegalArgumentException("Event publisher can not be null.");
+        }
         this.eventListener = eventListener;
         this.eventPublisher = eventPublisher;
+        eventListenerAttributeKey = null;
+        eventPublisherAttributeKey = null;
+    }
+
+    protected AbstractConnectionToChannelBridge(String thisHandlerName,
+                                                AttributeKey<ConnectionEventListener> eventListenerAttributeKey,
+                                                AttributeKey<EventPublisher> eventPublisherAttributeKey) {
+        super(thisHandlerName);
+        this.eventListenerAttributeKey = eventListenerAttributeKey;
+        this.eventPublisherAttributeKey = eventPublisherAttributeKey;
     }
 
     protected AbstractConnectionToChannelBridge(String thisHandlerName, Subscriber<? super Connection<R, W>> connSub,
-                                                ConnectionEventListener eventListener, EventPublisher eventPublisher) {
-        this(thisHandlerName, eventListener, eventPublisher);
+                                                AttributeKey<ConnectionEventListener> eventListenerAttributeKey,
+                                                AttributeKey<EventPublisher> eventPublisherAttributeKey) {
+        this(thisHandlerName, eventListenerAttributeKey, eventPublisherAttributeKey);
         newConnectionSub = connSub;
+    }
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        if (null == eventListener && null == eventPublisher) {
+            eventListener = ctx.channel().attr(eventListenerAttributeKey).get();
+            eventPublisher = ctx.channel().attr(eventPublisherAttributeKey).get();
+        }
+
+        if (null == eventPublisher) {
+            logger.error("No Event publisher bound to the channel, closing channel.");
+            ctx.channel().close();
+            return;
+        }
+
+        if (eventPublisher.publishingEnabled() && null == eventListener) {
+            logger.error("No Event listener bound to the channel and publising is enabled, closing channel.");
+            ctx.channel().close();
+            return;
+        }
+
+
+        super.handlerAdded(ctx);
     }
 
     @Override

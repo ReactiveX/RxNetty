@@ -18,14 +18,13 @@ package io.reactivex.netty.protocol.http.client.internal;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.ClientCookieEncoder;
-import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.codec.HandlerNames;
@@ -41,7 +40,6 @@ import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Func1;
 
-import java.text.ParseException;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -49,6 +47,8 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.regex.Pattern;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 
 public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
@@ -110,7 +110,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public String getHeader(CharSequence name, String defaultValue) {
-        return HttpHeaders.getHeader(nettyResponse, name, defaultValue);
+        return nettyResponse.headers().get(name, defaultValue);
     }
 
     @Override
@@ -120,57 +120,57 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public long getContentLength() {
-        return HttpHeaders.getContentLength(nettyResponse);
+        return HttpHeaderUtil.getContentLength(nettyResponse);
     }
 
     @Override
     public long getContentLength(long defaultValue) {
-        return HttpHeaders.getContentLength(nettyResponse, defaultValue);
+        return HttpHeaderUtil.getContentLength(nettyResponse, defaultValue);
     }
 
     @Override
-    public Date getDateHeader(CharSequence name) throws ParseException {
-        return HttpHeaders.getDateHeader(nettyResponse, name);
+    public long getDateHeader(CharSequence name) {
+        return nettyResponse.headers().getTimeMillis(name);
     }
 
     @Override
-    public Date getDateHeader(CharSequence name, Date defaultValue) {
-        return HttpHeaders.getDateHeader(nettyResponse, name, defaultValue);
+    public long getDateHeader(CharSequence name, long defaultValue) {
+        return nettyResponse.headers().getTimeMillis(name, defaultValue);
     }
 
     @Override
     public String getHostHeader() {
-        return HttpHeaders.getHost(nettyResponse);
+        return nettyResponse.headers().get(HOST);
     }
 
     @Override
     public String getHost(String defaultValue) {
-        return HttpHeaders.getHost(nettyResponse, defaultValue);
+        return nettyResponse.headers().get(HOST, defaultValue);
     }
 
     @Override
     public int getIntHeader(CharSequence name) {
-        return HttpHeaders.getIntHeader(nettyResponse, name);
+        return nettyResponse.headers().getInt(name);
     }
 
     @Override
     public int getIntHeader(CharSequence name, int defaultValue) {
-        return HttpHeaders.getIntHeader(nettyResponse, name, defaultValue);
+        return nettyResponse.headers().getInt(name, defaultValue);
     }
 
     @Override
     public boolean isContentLengthSet() {
-        return HttpHeaders.isContentLengthSet(nettyResponse);
+        return HttpHeaderUtil.isContentLengthSet(nettyResponse);
     }
 
     @Override
     public boolean isKeepAlive() {
-        return HttpHeaders.isKeepAlive(nettyResponse);
+        return HttpHeaderUtil.isKeepAlive(nettyResponse);
     }
 
     @Override
     public boolean isTransferEncodingChunked() {
-        return HttpHeaders.isTransferEncodingChunked(nettyResponse);
+        return HttpHeaderUtil.isTransferEncodingChunked(nettyResponse);
     }
 
     @Override
@@ -186,20 +186,20 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public HttpClientResponse<T> addCookie(Cookie cookie) {
-        nettyResponse.headers().add(HttpHeaders.Names.SET_COOKIE, ClientCookieEncoder.encode(cookie));
+        nettyResponse.headers().add(SET_COOKIE, ClientCookieEncoder.STRICT.encode(cookie));
         return this;
     }
 
     @Override
     public HttpClientResponse<T> addDateHeader(CharSequence name, Date value) {
-        HttpHeaders.addDateHeader(nettyResponse, name, value);
+        nettyResponse.headers().set(name, value);
         return this;
     }
 
     @Override
     public HttpClientResponse<T> addDateHeader(CharSequence name, Iterable<Date> values) {
         for (Date value : values) {
-            HttpHeaders.addDateHeader(nettyResponse, name, value);
+            nettyResponse.headers().add(name, value);
         }
         return this;
     }
@@ -212,7 +212,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public HttpClientResponse<T> setDateHeader(CharSequence name, Date value) {
-        HttpHeaders.setDateHeader(nettyResponse, name, value);
+        nettyResponse.headers().set(name, value);
         return this;
     }
 
@@ -225,7 +225,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     @Override
     public HttpClientResponse<T> setDateHeader(CharSequence name, Iterable<Date> values) {
         for (Date value : values) {
-            HttpHeaders.setDateHeader(nettyResponse, name, value);
+            nettyResponse.headers().set(name, value);
         }
         return this;
     }
@@ -244,7 +244,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public Observable<ServerSentEvent> getContentAsServerSentEvents() {
-        if (containsHeader(Names.CONTENT_TYPE, "text/event-stream", false)) {
+        if (containsHeader(CONTENT_TYPE, "text/event-stream", false)) {
             ChannelPipeline pipeline = unsafeNettyChannel().pipeline();
             ChannelHandlerContext decoderCtx = pipeline.context(HttpResponseDecoder.class);
             if (null != decoderCtx) {

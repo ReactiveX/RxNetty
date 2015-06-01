@@ -15,12 +15,13 @@
  */
 package io.reactivex.netty.protocol.http.ws.server;
 
-import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.ws.server.Ws7To13UpgradeHandler.WebSocket7To13UpgradeAcceptedEvent;
 import rx.Subscriber;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 
 /**
  * Implementation of {@link WebSocketHandshaker} for web socket spec versions 7.0 to 13.0 (includes final RFC)
@@ -118,11 +119,11 @@ final class V7to13Handshaker extends WebSocketHandshaker {
         }
 
         private static String getRequestedProtocols(HttpServerRequest<?> request) {
-            return request.getHeader(Names.SEC_WEBSOCKET_PROTOCOL);
+            return request.getHeader(SEC_WEBSOCKET_PROTOCOL);
         }
 
         private static String getKey(HttpServerRequest<?> request) {
-            return request.getHeader(Names.SEC_WEBSOCKET_KEY);
+            return request.getHeader(SEC_WEBSOCKET_KEY);
         }
 
         public WebSocketVersion getVersion() {

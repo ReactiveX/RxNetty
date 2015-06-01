@@ -17,15 +17,19 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.channel.pool.PoolConfig;
+import io.reactivex.netty.protocol.tcp.client.EmbeddedChannelWithFeeder;
 import org.junit.Rule;
 import org.junit.Test;
 import rx.observers.TestSubscriber;
 
+import java.util.List;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -125,7 +129,7 @@ public class HttpRedirectTest {
 
         final String requestUri = "/";
 
-        HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(true).noConnectionPooling();
+        HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(1);
         TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(client, requestUri);
 
         assertRequestWritten(requestUri);
@@ -140,13 +144,17 @@ public class HttpRedirectTest {
 
     @Test(timeout = 60000)
     public void testRedirectWithConnPool() throws Throwable {
-        HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(true).maxConnections(10);
+        PoolConfig<ByteBuf, ByteBuf> pConfig = new PoolConfig<ByteBuf, ByteBuf>().maxConnections(10);
+
+        clientRule.setupPooledConnectionFactroy(pConfig); // sets the client et al.
+
+        HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(1);
 
         final String requestUri = "/";
         TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = sendRequest(client, requestUri);
         assertRequestWritten(requestUri);
 
-        sendRedirects("/blah", "/blah");
+        sendRedirects("/blah", "blah");
 
         subscriber.awaitTerminalEvent();
 
@@ -219,6 +227,7 @@ public class HttpRedirectTest {
         final HttpClientRequest<ByteBuf, ByteBuf> req = client.createRequest(method, uri);
         TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = new TestSubscriber<>();
         req.subscribe(subscriber);
+        subscriber.assertNoErrors();
         return subscriber;
     }
 
@@ -244,10 +253,16 @@ public class HttpRedirectTest {
     }
 
     private void sendRedirects(HttpResponseStatus redirectStatus, String... locations) {
-        for (String location : locations) {
+
+        for (int i = 0; i < locations.length; i++) {
+            List<EmbeddedChannelWithFeeder> createdChannels = clientRule.getCreatedChannels();
+            assertThat("Not enough channels created by the embedded factory.", createdChannels,
+                       hasSize(greaterThanOrEqualTo(i + 1)));
+            String location = locations[i];
+            EmbeddedChannelWithFeeder channelWithFeeder = createdChannels.get(i);
             HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, redirectStatus);
-            response.headers().set(Names.LOCATION, location);
-            clientRule.feedResponseAndComplete(response);
+            response.headers().set(LOCATION, location);
+            clientRule.feedResponseAndComplete(response, channelWithFeeder);
         }
     }
 

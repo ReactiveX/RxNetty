@@ -17,8 +17,8 @@ package io.reactivex.netty.protocol.http.ws.server;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocket13FrameDecoder;
@@ -42,6 +42,8 @@ import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Action0;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.reactivex.netty.codec.HandlerNames.*;
 
 /**
@@ -153,16 +155,16 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
         byte[] sha1 = WsSecUtils.sha1(acceptSeed.getBytes(CharsetUtil.US_ASCII));
         String accept = WsSecUtils.base64(sha1);
 
-        upgradeResponse.addHeader(Names.SEC_WEBSOCKET_ACCEPT, accept);
+        upgradeResponse.addHeader(SEC_WEBSOCKET_ACCEPT, accept);
         upgradeResponse.setStatus(HttpResponseStatus.SWITCHING_PROTOCOLS);
-        upgradeResponse.addHeader(Names.UPGRADE, Values.WEBSOCKET);
-        upgradeResponse.addHeader(Names.CONNECTION, Names.UPGRADE);
+        upgradeResponse.addHeader(HttpHeaderNames.UPGRADE, WEBSOCKET);
+        upgradeResponse.addHeader(CONNECTION, HttpHeaderValues.UPGRADE);
 
         if (state.getRequestSubProtocols() != null) {
             String selectedSubprotocol = WebSocketHandshaker.selectSubprotocol(state.getRequestSubProtocols(),
                                                                                state.getSupportedSubProtocols());
             if (selectedSubprotocol != null) {
-                state.getUpgradeResponse().addHeader(Names.SEC_WEBSOCKET_PROTOCOL, selectedSubprotocol);
+                state.getUpgradeResponse().addHeader(SEC_WEBSOCKET_PROTOCOL, selectedSubprotocol);
             }
         }
     }

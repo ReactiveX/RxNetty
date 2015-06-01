@@ -18,15 +18,15 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.CookieDecoder;
-import io.netty.handler.codec.http.DefaultCookie;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.DefaultCookie;
+import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
@@ -43,11 +43,9 @@ public class CookieTest {
         DefaultHttpRequest nettyRequest = new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "");
         String cookie1Name = "PREF";
         String cookie1Value = "ID=a95756377b78e75e:FF=0:TM=1392709628:LM=1392709628:S=a5mOVvTB7DBkexgi";
-        String cookie1Domain = ".google.com";
-        String cookie1Path = "/";
         String cookie1Header = cookie1Name + '=' + cookie1Value
-                               + "; expires=Thu, 18-Feb-2016 07:47:08 GMT; path=" + cookie1Path + "; domain=" + cookie1Domain;
-        nettyRequest.headers().add(HttpHeaders.Names.COOKIE, cookie1Header);
+                               + "; expires=Thu, 18-Feb-2016 07:47:08 GMT;";
+        nettyRequest.headers().add(HttpHeaderNames.COOKIE, cookie1Header);
 
         EmbeddedChannel channel = new EmbeddedChannel();
         HttpServerRequest<ByteBuf> request = new HttpServerRequestImpl<ByteBuf>(nettyRequest,channel);
@@ -59,7 +57,6 @@ public class CookieTest {
         Assert.assertEquals("Unexpected number of cookies with name: " + cookie1Name, 1, cookies1.size() );
         Cookie cookie = cookies1.iterator().next();
         Assert.assertEquals("Unexpected cookie name.", cookie1Name, cookie.name());
-        Assert.assertEquals("Unexpected cookie path.", cookie1Path, cookie.path());
     }
 
     @Test(timeout = 60000)
@@ -72,9 +69,9 @@ public class CookieTest {
         String cookieName = "name";
         String cookieValue = "value";
         response.addCookie(new DefaultCookie(cookieName, cookieValue));
-        String cookieHeader = nettyResponse.headers().get(HttpHeaders.Names.SET_COOKIE);
+        String cookieHeader = nettyResponse.headers().get(HttpHeaderNames.SET_COOKIE);
         Assert.assertNotNull("Cookie header not found.", cookieHeader);
-        Set<Cookie> decode = CookieDecoder.decode(cookieHeader);
+        Set<Cookie> decode = ServerCookieDecoder.STRICT.decode(cookieHeader);
         Assert.assertNotNull("Decoded cookie not found.", decode);
         Assert.assertEquals("Unexpected number of decoded cookie not found.", 1, decode.size());
         Cookie cookie = decode.iterator().next();

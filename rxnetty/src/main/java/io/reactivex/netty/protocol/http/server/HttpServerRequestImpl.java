@@ -17,13 +17,12 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
-import io.netty.handler.codec.http.ClientCookieEncoder;
-import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
@@ -33,13 +32,14 @@ import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Func1;
 
-import java.text.ParseException;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 
 public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
@@ -112,7 +112,7 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public String getHeader(CharSequence name, String defaultValue) {
-        return HttpHeaders.getHeader(nettyRequest, name, defaultValue);
+        return nettyRequest.headers().get(name, defaultValue);
     }
 
     @Override
@@ -122,62 +122,62 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public long getContentLength() {
-        return HttpHeaders.getContentLength(nettyRequest);
+        return HttpHeaderUtil.getContentLength(nettyRequest);
     }
 
     @Override
     public long getContentLength(long defaultValue) {
-        return HttpHeaders.getContentLength(nettyRequest, defaultValue);
+        return HttpHeaderUtil.getContentLength(nettyRequest, defaultValue);
     }
 
     @Override
-    public Date getDateHeader(CharSequence name) throws ParseException {
-        return HttpHeaders.getDateHeader(nettyRequest, name);
+    public long getDateHeader(CharSequence name) {
+        return nettyRequest.headers().getTimeMillis(name);
     }
 
     @Override
-    public Date getDateHeader(CharSequence name, Date defaultValue) {
-        return HttpHeaders.getDateHeader(nettyRequest, name, defaultValue);
+    public long getDateHeader(CharSequence name, long defaultValue) {
+        return nettyRequest.headers().getTimeMillis(name, defaultValue);
     }
 
     @Override
     public String getHostHeader() {
-        return HttpHeaders.getHost(nettyRequest);
+        return nettyRequest.headers().get(HOST);
     }
 
     @Override
     public String getHostHeader(String defaultValue) {
-        return HttpHeaders.getHost(nettyRequest, defaultValue);
+        return nettyRequest.headers().get(HOST, defaultValue);
     }
 
     @Override
     public int getIntHeader(CharSequence name) {
-        return HttpHeaders.getIntHeader(nettyRequest, name);
+        return nettyRequest.headers().getInt(name);
     }
 
     @Override
     public int getIntHeader(CharSequence name, int defaultValue) {
-        return HttpHeaders.getIntHeader(nettyRequest, name, defaultValue);
+        return nettyRequest.headers().getInt(name, defaultValue);
     }
 
     @Override
     public boolean is100ContinueExpected() {
-        return HttpHeaders.is100ContinueExpected(nettyRequest);
+        return HttpHeaderUtil.is100ContinueExpected(nettyRequest);
     }
 
     @Override
     public boolean isContentLengthSet() {
-        return HttpHeaders.isContentLengthSet(nettyRequest);
+        return HttpHeaderUtil.isContentLengthSet(nettyRequest);
     }
 
     @Override
     public boolean isKeepAlive() {
-        return HttpHeaders.isKeepAlive(nettyRequest);
+        return HttpHeaderUtil.isKeepAlive(nettyRequest);
     }
 
     @Override
     public boolean isTransferEncodingChunked() {
-        return HttpHeaders.isTransferEncodingChunked(nettyRequest);
+        return HttpHeaderUtil.isTransferEncodingChunked(nettyRequest);
     }
 
     @Override
@@ -193,8 +193,8 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public HttpServerRequest<T> addCookie(Cookie cookie) {
-        nettyRequest.headers().add(Names.COOKIE,
-                                   ClientCookieEncoder.encode(cookie) /*Since this is a request object, cookies are
+        nettyRequest.headers().add(COOKIE,
+                                   ClientCookieEncoder.STRICT.encode(cookie) /*Since this is a request object, cookies are
                                    as if coming from a client*/);
         return this;
 
@@ -202,14 +202,14 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public HttpServerRequest<T> addDateHeader(CharSequence name, Date value) {
-        HttpHeaders.addDateHeader(nettyRequest, name, value);
+        nettyRequest.headers().add(name, value);
         return this;
     }
 
     @Override
     public HttpServerRequest<T> addDateHeader(CharSequence name, Iterable<Date> values) {
         for (Date value : values) {
-            HttpHeaders.addDateHeader(nettyRequest, name, value);
+            nettyRequest.headers().add(name, value);
         }
         return this;
     }
@@ -222,7 +222,7 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public HttpServerRequest<T> setDateHeader(CharSequence name, Date value) {
-        HttpHeaders.setDateHeader(nettyRequest, name, value);
+        nettyRequest.headers().set(name, value);
         return this;
     }
 
@@ -235,7 +235,7 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
     @Override
     public HttpServerRequest<T> setDateHeader(CharSequence name, Iterable<Date> values) {
         for (Date value : values) {
-            HttpHeaders.setDateHeader(nettyRequest, name, value);
+            nettyRequest.headers().set(name, value);
         }
         return this;
     }

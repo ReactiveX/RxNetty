@@ -24,7 +24,6 @@ final class SafeTcpClientEventListener extends TcpClientEventListener implements
 
     private final TcpClientEventListener delegate;
     private final AtomicBoolean completed = new AtomicBoolean();
-    private final AtomicBoolean subscribed = new AtomicBoolean();
 
     public SafeTcpClientEventListener(TcpClientEventListener delegate) {
         this.delegate = delegate;
@@ -34,13 +33,6 @@ final class SafeTcpClientEventListener extends TcpClientEventListener implements
     public void onCompleted() {
         if (completed.compareAndSet(false, true)) {
             delegate.onCompleted();
-        }
-    }
-
-    @Override
-    public void onSubscribe() {
-        if (subscribed.compareAndSet(false, true)) {
-            delegate.onSubscribe();
         }
     }
 

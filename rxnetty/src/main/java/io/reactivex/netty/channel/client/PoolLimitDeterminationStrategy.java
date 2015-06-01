@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.protocol.client;
+package io.reactivex.netty.channel.client;
 
 import java.util.concurrent.TimeUnit;
 
@@ -39,13 +39,6 @@ public interface PoolLimitDeterminationStrategy {
      * @return The number of creation permits available.
      */
     int getAvailablePermits();
-
-    /**
-     * Creates a copy of this strategy without copying any state.
-     *
-     * @return A copy of this strategy without copying any state.
-     */
-    PoolLimitDeterminationStrategy copy();
 
     /**
      * Release a previously acquired permit.

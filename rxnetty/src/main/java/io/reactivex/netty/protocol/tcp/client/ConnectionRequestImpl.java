@@ -39,9 +39,11 @@ final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
         super(new OnSubscribe<Connection<R, W>>() {
             @Override
             public void call(Subscriber<? super Connection<R, W>> subscriber) {
-                clientState.getConnectionFactory()
-                           .connect()
-                           .unsafeSubscribe(subscriber);
+                ConnectionObservable<R, W> nextConnection = clientState.getConnectionProvider()
+                                                                       .nextConnection();
+                nextConnection.subscribeForEvents(clientState.getEventPublisherFactory()
+                                                             .getGlobalClientEventPublisher());
+                nextConnection.unsafeSubscribe(subscriber);
             }
         });
         this.clientState = clientState;

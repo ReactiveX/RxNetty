@@ -19,13 +19,13 @@ import io.reactivex.netty.channel.Connection;
 import rx.Subscriber;
 
 /**
- * An event to communicate the subscriber of a new connection created by {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge}.
+ * An event to communicate the subscriber of a new connection created by {@link AbstractConnectionToChannelBridge}.
  *
  * <h2>Connection reuse</h2>
  *
- * For cases, where the {@link io.reactivex.netty.channel.Connection} is pooled, reuse should be indicated explicitly via
+ * For cases, where the {@link Connection} is pooled, reuse should be indicated explicitly via
  * {@link ConnectionInputSubscriberResetEvent}. There can be multiple {@link ConnectionInputSubscriberResetEvent}s
- * sent to the same channel and hence the same instance of {@link io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge}.
+ * sent to the same channel and hence the same instance of {@link AbstractConnectionToChannelBridge}.
  *
  * @param <R> Type read from the connection held by the event.
  * @param <W> Type written to the connection held by the event.

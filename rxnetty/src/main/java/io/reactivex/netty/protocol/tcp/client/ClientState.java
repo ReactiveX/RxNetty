@@ -18,44 +18,41 @@ package io.reactivex.netty.protocol.tcp.client;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
-import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.PrimitiveConversionHandler;
-import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
-import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
-import io.reactivex.netty.channel.pool.PoolConfig;
-import io.reactivex.netty.channel.pool.PooledClientConnectionFactory;
-import io.reactivex.netty.channel.pool.PooledClientConnectionFactoryImpl;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
-import io.reactivex.netty.protocol.client.PreferCurrentEventLoopGroup;
-import io.reactivex.netty.protocol.tcp.client.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
-import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.events.ListenersHolder;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ClientConnectionSubscriberEvent;
+import io.reactivex.netty.protocol.tcp.client.ConnectionObservable.OnSubcribeFunc;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
+import io.reactivex.netty.protocol.tcp.client.internal.EventPublisherFactory;
 import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import io.reactivex.netty.protocol.tcp.ssl.DefaultSslCodec;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import rx.Observable;
+import rx.Subscriber;
+import rx.Subscription;
 import rx.exceptions.Exceptions;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
-import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.concurrent.TimeUnit;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Map.Entry;
 
-import static io.reactivex.netty.channel.pool.PoolConfig.*;
 import static io.reactivex.netty.codec.HandlerNames.*;
 
 /**
@@ -64,89 +61,53 @@ import static io.reactivex.netty.codec.HandlerNames.*;
  * @param <W> The type of objects written to the client owning this state.
  * @param <R> The type of objects read from the client owning this state.
  */
-public class ClientState<W, R> {
+public class ClientState<W, R> extends ConnectionFactory<W, R> {
 
-    private final TcpClientEventPublisher eventPublisher;
-
-    private ClientConnectionFactory<W, R> connectionFactory; // Not final since it depends on ClientState
-    private final Bootstrap clientBootstrap;
-    private final PoolConfig<W, R> poolConfig;
+    private final ConnectionProvider<W, R> rawConnectionProvider;
+    private volatile ConnectionProvider<W, R> realizedConnectionProvider; /*Realized once when started*/
+    private final EventPublisherFactory eventPublisherFactory;
     private final DetachedChannelPipeline detachedPipeline;
-    private final SocketAddress socketAddress;
+    private final Map<ChannelOption<?>, Object> options;
     private final boolean isSecure;
 
-    private ClientState(EventLoopGroup group, Class<? extends Channel> channelClass,
-                        TcpClientEventPublisher eventPublisher,
-                        DetachedChannelPipeline detachedPipeline,
-                        SocketAddress socketAddress) {
-        clientBootstrap = new Bootstrap();
-        clientBootstrap.option(ChannelOption.AUTO_READ, false); // by default do not read content unless asked.
-        clientBootstrap.group(group);
-        clientBootstrap.channel(channelClass);
-        poolConfig = null;
-        this.eventPublisher = eventPublisher;
+    private ClientState(EventPublisherFactory eventPublisherFactory, DetachedChannelPipeline detachedPipeline,
+                        ConnectionProvider<W, R> rawConnectionProvider) {
+        this.rawConnectionProvider = rawConnectionProvider;
+        options = new LinkedHashMap<>(); /// Same as netty bootstrap, order matters.
+        this.eventPublisherFactory = eventPublisherFactory;
         isSecure = false;
         this.detachedPipeline = detachedPipeline;
-        clientBootstrap.handler(detachedPipeline.getChannelInitializer());
-        this.socketAddress = socketAddress;
     }
 
-    private ClientState(ClientState<W, R> toCopy, Bootstrap newBootstrap) {
-        clientBootstrap = newBootstrap;
-        poolConfig = null == toCopy.poolConfig ? null : toCopy.poolConfig.copy();
+    private ClientState(ClientState<W, R> toCopy, ChannelOption<?> option, Object value) {
+        options = new LinkedHashMap<>(toCopy.options); // Since, we are adding an option, copy it.
+        options.put(option, value);
+        rawConnectionProvider = toCopy.rawConnectionProvider;
         detachedPipeline = toCopy.detachedPipeline;
         isSecure = toCopy.isSecure;
-        clientBootstrap.handler(detachedPipeline.getChannelInitializer());
-        eventPublisher = toCopy.eventPublisher.copy();
-        socketAddress = toCopy.socketAddress;
-    }
-
-    private ClientState(ClientState<W, R> toCopy, PoolConfig<W, R> poolConfig) {
-        clientBootstrap = toCopy.clientBootstrap;
-        this.poolConfig = poolConfig;
-        detachedPipeline = toCopy.detachedPipeline;
-        isSecure = toCopy.isSecure;
-        clientBootstrap.handler(detachedPipeline.getChannelInitializer());
-        eventPublisher = toCopy.eventPublisher.copy();
-        socketAddress = toCopy.socketAddress;
+        eventPublisherFactory = toCopy.eventPublisherFactory;
     }
 
     private ClientState(ClientState<W, R> toCopy, SslCodec sslCodec) {
-        clientBootstrap = toCopy.clientBootstrap;
-        poolConfig = toCopy.poolConfig;
-        eventPublisher = toCopy.eventPublisher.copy();
-        detachedPipeline = toCopy.detachedPipeline.copy(new TailHandlerFactory(eventPublisher, true))
+        rawConnectionProvider = toCopy.rawConnectionProvider;
+        options = toCopy.options; // Options are copied on change, so no need to make an eager copy.
+        eventPublisherFactory = toCopy.eventPublisherFactory.copy();
+        detachedPipeline = toCopy.detachedPipeline.copy(new TailHandlerFactory(true))
                                                   .configure(sslCodec);
         isSecure = true;
-        clientBootstrap.handler(detachedPipeline.getChannelInitializer());
-        socketAddress = toCopy.socketAddress;
     }
 
     private ClientState(ClientState<?, ?> toCopy, DetachedChannelPipeline newPipeline) {
         final ClientState<W, R> toCopyCast = toCopy.cast();
-        clientBootstrap = toCopyCast.clientBootstrap.clone();
-        poolConfig = null == toCopyCast.poolConfig ? null : toCopyCast.poolConfig.copy();
+        options = toCopy.options; // Options are copied on change, so no need to make an eager copy.
+        rawConnectionProvider = toCopyCast.rawConnectionProvider;
+        eventPublisherFactory = toCopyCast.eventPublisherFactory.copy();
         detachedPipeline = newPipeline;
         isSecure = toCopy.isSecure;
-        clientBootstrap.handler(detachedPipeline.getChannelInitializer());
-        eventPublisher = toCopyCast.eventPublisher.copy();
-        socketAddress = toCopy.socketAddress;
-    }
-
-    private ClientState(ClientState<?, ?> toCopy, SocketAddress newSocketAddress) {
-        final ClientState<W, R> toCopyCast = toCopy.cast();
-        clientBootstrap = toCopyCast.clientBootstrap;
-        poolConfig = toCopyCast.poolConfig;
-        detachedPipeline = toCopy.detachedPipeline;
-        isSecure = toCopy.isSecure;
-        eventPublisher = toCopyCast.eventPublisher.copy();
-        socketAddress = newSocketAddress;
     }
 
     public <T> ClientState<W, R> channelOption(ChannelOption<T> option, T value) {
-        ClientState<W, R> copy = copyBootstrapOnly();
-        copy.clientBootstrap.option(option, value);
-        return copy;
+        return new ClientState<W, R>(this, option, value);
     }
 
     public <WW, RR> ClientState<WW, RR> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
@@ -219,8 +180,7 @@ public class ClientState<W, R> {
 
     public ClientState<W, R> secure(SslCodec sslCodec) {
         ClientState<W, R> toReturn = new ClientState<W, R>(this, sslCodec);
-        // Connection factory depends on bootstrap, so it should change whenever bootstrap changes.
-        toReturn.connectionFactory = connectionFactory.copy(toReturn);
+        toReturn.realizedConnectionProvider = toReturn.rawConnectionProvider.realize(toReturn);
         return toReturn;
     }
 
@@ -229,8 +189,10 @@ public class ClientState<W, R> {
             @Override
             public SSLEngine call(ByteBufAllocator allocator) {
                 try {
-                    return SslContext.newClientContext(InsecureTrustManagerFactory.INSTANCE)
-                                     .newEngine(allocator);
+                    return SslContextBuilder.forClient()
+                                            .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                                            .build()
+                                            .newEngine(allocator);
                 } catch (Exception e) {
                     throw Exceptions.propagate(e);
                 }
@@ -243,139 +205,14 @@ public class ClientState<W, R> {
                                       LoggingHandlerFactory.getFactory(wireLogginLevel));
     }
 
-    public ClientState<W, R> maxConnections(int maxConnections) {
-        PoolConfig<W, R> newPoolConfig;
-        if (null != poolConfig) {
-            newPoolConfig = poolConfig.maxConnections(maxConnections);
-        } else {
-            long maxIdleTimeMillis = DEFAULT_MAX_IDLE_TIME_MILLIS;
-            newPoolConfig = new PoolConfig<W, R>(maxIdleTimeMillis,
-                                                 Observable.timer(maxIdleTimeMillis, TimeUnit.MILLISECONDS),
-                                                 new MaxConnectionsBasedStrategy(maxConnections),
-                                                 newDefaultIdleConnectionsHolder());
-        }
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
-        copyOrCreatePooledConnectionFactory(toReturn);
-        return toReturn;
+    public ConnectionProvider<W, R> getConnectionProvider() {
+        // TODO: When to start?
+        return realizedConnectionProvider;
     }
 
-    public ClientState<W, R> maxIdleTimeoutMillis(long maxIdleTimeoutMillis) {
-        PoolConfig<W, R> newPoolConfig;
-        if (null != poolConfig) {
-            newPoolConfig = poolConfig.maxIdleTimeoutMillis(maxIdleTimeoutMillis);
-        } else {
-            newPoolConfig = new PoolConfig<W, R>(maxIdleTimeoutMillis,
-                                                 Observable.timer(maxIdleTimeoutMillis, TimeUnit.MILLISECONDS),
-                                                 new MaxConnectionsBasedStrategy(),
-                                                 newDefaultIdleConnectionsHolder());
-        }
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
-        copyOrCreatePooledConnectionFactory(toReturn);
-        return toReturn;
-    }
-
-    public ClientState<W, R> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy) {
-        PoolConfig<W, R> newPoolConfig;
-        if (null != poolConfig) {
-            newPoolConfig = poolConfig.limitDeterminationStrategy(strategy);
-        } else {
-            long maxIdleTimeMillis = DEFAULT_MAX_IDLE_TIME_MILLIS;
-            newPoolConfig = new PoolConfig<W, R>(maxIdleTimeMillis,
-                                                 Observable.timer(maxIdleTimeMillis, TimeUnit.MILLISECONDS), strategy,
-                                                 newDefaultIdleConnectionsHolder());
-        }
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
-        copyOrCreatePooledConnectionFactory(toReturn);
-        return toReturn;
-    }
-
-    public ClientState<W, R> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer) {
-        PoolConfig<W, R> newPoolConfig;
-        if (null != poolConfig) {
-            newPoolConfig = poolConfig.idleConnectionsCleanupTimer(idleConnectionCleanupTimer);
-        } else {
-            newPoolConfig = new PoolConfig<W, R>(DEFAULT_MAX_IDLE_TIME_MILLIS, idleConnectionCleanupTimer,
-                                                 new MaxConnectionsBasedStrategy(),
-                                                 newDefaultIdleConnectionsHolder());
-        }
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, newPoolConfig);
-        copyOrCreatePooledConnectionFactory(toReturn);
-        return toReturn;
-    }
-
-    public ClientState<W, R> noIdleConnectionCleanup() {
-        return idleConnectionCleanupTimer(Observable.<Long>never());
-    }
-
-    public ClientState<W, R> noConnectionPooling() {
-        if (null == poolConfig) {
-            return this; /*If already no pooling, then no copy is needed.*/
-        }
-
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, (PoolConfig<W, R>) null);
-
-        if (connectionFactory instanceof PooledClientConnectionFactory) {
-            PooledClientConnectionFactory<W, R> pcf = (PooledClientConnectionFactory<W, R>) connectionFactory;
-            ClientConnectionFactory<W, R> delegate = pcf.getConnectDelegate();
-            toReturn.connectionFactory = delegate.copy(toReturn);
-        } else {
-            toReturn.connectionFactory = connectionFactory.copy(toReturn);
-        }
-
-        return toReturn;
-    }
-
-    public ClientState<W, R> connectionFactory(Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> f) {
-        final ClientState<W, R> copy = copy();
-        final ClientConnectionFactory<W, R> factory = f.call(copy);
-        copy.connectionFactory = factory;
-        return copy;
-    }
-
-    public ClientState<W, R> remoteAddress(SocketAddress newAddress) {
-        final ClientState<W, R> toReturn = new ClientState<W, R>(this, newAddress);
-        toReturn.connectionFactory = connectionFactory.copy(toReturn);
-        return toReturn;
-    }
-
-    public SocketAddress getRemoteAddress() {
-        return socketAddress;
-    }
-
-    public ClientConnectionFactory<W, R> getConnectionFactory() {
-        return connectionFactory;
-    }
-
-    /**
-     * Returns connection pool configuration, if any.
-     *
-     * @return Connection pool configuration, if exists, else {@code null}
-     */
-    public PoolConfig<W, R> getPoolConfig() {
-        return poolConfig;
-    }
-
-    public TcpClientEventPublisher getEventPublisher() {
-        return eventPublisher;
-    }
-
-    public static <WW, RR> ClientState<WW, RR> create() {
-        return create(RxNetty.getRxEventLoopProvider().globalClientEventLoop(true), NioSocketChannel.class);
-    }
-
-    public static <WW, RR> ClientState<WW, RR> create(SocketAddress remoteAddress) {
-        return create(RxNetty.getRxEventLoopProvider().globalClientEventLoop(true), NioSocketChannel.class, remoteAddress);
-    }
-
-    public static <WW, RR> ClientState<WW, RR> create(EventLoopGroup group, Class<? extends Channel> channelClass) {
-        return create(group, channelClass, new InetSocketAddress("127.0.0.1", 80));
-    }
-
-    public static <WW, RR> ClientState<WW, RR> create(EventLoopGroup group, Class<? extends Channel> channelClass,
-                                                      SocketAddress remoteAddress) {
-        final TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
-
-        final TailHandlerFactory tail = new TailHandlerFactory(eventPublisher, false);
+    public static <WW, RR> ClientState<WW, RR> create(ConnectionProvider<WW, RR> connectionProvider,
+                                                      EventPublisherFactory eventPublisherFactory) {
+        final TailHandlerFactory tail = new TailHandlerFactory(false);
         DetachedChannelPipeline detachedPipeline = new DetachedChannelPipeline(tail)
                 .addLast(PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
                     @Override
@@ -384,64 +221,83 @@ public class ClientState<W, R> {
                     }
                 });
 
-        return create(detachedPipeline, eventPublisher, group, channelClass, remoteAddress);
+        return create(detachedPipeline, eventPublisherFactory, connectionProvider);
+    }
+
+    @Override
+    public ConnectionObservable<R, W> newConnection(final SocketAddress hostAddress) {
+
+        return ConnectionObservable.createNew(new OnSubcribeFunc<R, W>() {
+
+            private final ListenersHolder<TcpClientEventListener> listeners = new ListenersHolder<>();
+
+            @Override
+            public void call(final Subscriber<? super Connection<R, W>> subscriber) {
+
+                //TODO: Optimize this by not creating a new bootstrap everytime.
+                final Bootstrap nettyBootstrap = newBootstrap(listeners);
+
+                final ChannelFuture connectFuture = nettyBootstrap.connect(hostAddress);
+
+                connectFuture.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        connectFuture.channel()
+                                     .pipeline()
+                                     .fireUserEventTriggered(new ClientConnectionSubscriberEvent<R, W>(connectFuture,
+                                                                                                       subscriber));
+                    }
+                });
+            }
+
+            @Override
+            public Subscription subscribeForEvents(TcpClientEventListener eventListener) {
+                return listeners.subscribe(eventListener);
+            }
+        });
+    }
+
+    /*Visible for testing*/ Bootstrap newBootstrap(ListenersHolder<TcpClientEventListener> listeners) {
+        final Bootstrap nettyBootstrap = new Bootstrap().group(rawConnectionProvider.getEventLoopGroup())
+                                                        .channel(rawConnectionProvider.getChannelClass())
+                                                        .option(ChannelOption.AUTO_READ, false);// by default do not read content unless asked.
+
+        for (Entry<ChannelOption<?>, Object> optionEntry : options.entrySet()) {
+            // Type is just for safety for user of ClientState, internally in Bootstrap, types are thrown on the floor.
+            @SuppressWarnings("unchecked")
+            ChannelOption<Object> key = (ChannelOption<Object>) optionEntry.getKey();
+            nettyBootstrap.option(key, optionEntry.getValue());
+        }
+
+        nettyBootstrap.handler(detachedPipeline.getChannelInitializer(new ChannelInitializer(listeners)));
+        return nettyBootstrap;
+    }
+
+    EventPublisherFactory getEventPublisherFactory() {
+        return eventPublisherFactory;
     }
 
     /*Visible for testing*/ static <WW, RR> ClientState<WW, RR> create(DetachedChannelPipeline detachedPipeline,
-                                                                       TcpClientEventPublisher eventPublisher,
-                                                                       EventLoopGroup group,
-                                                                       Class<? extends Channel> channelClass,
-                                                                       SocketAddress remoteAddress) {
-        final ClientState<WW, RR> toReturn = new ClientState<WW, RR>(group, channelClass, eventPublisher,
-                                                                     detachedPipeline, remoteAddress);
-        toReturn.connectionFactory = new UnpooledClientConnectionFactory<>(toReturn);
+                                                                       EventPublisherFactory eventPublisherFactory,
+                                                                       ConnectionProvider<WW, RR> connectionProvider) {
+        ClientState<WW, RR> toReturn = new ClientState<>(eventPublisherFactory, detachedPipeline, connectionProvider);
+        toReturn.realizedConnectionProvider = toReturn.rawConnectionProvider.realize(toReturn);
         return toReturn;
-
     }
 
-    /*package private. Should not leak as it is mutable*/ Bootstrap getBootstrap() {
-        return clientBootstrap;
-    }
-
-    /*Visible for testing*/ DetachedChannelPipeline getDetachedPipeline() {
+    public DetachedChannelPipeline unsafeDetachedPipeline() {
         return detachedPipeline;
     }
 
-    private IdleConnectionsHolder<W, R> newDefaultIdleConnectionsHolder() {
-        final FIFOIdleConnectionsHolder<W, R> holder = new FIFOIdleConnectionsHolder<>();
-
-        if (clientBootstrap.group() instanceof PreferCurrentEventLoopGroup) {
-            PreferCurrentEventLoopGroup pGroup = (PreferCurrentEventLoopGroup) clientBootstrap.group();
-            return new PreferCurrentEventLoopHolder<W, R>(pGroup, new IdleConnectionsHolderFactoryImpl<>(holder));
-        } else {
-            return holder;
-        }
-    }
-
-    private void copyOrCreatePooledConnectionFactory(ClientState<W, R> toReturn) {
-        if (connectionFactory instanceof PooledClientConnectionFactory) {
-            toReturn.connectionFactory = connectionFactory.copy(toReturn);
-        } else {
-            final PoolConfig<W, R> _poolConfig = toReturn.getPoolConfig();
-            toReturn.connectionFactory = new PooledClientConnectionFactoryImpl<W, R>(toReturn,
-                                                                                     _poolConfig.getIdleConnectionsHolder(),
-                                                                                     connectionFactory.copy(toReturn));
-        }
-    }
-
-    private ClientState<W, R> copyBootstrapOnly() {
-        ClientState<W, R> toReturn = new ClientState<W, R>(this, clientBootstrap.clone());
-        // Connection factory depends on bootstrap, so it should change whenever bootstrap changes.
-        toReturn.connectionFactory = connectionFactory.copy(toReturn);
-        return toReturn;
+    public Map<ChannelOption<?>, Object> unsafeChannelOptions() {
+        return options;
     }
 
     private <WW, RR> ClientState<WW, RR> copy() {
-        TailHandlerFactory newTail = new TailHandlerFactory(eventPublisher, isSecure);
-        ClientState<WW, RR> toReturn = new ClientState<WW, RR>(this, detachedPipeline.copy(newTail));
-        // Connection factory depends on bootstrap, so it should change whenever bootstrap changes.
-        toReturn.connectionFactory = connectionFactory.copy(toReturn);
-        return toReturn;
+        TailHandlerFactory newTail = new TailHandlerFactory(isSecure);
+        ClientState<WW, RR> copy = new ClientState<WW, RR>(this, detachedPipeline.copy(newTail));
+        copy.realizedConnectionProvider = copy.rawConnectionProvider.realize(copy);
+        return copy;
     }
 
     @SuppressWarnings("unchecked")
@@ -451,40 +307,30 @@ public class ClientState<W, R> {
 
     private static class TailHandlerFactory implements Action1<ChannelPipeline> {
 
-        private final TcpClientEventPublisher eventPublisher;
         private final boolean isSecure;
 
-        public TailHandlerFactory(TcpClientEventPublisher eventPublisher, boolean isSecure) {
-            this.eventPublisher = eventPublisher;
+        public TailHandlerFactory(boolean isSecure) {
             this.isSecure = isSecure;
         }
 
         @Override
         public void call(ChannelPipeline pipeline) {
-            ClientConnectionToChannelBridge.addToPipeline(pipeline, eventPublisher, isSecure);
+            ClientConnectionToChannelBridge.addToPipeline(pipeline, isSecure);
         }
     }
 
-    private class IdleConnectionsHolderFactoryImpl<WW, RR> implements IdleConnectionsHolderFactory<WW, RR> {
+    private class ChannelInitializer implements Action1<Channel> {
 
-        private final IdleConnectionsHolder<WW, RR> template;
+        private final ListenersHolder<TcpClientEventListener> listeners;
 
-        public IdleConnectionsHolderFactoryImpl(IdleConnectionsHolder<WW, RR> template) {
-            this.template = template;
+        public ChannelInitializer(ListenersHolder<TcpClientEventListener> listeners) {
+            this.listeners = listeners;
         }
 
         @Override
-        public <WWW, RRR> IdleConnectionsHolderFactory<WWW, RRR> copy(ClientState<WWW, RRR> newState) {
-            return new IdleConnectionsHolderFactoryImpl<>(template.copy(newState));
-        }
-
-        @Override
-        public IdleConnectionsHolder<WW, RR> call() {
-            if (null == template) {
-                return new FIFOIdleConnectionsHolder<>();
-            } else {
-                return template.copy(ClientState.this.<WW, RR>cast());
-            }
+        public void call(Channel channel) {
+            EventSource<TcpClientEventListener> perChannelSource = eventPublisherFactory.call(channel);
+            listeners.subscribeAllTo(perChannelSource);
         }
     }
 }

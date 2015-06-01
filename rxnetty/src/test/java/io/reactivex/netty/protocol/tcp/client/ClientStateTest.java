@@ -24,15 +24,14 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
-import io.reactivex.netty.channel.pool.PoolConfig;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.events.ListenersHolder;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory;
 import io.reactivex.netty.protocol.tcp.internal.LoggingHandlerFactory;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -44,16 +43,13 @@ import org.junit.runners.model.Statement;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
 import rx.Observable;
+import rx.Observable.OnSubscribe;
+import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.observers.TestSubscriber;
-import rx.schedulers.Schedulers;
-import rx.schedulers.TestScheduler;
 
 import java.net.InetSocketAddress;
-import java.net.SocketAddress;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -66,21 +62,22 @@ public class ClientStateTest {
     @Test(timeout = 60000)
     public void testChannelOption() throws Exception {
         ClientState<String, String> newState = clientStateRule.clientState
-                                                              .channelOption(ChannelOption.AUTO_READ, true);
+                                                              .channelOption(ChannelOption.MAX_MESSAGES_PER_READ, 100);
 
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options not copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(not(newState.unsafeChannelOptions())));
+        assertThat("Detached pipeline copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(newState.unsafeDetachedPipeline()));
 
         ClientState<String, String> oldState = clientStateRule.updateState(newState);
 
         Channel channel = clientStateRule.connect();
-        assertThat("Channel option not set in the channel.", channel.config().isAutoRead(), is(true));
+        assertThat("Channel option not set in the channel.", channel.config().getMaxMessagesPerRead(), is(100));
 
         Channel oldStateChannel = clientStateRule.connect(oldState);
-        assertThat("Channel option updated in the old state.", oldStateChannel.config().isAutoRead(), is(false));
+        assertThat("Channel option updated in the old state.", oldStateChannel.config().getMaxMessagesPerRead(),
+                   is(not(100)));
     }
 
     @Test(timeout = 60000)
@@ -91,16 +88,16 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                                                               .addChannelHandlerFirst(handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addFirst(handlerName, handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addFirst(handlerName, handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
@@ -113,16 +110,16 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                 .addChannelHandlerFirst(executor, handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addFirst(executor, handlerName, handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addFirst(executor, handlerName, handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
@@ -134,16 +131,16 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                 .addChannelHandlerLast(handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addLast(handlerName, handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addLast(handlerName, handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
@@ -156,16 +153,16 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                 .addChannelHandlerLast(executor, handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addLast(executor, handlerName, handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addLast(executor, handlerName, handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
@@ -178,16 +175,16 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                 .addChannelHandlerBefore(baseHandlerName, handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addBefore(baseHandlerName, handlerName, handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addBefore(baseHandlerName, handlerName, handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
@@ -200,17 +197,17 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                 .addChannelHandlerBefore(executor, baseHandlerName, handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addBefore(executor, baseHandlerName, handlerName,
-                                                                 handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addBefore(executor, baseHandlerName, handlerName,
+                                                                    handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
@@ -222,16 +219,16 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                 .addChannelHandlerAfter(baseHandlerName, handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addAfter(baseHandlerName, handlerName, handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addAfter(baseHandlerName, handlerName, handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
 
     }
@@ -245,16 +242,17 @@ public class ClientStateTest {
         ClientState<String, String> newState = clientStateRule.clientState
                 .addChannelHandlerAfter(executor, baseHandlerName, handlerName, handlerFactory);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addAfter(executor, baseHandlerName, handlerName, handlerFactory);
+        Mockito.verify(newState.unsafeDetachedPipeline()).addAfter(executor, baseHandlerName, handlerName,
+                                                                   handlerFactory);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
 
     }
@@ -269,16 +267,16 @@ public class ClientStateTest {
 
         ClientState<String, String> newState = clientStateRule.clientState.pipelineConfigurator(pipelineConfigurator);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).configure(pipelineConfigurator);
+        Mockito.verify(newState.unsafeDetachedPipeline()).configure(pipelineConfigurator);
 
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
     }
 
@@ -286,143 +284,18 @@ public class ClientStateTest {
     public void testEnableWireLogging() throws Exception {
         ClientState<String, String> newState = clientStateRule.clientState.enableWireLogging(LogLevel.ERROR);
 
-        clientStateRule.verifyMockPipelineAccessPostCopy(newState);
+        clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap not copied.", clientStateRule.clientState.getBootstrap(),
-                   is(not(newState.getBootstrap())));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
+        assertThat("Options copied.", clientStateRule.clientState.unsafeChannelOptions(),
+                   is(newState.unsafeChannelOptions()));
+        assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
+                   is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.getDetachedPipeline()).addFirst(HandlerNames.WireLogging.getName(),
-                                                                LoggingHandlerFactory.getFactory(LogLevel.ERROR));
+        Mockito.verify(newState.unsafeDetachedPipeline()).addFirst(HandlerNames.WireLogging.getName(),
+                                                                   LoggingHandlerFactory.getFactory(LogLevel.ERROR));
 
-
-        Mockito.verifyNoMoreInteractions(newState.getDetachedPipeline());
+        Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);
-    }
-
-    @Test(timeout = 60000)
-    public void testMaxConnections() throws Exception {
-
-        final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
-
-        ClientState<String, String> newState = clientStateRule.clientState.maxConnections(10);
-        assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap copied.", clientStateRule.clientState.getBootstrap(), is(newState.getBootstrap()));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
-        assertThat("Pool config not copied", clientStateRule.clientState.getPoolConfig(),
-                   is(not(newState.getPoolConfig())));
-
-        assertThat("Max connections not set.", newState.getPoolConfig().getPoolLimitDeterminationStrategy()
-                                                       .getAvailablePermits(),
-                   is(10));
-    }
-
-    @Test(timeout = 60000)
-    public void testMaxIdleTimeoutMillis() throws Exception {
-        final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
-
-        ClientState<String, String> newState = clientStateRule.clientState.maxIdleTimeoutMillis(10000);
-        assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap copied.", clientStateRule.clientState.getBootstrap(), is(newState.getBootstrap()));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
-        assertThat("Pool config not copied", clientStateRule.clientState.getPoolConfig(),
-                   is(not(newState.getPoolConfig())));
-
-        assertThat("Max idle time not set.", newState.getPoolConfig().getMaxIdleTimeMillis(), is(10000L));
-    }
-
-    @Test(timeout = 60000)
-    public void testConnectionPoolLimitStrategy() throws Exception {
-        final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
-
-        PoolLimitDeterminationStrategy strategy = new MaxConnectionsBasedStrategy(100);
-        ClientState<String, String> newState = clientStateRule.clientState.connectionPoolLimitStrategy(strategy);
-        assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap copied.", clientStateRule.clientState.getBootstrap(), is(newState.getBootstrap()));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
-        assertThat("Pool config not copied", clientStateRule.clientState.getPoolConfig(),
-                   is(not(newState.getPoolConfig())));
-
-        assertThat("Connection pool limit strategy not set.",
-                   newState.getPoolConfig().getPoolLimitDeterminationStrategy(), is(strategy));
-    }
-
-    @Test(timeout = 60000)
-    public void testIdleConnectionCleanupTimer() throws Exception {
-        final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
-
-        Observable<Long> timer = Observable.never();
-        ClientState<String, String> newState = clientStateRule.clientState.idleConnectionCleanupTimer(timer);
-        assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap copied.", clientStateRule.clientState.getBootstrap(), is(newState.getBootstrap()));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
-        assertThat("Pool config not copied", clientStateRule.clientState.getPoolConfig(),
-                   is(not(newState.getPoolConfig())));
-
-        assertThat("Idle connection cleanup timer not set.", newState.getPoolConfig().getIdleConnectionsCleanupTimer(),
-                   is(timer));
-    }
-
-    @Test(timeout = 60000)
-    public void testNoIdleConnectionCleanup() throws Exception {
-        final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
-
-        ClientState<String, String> newState = clientStateRule.clientState.noIdleConnectionCleanup();
-        assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap copied.", clientStateRule.clientState.getBootstrap(), is(newState.getBootstrap()));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
-        assertThat("Pool config not copied", clientStateRule.clientState.getPoolConfig(),
-                   is(not(newState.getPoolConfig())));
-
-        final TestScheduler testScheduler = Schedulers.test();
-        final TestSubscriber<Long> testSubscriber = new TestSubscriber<>();
-        newState.getPoolConfig().getIdleConnectionsCleanupTimer()
-                .observeOn(testScheduler)
-                .subscribe(testSubscriber);
-        testScheduler.advanceTimeBy(100, TimeUnit.DAYS); /*Basically never*/
-
-        assertThat("Idle connection timer completed.", testSubscriber.getOnCompletedEvents(), is(empty()));
-        assertThat("Idle connection timer errored.", testSubscriber.getOnErrorEvents(), is(empty()));
-    }
-
-    @Test(timeout = 60000)
-    public void testNoConnectionPooling() throws Exception {
-        clientStateRule.clientState = clientStateRule.clientState.maxConnections(1);
-        final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(notNullValue()));
-
-        ClientState<String, String> newState = clientStateRule.clientState.noConnectionPooling();
-        assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap copied.", clientStateRule.clientState.getBootstrap(), is(newState.getBootstrap()));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
-        assertThat("Unexpected pool config", newState.getPoolConfig(), is(nullValue()));
-    }
-
-    @Test(timeout = 60000)
-    public void testRemoteAddress() throws Exception {
-        final PoolConfig<String, String> oldPoolConfig = clientStateRule.clientState.getPoolConfig();
-        assertThat("Client state created with pooling", oldPoolConfig, is(nullValue()));
-
-        SocketAddress newAddress = new InetSocketAddress("localhost", 0);
-        ClientState<String, String> newState = clientStateRule.clientState.remoteAddress(newAddress);
-        assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
-        assertThat("Bootstrap copied.", clientStateRule.clientState.getBootstrap(), is(newState.getBootstrap()));
-        assertThat("Connection factory not copied.", clientStateRule.clientState.getConnectionFactory(),
-                   is(not(newState.getConnectionFactory())));
-
-        assertThat("remote address not set", newState.getRemoteAddress(), is(newAddress));
     }
 
     public static class ClientStateRule extends ExternalResource {
@@ -430,7 +303,6 @@ public class ClientStateTest {
         private ClientState<String, String> clientState;
         private TcpServer<ByteBuf, ByteBuf> mockServer;
         private DetachedChannelPipeline mockPipeline;
-        private TcpClientEventPublisher eventPublisher;
 
         @Override
         public Statement apply(final Statement base, Description description) {
@@ -440,18 +312,18 @@ public class ClientStateTest {
                     mockPipeline = Mockito.mock(DetachedChannelPipeline.class, Mockito.RETURNS_MOCKS);
 
                     mockServer = TcpServer.newServer(0)
+                                          .enableWireLogging(LogLevel.ERROR)
                                           .start(new ConnectionHandler<ByteBuf, ByteBuf>() {
                                               @Override
                                               public Observable<Void> handle(
                                                       Connection<ByteBuf, ByteBuf> newConnection) {
-                                                  return newConnection.close();
+                                                  return newConnection.writeString(Observable.just("Hello"));
                                               }
                                           });
-                    eventPublisher = new TcpClientEventPublisher();
-                    clientState = ClientState.create(mockPipeline, eventPublisher, new NioEventLoopGroup(),
-                                                     NioSocketChannel.class,
-                                                     new InetSocketAddress("localhost", mockServer.getServerPort()));
-                    Mockito.verify(mockPipeline).getChannelInitializer();
+                    InetSocketAddress address = new InetSocketAddress("localhost", mockServer.getServerPort());
+                    clientState = ClientState.create(mockPipeline, new TcpEventPublisherFactory(),
+                                                     ConnectionProvider.<String, String>forHost(address))
+                                             .enableWireLogging(LogLevel.ERROR);
                     base.evaluate();
                 }
             };
@@ -461,31 +333,35 @@ public class ClientStateTest {
             return connect(clientState);
         }
 
-        public Channel connect(final ClientState<?, ?> state) throws InterruptedException {
-            state.getBootstrap().remoteAddress(state.getRemoteAddress());
-            ChannelFuture connect = state.getBootstrap().connect();
+        public Channel connect(final ClientState<String, String> state) throws InterruptedException {
+            TestSubscriber<Channel> subscriber = new TestSubscriber<>();
 
-            final AtomicReference<Channel> channelToReturn = new AtomicReference<>();
-            final AtomicReference<Throwable> error = new AtomicReference<>();
-            connect.addListener(new ChannelFutureListener() {
+            final ChannelFuture connect = state.newBootstrap(new ListenersHolder<TcpClientEventListener>())
+                                               .connect(new InetSocketAddress("127.0.0.1", mockServer.getServerPort()));
+
+            Observable.create(new OnSubscribe<Channel>() {
                 @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    if (future.isSuccess()) {
-                        channelToReturn.set(future.channel());
-                    } else {
-                        error.set(future.cause());
-                    }
+                public void call(final Subscriber<? super Channel> subscriber) {
+                    connect.addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture future) throws Exception {
+                            if (future.isSuccess()) {
+                                subscriber.onNext(future.channel());
+                                subscriber.onCompleted();
+                            } else {
+                                subscriber.onError(future.cause());
+                            }
+                        }
+                    });
                 }
-            });
+            }).subscribe(subscriber);
 
-            connect.sync().await(1, TimeUnit.MINUTES);
+            subscriber.awaitTerminalEvent();
+            subscriber.assertNoErrors();
 
-            assertThat("Exception in connect.", error.get(), is(nullValue()));
-            final Channel toReturn = channelToReturn.get();
+            assertThat("No connection returned from connect.", subscriber.getOnNextEvents(), hasSize(1));
 
-            assertThat("Connect failed, channel is null.", toReturn, is(notNullValue()));
-
-            return toReturn;
+            return subscriber.getOnNextEvents().get(0);
         }
 
         public Func0<ChannelHandler> newHandler() {
@@ -502,9 +378,8 @@ public class ClientStateTest {
             assertThat(errMsg, handler, is(instanceOf(TestableChannelHandler.class)));
         }
 
-        public void verifyMockPipelineAccessPostCopy(ClientState<String, String> newState) {
+        public void verifyMockPipelineAccessPostCopy() {
             Mockito.verify(mockPipeline).copy(Matchers.<Action1<ChannelPipeline>>anyObject());
-            Mockito.verify(newState.getDetachedPipeline()).getChannelInitializer();
         }
 
         public ClientState<String, String> updateState(ClientState<String, String> newState) {

@@ -17,7 +17,7 @@
 package io.reactivex.netty.examples.http.perf;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 
@@ -41,7 +41,7 @@ public final class PerfHelloWorldServer extends AbstractServerExample {
 
         server = HttpServer.newServer(0)
                            .start((req, resp) ->
-                                          resp.setHeader(HttpHeaders.Names.CONTENT_LENGTH, CONTENT_LENGTH_HEADER_VAL)
+                                          resp.setHeader(HttpHeaderNames.CONTENT_LENGTH, CONTENT_LENGTH_HEADER_VAL)
                                               .flushOnlyOnReadComplete()
                                               .writeBytes(just(WELCOME_MSG_BYTES))/*Write the "Hello World" response*/
                            );

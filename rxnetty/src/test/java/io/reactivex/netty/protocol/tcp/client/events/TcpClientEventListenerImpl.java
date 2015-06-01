@@ -165,21 +165,11 @@ public class TcpClientEventListenerImpl extends TcpClientEventListener {
         delegate.onCompleted();
     }
 
-    @Override
-    public void onSubscribe() {
-        delegate.onSubscribe();
-    }
-
     public void assertMethodsCalled(Event... events) {
         delegate.assertMethodsCalled(events);
     }
 
-    public void assertMethodsCalledAfterSubscription(Event... events) {
-        delegate.assertMethodsCalledAfterSubscription(events);
-    }
-
     public void assertMethodsCalled(ClientEvent... events) {
-        assertMethodsCalled(Event.Subscribe);
         assertThat("Unexpected methods called count.", methodsCalled, hasSize(events.length));
         assertThat("Unexpected methods called.", methodsCalled, contains(events));
     }

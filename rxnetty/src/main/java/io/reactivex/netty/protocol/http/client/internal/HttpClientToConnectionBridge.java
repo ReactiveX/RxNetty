@@ -26,11 +26,13 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.events.Clock;
-import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
+import io.reactivex.netty.events.EventPublisher;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
+import io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
@@ -45,18 +47,24 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
      * The attribute can be extracted from an HTTP response header using the helper method
      * {@link io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl#getKeepAliveTimeoutSeconds()}
      */
-    public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR = AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
+    public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR =
+            AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
 
-    private final HttpClientEventPublisher eventPublisher;
+    private HttpClientEventsListener eventsListener;
+    private EventPublisher eventPublisher;
 
-    public HttpClientToConnectionBridge(HttpClientEventPublisher eventPublisher) {
-        this.eventPublisher = eventPublisher;
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        eventsListener = ctx.channel().attr(HttpEventPublisherFactory.HTTP_CLIENT_EVENT_LISTENER).get();
+        eventPublisher = ctx.channel().attr(TcpEventPublisherFactory.EVENT_PUBLISHER).get();
+
+        super.handlerAdded(ctx);
     }
 
     @Override
     protected void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
         if (eventPublisher.publishingEnabled()) {
-            eventPublisher.onRequestWriteStart();
+            eventsListener.onRequestWriteStart();
         }
     }
 
@@ -69,10 +77,10 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if (eventPublisher.publishingEnabled()) {
                         if (future.isSuccess()) {
-                            eventPublisher.onRequestWriteComplete(Clock.onEndMillis(headerWriteStartTimeMillis),
+                            eventsListener.onRequestWriteComplete(Clock.onEndMillis(headerWriteStartTimeMillis),
                                                                   MILLISECONDS);
                         } else {
-                            eventPublisher.onRequestWriteFailed(Clock.onEndMillis(headerWriteStartTimeMillis),
+                            eventsListener.onRequestWriteFailed(Clock.onEndMillis(headerWriteStartTimeMillis),
                                                                 MILLISECONDS, future.cause());
                         }
                     }
@@ -118,7 +126,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
         final HttpResponse nettyResponse = (HttpResponse) nextItem;
 
         if (eventPublisher.publishingEnabled()) {
-            eventPublisher.onResponseHeadersReceived(nettyResponse.status().code());
+            eventsListener.onResponseHeadersReceived(nettyResponse.status().code());
         }
 
         final HttpClientResponseImpl<C> rxResponse = HttpClientResponseImpl.unsafeCreate(nettyResponse);
@@ -137,7 +145,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     @Override
     protected void onContentReceived() {
         if (eventPublisher.publishingEnabled()) {
-            eventPublisher.onResponseContentReceived();
+            eventsListener.onResponseContentReceived();
         }
     }
 
@@ -145,7 +153,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     protected void onContentReceiveComplete(long receiveStartTimeMillis) {
         connectionInputSubscriber.onCompleted(); /*Unsubscribe from the input and hence close/release connection*/
         if (eventPublisher.publishingEnabled()) {
-            eventPublisher.onResponseReceiveComplete(Clock.onEndMillis(receiveStartTimeMillis), MILLISECONDS);
+            eventsListener.onResponseReceiveComplete(Clock.onEndMillis(receiveStartTimeMillis), MILLISECONDS);
         }
     }
 

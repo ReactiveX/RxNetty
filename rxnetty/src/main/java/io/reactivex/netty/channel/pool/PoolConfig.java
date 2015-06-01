@@ -15,8 +15,9 @@
  */
 package io.reactivex.netty.channel.pool;
 
-import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.channel.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.channel.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.channel.client.UnboundedPoolLimitDeterminationStrategy;
 import rx.Observable;
 
 import java.util.concurrent.TimeUnit;
@@ -31,17 +32,16 @@ public class PoolConfig<W, R> {
 
     public static final long DEFAULT_MAX_IDLE_TIME_MILLIS = TimeUnit.MILLISECONDS.convert(30, TimeUnit.SECONDS);
 
-    private final Observable<Long> idleConnCleanupTicker;
-    private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
-    private final IdleConnectionsHolder<W, R> idleConnectionsHolder;
-    private final long maxIdleTimeMillis;
+    private Observable<Long> idleConnCleanupTicker;
+    private PoolLimitDeterminationStrategy limitDeterminationStrategy;
+    private IdleConnectionsHolder<W, R> idleConnectionsHolder;
+    private long maxIdleTimeMillis;
 
-    public PoolConfig(long maxIdleTimeMillis, Observable<Long> idleConnCleanupTimer,
-                      PoolLimitDeterminationStrategy limitDeterminationStrategy, IdleConnectionsHolder<W, R> holder) {
-        this.maxIdleTimeMillis = maxIdleTimeMillis;
-        this.limitDeterminationStrategy = limitDeterminationStrategy;
-        idleConnCleanupTicker = idleConnCleanupTimer;
-        idleConnectionsHolder = holder;
+    public PoolConfig() {
+        maxIdleTimeMillis = DEFAULT_MAX_IDLE_TIME_MILLIS;
+        idleConnCleanupTicker = Observable.timer(maxIdleTimeMillis, TimeUnit.MILLISECONDS);
+        idleConnectionsHolder = new FIFOIdleConnectionsHolder<>();
+        limitDeterminationStrategy = UnboundedPoolLimitDeterminationStrategy.INSTANCE;
     }
 
     public long getMaxIdleTimeMillis() {
@@ -57,42 +57,39 @@ public class PoolConfig<W, R> {
     }
 
     public PoolConfig<W, R> maxConnections(int maxConnections) {
-        return new PoolConfig<W, R>(maxIdleTimeMillis, idleConnCleanupTicker,
-                                    new MaxConnectionsBasedStrategy(maxConnections), idleConnectionsHolder);
+        limitDeterminationStrategy = new MaxConnectionsBasedStrategy(maxConnections);
+        return this;
     }
 
     public PoolConfig<W, R> maxIdleTimeoutMillis(long maxIdleTimeoutMillis) {
-        return new PoolConfig<W, R>(maxIdleTimeoutMillis, idleConnCleanupTicker, limitDeterminationStrategy.copy(),
-                                    idleConnectionsHolder);
+        maxIdleTimeMillis = maxIdleTimeoutMillis;
+        return this;
     }
 
     public PoolConfig<W, R> limitDeterminationStrategy(PoolLimitDeterminationStrategy strategy) {
-        return new PoolConfig<W, R>(maxIdleTimeMillis, idleConnCleanupTicker, strategy, idleConnectionsHolder);
-    }
-
-    public PoolConfig<W, R> idleConnectionsHolder(IdleConnectionsHolder<W, R> holder) {
-        return new PoolConfig<W, R>(maxIdleTimeMillis, idleConnCleanupTicker, limitDeterminationStrategy.copy(),
-                                    holder);
-    }
-
-    public PoolConfig<W, R> idleConnectionsCleanupTimer(Observable<Long> timer) {
-        return new PoolConfig<W, R>(maxIdleTimeMillis, timer, limitDeterminationStrategy.copy(), idleConnectionsHolder);
-    }
-
-    public PoolConfig<W, R> copy() {
-        return new PoolConfig<W, R>(maxIdleTimeMillis, idleConnCleanupTicker, limitDeterminationStrategy.copy(),
-                                    idleConnectionsHolder);
-    }
-
-    public Observable<Long> getIdleConnCleanupTicker() {
-        return idleConnCleanupTicker;
+        limitDeterminationStrategy = strategy;
+        return this;
     }
 
     public PoolLimitDeterminationStrategy getLimitDeterminationStrategy() {
         return limitDeterminationStrategy;
     }
 
+    public PoolConfig<W, R> idleConnectionsHolder(IdleConnectionsHolder<W, R> holder) {
+        idleConnectionsHolder = holder;
+        return this;
+    }
+
     public IdleConnectionsHolder<W, R> getIdleConnectionsHolder() {
         return idleConnectionsHolder;
+    }
+
+    public PoolConfig<W, R> idleConnectionsCleanupTimer(Observable<Long> timer) {
+        idleConnCleanupTicker = timer;
+        return this;
+    }
+
+    public Observable<Long> getIdleConnCleanupTicker() {
+        return idleConnCleanupTicker;
     }
 }

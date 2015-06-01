@@ -17,7 +17,7 @@
 package io.reactivex.netty.protocol.http.sse.client;
 
 import io.netty.channel.ChannelHandlerContext;
-import io.reactivex.netty.NoOpChannelHandlerContext;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import org.junit.Test;
 
@@ -31,7 +31,7 @@ public class ServerSentEventDecoderTest {
 
     private final ServerSentEventDecoder decoder = new ServerSentEventDecoder();
 
-    private final ChannelHandlerContext ch = new NoOpChannelHandlerContext();
+    private final ChannelHandlerContext ch = new EmbeddedChannel().pipeline().firstContext();
 
     @Test(timeout = 60000)
     public void testOneDataLineDecode() throws Exception {

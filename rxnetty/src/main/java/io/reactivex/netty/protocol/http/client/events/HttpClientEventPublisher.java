@@ -19,6 +19,7 @@ import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.events.ListenersHolder;
 import io.reactivex.netty.events.internal.SafeEventListener;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import rx.Subscription;
 import rx.functions.Action1;
@@ -107,13 +108,13 @@ public final class HttpClientEventPublisher extends HttpClientEventsListener
     private final ListenersHolder<HttpClientEventsListener> listeners;
     private final TcpClientEventPublisher tcpDelegate;
 
-    public HttpClientEventPublisher(TcpClientEventPublisher tcpDelegate) {
+    public HttpClientEventPublisher() {
         listeners = new ListenersHolder<>();
-        this.tcpDelegate = tcpDelegate;
+        tcpDelegate = new TcpClientEventPublisher();
     }
 
-    public HttpClientEventPublisher(ListenersHolder<HttpClientEventsListener> l, TcpClientEventPublisher tcpDelegate) {
-        listeners = l;
+    private HttpClientEventPublisher(ListenersHolder<HttpClientEventsListener> l, TcpClientEventPublisher tcpDelegate) {
+        listeners = new ListenersHolder<>(l);
         this.tcpDelegate = tcpDelegate;
     }
 
@@ -288,15 +289,27 @@ public final class HttpClientEventPublisher extends HttpClientEventsListener
         return cs;
     }
 
-    public HttpClientEventPublisher copy(TcpClientEventPublisher newTcpDelegate) {
-        return new HttpClientEventPublisher(listeners.copy(), newTcpDelegate);
+    public EventSource<TcpClientEventListener> asTcpEventSource() {
+        return new EventSource<TcpClientEventListener>() {
+            @Override
+            public Subscription subscribe(TcpClientEventListener listener) {
+                if (listener instanceof HttpClientEventsListener) {
+                    return HttpClientEventPublisher.this.subscribe((HttpClientEventsListener) listener);
+                }
+                return tcpDelegate.subscribe(listener);
+            }
+        };
+    }
+
+    public HttpClientEventPublisher copy() {
+        return new HttpClientEventPublisher(listeners.copy(), tcpDelegate.copy());
     }
 
     /*Visible for testing*/ListenersHolder<HttpClientEventsListener> getListeners() {
         return listeners;
     }
 
-    /*Visible for testing*/TcpClientEventPublisher getTcpDelegate() {
+    /*Visible for testing*/TcpClientEventListener getTcpDelegate() {
         return tcpDelegate;
     }
 }

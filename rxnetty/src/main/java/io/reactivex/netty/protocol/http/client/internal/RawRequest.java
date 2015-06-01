@@ -16,14 +16,15 @@
 package io.reactivex.netty.protocol.http.client.internal;
 
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.ClientCookieEncoder;
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.DefaultHttpRequest;
-import io.netty.handler.codec.http.HttpHeaders;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.reactivex.netty.channel.FlushSelectorOperator;
 import rx.Observable;
 import rx.functions.Func1;
@@ -63,27 +64,27 @@ public final class RawRequest<I, O> {
     }
 
     public RawRequest<I, O> addCookie(Cookie cookie) {
-        String cookieHeader = ClientCookieEncoder.encode(cookie);
-        return addHeader(HttpHeaders.Names.COOKIE, cookieHeader);
+        String cookieHeader = ClientCookieEncoder.STRICT.encode(cookie);
+        return addHeader(HttpHeaderNames.COOKIE, cookieHeader);
     }
 
     public RawRequest<I, O> addDateHeader(CharSequence name, Date value) {
         HttpRequest headersCopy = _copyHeaders();
-        HttpHeaders.addDateHeader(headersCopy, name, value);
+        headersCopy.headers().add(name, value);
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
         HttpRequest headersCopy = _copyHeaders();
         for (Date value : values) {
-            HttpHeaders.addDateHeader(headersCopy, name, value);
+            headersCopy.headers().add(name, value);
         }
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setDateHeader(CharSequence name, Date value) {
         HttpRequest headersCopy = _copyHeaders();
-        HttpHeaders.setDateHeader(headersCopy, name, value);
+        headersCopy.headers().set(name, value);
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
@@ -104,9 +105,9 @@ public final class RawRequest<I, O> {
         boolean addNow = false;
         for (Date value : values) {
             if (addNow) {
-                HttpHeaders.addDateHeader(headersCopy, name, value);
+                headersCopy.headers().add(name, value);
             } else {
-                HttpHeaders.setDateHeader(headersCopy, name, value);
+                headersCopy.headers().set(name, value);
                 addNow = true;
             }
         }
@@ -115,19 +116,19 @@ public final class RawRequest<I, O> {
 
     public RawRequest<I, O> setKeepAlive(boolean keepAlive) {
         HttpRequest headersCopy = _copyHeaders();
-        HttpHeaders.setKeepAlive(headersCopy, keepAlive);
+        HttpHeaderUtil.setKeepAlive(headersCopy, keepAlive);
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setTransferEncodingChunked() {
         HttpRequest headersCopy = _copyHeaders();
-        HttpHeaders.setTransferEncodingChunked(headersCopy);
+        HttpHeaderUtil.setTransferEncodingChunked(headersCopy, true);
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> removeHeader(CharSequence name) {
         HttpRequest headersCopy = _copyHeaders();
-        HttpHeaders.removeHeader(headersCopy, name);
+        headersCopy.headers().remove(name);
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
