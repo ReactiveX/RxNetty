@@ -102,17 +102,17 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
         // In case, there is no cleanup required, this observable should never give a tick.
         idleConnCleanupSubscription = poolConfig.getIdleConnectionsCleanupTimer()
                                                 .doOnError(LogErrorAction.INSTANCE)
-                                                .retry() // Retry when there is an error in timer.
-                                                .concatMap(new IdleConnectionCleanupTask())
-                                                .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
-                                                    @Override
-                                                    public Observable<Void> call(Throwable throwable) {
-                                                        logger.error("Ignoring error cleaning up idle connections.",
-                                                                     throwable);
-                                                        return Observable.empty();
-                                                    }
-                                                }) // Ignore errors in cleanup.
-                                                .subscribe(Actions.empty()); // Errors are logged and ignored.
+                .retry() // Retry when there is an error in timer.
+                .concatMap(new IdleConnectionCleanupTask())
+                .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
+                    @Override
+                    public Observable<Void> call(Throwable throwable) {
+                        logger.error("Ignoring error cleaning up idle connections.",
+                                     throwable);
+                        return Observable.empty();
+                    }
+                }) // Ignore errors in cleanup.
+                .subscribe(Actions.empty()); // Errors are logged and ignored.
     }
 
     @Override
@@ -165,8 +165,8 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
     }
 
     public static <W, R> Func1<ClientState<W, R>, PooledClientConnectionFactory<W, R>> create(
-                                                                    final IdleConnectionsHolder<W, R> connectionsHolder,
-                                                                    final ClientConnectionFactory<W, R> delegate) {
+            final IdleConnectionsHolder<W, R> connectionsHolder,
+            final ClientConnectionFactory<W, R> delegate) {
         return new Func1<ClientState<W, R>, PooledClientConnectionFactory<W, R>>() {
             @Override
             public PooledClientConnectionFactory<W, R> call(ClientState<W, R> clientState) {
@@ -322,18 +322,30 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
 
     private class ReuseSubscriberLinker implements Operator<PooledConnection<R, W>, PooledConnection<R, W>> {
 
+        private ScalarAsyncSubscriber<R, W> onReuseSubscriber;
+
         @Override
         public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super PooledConnection<R, W>> o) {
             return new Subscriber<PooledConnection<R, W>>(o) {
 
                 @Override
                 public void onCompleted() {
-                    o.onCompleted();
+                    /*This subscriber is not invoked by different threads, so don't need sychronization*/
+                    if (null != onReuseSubscriber) {
+                        onReuseSubscriber.onCompleted();
+                    } else {
+                        o.onCompleted();
+                    }
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    o.onError(e);
+                    /*This subscriber is not invoked by different threads, so don't need sychronization*/
+                    if (null != onReuseSubscriber) {
+                        onReuseSubscriber.onError(e);
+                    } else {
+                        o.onError(e);
+                    }
                 }
 
                 @Override
@@ -342,7 +354,8 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                         if (eventPublisher.publishingEnabled()) {
                             eventPublisher.onPooledConnectionReuse();
                         }
-                        c.reuse(new ScalarAsyncSubscriber<R, W>(o)); /*Reuse will on next to the subscriber*/
+                        onReuseSubscriber = new ScalarAsyncSubscriber<>(o);
+                        c.reuse(onReuseSubscriber); /*Reuse will on next to the subscriber*/
                     } else {
                         o.onNext(c);
                     }
