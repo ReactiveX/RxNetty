@@ -196,6 +196,12 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
                         switch (currentFieldType) {
                             case Data:
                                 if (incompleteData.isReadable()) {
+                                    if (null != lastEventId) {
+                                        lastEventId.retain();
+                                    }
+                                    if (null != lastEventType) {
+                                        lastEventType.retain();
+                                    }
                                     out.add(ServerSentEvent.withEventIdAndType(lastEventId, lastEventType,
                                                                                incompleteData));
                                 } else {
@@ -207,6 +213,9 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
                                     lastEventId = incompleteData;
                                 } else {
                                     incompleteData.release();
+                                    if (null != lastEventId) {
+                                        lastEventId.release();
+                                    }
                                     lastEventId = null;
                                 }
                                 break;
@@ -215,6 +224,9 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
                                     lastEventType = incompleteData;
                                 } else {
                                     incompleteData.release();
+                                    if (null != lastEventType) {
+                                        lastEventType.release();
+                                    }
                                     lastEventType = null;
                                 }
                                 break;
