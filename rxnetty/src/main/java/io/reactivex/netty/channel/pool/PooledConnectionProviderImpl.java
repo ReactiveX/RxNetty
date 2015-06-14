@@ -344,17 +344,30 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
 
     private class ReuseSubscriberLinker implements Operator<PooledConnection<R, W>, PooledConnection<R, W>> {
 
+        private ScalarAsyncSubscriber<R, W> onReuseSubscriber;
+
         @Override
         public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super PooledConnection<R, W>> o) {
             return new Subscriber<PooledConnection<R, W>>(o) {
+
                 @Override
                 public void onCompleted() {
-                    o.onCompleted();
+                    /*This subscriber is not invoked by different threads, so don't need sychronization*/
+                    if (null != onReuseSubscriber) {
+                        onReuseSubscriber.onCompleted();
+                    } else {
+                        o.onCompleted();
+                    }
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    o.onError(e);
+                    /*This subscriber is not invoked by different threads, so don't need sychronization*/
+                    if (null != onReuseSubscriber) {
+                        onReuseSubscriber.onError(e);
+                    } else {
+                        o.onError(e);
+                    }
                 }
 
                 @Override
@@ -366,12 +379,77 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
                                                                     .attr(TCP_CLIENT_EVENT_LISTENER).get();
                             eventListener.onPooledConnectionReuse();
                         }
-                        c.reuse(o); /*Reuse will on next to the subscriber*/
+                        onReuseSubscriber = new ScalarAsyncSubscriber<>(o);
+                        c.reuse(onReuseSubscriber); /*Reuse will on next to the subscriber*/
                     } else {
                         o.onNext(c);
                     }
                 }
             };
+        }
+
+    }
+
+    private static class ScalarAsyncSubscriber<R, W> extends Subscriber<PooledConnection<R, W>> {
+
+        private boolean terminated; /*Guarded by this*/
+        private Throwable error; /*Guarded by this*/
+        private boolean onNextArrived; /*Guarded by this*/
+        private final Subscriber<? super  PooledConnection<R, W>> delegate;
+
+        private ScalarAsyncSubscriber(Subscriber<? super PooledConnection<R, W>> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public void onCompleted() {
+            boolean _onNextArrived;
+
+            synchronized (this) {
+                _onNextArrived = onNextArrived;
+            }
+
+            terminated = true;
+
+            if (_onNextArrived) {
+                delegate.onCompleted();
+            }
+        }
+
+        @Override
+        public void onError(Throwable e) {
+            boolean _onNextArrived;
+
+            synchronized (this) {
+                _onNextArrived = onNextArrived;
+            }
+            terminated = true;
+            error = e;
+
+            if (_onNextArrived) {
+                delegate.onError(e);
+            }
+        }
+
+        @Override
+        public void onNext(PooledConnection<R, W> conn) {
+            boolean _terminated;
+            Throwable _error;
+            synchronized (this) {
+                onNextArrived = true;
+                _terminated = terminated;
+                _error = error;
+            }
+
+            delegate.onNext(conn);
+
+            if (_terminated) {
+                if (null != error) {
+                    delegate.onError(_error);
+                } else {
+                    delegate.onCompleted();
+                }
+            }
         }
     }
 }

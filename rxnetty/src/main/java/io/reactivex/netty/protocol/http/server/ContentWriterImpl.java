@@ -59,7 +59,7 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
                 if (!HttpHeaderUtil.isTransferEncodingChunked(headers)) {
                     headers.headers().set(CONTENT_LENGTH, 0);
                 }
-                connection.write(Observable.just(headers)).subscribe(subscriber);
+                connection.write(Observable.just(headers)).unsafeSubscribe(subscriber);
             }
         });
         this.connection = connection;
@@ -75,7 +75,7 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
                 parent.connection.write(getHttpStream(parent, content, appendTrailer))
-                                 .subscribe(subscriber);
+                                 .unsafeSubscribe(subscriber);
             }
         });
         connection = parent.connection;
