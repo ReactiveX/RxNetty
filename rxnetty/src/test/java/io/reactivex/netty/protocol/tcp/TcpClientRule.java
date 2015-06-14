@@ -18,6 +18,8 @@ package io.reactivex.netty.protocol.tcp;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.pool.PooledConnection;
+import io.reactivex.netty.channel.pool.PooledConnectionProvider;
+import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -26,6 +28,8 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.Observable;
 import rx.observers.TestSubscriber;
+
+import java.net.InetSocketAddress;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -53,12 +57,14 @@ public class TcpClientRule extends ExternalResource {
                 return newConnection.writeAndFlushOnEach(newConnection.getInput());
             }
         });
-        createClient(maxConnections);
+        InetSocketAddress serverAddr = new InetSocketAddress("127.0.0.1", server.getServerPort());
+        createClient(PooledConnectionProvider.<ByteBuf, ByteBuf>createBounded(maxConnections, serverAddr));
     }
 
     public void startServer(ConnectionHandler<ByteBuf, ByteBuf> handler, int maxConnections) {
         server.start(handler);
-        createClient(maxConnections);
+        InetSocketAddress serverAddr = new InetSocketAddress("127.0.0.1", server.getServerPort());
+        createClient(PooledConnectionProvider.<ByteBuf, ByteBuf>createBounded(maxConnections, serverAddr));
     }
 
     public PooledConnection<ByteBuf, ByteBuf> connect() {
@@ -75,11 +81,8 @@ public class TcpClientRule extends ExternalResource {
         return  (PooledConnection<ByteBuf, ByteBuf>) cSub.getOnNextEvents().get(0);
     }
 
-    protected void createClient(int maxConnections) {
-        client = TcpClient.newClient("127.0.0.1", server.getServerPort());
-        if (maxConnections >= 0) {
-            client = client.maxConnections(maxConnections);
-        }
+    protected void createClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
+        client = TcpClient.newClient(connectionProvider);
     }
 
     public TcpServer<ByteBuf, ByteBuf> getServer() {
