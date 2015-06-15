@@ -21,8 +21,6 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
-import io.reactivex.netty.channel.events.ConnectionEventListener;
-import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -47,13 +45,8 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
     private final Channel nettyChannel;
 
     protected final MarkAwarePipeline markAwarePipeline;
-    private final ConnectionEventListener eventListener;
-    private final EventPublisher eventPublisher;
 
-    protected Connection(final Channel nettyChannel, ConnectionEventListener eventListener,
-                         EventPublisher eventPublisher) {
-        this.eventListener = eventListener;
-        this.eventPublisher = eventPublisher;
+    protected Connection(final Channel nettyChannel) {
         if (null == nettyChannel) {
             throw new IllegalArgumentException("Channel can not be null");
         }
@@ -62,8 +55,6 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
     }
 
     protected Connection(Connection<R, W> toCopy) {
-        eventListener = toCopy.eventListener;
-        eventPublisher = toCopy.eventPublisher;
         nettyChannel = toCopy.nettyChannel;
         markAwarePipeline = toCopy.markAwarePipeline;
     }
@@ -156,14 +147,6 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
                             });
             }
         });
-    }
-
-    public ConnectionEventListener getEventListener() {
-        return eventListener;
-    }
-
-    public EventPublisher getEventPublisher() {
-        return eventPublisher;
     }
 
     /*

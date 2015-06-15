@@ -16,13 +16,17 @@
 package io.reactivex.netty.channel.pool;
 
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.client.PoolExhaustedException;
+import io.reactivex.netty.channel.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.events.Clock;
-import io.reactivex.netty.protocol.client.PoolExhaustedException;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
-import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
+import io.reactivex.netty.events.EventPublisher;
+import io.reactivex.netty.events.ListenersHolder;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 import io.reactivex.netty.protocol.tcp.client.ClientState;
-import io.reactivex.netty.protocol.tcp.client.UnpooledClientConnectionFactory;
+import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
+import io.reactivex.netty.protocol.tcp.client.ConnectionObservable;
+import io.reactivex.netty.protocol.tcp.client.ConnectionObservable.OnSubcribeFunc;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,11 +40,14 @@ import rx.functions.Action1;
 import rx.functions.Actions;
 import rx.functions.Func1;
 
+import java.net.SocketAddress;
+
+import static io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory.*;
 import static java.util.concurrent.TimeUnit.*;
 
 /**
- * An implementation of {@link io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory} that pools connections. Configuration of the pool is as defined
- * by {@link PoolConfig} passed in with the {@link io.reactivex.netty.protocol.tcp.client.ClientState}.
+ * An implementation of {@link PooledConnectionProvider} that pools connections. Configuration of the pool is as defined
+ * by {@link PoolConfig} passed in with the {@link ClientState}.
  *
  * Following are the key parameters:
  *
@@ -54,51 +61,26 @@ import static java.util.concurrent.TimeUnit.*;
  * @param <W> Type of object that is written to the client using this factory.
  * @param <R> Type of object that is read from the the client using this factory.
  */
-public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientConnectionFactory<W, R> {
+public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionProvider<W, R> {
 
-    private static final Logger logger = LoggerFactory.getLogger(PooledClientConnectionFactoryImpl.class);
+    private static final Logger logger = LoggerFactory.getLogger(PooledConnectionProviderImpl.class);
 
     private final Subscription idleConnCleanupSubscription;
-    private final TcpClientEventPublisher eventPublisher;
     private final IdleConnectionsHolder<W, R> idleConnectionsHolder;
 
-    private final Observable<PooledConnection<R, W>> idleConnFinderObservable;
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
+    private final long maxIdleTimeMillis;
+    private final ConnectionFactory<W, R> connFactory;
+    private final SocketAddress host;
 
-    public PooledClientConnectionFactoryImpl(ClientState<W, R> clientState) {
-        this(clientState, clientState.getPoolConfig().getIdleConnectionsHolder(),
-             new UnpooledClientConnectionFactory<W, R>(clientState));
-    }
-
-    public PooledClientConnectionFactoryImpl(ClientState<W, R> clientState,
-                                             IdleConnectionsHolder<W, R> connectionsHolder) {
-        this(clientState, connectionsHolder, new UnpooledClientConnectionFactory<W, R>(clientState));
-    }
-
-    public PooledClientConnectionFactoryImpl(ClientState<W, R> clientState,
-                                             IdleConnectionsHolder<W, R> connectionsHolder,
-                                             ClientConnectionFactory<W, R> delegate) {
-        super(clientState.getPoolConfig(), clientState, delegate);
-        idleConnectionsHolder = connectionsHolder;
-        idleConnFinderObservable = idleConnectionsHolder.pollThisEventLoopConnections()
-                                                        .concatWith(connectIfAllowed())
-                                                        .filter(new Func1<PooledConnection<R, W>, Boolean>() {
-                                                            @Override
-                                                            public Boolean call( PooledConnection<R, W> c) {
-                                                                boolean isUsable = c.isUsable();
-                                                                if (!isUsable) {
-                                                                    discardNow(c);
-                                                                }
-                                                                return isUsable;
-                                                            }
-                                                        })
-                                                        .take(1)
-                                                        .lift(new ReuseSubscriberLinker())
-                                                        .lift(new ConnectMetricsOperator());
-
-        eventPublisher = clientState.getEventPublisher();
-        limitDeterminationStrategy = clientState.getPoolConfig().getPoolLimitDeterminationStrategy();
-
+    public PooledConnectionProviderImpl(ConnectionFactory<W, R> connFactory, PoolConfig<W, R> poolConfig,
+                                        SocketAddress host) {
+        super(connFactory);
+        this.connFactory = connFactory;
+        this.host = host;
+        idleConnectionsHolder = poolConfig.getIdleConnectionsHolder();
+        limitDeterminationStrategy = poolConfig.getPoolLimitDeterminationStrategy();
+        maxIdleTimeMillis = poolConfig.getMaxIdleTimeMillis();
         // In case, there is no cleanup required, this observable should never give a tick.
         idleConnCleanupSubscription = poolConfig.getIdleConnectionsCleanupTimer()
                                                 .doOnError(LogErrorAction.INSTANCE)
@@ -116,12 +98,40 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
     }
 
     @Override
-    public Observable<? extends Connection<R, W>> connect() {
+    public ConnectionObservable<R, W> nextConnection() {
         if (isShutdown()) {
-            return Observable.error(new IllegalStateException("Connection factory is already shutdown."));
+            return ConnectionObservable.forError(new IllegalStateException("Connection factory is already shutdown."));
         }
 
-        return idleConnFinderObservable;
+        return ConnectionObservable.createNew(new OnSubcribeFunc<R, W>() {
+
+            private final ListenersHolder<TcpClientEventListener> listeners = new ListenersHolder<>();
+
+            @Override
+            public void call(Subscriber<? super Connection<R, W>> subscriber) {
+                idleConnectionsHolder.pollThisEventLoopConnections()
+                                     .concatWith(connectIfAllowed(listeners))
+                                     .filter(new Func1<PooledConnection<R, W>, Boolean>() {
+                                         @Override
+                                         public Boolean call(PooledConnection<R, W> c) {
+                                             boolean isUsable = c.isUsable();
+                                             if (!isUsable) {
+                                                 discardNow(c);
+                                             }
+                                             return isUsable;
+                                         }
+                                     })
+                                     .take(1)
+                                     .lift(new ReuseSubscriberLinker())
+                                     .lift(new ConnectMetricsOperator(listeners))
+                                     .unsafeSubscribe(subscriber);
+            }
+
+            @Override
+            public Subscription subscribeForEvents(TcpClientEventListener eventListener) {
+                return listeners.subscribe(eventListener);
+            }
+        });
     }
 
     @Override
@@ -146,12 +156,15 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
     }
 
     @Override
-    public Observable<Void> discard(PooledConnection<R, W> connection) {
+    public Observable<Void> discard(final PooledConnection<R, W> connection) {
         return connection.discard().doOnSubscribe(new Action0() {
             @Override
             public void call() {
+                EventPublisher eventPublisher = connection.unsafeNettyChannel().attr(EVENT_PUBLISHER).get();
                 if (eventPublisher.publishingEnabled()) {
-                    eventPublisher.onPooledConnectionEviction();
+                    TcpClientEventListener eventListener = connection.unsafeNettyChannel()
+                                                                     .attr(TCP_CLIENT_EVENT_LISTENER).get();
+                    eventListener.onPooledConnectionEviction();
                 }
                 limitDeterminationStrategy.releasePermit();/*Since, an idle connection took a permit*/
             }
@@ -161,47 +174,30 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
     @Override
     public void shutdown() {
         idleConnCleanupSubscription.unsubscribe();
-        connectDelegate.shutdown();
     }
 
-    public static <W, R> Func1<ClientState<W, R>, PooledClientConnectionFactory<W, R>> create(
-            final IdleConnectionsHolder<W, R> connectionsHolder,
-            final ClientConnectionFactory<W, R> delegate) {
-        return new Func1<ClientState<W, R>, PooledClientConnectionFactory<W, R>>() {
-            @Override
-            public PooledClientConnectionFactory<W, R> call(ClientState<W, R> clientState) {
-                return new PooledClientConnectionFactoryImpl<W, R>(clientState, connectionsHolder, delegate);
-            }
-        };
-    }
 
-    @Override
-    protected <WW, RR> ClientConnectionFactory<WW, RR> doCopy(ClientState<WW, RR> newState) {
-        return new PooledClientConnectionFactoryImpl<WW, RR>(newState, idleConnectionsHolder.copy(newState),
-                                                             connectDelegate.copy(newState));
-    }
-
-    private Observable<PooledConnection<R, W>> connectIfAllowed() {
+    private Observable<PooledConnection<R, W>> connectIfAllowed(final ListenersHolder<TcpClientEventListener> ls) {
         return Observable.create(new OnSubscribe<PooledConnection<R, W>>() {
             @Override
             public void call(Subscriber<? super PooledConnection<R, W>> subscriber) {
                 final long startTimeMillis = Clock.newStartTimeMillis();
                 if (limitDeterminationStrategy.acquireCreationPermit(startTimeMillis, MILLISECONDS)) {
-                    connectDelegate.connect()
-                                   .map(new Func1<Connection<R, W>, PooledConnection<R, W>>() {
-                                       @Override
-                                       public PooledConnection<R, W> call(Connection<R, W> connection) {
-                                           return PooledConnection.create(PooledClientConnectionFactoryImpl.this,
-                                                                          poolConfig, connection, eventPublisher);
-                                       }
-                                   })
-                                   .doOnError(new Action1<Throwable>() {
-                                       @Override
-                                       public void call(Throwable throwable) {
-                                           limitDeterminationStrategy.releasePermit(); /*Before connect we acquired.*/
-                                       }
-                                   })
-                                   .unsafeSubscribe(subscriber);
+                    ConnectionObservable<R, W> newConnObsv = connFactory.newConnection(host);
+                    ls.subscribeAllTo(newConnObsv);
+                    newConnObsv.map(
+                            new Func1<Connection<R, W>, PooledConnection<R, W>>() {
+                                @Override
+                                public PooledConnection<R, W> call(Connection<R, W> connection) {
+                                    return PooledConnection.create(PooledConnectionProviderImpl.this,
+                                                                   maxIdleTimeMillis, connection);
+                                }
+                            }).doOnError(new Action1<Throwable>() {
+                        @Override
+                        public void call(Throwable throwable) {
+                            limitDeterminationStrategy.releasePermit(); /*Before connect we acquired.*/
+                        }
+                    }).unsafeSubscribe(subscriber);
                 } else {
                     idleConnectionsHolder.poll()
                                          .switchIfEmpty(Observable.<PooledConnection<R, W>>error(
@@ -253,11 +249,15 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
         private final PooledConnection<R, W> connection;
         private final Subscriber<? super Void> subscriber;
         private final long releaseStartTime;
+        private final EventPublisher eventPublisher;
+        private final TcpClientEventListener eventListener;
 
         private ReleaseTask(PooledConnection<R, W> connection, Subscriber<? super Void> subscriber) {
             this.connection = connection;
             this.subscriber = subscriber;
             releaseStartTime = Clock.newStartTimeMillis();
+            eventPublisher = connection.unsafeNettyChannel().attr(EVENT_PUBLISHER).get();
+            eventListener = connection.unsafeNettyChannel().attr(TCP_CLIENT_EVENT_LISTENER).get();
         }
 
         @Override
@@ -265,7 +265,7 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
             try {
                 connection.unsafeNettyChannel().pipeline().fireUserEventTriggered(PooledConnectionReleaseEvent.INSTANCE);
                 if (eventPublisher.publishingEnabled()) {
-                    eventPublisher.onPoolReleaseStart();
+                    eventListener.onPoolReleaseStart();
                 }
                 if (isShutdown() || !connection.isUsable()) {
                     discardNow(connection);
@@ -274,46 +274,68 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                 }
 
                 if (eventPublisher.publishingEnabled()) {
-                    eventPublisher.onPoolReleaseSuccess(Clock.onEndMillis(releaseStartTime), MILLISECONDS);
+                    eventListener.onPoolReleaseSuccess(Clock.onEndMillis(releaseStartTime), MILLISECONDS);
                 }
                 subscriber.onCompleted();
             } catch (Throwable throwable) {
                 if (eventPublisher.publishingEnabled()) {
-                    eventPublisher.onPoolReleaseFailed(Clock.onEndMillis(releaseStartTime), MILLISECONDS, throwable);
+                    eventListener.onPoolReleaseFailed(Clock.onEndMillis(releaseStartTime), MILLISECONDS, throwable);
                 }
+                subscriber.onError(throwable);
             }
         }
     }
 
-    private class ConnectMetricsOperator implements Operator<PooledConnection<R, W>, PooledConnection<R, W>> {
+    private class ConnectMetricsOperator implements Operator<Connection<R, W>, PooledConnection<R, W>> {
+
+        private final ListenersHolder<TcpClientEventListener> listeners;
+        /*Modified after the connection is obtained to the one configured on the channel.*/
+        private TcpClientEventListener eventListener;
+
+        public ConnectMetricsOperator(ListenersHolder<TcpClientEventListener> listeners) {
+            this.listeners = listeners;
+        }
 
         @Override
-        public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super PooledConnection<R, W>> o) {
-            final long startTimeMillis = eventPublisher.publishingEnabled() ? Clock.newStartTimeMillis() : -1;
+        public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super Connection<R, W>> o) {
+            final long startTimeMillis = isEventPublishingEnabled() ? Clock.newStartTimeMillis() : -1;
 
-            if (eventPublisher.publishingEnabled()) {
-                eventPublisher.onPoolAcquireStart();
+            if (isEventPublishingEnabled()) {
+                listeners.invokeListeners(TcpClientEventPublisher.ACQUIRE_START_ACTION);
             }
 
             return new Subscriber<PooledConnection<R, W>>(o) {
                 @Override
                 public void onCompleted() {
-                    if (eventPublisher.publishingEnabled()) {
-                        eventPublisher.onPoolAcquireSuccess(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                    if (isEventPublishingEnabled()) {
+                        if (null != eventListener) {
+                            eventListener.onPoolAcquireSuccess(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                        } else {
+                            listeners.invokeListeners(TcpClientEventPublisher.ACQUIRE_SUCCESS_ACTION,
+                                                      Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                        }
                     }
                     o.onCompleted();
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    if (eventPublisher.publishingEnabled()) {
-                        eventPublisher.onPoolAcquireFailed(Clock.onEndMillis(startTimeMillis), MILLISECONDS, e);
+                    if (isEventPublishingEnabled()) {
+                        /*Error means no connection was received, as it always every gets at most one connection*/
+                        listeners.invokeListeners(TcpClientEventPublisher.ACQUIRE_FAILED_ACTION,
+                                                  Clock.onEndMillis(startTimeMillis), MILLISECONDS, e);
                     }
                     o.onError(e);
                 }
 
                 @Override
                 public void onNext(PooledConnection<R, W> c) {
+                    EventPublisher eventPublisher = c.unsafeNettyChannel().attr(EVENT_PUBLISHER).get();
+                    if (eventPublisher.publishingEnabled()) {
+                        /*Now use the actual listener, the original listener is connected to this one so it will get
+                        * the remaining callbacks transitively.*/
+                        eventListener = c.unsafeNettyChannel().attr(TCP_CLIENT_EVENT_LISTENER).get();
+                    }
                     o.onNext(c);
                 }
             };
@@ -351,8 +373,11 @@ public final class PooledClientConnectionFactoryImpl<W, R> extends PooledClientC
                 @Override
                 public void onNext(PooledConnection<R, W> c) {
                     if (c.isReused()) {
+                        EventPublisher eventPublisher = c.unsafeNettyChannel().attr(EVENT_PUBLISHER).get();
                         if (eventPublisher.publishingEnabled()) {
-                            eventPublisher.onPooledConnectionReuse();
+                            TcpClientEventListener eventListener = c.unsafeNettyChannel()
+                                                                    .attr(TCP_CLIENT_EVENT_LISTENER).get();
+                            eventListener.onPooledConnectionReuse();
                         }
                         onReuseSubscriber = new ScalarAsyncSubscriber<>(o);
                         c.reuse(onReuseSubscriber); /*Reuse will on next to the subscriber*/

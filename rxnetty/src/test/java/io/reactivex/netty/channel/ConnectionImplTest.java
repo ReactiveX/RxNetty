@@ -18,7 +18,6 @@ package io.reactivex.netty.channel;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import io.reactivex.netty.test.util.FlushSelector;
 import org.junit.Rule;
 import org.junit.Test;
@@ -189,9 +188,7 @@ public class ConnectionImplTest {
                     ChannelOperations<ByteBuf> channelOperations = Mockito.mock(ChannelOperations.class);
 
                     ConnRule.this.channelOperations = channelOperations;
-                    TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
-                    connection = ConnectionImpl.create(channel, eventPublisher, eventPublisher,
-                                                       ConnRule.this.channelOperations);
+                    connection = ConnectionImpl.create(channel, ConnRule.this.channelOperations);
                     base.evaluate();
                 }
             };

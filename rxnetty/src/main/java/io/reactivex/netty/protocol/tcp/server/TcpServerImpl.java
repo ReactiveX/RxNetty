@@ -152,13 +152,8 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
 
     @Override
     public int getServerPort() {
-        SocketAddress localAddress;
-        if (null != bindFuture && bindFuture.isDone()) {
-            localAddress = bindFuture.channel().localAddress();
-        } else {
-            localAddress = state.getServerAddress();
-        }
 
+        final SocketAddress localAddress = getServerAddress();
         if (localAddress instanceof InetSocketAddress) {
             return ((InetSocketAddress) localAddress).getPort();
         } else {
@@ -168,7 +163,13 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
 
     @Override
     public SocketAddress getServerAddress() {
-        return state.getServerAddress();
+        SocketAddress localAddress;
+        if (null != bindFuture && bindFuture.isDone()) {
+            localAddress = bindFuture.channel().localAddress();
+        } else {
+            localAddress = state.getServerAddress();
+        }
+        return localAddress;
     }
 
     @Override

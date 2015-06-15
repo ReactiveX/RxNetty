@@ -37,7 +37,7 @@ public class ConnectionEventPublisherTest {
     @Test(timeout = 60000)
     public void testOnByteRead() throws Exception {
         rule.publisher.onByteRead(1);
-        rule.listener.assertMethodsCalledAfterSubscription(Event.BytesRead);
+        rule.listener.assertMethodsCalled(Event.BytesRead);
 
         assertThat("Listener not called with bytes read.", rule.listener.getBytesRead(), is(1L));
     }
@@ -45,13 +45,13 @@ public class ConnectionEventPublisherTest {
     @Test(timeout = 60000)
     public void testOnFlushStart() throws Exception {
         rule.publisher.onFlushStart();
-        rule.listener.assertMethodsCalledAfterSubscription(Event.FlushStart);
+        rule.listener.assertMethodsCalled(Event.FlushStart);
     }
 
     @Test(timeout = 60000)
     public void testOnFlushSuccess() throws Exception {
         rule.publisher.onFlushSuccess(1, TimeUnit.MILLISECONDS);
-        rule.listener.assertMethodsCalledAfterSubscription(Event.FlushSuccess);
+        rule.listener.assertMethodsCalled(Event.FlushSuccess);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
@@ -61,7 +61,7 @@ public class ConnectionEventPublisherTest {
     public void testOnFlushFailed() throws Exception {
         final Throwable expected = new NullPointerException("Deliberate");
         rule.publisher.onFlushFailed(1, TimeUnit.MILLISECONDS, expected);
-        rule.listener.assertMethodsCalledAfterSubscription(Event.FlushFailed);
+        rule.listener.assertMethodsCalled(Event.FlushFailed);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
@@ -71,13 +71,13 @@ public class ConnectionEventPublisherTest {
     @Test(timeout = 60000)
     public void testOnWriteStart() throws Exception {
         rule.publisher.onWriteStart();
-        rule.listener.assertMethodsCalledAfterSubscription(Event.WriteStart);
+        rule.listener.assertMethodsCalled(Event.WriteStart);
     }
 
     @Test(timeout = 60000)
     public void testOnWriteSuccess() throws Exception {
         rule.publisher.onWriteSuccess(1, TimeUnit.MILLISECONDS, 10);
-        rule.listener.assertMethodsCalledAfterSubscription(Event.WriteSuccess);
+        rule.listener.assertMethodsCalled(Event.WriteSuccess);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
@@ -88,7 +88,7 @@ public class ConnectionEventPublisherTest {
     public void testOnWriteFailed() throws Exception {
         final Throwable expected = new NullPointerException("Deliberate");
         rule.publisher.onWriteFailed(1, TimeUnit.MILLISECONDS, expected);
-        rule.listener.assertMethodsCalledAfterSubscription(Event.WriteFailed);
+        rule.listener.assertMethodsCalled(Event.WriteFailed);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
@@ -98,13 +98,13 @@ public class ConnectionEventPublisherTest {
     @Test(timeout = 60000)
     public void testOnConnectionCloseStart() throws Exception {
         rule.publisher.onConnectionCloseStart();
-        rule.listener.assertMethodsCalledAfterSubscription(Event.CloseStart);
+        rule.listener.assertMethodsCalled(Event.CloseStart);
     }
 
     @Test(timeout = 60000)
     public void testOnConnectionCloseSuccess() throws Exception {
         rule.publisher.onConnectionCloseSuccess(1, TimeUnit.MILLISECONDS);
-        rule.listener.assertMethodsCalledAfterSubscription(Event.CloseSuccess);
+        rule.listener.assertMethodsCalled(Event.CloseSuccess);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
@@ -114,16 +114,11 @@ public class ConnectionEventPublisherTest {
     public void testOnConnectionCloseFailed() throws Exception {
         final Throwable expected = new NullPointerException("Deliberate");
         rule.publisher.onConnectionCloseFailed(1, TimeUnit.MILLISECONDS, expected);
-        rule.listener.assertMethodsCalledAfterSubscription(Event.CloseFailed);
+        rule.listener.assertMethodsCalled(Event.CloseFailed);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
         assertThat("Listener not called with error.", rule.listener.getRecievedError(), is(expected));
-    }
-
-    @Test(timeout = 60000)
-    public void testSubscribe() throws Exception {
-        rule.listener.assertMethodsCalled(ConnectionEventListenerImpl.Event.Subscribe);
     }
 
     @Test(timeout = 60000)
@@ -162,7 +157,7 @@ public class ConnectionEventPublisherTest {
 
         public enum Event {
             BytesRead, FlushStart, FlushSuccess, FlushFailed, WriteStart, WriteSuccess, WriteFailed, CloseStart,
-            CloseSuccess, CloseFailed, Complete, Subscribe
+            CloseSuccess, CloseFailed, Complete
         }
 
         private final List<Event> methodsCalled = new ArrayList<>();
@@ -244,22 +239,9 @@ public class ConnectionEventPublisherTest {
             methodsCalled.add(Event.Complete);
         }
 
-        @Override
-        public void onSubscribe() {
-            methodsCalled.add(Event.Subscribe);
-        }
-
         public void assertMethodsCalled(Event... events) {
             assertThat("Unexpected methods called count. Methods called: " + methodsCalled, methodsCalled, hasSize(events.length));
             assertThat("Unexpected methods called.", methodsCalled, contains(events));
-        }
-
-        public void assertMethodsCalledAfterSubscription(Event... events) {
-            Event[] toCheck = new Event[events.length + 1];
-            System.arraycopy(events, 0, toCheck, 1, events.length);
-            toCheck[0] = Event.Subscribe;
-            assertThat("Unexpected methods called count.", methodsCalled, hasSize(toCheck.length));
-            assertThat("Unexpected methods called.", methodsCalled, contains(toCheck));
         }
 
         public List<Event> getMethodsCalled() {

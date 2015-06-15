@@ -25,7 +25,6 @@ final class SafeHttpClientEventsListener extends HttpClientEventsListener implem
     private final HttpClientEventsListener delegate;
 
     private final AtomicBoolean completed = new AtomicBoolean();
-    private final AtomicBoolean subscribed = new AtomicBoolean();
 
     public SafeHttpClientEventsListener(HttpClientEventsListener delegate) {
         this.delegate = delegate;
@@ -35,13 +34,6 @@ final class SafeHttpClientEventsListener extends HttpClientEventsListener implem
     public void onCompleted() {
         if (completed.compareAndSet(false, true)) {
             delegate.onCompleted();
-        }
-    }
-
-    @Override
-    public void onSubscribe() {
-        if (subscribed.compareAndSet(false, true)) {
-            delegate.onSubscribe();
         }
     }
 

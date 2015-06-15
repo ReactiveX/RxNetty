@@ -23,8 +23,7 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequestDecoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseEncoder;
@@ -52,8 +51,10 @@ import rx.functions.Func1;
 import rx.subscriptions.CompositeSubscription;
 
 import javax.net.ssl.SSLEngine;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpResponseStatus.*;
 import static io.reactivex.netty.events.Clock.*;
 import static java.util.concurrent.TimeUnit.*;
@@ -178,6 +179,11 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
     @Override
     public int getServerPort() {
         return server.getServerPort();
+    }
+
+    @Override
+    public SocketAddress getServerAddress() {
+        return server.getServerAddress();
     }
 
     @Override
@@ -409,8 +415,8 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     // enough info to decide which kind of failure has caused this error here.
                     responseHeaders = new DefaultHttpResponse(version, REQUEST_HEADER_FIELDS_TOO_LARGE);
                     responseHeaders.headers()
-                                   .set(Names.CONNECTION, HttpHeaders.Values.CLOSE)
-                                   .set(Names.CONTENT_LENGTH, 0);
+                                   .set(CONNECTION, HttpHeaderValues.CLOSE)
+                                   .set(CONTENT_LENGTH, 0);
                 } else {
                     responseHeaders = new DefaultHttpResponse(version, OK);
                 }
@@ -429,10 +435,10 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
                         // Add keep alive header as per:
                         // - http://www.w3.org/Protocols/HTTP/1.1/draft-ietf-http-v11-spec-01.html#Connection
-                        response.setHeader(Names.CONNECTION, HttpHeaders.Values.KEEP_ALIVE);
+                        response.setHeader(CONNECTION, HttpHeaderValues.KEEP_ALIVE);
                     }
                 } else {
-                    response.setHeader(Names.CONNECTION, HttpHeaders.Values.CLOSE);
+                    response.setHeader(CONNECTION, HttpHeaderValues.CLOSE);
                 }
             }
 

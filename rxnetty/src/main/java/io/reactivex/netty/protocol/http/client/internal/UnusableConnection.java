@@ -29,7 +29,7 @@ final class UnusableConnection<R, W> extends Connection<R, W> {
     protected UnusableConnection(Channel nettyChannel,
                                  ConnectionEventListener eventListener,
                                  EventPublisher eventPublisher) {
-        super(nettyChannel, eventListener, eventPublisher);
+        super(nettyChannel);
     }
 
     @Override

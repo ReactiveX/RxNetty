@@ -18,12 +18,12 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.Cookie;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
-import io.netty.handler.codec.http.ServerCookieEncoder;
+import io.netty.handler.codec.http.cookie.Cookie;
+import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.ChannelOperations;
@@ -44,7 +44,6 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
 
-import java.text.ParseException;
 import java.util.Date;
 import java.util.List;
 import java.util.Set;
@@ -57,7 +56,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
         super(new OnSubscribe<Void>() {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
-                state.sendHeaders().unsafeSubscribe(subscriber);
+                state.sendHeaders().write(Observable.<C>empty()).unsafeSubscribe(subscriber);
             }
         });
         this.state = state;
@@ -85,7 +84,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
 
     @Override
     public String getHeader(CharSequence name, String defaultValue) {
-        return HttpHeaders.getHeader(state.headers, name, defaultValue);
+        return state.headers.headers().get(name, defaultValue);
     }
 
     @Override
@@ -94,23 +93,23 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     }
 
     @Override
-    public Date getDateHeader(CharSequence name) throws ParseException {
-        return HttpHeaders.getDateHeader(state.headers, name);
+    public long getDateHeader(CharSequence name) {
+        return state.headers.headers().getTimeMillis(name);
     }
 
     @Override
-    public Date getDateHeader(CharSequence name, Date defaultValue) {
-        return HttpHeaders.getDateHeader(state.headers, name, defaultValue);
+    public long getDateHeader(CharSequence name, long defaultValue) {
+        return state.headers.headers().getTimeMillis(name, defaultValue);
     }
 
     @Override
     public int getIntHeader(CharSequence name) {
-        return HttpHeaders.getIntHeader(state.headers, name);
+        return state.headers.headers().getInt(name);
     }
 
     @Override
     public int getIntHeader(CharSequence name, int defaultValue) {
-        return HttpHeaders.getIntHeader(state.headers, name, defaultValue);
+        return state.headers.headers().getInt(name, defaultValue);
     }
 
     @Override
@@ -129,7 +128,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public HttpServerResponse<C> addCookie(Cookie cookie) {
         if (state.allowUpdate()) {
-            state.headers.headers().add(Names.SET_COOKIE, ServerCookieEncoder.encode(cookie));
+            state.headers.headers().add(HttpHeaderNames.SET_COOKIE, ServerCookieEncoder.STRICT.encode(cookie));
         }
         return this;
     }
@@ -137,7 +136,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public HttpServerResponse<C> addDateHeader(CharSequence name, Date value) {
         if (state.allowUpdate()) {
-            HttpHeaders.addDateHeader(state.headers, name, value);
+            state.headers.headers().add(name, value);
         }
         return this;
     }
@@ -146,7 +145,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     public HttpServerResponse<C> addDateHeader(CharSequence name, Iterable<Date> values) {
         if (state.allowUpdate()) {
             for (Date value : values) {
-                HttpHeaders.addDateHeader(state.headers, name, value);
+                state.headers.headers().add(name, value);
             }
         }
         return this;
@@ -163,7 +162,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public HttpServerResponse<C> setDateHeader(CharSequence name, Date value) {
         if (state.allowUpdate()) {
-            HttpHeaders.setDateHeader(state.headers, name, value);
+            state.headers.headers().set(name, value);
         }
         return this;
     }
@@ -171,7 +170,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public HttpServerResponse<C> setHeader(CharSequence name, Object value) {
         if (state.allowUpdate()) {
-            HttpHeaders.setHeader(state.headers, name, value);
+            state.headers.headers().set(name, value);
         }
         return this;
     }
@@ -180,7 +179,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     public HttpServerResponse<C> setDateHeader(CharSequence name, Iterable<Date> values) {
         if (state.allowUpdate()) {
             for (Date value : values) {
-                HttpHeaders.setDateHeader(state.headers, name, value);
+                state.headers.headers().set(name, value);
             }
         }
         return this;
@@ -213,7 +212,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public HttpServerResponse<C> setTransferEncodingChunked() {
         if (state.allowUpdate()) {
-            HttpHeaders.setTransferEncodingChunked(state.headers);
+            HttpHeaderUtil.setTransferEncodingChunked(state.headers, true);
         }
         return this;
     }

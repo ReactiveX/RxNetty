@@ -110,6 +110,4 @@ public abstract class ConnectionEventListener implements EventListener {
     @Override
     public void onCompleted() { }
 
-    @Override
-    public void onSubscribe() { }
 }

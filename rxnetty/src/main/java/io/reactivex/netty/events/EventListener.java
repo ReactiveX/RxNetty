@@ -25,8 +25,4 @@ public interface EventListener {
      */
     void onCompleted();
 
-    /**
-     * A callback when this listener is subscribed to an {@link EventSource}.
-     */
-    void onSubscribe();
 }

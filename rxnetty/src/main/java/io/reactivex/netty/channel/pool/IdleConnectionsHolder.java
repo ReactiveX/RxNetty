@@ -16,11 +16,10 @@
 package io.reactivex.netty.channel.pool;
 
 import io.netty.channel.EventLoop;
-import io.reactivex.netty.protocol.tcp.client.ClientState;
 import rx.Observable;
 
 /**
- * A holder of idle {@link PooledConnection} used by {@link PooledClientConnectionFactory}
+ * A holder of idle {@link PooledConnection} used by {@link PooledConnectionProvider}
  *
  * @param <W> Type of object that is written to the client using this holder.
  * @param <R> Type of object that is read from the the client using this holder.
@@ -69,10 +68,4 @@ public abstract class IdleConnectionsHolder<W, R> {
      * @param toRemove Connection to remove.
      */
     public abstract boolean remove(PooledConnection<R, W> toRemove);
-
-    public final <WW, RR> IdleConnectionsHolder<WW, RR> copy(ClientState<WW, RR> newState) {
-        return doCopy(newState);
-    }
-
-    protected abstract <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState);
 }

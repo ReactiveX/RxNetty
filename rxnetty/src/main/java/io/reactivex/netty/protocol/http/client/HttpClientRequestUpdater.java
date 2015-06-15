@@ -17,9 +17,9 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.util.concurrent.EventExecutorGroup;
 import rx.annotations.Experimental;
 import rx.functions.Action1;

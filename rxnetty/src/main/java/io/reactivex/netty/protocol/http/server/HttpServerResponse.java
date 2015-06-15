@@ -18,10 +18,10 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -123,7 +123,7 @@ public abstract class HttpServerResponse<C> extends ResponseContentWriter<C> {
      *
      * @throws ParseException if there is no such header or the header value is not a formatted date
      */
-    public abstract Date getDateHeader(CharSequence name) throws ParseException;
+    public abstract long getDateHeader(CharSequence name) throws ParseException;
 
     /**
      * Returns the date header value with the specified header name.  If there are more than one header value for the
@@ -137,7 +137,7 @@ public abstract class HttpServerResponse<C> extends ResponseContentWriter<C> {
      *
      * @return the header value or {@code defaultValue} if there is no header with this name.
      */
-    public abstract Date getDateHeader(CharSequence name, Date defaultValue);
+    public abstract long getDateHeader(CharSequence name, long defaultValue);
 
     /**
      * Returns the integer header value with the specified header name.  If there are more than one header value for

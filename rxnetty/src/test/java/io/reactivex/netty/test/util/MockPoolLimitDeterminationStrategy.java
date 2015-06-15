@@ -15,8 +15,8 @@
  */
 package io.reactivex.netty.test.util;
 
-import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
+import io.reactivex.netty.channel.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.channel.client.PoolLimitDeterminationStrategy;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -40,11 +40,6 @@ public class MockPoolLimitDeterminationStrategy implements PoolLimitDeterminatio
     @Override
     public int getAvailablePermits() {
         return delegate.getAvailablePermits();
-    }
-
-    @Override
-    public PoolLimitDeterminationStrategy copy() {
-        return this;
     }
 
     @Override

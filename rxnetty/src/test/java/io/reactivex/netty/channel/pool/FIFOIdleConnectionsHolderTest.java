@@ -84,15 +84,6 @@ public class FIFOIdleConnectionsHolderTest {
         holderRule.peekNow(added2); // one item is removed
     }
 
-    @Test(timeout = 60000)
-    public void testDoCopy() throws Exception {
-        PooledConnection<String, String> added = holderRule.addAConnection();
-        holderRule.peekNow(added); // check if added.
-
-        IdleConnectionsHolder<String, String> newHolder = holderRule.holder.doCopy(null);
-        HolderRule.peekNow(newHolder); // Copy should not copy state.
-    }
-
     public static class HolderRule extends ExternalResource {
 
         private FIFOIdleConnectionsHolder<String, String> holder;

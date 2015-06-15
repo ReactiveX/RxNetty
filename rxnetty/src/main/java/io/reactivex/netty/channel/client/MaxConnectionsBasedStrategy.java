@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.protocol.client;
+package io.reactivex.netty.channel.client;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,7 +29,6 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
 
     private final AtomicInteger limitEnforcer;
     private final AtomicInteger maxConnections;
-    private final int originalMaxConnLimit; // Used for copy.
 
     public MaxConnectionsBasedStrategy() {
         this(DEFAULT_MAX_CONNECTIONS);
@@ -38,7 +37,6 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
     public MaxConnectionsBasedStrategy(int maxConnections) {
         this.maxConnections = new AtomicInteger(maxConnections);
         limitEnforcer = new AtomicInteger();
-        originalMaxConnLimit = maxConnections;
     }
 
     @Override
@@ -81,11 +79,6 @@ public class MaxConnectionsBasedStrategy implements PoolLimitDeterminationStrate
     @Override
     public int getAvailablePermits() {
         return maxConnections.get() - limitEnforcer.get();
-    }
-
-    @Override
-    public MaxConnectionsBasedStrategy copy() {
-        return new MaxConnectionsBasedStrategy(originalMaxConnLimit);
     }
 
     @Override

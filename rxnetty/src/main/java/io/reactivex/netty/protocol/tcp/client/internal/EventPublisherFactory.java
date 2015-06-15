@@ -13,24 +13,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.client;
+package io.reactivex.netty.protocol.tcp.client.internal;
 
-public class PoolExhaustedException extends Exception {
+import io.netty.channel.Channel;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
+import rx.functions.Action1;
+import rx.functions.Func1;
 
-    private static final long serialVersionUID = -6299997509113653123L;
+public interface EventPublisherFactory extends Func1<Channel, EventSource<TcpClientEventListener>>,
+                                               EventSource<TcpClientEventListener> {
 
-    public PoolExhaustedException() {
-    }
+    EventPublisherFactory copy();
 
-    public PoolExhaustedException(Throwable cause) {
-        super(cause);
-    }
+    TcpClientEventListener getGlobalClientEventPublisher();
 
-    public PoolExhaustedException(String message) {
-        super(message);
-    }
-
-    public PoolExhaustedException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }

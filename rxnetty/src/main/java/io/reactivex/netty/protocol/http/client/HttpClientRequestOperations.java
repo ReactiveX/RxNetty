@@ -15,9 +15,9 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.Cookie;
 
 import java.util.Date;
 import java.util.List;

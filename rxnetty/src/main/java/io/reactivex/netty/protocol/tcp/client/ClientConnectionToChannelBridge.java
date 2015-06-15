@@ -25,12 +25,13 @@ import io.netty.util.AttributeKey;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.pool.PooledConnection;
 import io.reactivex.netty.events.Clock;
+import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.tcp.AbstractConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.ConnectionCreationFailedEvent;
 import io.reactivex.netty.protocol.tcp.ConnectionInputSubscriberResetEvent;
 import io.reactivex.netty.protocol.tcp.ConnectionSubscriberEvent;
 import io.reactivex.netty.protocol.tcp.EmitConnectionEvent;
-import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscriber;
@@ -40,6 +41,7 @@ import rx.subscriptions.Subscriptions;
 
 import java.net.SocketAddress;
 
+import static io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory.*;
 import static java.util.concurrent.TimeUnit.*;
 
 /**
@@ -66,21 +68,40 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     private static final Logger logger = LoggerFactory.getLogger(ClientConnectionToChannelBridge.class);
     private static final String HANDLER_NAME = "client-conn-channel-bridge";
 
-    private final TcpClientEventPublisher eventPublisher;
+    private EventPublisher eventPublisher;
+    private TcpClientEventListener eventListener;
     private final boolean isSecure;
     private long connectStartTimeMillis;
 
-    private ClientConnectionToChannelBridge(TcpClientEventPublisher eventPublisher, boolean isSecure) {
-        super(HANDLER_NAME, eventPublisher, eventPublisher);
-        this.eventPublisher = eventPublisher;
+    private ClientConnectionToChannelBridge(boolean isSecure) {
+        super(HANDLER_NAME, CONNECTION_EVENT_LISTENER, EVENT_PUBLISHER);
         this.isSecure = isSecure;
     }
 
-    private ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub,
-                                            TcpClientEventPublisher eventPublisher, boolean isSecure) {
-        super(HANDLER_NAME, connSub, eventPublisher, eventPublisher);
-        this.eventPublisher = eventPublisher;
+    private ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub, boolean isSecure) {
+        super(HANDLER_NAME, connSub, CONNECTION_EVENT_LISTENER, EVENT_PUBLISHER);
         this.isSecure = isSecure;
+    }
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        eventPublisher = ctx.channel().attr(EVENT_PUBLISHER).get();
+        eventListener = ctx.channel().attr(TCP_CLIENT_EVENT_LISTENER).get();
+
+        if (null == eventPublisher) {
+            logger.error("No Event publisher bound to the channel, closing channel.");
+            ctx.channel().close();
+            return;
+        }
+
+        if (eventPublisher.publishingEnabled() && null == eventListener) {
+            logger.error("No Event listener bound to the channel and event publishing is enabled., closing channel.");
+            ctx.channel().close();
+            return;
+        }
+
+
+        super.handlerAdded(ctx);
     }
 
     @Override
@@ -122,7 +143,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         connectStartTimeMillis = Clock.newStartTimeMillis();
 
         if (eventPublisher.publishingEnabled()) {
-            eventPublisher.onConnectStart();
+            eventListener.onConnectStart();
             promise.addListener(new ChannelFutureListener() {
                 @SuppressWarnings("unchecked")
                 @Override
@@ -130,9 +151,9 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                     if (eventPublisher.publishingEnabled()) {
                         long endTimeMillis = Clock.onEndMillis(connectStartTimeMillis);
                         if (!future.isSuccess()) {
-                            eventPublisher.onConnectFailed(endTimeMillis, MILLISECONDS, future.cause());
+                            eventListener.onConnectFailed(endTimeMillis, MILLISECONDS, future.cause());
                         } else {
-                            eventPublisher.onConnectSuccess(endTimeMillis, MILLISECONDS);
+                            eventListener.onConnectSuccess(endTimeMillis, MILLISECONDS);
                         }
                     }
                 }
@@ -196,24 +217,21 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     @SuppressWarnings("unchecked")
     private void onConnectFailedEvent(ConnectionCreationFailedEvent event) {
         if (eventPublisher.publishingEnabled()) {
-            eventPublisher.onConnectFailed(connectStartTimeMillis, MILLISECONDS, event.getThrowable());
+            eventListener.onConnectFailed(connectStartTimeMillis, MILLISECONDS, event.getThrowable());
         }
     }
 
     public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(ChannelPipeline pipeline,
-                                                                             TcpClientEventPublisher eventPublisher,
                                                                              boolean isSecure) {
-        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(eventPublisher, isSecure);
+        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(isSecure);
         pipeline.addLast(HANDLER_NAME, toAdd);
         return toAdd;
     }
 
     public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(Subscriber<? super Connection<R, W>> sub,
                                                                              ChannelPipeline pipeline,
-                                                                             TcpClientEventPublisher eventPublisher,
                                                                              boolean isSecure) {
-        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(sub, eventPublisher,
-                                                                                            isSecure);
+        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(sub, isSecure);
         pipeline.addLast(HANDLER_NAME, toAdd);
         return toAdd;
     }

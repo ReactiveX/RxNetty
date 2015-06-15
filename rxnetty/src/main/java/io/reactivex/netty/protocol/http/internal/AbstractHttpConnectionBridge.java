@@ -24,9 +24,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpVersion;
@@ -46,6 +44,9 @@ import rx.subscriptions.Subscriptions;
 
 import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 
 public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandler {
 
@@ -94,12 +95,12 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         if (isOutboundHeader(msg)) {
             headerWriteStartTimeMillis = Clock.newStartTimeMillis();
             HttpMessage httpMsg = (HttpMessage) msg;
-            if (!HttpHeaders.isContentLengthSet(httpMsg) && !HttpVersion.HTTP_1_0.equals(httpMsg.protocolVersion())) {
+            if (!HttpHeaderUtil.isContentLengthSet(httpMsg) && !HttpVersion.HTTP_1_0.equals(httpMsg.protocolVersion())) {
                 // If there is no content length we need to specify the transfer encoding as chunked as we always
                 // send data in multiple HttpContent.
                 // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
                 // as expected.
-                httpMsg.headers().set(Names.TRANSFER_ENCODING, Values.CHUNKED);
+                httpMsg.headers().set(TRANSFER_ENCODING, CHUNKED);
             }
 
             onOutboundHeaderWrite(httpMsg, promise, headerWriteStartTimeMillis);

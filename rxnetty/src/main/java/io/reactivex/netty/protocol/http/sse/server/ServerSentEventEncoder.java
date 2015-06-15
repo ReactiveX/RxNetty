@@ -16,14 +16,15 @@
 package io.reactivex.netty.protocol.http.sse.server;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufProcessor;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
-import io.netty.handler.codec.http.HttpHeaders.Names;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.util.ByteProcessor;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 
 /**
  * An encoder to handle {@link io.reactivex.netty.protocol.http.sse.ServerSentEvent} encoding for an HTTP server.
@@ -61,7 +62,7 @@ public class ServerSentEventEncoder extends ChannelOutboundHandlerAdapter {
         if (msg instanceof HttpResponse) {
             HttpResponse response = (HttpResponse) msg;
             /*Set the content-type for SSE*/
-            response.headers().set(Names.CONTENT_TYPE, "text/event-stream");
+            response.headers().set(CONTENT_TYPE, "text/event-stream");
         } else if (msg instanceof ServerSentEvent) {
 
             final ServerSentEvent serverSentEvent = (ServerSentEvent) msg;
@@ -92,7 +93,7 @@ public class ServerSentEventEncoder extends ChannelOutboundHandlerAdapter {
             if (splitSseData) {
                 while (content.isReadable()) { // Scan the buffer and split on new line into multiple data lines.
                     final int readerIndexAtStart = content.readerIndex();
-                    int newLineIndex = content.forEachByte(new ByteBufProcessor() {
+                    int newLineIndex = content.forEachByte(new ByteProcessor() {
                         @Override
                         public boolean process(byte value) throws Exception {
                             return (char) value != '\n';

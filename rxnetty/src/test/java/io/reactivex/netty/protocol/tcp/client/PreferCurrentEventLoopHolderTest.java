@@ -19,13 +19,13 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.Future;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
+import io.reactivex.netty.channel.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.channel.client.PreferCurrentEventLoopGroup;
 import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
 import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
 import io.reactivex.netty.channel.pool.PoolConfig;
 import io.reactivex.netty.channel.pool.PooledConnection;
 import io.reactivex.netty.channel.pool.PooledConnection.Owner;
-import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.protocol.client.PreferCurrentEventLoopGroup;
 import io.reactivex.netty.protocol.tcp.client.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import org.junit.Rule;
@@ -164,9 +164,11 @@ public class PreferCurrentEventLoopHolderTest {
                     eventPublisher = new TcpClientEventPublisher();
                     holder = new PreferCurrentEventLoopHolder<String, String>(eventLoopGroup,
                                                                               new IdleConnectionsHolderFactoryImpl());
-                    poolConfig = new PoolConfig<>(TimeUnit.DAYS.toMillis(1),
-                                                  Observable.timer(1, TimeUnit.DAYS, Schedulers.test()),
-                                                  new MaxConnectionsBasedStrategy(1), holder);
+                    poolConfig = new PoolConfig<>();
+                    poolConfig.maxIdleTimeoutMillis(TimeUnit.DAYS.toMillis(1))
+                              .idleConnectionsCleanupTimer(Observable.timer(1, TimeUnit.DAYS, Schedulers.test()))
+                              .limitDeterminationStrategy(new MaxConnectionsBasedStrategy(1))
+                              .idleConnectionsHolder(holder);
                     discarded = new ConcurrentLinkedQueue<>();
                     released = new ConcurrentLinkedQueue<>();
                     base.evaluate();
@@ -176,8 +178,9 @@ public class PreferCurrentEventLoopHolderTest {
 
         public PooledConnection<String, String> addConnection() throws Exception {
             Connection<String, String> connection = ConnectionImpl.create(channel, eventPublisher, eventPublisher);
-            PooledConnection<String, String> pooledConnection = PooledConnection.create(this, poolConfig, connection,
-                                                                                        eventPublisher);
+            PooledConnection<String, String> pooledConnection = PooledConnection.create(this,
+                                                                                        poolConfig.getMaxIdleTimeMillis(),
+                                                                                        connection);
             holder.add(pooledConnection);
 
             runAllPendingTasksOnChannel();

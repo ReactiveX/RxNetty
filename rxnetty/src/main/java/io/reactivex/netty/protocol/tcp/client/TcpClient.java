@@ -17,29 +17,22 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.events.EventSource;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
-import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
-import java.net.InetSocketAddress;
-import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,8 +47,6 @@ import java.util.concurrent.TimeUnit;
  * @param <R> The type of objects read from this client.
  */
 public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListener> {
-
-    public static final String TCP_CLIENT_NO_NAME = "TcpClient-no-name";
 
     /**
      * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
@@ -236,77 +227,6 @@ public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListe
     public abstract <WW, RR> TcpClient<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code maxConnections} as the maximum number of concurrent connections created by the newly created client instance.
-     *
-     * @param maxConnections Maximum number of concurrent connections to be created by this client.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<W, R> maxConnections(int maxConnections);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code idleConnectionsTimeoutMillis} as the time elapsed before an idle connections will be closed by the newly
-     * created client instance.
-     *
-     * @param idleConnectionsTimeoutMillis Time elapsed before an idle connections will be closed by the newly
-     * created client instance
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<W, R> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code strategy} as the strategy to control the maximum concurrent connections created by the
-     * newly created client instance.
-     *
-     * @param strategy Strategy to control the maximum concurrent connections created by the
-     * newly created client instance.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<W, R> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code idleConnectionCleanupTimer} for trigerring detection and cleanup of idle connections by the newly created
-     * client instance.
-     *
-     * @param idleConnectionCleanupTimer Timer to trigger idle connections cleanup.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<W, R> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and disabling idle connection
-     * cleanup for the newly created client instance.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<W, R> noIdleConnectionCleanup();
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and disabling connection
-     * pooling for the newly created client instance.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<W, R> noConnectionPooling();
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and using the passed
-     * {@code factory} for the newly created client instance.
-     *
-     * @param factory Connection factory to use for the new client.
-     *
-     * @return A new {@link TcpClient} instance.
-     */
-    public abstract TcpClient<W, R> connectionFactory(Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> factory);
-
-    /**
      * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
      * passed level for the newly created client instance.
      *
@@ -365,49 +285,11 @@ public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListe
      */
     public abstract TcpClient<W, R> unsafeSecure();
 
-    /**
-     * Returns the event publisher for this client.
-     *
-     * @return The event publisher for this client.
-     */
-    public abstract TcpClientEventPublisher getEventPublisher();
-
     public static TcpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
-        return newClient(TCP_CLIENT_NO_NAME, host, port);
+        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(host, port));
     }
 
-    public static TcpClient<ByteBuf, ByteBuf> newClient(String name, String host, int port) {
-        return new TcpClientImpl<>(name, new InetSocketAddress(host, port));
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String host, int port) {
-        return newClient(eventLoopGroup, channelClass, TCP_CLIENT_NO_NAME, host, port);
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String name, String host,
-                                                        int port) {
-        return new TcpClientImpl<>(name, eventLoopGroup, channelClass, new InetSocketAddress(host, port));
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress remoteAddress) {
-        return newClient(TCP_CLIENT_NO_NAME, remoteAddress);
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(String name, SocketAddress remoteAddress) {
-        return new TcpClientImpl<>(name, remoteAddress);
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass,
-                                                        SocketAddress remoteAddress) {
-        return newClient(eventLoopGroup, channelClass, TCP_CLIENT_NO_NAME, remoteAddress);
-    }
-
-    public static TcpClient<ByteBuf, ByteBuf> newClient(EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass, String name,
-                                                        SocketAddress remoteAddress) {
-        return new TcpClientImpl<>(name, eventLoopGroup, channelClass, remoteAddress);
+    public static TcpClient<ByteBuf, ByteBuf> newClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
+        return TcpClientImpl.create(connectionProvider);
     }
 }

@@ -24,18 +24,13 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.channel.pool.FIFOIdleConnectionsHolder;
-import io.reactivex.netty.channel.pool.IdleConnectionsHolder;
-import io.reactivex.netty.channel.pool.PooledClientConnectionFactoryImpl;
+import io.reactivex.netty.channel.pool.PoolConfig;
 import io.reactivex.netty.channel.pool.PooledConnection;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl;
-import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
-import io.reactivex.netty.protocol.tcp.client.ClientState;
-import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
 import java.nio.channels.ClosedChannelException;
@@ -64,7 +59,7 @@ public class HttpClientPoolTest {
         subscriber.assertTerminalEvent();
         subscriber.assertNoErrors();
 
-        clientRule.getChannel().runPendingTasks();
+        clientRule.getLastCreatedChannel().runPendingTasks();
 
         clientRule.assertIdleConnections(1);
     }
@@ -80,7 +75,7 @@ public class HttpClientPoolTest {
         clientRule.assertIdleConnections(0); // No idle connections post connect
         clientRule.assertRequestHeadersWritten(HttpMethod.GET, "/");
 
-        clientRule.getChannel().close().await();
+        clientRule.getLastCreatedChannel().close().await();
 
         subscriber.assertTerminalEvent();
         assertThat("On complete sent instead of onError", subscriber.getOnCompletedEvents(), is(empty()));
@@ -88,7 +83,7 @@ public class HttpClientPoolTest {
         assertThat("Unexpected error notification.", subscriber.getOnErrorEvents().get(0),
                    is(instanceOf(ClosedChannelException.class)));
 
-        clientRule.getChannel().runPendingTasks();
+        clientRule.getLastCreatedChannel().runPendingTasks();
 
         clientRule.assertIdleConnections(0); // Since, channel is closed, it should be discarded.
     }
@@ -113,7 +108,7 @@ public class HttpClientPoolTest {
         HttpClientResponse<ByteBuf> resp = clientRule.discardResponseContent(responseSub);
         Channel nettyChannel = resp.unsafeNettyChannel();
 
-        clientRule.getChannel().runPendingTasks();
+        clientRule.getLastCreatedChannel().runPendingTasks();
 
         // Close is while release, so this should be post running pending tasks
         assertThat("Channel not closed.", nettyChannel.isOpen(), is(false));
@@ -126,7 +121,7 @@ public class HttpClientPoolTest {
 
         Channel channel1 = clientRule.sendRequestAndGetChannel();
 
-        clientRule.getChannel().runPendingTasks();
+        clientRule.getLastCreatedChannel().runPendingTasks();
 
         clientRule.assertIdleConnections(1);
 
@@ -137,31 +132,19 @@ public class HttpClientPoolTest {
 
     public static class PooledHttpClientRule extends HttpClientRule {
 
-        private IdleConnectionsHolder<ByteBuf, ByteBuf> idleConnHolder = new FIFOIdleConnectionsHolder<ByteBuf, ByteBuf>() {
-            @SuppressWarnings("unchecked")
-            @Override
-            protected <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState) {
-                return (IdleConnectionsHolder<WW, RR>) this;
-            }
-        };
+        private FIFOIdleConnectionsHolder<ByteBuf, ByteBuf> idleConnHolder;
 
         @Override
         public Statement apply(final Statement base, Description description) {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    setup(); // sets the client et al.
-                    final TcpClient<ByteBuf, ByteBuf> c = getTcpClient().maxConnections(1);
-                    setTcpClient(c.connectionFactory(new Func1<ClientState<ByteBuf, ByteBuf>, ClientConnectionFactory<ByteBuf, ByteBuf>>() {
-                                @Override
-                                public ClientConnectionFactory<ByteBuf, ByteBuf> call(ClientState<ByteBuf, ByteBuf> newState) {
-                                    ClientConnectionFactory<ByteBuf, ByteBuf> delegate = getConnFactory().call(newState);
-                                    idleConnHolder = idleConnHolder.copy(newState);
-                                    return new PooledClientConnectionFactoryImpl<ByteBuf, ByteBuf>(newState,
-                                                                                                   idleConnHolder,
-                                                                                                   delegate);
-                                }
-                            }));
+                    idleConnHolder = new FIFOIdleConnectionsHolder<>();
+                    PoolConfig<ByteBuf, ByteBuf> pConfig = new PoolConfig<ByteBuf, ByteBuf>();
+                    pConfig.idleConnectionsHolder(idleConnHolder);
+
+                    setupPooledConnectionFactroy(pConfig); // sets the client et al.
+
                     base.evaluate();
                 }
             };

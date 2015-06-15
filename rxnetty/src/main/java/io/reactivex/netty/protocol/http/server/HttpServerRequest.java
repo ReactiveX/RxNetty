@@ -16,16 +16,15 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.DecoderResult;
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import rx.Observable;
 import rx.Subscriber;
 
-import java.text.ParseException;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
@@ -184,10 +183,8 @@ public abstract class HttpServerRequest<T> {
      * @param name The name of the header to search
      *
      * @return the header value
-     *
-     * @throws java.text.ParseException if there is no such header or the header value is not a formatted date
      */
-    public abstract Date getDateHeader(CharSequence name) throws ParseException;
+    public abstract long getDateHeader(CharSequence name);
 
     /**
      * Returns the date header value with the specified header name.  If there are more than one header value for the
@@ -201,7 +198,7 @@ public abstract class HttpServerRequest<T> {
      *
      * @return the header value or {@code defaultValue} if there is no header with this name.
      */
-    public abstract Date getDateHeader(CharSequence name, Date defaultValue);
+    public abstract long getDateHeader(CharSequence name, long defaultValue);
 
     /**
      * Returns the value of the {@code "Host"} header.

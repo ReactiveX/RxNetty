@@ -16,8 +16,7 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.HttpHeaders;
-import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpResponse;
 import io.reactivex.netty.channel.ChannelOperations;
 import io.reactivex.netty.channel.Connection;
@@ -29,6 +28,8 @@ import rx.Subscriber;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
+
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 
 final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
 
@@ -55,8 +56,8 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
                 /*We are never sending content as the subscription is to the headers only writer.*/
-                if (!HttpHeaders.isTransferEncodingChunked(headers)) {
-                    headers.headers().set(Names.CONTENT_LENGTH, 0);
+                if (!HttpHeaderUtil.isTransferEncodingChunked(headers)) {
+                    headers.headers().set(CONTENT_LENGTH, 0);
                 }
                 connection.write(Observable.just(headers)).unsafeSubscribe(subscriber);
             }

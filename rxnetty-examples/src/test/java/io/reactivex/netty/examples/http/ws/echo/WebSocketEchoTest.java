@@ -16,6 +16,8 @@
 
 package io.reactivex.netty.examples.http.ws.echo;
 
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import org.junit.Test;
 
@@ -44,8 +46,10 @@ public class WebSocketEchoTest extends ExamplesEnvironment {
         final String headerString = output.poll();
         assertThat("Unexpected HTTP initial line of response.", headerString,
                    containsString("HTTP/1.1 101 Switching Protocols"));
-        assertThat("WebSocket accept header not found in response.", headerString, containsString("Sec-WebSocket-Accept:"));
-        assertThat("Unexpected connection header.", headerString, containsString("Connection: Upgrade"));
+        assertThat("WebSocket accept header not found in response.", headerString,
+                   containsString(HttpHeaderNames.SEC_WEBSOCKET_ACCEPT + ":"));
+        assertThat("Unexpected connection header.", headerString,
+                   containsString(HttpHeaderNames.CONNECTION + ": " + HttpHeaderValues.UPGRADE));
 
         assertThat("Unexpected content", output, contains(content));
     }

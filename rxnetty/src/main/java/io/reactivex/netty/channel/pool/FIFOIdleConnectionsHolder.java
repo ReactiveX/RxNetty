@@ -15,7 +15,6 @@
  */
 package io.reactivex.netty.channel.pool;
 
-import io.reactivex.netty.protocol.tcp.client.ClientState;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -71,10 +70,5 @@ public class FIFOIdleConnectionsHolder<W, R> extends IdleConnectionsHolder<W, R>
     @Override
     public boolean remove(PooledConnection<R, W> toRemove) {
         return idleConnections.remove(toRemove);
-    }
-
-    @Override
-    protected <WW, RR> IdleConnectionsHolder<WW, RR> doCopy(ClientState<WW, RR> newState) {
-        return new FIFOIdleConnectionsHolder<>();
     }
 }

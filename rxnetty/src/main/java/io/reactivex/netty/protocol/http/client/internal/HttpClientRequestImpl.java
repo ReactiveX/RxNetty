@@ -17,23 +17,25 @@ package io.reactivex.netty.protocol.http.client.internal;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.events.Clock;
+import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientRequestUpdater;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
-import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
 import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import io.reactivex.netty.protocol.http.ws.client.internal.WebSocketRequestImpl;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory;
 import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Action1;
@@ -53,7 +55,6 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     private final RawRequest<I, O> rawRequest;
     private final TcpClient<?, HttpClientResponse<O>> client;
-    private final HttpClientEventPublisher eventPublisher;
 
     private final Func1<I, Boolean> flushOnEachSelector = new Func1<I, Boolean>() {
         @Override
@@ -62,12 +63,10 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         }
     };
 
-    private HttpClientRequestImpl(final RawRequest<I, O> rawRequest, final TcpClient<?, HttpClientResponse<O>> client,
-                                  HttpClientEventPublisher eventPublisher) {
-        super(new OnSubscribeFuncImpl<>(client, rawRequest, eventPublisher));
+    private HttpClientRequestImpl(final RawRequest<I, O> rawRequest, final TcpClient<?, HttpClientResponse<O>> client) {
+        super(new OnSubscribeFuncImpl<>(client, rawRequest));
         this.rawRequest = rawRequest;
         this.client = client;
-        this.eventPublisher = eventPublisher;
     }
 
     @Override
@@ -185,10 +184,10 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     @Override
     public HttpClientRequest<I, O> followRedirects(int maxRedirects) {
-        final Redirector<I, O> redirector = new Redirector<I, O>(maxRedirects, client, eventPublisher);
+        final Redirector<I, O> redirector = new Redirector<I, O>(maxRedirects, client);
         final RawRequest<I, O> newRawRequest = rawRequest.followRedirect(redirector);
 
-        HttpClientRequestImpl<I, O> toReturn = new HttpClientRequestImpl<>(newRawRequest, client, eventPublisher);
+        HttpClientRequestImpl<I, O> toReturn = new HttpClientRequestImpl<>(newRawRequest, client);
         redirector.setOriginalRequest(newRawRequest);
         return toReturn;
     }
@@ -200,72 +199,72 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     @Override
     public HttpClientRequest<I, O> setMethod(HttpMethod method) {
-        return new HttpClientRequestImpl<>(rawRequest.setMethod(method), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setMethod(method), client);
     }
 
     @Override
     public HttpClientRequest<I, O> setUri(String newUri) {
-        return new HttpClientRequestImpl<>(rawRequest.setUri(newUri), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setUri(newUri), client);
     }
 
     @Override
     public HttpClientRequest<I, O> addHeader(CharSequence name, Object value) {
-        return new HttpClientRequestImpl<>(rawRequest.addHeader(name, value), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.addHeader(name, value), client);
     }
 
     @Override
     public HttpClientRequest<I, O> addCookie(Cookie cookie) {
-        return new HttpClientRequestImpl<>(rawRequest.addCookie(cookie), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.addCookie(cookie), client);
     }
 
     @Override
     public HttpClientRequest<I, O> addDateHeader(CharSequence name, Date value) {
-        return new HttpClientRequestImpl<>(rawRequest.addDateHeader(name, value), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.addDateHeader(name, value), client);
     }
 
     @Override
     public HttpClientRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
-        return new HttpClientRequestImpl<>(rawRequest.addDateHeader(name, values), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.addDateHeader(name, values), client);
     }
 
     @Override
     public HttpClientRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
-        return new HttpClientRequestImpl<>(rawRequest.addHeaderValues(name, values), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.addHeaderValues(name, values), client);
     }
 
     @Override
     public HttpClientRequest<I, O> setDateHeader(CharSequence name, Date value) {
-        return new HttpClientRequestImpl<>(rawRequest.setDateHeader(name, value), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setDateHeader(name, value), client);
     }
 
     @Override
     public HttpClientRequest<I, O> setHeader(CharSequence name, Object value) {
-        return new HttpClientRequestImpl<>(rawRequest.setHeader(name, value), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setHeader(name, value), client);
     }
 
     @Override
     public HttpClientRequest<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
-        return new HttpClientRequestImpl<>(rawRequest.setDateHeader(name, values), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setDateHeader(name, values), client);
     }
 
     @Override
     public HttpClientRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
-        return new HttpClientRequestImpl<>(rawRequest.setHeaderValues(name, values), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setHeaderValues(name, values), client);
     }
 
     @Override
     public HttpClientRequest<I, O> removeHeader(CharSequence name) {
-        return new HttpClientRequestImpl<>(rawRequest.removeHeader(name), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.removeHeader(name), client);
     }
 
     @Override
     public HttpClientRequest<I, O> setKeepAlive(boolean keepAlive) {
-        return new HttpClientRequestImpl<>(rawRequest.setKeepAlive(keepAlive), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setKeepAlive(keepAlive), client);
     }
 
     @Override
     public HttpClientRequest<I, O> setTransferEncodingChunked() {
-        return new HttpClientRequestImpl<>(rawRequest.setTransferEncodingChunked(), client, eventPublisher);
+        return new HttpClientRequestImpl<>(rawRequest.setTransferEncodingChunked(), client);
     }
 
     @Override
@@ -381,12 +380,11 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
                                                         final TcpClient<?, HttpClientResponse<O>> client,
-                                                        HttpClientEventPublisher eventPublisher,
                                                         int maxRedirects) {
         Redirector<I, O> redirector = NO_REDIRECTS == maxRedirects
                                                                 ? null
-                                                                : new Redirector<I, O>(maxRedirects, client,
-                                                                                       eventPublisher);
+                                                                : new Redirector<I, O>(maxRedirects, client
+        );
 
         final RawRequest<I, O> rawRequest = RawRequest.create(version, httpMethod, uri, redirector);
 
@@ -394,21 +392,19 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             redirector.setOriginalRequest(rawRequest);
         }
 
-        final HttpClientRequestImpl<I, O> toReturn = new HttpClientRequestImpl<>(rawRequest, client, eventPublisher);
+        final HttpClientRequestImpl<I, O> toReturn = new HttpClientRequestImpl<>(rawRequest, client);
         return toReturn;
     }
 
     public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
-                                                        final TcpClient<?, HttpClientResponse<O>> client,
-                                                        HttpClientEventPublisher eventPublisher) {
-        return create(version, httpMethod, uri, client, eventPublisher, NO_REDIRECTS);
+                                                        final TcpClient<?, HttpClientResponse<O>> client) {
+        return create(version, httpMethod, uri, client, NO_REDIRECTS);
     }
 
     public static <I, O> HttpClientRequest<I, O> create(final RawRequest<I, O> rawRequest,
-                                                        final TcpClient<?, HttpClientResponse<O>> client,
-                                                        HttpClientEventPublisher eventPublisher) {
-        return new HttpClientRequestImpl<>(rawRequest, client, eventPublisher);
+                                                        final TcpClient<?, HttpClientResponse<O>> client) {
+        return new HttpClientRequestImpl<>(rawRequest, client);
     }
 
     @SuppressWarnings("unchecked")
@@ -418,14 +414,14 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     @SuppressWarnings("unchecked")
     private <II, OO> HttpClientRequest<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> c) {
-        return new HttpClientRequestImpl<II, OO>((RawRequest<II, OO>) rawRequest, c, eventPublisher);
+        return new HttpClientRequestImpl<II, OO>((RawRequest<II, OO>) rawRequest, c);
     }
 
     @SuppressWarnings("rawtypes")
     private Observable<HttpClientResponse<O>> _writeContentRaw(Observable rawContent, boolean hasTrailers) {
         final RawRequest<I, O> r = RawRequest.create(rawRequest.getHeaders(), rawContent, hasTrailers,
                                                rawRequest.getRedirector());
-        return new HttpClientRequestImpl<I, O>(r, client, eventPublisher);
+        return new HttpClientRequestImpl<I, O>(r, client);
     }
 
     @SuppressWarnings("rawtypes")
@@ -434,7 +430,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         final RawRequest<I, O> r = RawRequest
                 .create(rawRequest.getHeaders(), rawContent, flushSelector, hasTrailers,
                         rawRequest.getRedirector());
-        return new HttpClientRequestImpl<I, O>(r, client, eventPublisher);
+        return new HttpClientRequestImpl<I, O>(r, client);
     }
 
     public RawRequest<I, O> unsafeRawRequest() {
@@ -451,10 +447,9 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         private final Observable source;
         private final TcpClient<?, HttpClientResponse<O>> client;
 
-        public OnSubscribeFuncImpl(final TcpClient<?, HttpClientResponse<O>> client, RawRequest<I, O> rawRequest,
-                                   HttpClientEventPublisher eventPublisher) {
+        public OnSubscribeFuncImpl(final TcpClient<?, HttpClientResponse<O>> client, RawRequest<I, O> rawRequest) {
             this.client = client;
-            ConnToResponseFunc<I, O> connToResponseFunc = new ConnToResponseFunc<>(rawRequest, eventPublisher);
+            ConnToResponseFunc<I, O> connToResponseFunc = new ConnToResponseFunc<>(rawRequest);
             Observable<HttpClientResponse<O>> source = this.client.createConnectionRequest()
                                                                   .take(1)
                                                                   .switchMap(connToResponseFunc);
@@ -480,18 +475,21 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             implements Func1<Connection<HttpClientResponse<O>, ?>, Observable<HttpClientResponse<O>>> {
 
         private final RawRequest<I, O> rawRequest;
-        private final HttpClientEventPublisher eventPublisher;
 
-        public ConnToResponseFunc(RawRequest<I, O> rawRequest, HttpClientEventPublisher eventPublisher) {
+        public ConnToResponseFunc(RawRequest<I, O> rawRequest) {
             this.rawRequest = rawRequest;
-            this.eventPublisher = eventPublisher;
         }
 
         @Override
         public Observable<HttpClientResponse<O>> call(final Connection<HttpClientResponse<O>, ?> conn) {
             final Observable<HttpClientResponse<O>> input = conn.getInput();
 
-            return writeRequest(conn).lift(new RequestWriteMetricsOperator(eventPublisher))
+            final HttpClientEventsListener eventsListener =
+                    conn.unsafeNettyChannel().attr(HttpEventPublisherFactory.HTTP_CLIENT_EVENT_LISTENER).get();
+            final EventPublisher eventPublisher =
+                    conn.unsafeNettyChannel().attr(TcpEventPublisherFactory.EVENT_PUBLISHER).get();
+
+            return writeRequest(conn).lift(new RequestWriteMetricsOperator(eventsListener, eventPublisher))
                                      .map(new VoidToAnythingCast<HttpClientResponse<O>>())
                                      .ignoreElements()
                                      .concatWith(input.take(1))
@@ -511,23 +509,25 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     private static class RequestWriteMetricsOperator implements Operator<Void, Void> {
 
-        private final HttpClientEventPublisher eventPublisher;
+        private final EventPublisher eventPublisher;
+        private final HttpClientEventsListener eventsListener;
 
-        public RequestWriteMetricsOperator(HttpClientEventPublisher eventPublisher) {
+        public RequestWriteMetricsOperator(HttpClientEventsListener eventsListener, EventPublisher eventPublisher) {
             this.eventPublisher = eventPublisher;
+            this.eventsListener = eventsListener;
         }
 
         @Override
         public Subscriber<? super Void> call(final Subscriber<? super Void> o) {
             final long startTimeMillis = eventPublisher.publishingEnabled() ? Clock.newStartTimeMillis() : -1;
             if (eventPublisher.publishingEnabled()) {
-                eventPublisher.onRequestSubmitted();
+                eventsListener.onRequestSubmitted();
             }
             return new Subscriber<Void>(o) {
                 @Override
                 public void onCompleted() {
                     if (eventPublisher.publishingEnabled()) {
-                        eventPublisher.onRequestWriteComplete(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                        eventsListener.onRequestWriteComplete(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
                     }
                     o.onCompleted();
                 }
@@ -535,7 +535,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                 @Override
                 public void onError(Throwable e) {
                     if (eventPublisher.publishingEnabled()) {
-                        eventPublisher.onRequestWriteFailed(Clock.onEndMillis(startTimeMillis), MILLISECONDS, e);
+                        eventsListener.onRequestWriteFailed(Clock.onEndMillis(startTimeMillis), MILLISECONDS, e);
                     }
                     o.onError(e);
                 }

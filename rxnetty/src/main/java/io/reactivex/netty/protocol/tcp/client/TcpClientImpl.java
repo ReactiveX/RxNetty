@@ -16,57 +16,32 @@
 package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.codec.HandlerNames;
-import io.reactivex.netty.protocol.client.PoolLimitDeterminationStrategy;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
-import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.protocol.tcp.client.internal.EventPublisherFactory;
+import io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
-import rx.Observable;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
-import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
-public class TcpClientImpl<W, R> extends TcpClient<W, R> {
+public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     private final ClientState<W, R> state;
-    private final String name;
     private final ConnectionRequestImpl<W, R> thisConnectionRequest;
 
-    protected TcpClientImpl(String name, SocketAddress remoteAddress) {
-        this(name, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class, remoteAddress);
-    }
-
-    protected TcpClientImpl(String name, EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
-                            SocketAddress remoteAddress) {
-        this.name = name;
-        state = ClientState.create(eventLoopGroup, channelClass, remoteAddress);
-        thisConnectionRequest = new ConnectionRequestImpl<>(state);
-    }
-
-    protected TcpClientImpl(String name, ClientState<W, R> state) {
-        this.name = name;
+    /*Visible for testing*/ TcpClientImpl(ClientState<W, R> state) {
         this.state = state;
         thisConnectionRequest = new ConnectionRequestImpl<>(state);
-    }
-
-    protected TcpClientImpl(TcpClientImpl<?, ?> client, ClientState<W, R> state) {
-        this.state = state;
-        name = client.name;
-        thisConnectionRequest = new ConnectionRequestImpl<W, R>(this.state);
     }
 
     @Override
@@ -108,11 +83,12 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     @Override
     public <WW, RR> TcpClient<WW, RR> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                             Func0<ChannelHandler> handlerFactory) {
-        return new TcpClientImpl<WW, RR>(this, state.<WW, RR>addChannelHandlerLast(group, name, handlerFactory));
+        return new TcpClientImpl<WW, RR>(state.<WW, RR>addChannelHandlerLast(group, name, handlerFactory));
     }
 
     @Override
-    public <WW, RR> TcpClient<WW, RR> addChannelHandlerBefore(String baseName, String name, Func0<ChannelHandler> handlerFactory) {
+    public <WW, RR> TcpClient<WW, RR> addChannelHandlerBefore(String baseName, String name,
+                                                              Func0<ChannelHandler> handlerFactory) {
         return copy(state.<WW, RR>addChannelHandlerBefore(baseName, name, handlerFactory));
     }
 
@@ -123,7 +99,8 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     @Override
-    public <WW, RR> TcpClient<WW, RR> addChannelHandlerAfter(String baseName, String name, Func0<ChannelHandler> handlerFactory) {
+    public <WW, RR> TcpClient<WW, RR> addChannelHandlerAfter(String baseName, String name,
+                                                             Func0<ChannelHandler> handlerFactory) {
         return copy(state.<WW, RR>addChannelHandlerAfter(baseName, name, handlerFactory));
     }
 
@@ -136,41 +113,6 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
     @Override
     public <WW, RR> TcpClient<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         return copy(state.<WW, RR>pipelineConfigurator(pipelineConfigurator));
-    }
-
-    @Override
-    public TcpClient<W, R> maxConnections(int maxConnections) {
-        return copy(state.maxConnections(maxConnections));
-    }
-
-    @Override
-    public TcpClient<W, R> idleConnectionsTimeoutMillis(long idleConnectionsTimeoutMillis) {
-        return copy(state.maxIdleTimeoutMillis(idleConnectionsTimeoutMillis));
-    }
-
-    @Override
-    public TcpClient<W, R> connectionPoolLimitStrategy(PoolLimitDeterminationStrategy strategy) {
-        return copy(state.connectionPoolLimitStrategy(strategy));
-    }
-
-    @Override
-    public TcpClient<W, R> idleConnectionCleanupTimer(Observable<Long> idleConnectionCleanupTimer) {
-        return copy(state.idleConnectionCleanupTimer(idleConnectionCleanupTimer));
-    }
-
-    @Override
-    public TcpClient<W, R> noIdleConnectionCleanup() {
-        return copy(state.noIdleConnectionCleanup());
-    }
-
-    @Override
-    public TcpClient<W, R> noConnectionPooling() {
-        return copy(state.noConnectionPooling());
-    }
-
-    @Override
-    public TcpClient<W, R> connectionFactory(Func1<ClientState<W, R>, ClientConnectionFactory<W, R>> factory) {
-        return copy(state.connectionFactory(factory));
     }
 
     @Override
@@ -198,13 +140,17 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
         return copy(state.unsafeSecure());
     }
 
-    @Override
-    public TcpClientEventPublisher getEventPublisher() {
-        return state.getEventPublisher();
+    public static <W, R> TcpClientImpl<W, R> create(ConnectionProvider<W, R> connectionProvider) {
+        return create(connectionProvider, new TcpEventPublisherFactory());
     }
 
-    private <WW, RR> TcpClientImpl<WW, RR> copy(ClientState<WW, RR> state) {
-        return new TcpClientImpl<WW, RR>(this, state);
+    public static <W, R> TcpClientImpl<W, R> create(ConnectionProvider<W, R> connectionProvider,
+                                                EventPublisherFactory eventPublisherFactory) {
+        return new TcpClientImpl<>(ClientState.create(connectionProvider, eventPublisherFactory));
+    }
+
+    private static <WW, RR> TcpClientImpl<WW, RR> copy(ClientState<WW, RR> state) {
+        return new TcpClientImpl<WW, RR>(state);
     }
 
     /*Visible for testing*/ ClientState<W, R> getClientState() {
@@ -213,6 +159,6 @@ public class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     @Override
     public Subscription subscribe(TcpClientEventListener listener) {
-        return state.getEventPublisher().subscribe(listener);
+        return state.getEventPublisherFactory().subscribe(listener);
     }
 }

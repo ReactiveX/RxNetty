@@ -16,9 +16,9 @@
 package io.reactivex.netty.protocol.http.ws.client.internal;
 
 import io.netty.channel.Channel;
-import io.netty.handler.codec.http.Cookie;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
@@ -116,12 +116,12 @@ public final class WebSocketResponseImpl<T> extends WebSocketResponse<T> {
     }
 
     @Override
-    public Date getDateHeader(CharSequence name) throws ParseException {
+    public long getDateHeader(CharSequence name) throws ParseException {
         return delegate.getDateHeader(name);
     }
 
     @Override
-    public Date getDateHeader(CharSequence name, Date defaultValue) {
+    public long getDateHeader(CharSequence name, long defaultValue) {
         return delegate.getDateHeader(name, defaultValue);
     }
 

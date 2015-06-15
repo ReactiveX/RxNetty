@@ -25,7 +25,7 @@ import io.netty.channel.ServerChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
-import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
@@ -216,8 +216,9 @@ public final class ServerState<R, W> {
                 SelfSignedCertificate ssc;
                 try {
                     ssc = new SelfSignedCertificate();
-                    return SslContext.newServerContext(ssc.certificate(), ssc.privateKey())
-                                     .newEngine(allocator);
+                    return SslContextBuilder.forServer(ssc.certificate(), ssc.privateKey())
+                                            .build()
+                                            .newEngine(allocator);
                 } catch (Exception e) {
                     throw Exceptions.propagate(e);
                 }

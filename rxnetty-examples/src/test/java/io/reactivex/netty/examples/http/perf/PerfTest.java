@@ -17,7 +17,7 @@
 package io.reactivex.netty.examples.http.perf;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders.Names;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
@@ -41,7 +41,7 @@ public class PerfTest extends ExamplesEnvironment {
         PerfHelloWorldClient.main(null);
 
         HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        expectedHeader.headers().add(Names.CONTENT_LENGTH, 9);
+        expectedHeader.headers().add(HttpHeaderNames.CONTENT_LENGTH, 9);
         String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
                                                                           expectedHeader.status(),
                                                                           expectedHeader.headers().iterator());

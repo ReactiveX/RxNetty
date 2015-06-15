@@ -17,12 +17,17 @@ package io.reactivex.netty.channel.pool;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.client.MaxConnectionsBasedStrategy;
+import io.reactivex.netty.channel.client.PoolExhaustedException;
 import io.reactivex.netty.client.TrackableMetricEventsListener;
-import io.reactivex.netty.protocol.client.MaxConnectionsBasedStrategy;
-import io.reactivex.netty.protocol.client.PoolExhaustedException;
-import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientState;
+import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
+import io.reactivex.netty.protocol.tcp.client.ConnectionObservable;
+import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
+import io.reactivex.netty.protocol.tcp.client.EmbeddedConnectionFactory;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
+import io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -31,13 +36,11 @@ import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
+import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 import rx.schedulers.Schedulers;
 import rx.schedulers.TestScheduler;
 
-import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
@@ -50,7 +53,7 @@ import static java.lang.annotation.ElementType.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class PooledClientConnectionFactoryImplTest {
+public class PooledConnectionProviderImplTest {
 
     @Rule
     public ExpectedException thrown= ExpectedException.none();
@@ -132,23 +135,20 @@ public class PooledClientConnectionFactoryImplTest {
 
         pooledFactoryRule.getAConnection();
 
-        pooledFactoryRule.getFactory().connect().toBlocking().single();
+        pooledFactoryRule.getProvider().nextConnection().toBlocking().single();
     }
 
     @Test(timeout = 60000)
     public void testConnectFailed() throws Exception {
-        PooledClientConnectionFactory<String, String> factory;
-        factory = PooledClientConnectionFactoryImpl.create(pooledFactoryRule.holder,
-                                                           new TestableClientConnectionFactory<String, String>(pooledFactoryRule.state) {
-                                                               @Override
-                                                               public Observable<? extends Connection<String, String>> connect() {
-                                                                   return Observable.error(new IOException());
-                                                               }
-                                                           })
-                                                   .call(pooledFactoryRule.state);
+        PooledConnectionProvider<String, String> factory;
+        PoolConfig<String, String> config = new PoolConfig<String, String>();
+        config.idleConnectionsHolder(pooledFactoryRule.holder);
+
+        factory = new PooledConnectionProviderImpl<>(new EmbeddedConnectionFactory<String, String>(true), config,
+                                                     new InetSocketAddress("127.0.0.1", 0));
 
         TestSubscriber<Object> subscriber = new TestSubscriber<>();
-        factory.connect().subscribe(subscriber);
+        factory.nextConnection().subscribe(subscriber);
 
         subscriber.assertTerminalEvent();
 
@@ -159,63 +159,65 @@ public class PooledClientConnectionFactoryImplTest {
 
     @Test(timeout = 60000)
     public void testMetricEventCallback() throws Throwable {
-        final PooledConnection<String, String> connection = pooledFactoryRule.getAConnection();
+        TrackableMetricEventsListener eventsListener = new TrackableMetricEventsListener();
 
-        assertThat("Unexpected acquire attempted count.", pooledFactoryRule.eventsListener.getAcquireAttemptedCount(),
+        final PooledConnection<String, String> connection = pooledFactoryRule.getAConnection(eventsListener);
+
+        assertThat("Unexpected acquire attempted count.", eventsListener.getAcquireAttemptedCount(),
                    is(1L));
-        assertThat("Unexpected acquire succedded count.", pooledFactoryRule.eventsListener.getAcquireSucceededCount(),
+        assertThat("Unexpected acquire succedded count.", eventsListener.getAcquireSucceededCount(),
                    is(1L));
-        assertThat("Unexpected acquire failed count.", pooledFactoryRule.eventsListener.getAcquireFailedCount(),
+        assertThat("Unexpected acquire failed count.", eventsListener.getAcquireFailedCount(),
                    is(0L));
-        assertThat("Unexpected creation count.", pooledFactoryRule.eventsListener.getCreationCount(),
+        assertThat("Unexpected creation count.", eventsListener.getCreationCount(),
                    is(1L));
 
         pooledFactoryRule.returnToIdle(connection);
 
-        assertThat("Unexpected release attempted count.", pooledFactoryRule.eventsListener.getReleaseAttemptedCount(),
+        assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(),
                    is(1L));
-        assertThat("Unexpected release succeeded count.", pooledFactoryRule.eventsListener.getReleaseSucceededCount(),
+        assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(),
                    is(1L));
-        assertThat("Unexpected release failed count.", pooledFactoryRule.eventsListener.getReleaseFailedCount(), is(0L));
-        assertThat("Unexpected create connection count.", pooledFactoryRule.eventsListener.getCreationCount(), is(1L));
+        assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(), is(0L));
+        assertThat("Unexpected create connection count.", eventsListener.getCreationCount(), is(1L));
 
-        final PooledConnection<String, String> reusedConn = pooledFactoryRule.getAConnection();
+        final PooledConnection<String, String> reusedConn = pooledFactoryRule.getAConnection(eventsListener);
 
         Assert.assertEquals("Reused connection not same as original.", connection, reusedConn);
 
-        assertThat("Unexpected acquire attempted count.", pooledFactoryRule.eventsListener.getAcquireAttemptedCount(),
+        assertThat("Unexpected acquire attempted count.", eventsListener.getAcquireAttemptedCount(),
                    is(2L));
-        assertThat("Unexpected acquire succedded count.", pooledFactoryRule.eventsListener.getAcquireSucceededCount(),
+        assertThat("Unexpected acquire succedded count.", eventsListener.getAcquireSucceededCount(),
                    is(2L));
-        assertThat("Unexpected acquire failed count.", pooledFactoryRule.eventsListener.getAcquireFailedCount(),
+        assertThat("Unexpected acquire failed count.", eventsListener.getAcquireFailedCount(),
                    is(0L));
-        assertThat("Unexpected creation count.", pooledFactoryRule.eventsListener.getCreationCount(),
+        assertThat("Unexpected creation count.", eventsListener.getCreationCount(),
                    is(1L));
-        assertThat("Unexpected reuse count.", pooledFactoryRule.eventsListener.getReuseCount(),
+        assertThat("Unexpected reuse count.", eventsListener.getReuseCount(),
                    is(1L));
 
         pooledFactoryRule.closeAndAwait(reusedConn);
 
-        assertThat("Unexpected release attempted count.", pooledFactoryRule.eventsListener.getReleaseAttemptedCount(),
+        assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(),
                    is(2L));
-        assertThat("Unexpected release succeeded count.", pooledFactoryRule.eventsListener.getReleaseSucceededCount(),
+        assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(),
                    is(2L));
-        assertThat("Unexpected release failed count.", pooledFactoryRule.eventsListener.getReleaseFailedCount(),
+        assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(),
                    is(0L));
-        assertThat("Unexpected create connection count.", pooledFactoryRule.eventsListener.getCreationCount(),
+        assertThat("Unexpected create connection count.", eventsListener.getCreationCount(),
                    is(1L));
 
-        pooledFactoryRule.factory.discard(reusedConn).toBlocking().lastOrDefault(null);
+        pooledFactoryRule.provider.discard(reusedConn).toBlocking().lastOrDefault(null);
 
-        assertThat("Unexpected release attempted count.", pooledFactoryRule.eventsListener.getReleaseAttemptedCount(),
+        assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(),
                    is(2L));
-        assertThat("Unexpected release succeeded count.", pooledFactoryRule.eventsListener.getReleaseSucceededCount(),
+        assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(),
                    is(2L));
-        assertThat("Unexpected release failed count.", pooledFactoryRule.eventsListener.getReleaseFailedCount(),
+        assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(),
                    is(0L));
-        assertThat("Unexpected create connection count.", pooledFactoryRule.eventsListener.getCreationCount(),
+        assertThat("Unexpected create connection count.", eventsListener.getCreationCount(),
                    is(1L));
-        assertThat("Unexpected create connection count.", pooledFactoryRule.eventsListener.getEvictionCount(),
+        assertThat("Unexpected create connection count.", eventsListener.getEvictionCount(),
                    is(1L));
     }
 
@@ -237,12 +239,10 @@ public class PooledClientConnectionFactoryImplTest {
 
     public static class PooledFactoryRule extends ExternalResource {
 
-        private PooledClientConnectionFactory<String, String> factory;
-        private TestableClientConnectionFactory<String, String> delegateFactory;
+        private PooledConnectionProvider<String, String> provider;
+        private EmbeddedConnectionFactory<String, String> connectionFactory;
         private TestScheduler testScheduler;
         private FIFOIdleConnectionsHolder<String, String> holder;
-        private TrackableMetricEventsListener eventsListener;
-        private ClientState<String, String> state;
 
         @Override
         public Statement apply(final Statement base, final Description description) {
@@ -256,14 +256,28 @@ public class PooledClientConnectionFactoryImplTest {
 
                     testScheduler = Schedulers.test();
                     Observable<Long> idleConnCleaner = Observable.timer(1, TimeUnit.MINUTES, testScheduler);
-                    state = ClientState.<String, String>create()
-                                       .idleConnectionCleanupTimer(idleConnCleaner)
-                                       .maxConnections(maxConnections);
-                    delegateFactory = new TestableClientConnectionFactory<>(state);
                     holder = new FIFOIdleConnectionsHolder<>();
-                    factory = PooledClientConnectionFactoryImpl.create(holder, delegateFactory).call(state);
-                    eventsListener = new TrackableMetricEventsListener();
-                    state.getEventPublisher().subscribe(eventsListener);
+                    PoolConfig<String, String> config = new PoolConfig<>();
+                    config.idleConnectionsCleanupTimer(idleConnCleaner)
+                          .maxConnections(maxConnections)
+                          .idleConnectionsHolder(holder);
+                    connectionFactory = new EmbeddedConnectionFactory<>(false);
+                    provider = new PooledConnectionProviderImpl<>(connectionFactory, config,
+                                                                 new InetSocketAddress("127.0.0.1", 0));
+
+                    // The song & dance below is to make sure the Pooled provider above has the appropriate state set
+                    // to start event publishing via the realize call to the provider.
+                    ConnectionProvider<String, String> dummyCp = ConnectionProvider
+                            .create(new Func1<ConnectionFactory<String, String>, ConnectionProvider<String, String>>() {
+                                @Override
+                                public ConnectionProvider<String, String> call(ConnectionFactory<String, String> cf) {
+                                    return provider;
+                                }
+                            });
+
+                    // This would realize the pooled provider & hence enable event publishing.
+                    ClientState.create(dummyCp, new TcpEventPublisherFactory()).getConnectionProvider();
+
                     base.evaluate();
                 }
             };
@@ -273,15 +287,14 @@ public class PooledClientConnectionFactoryImplTest {
             testScheduler.triggerActions();
         }
 
-        public PooledClientConnectionFactory<String, String> getFactory() {
-            return factory;
+        public PooledConnectionProvider<String, String> getProvider() {
+            return provider;
         }
 
-        public PooledConnection<String, String> getAConnection()
+        public PooledConnection<String, String> getAConnection(ConnectionObservable<String, String> connectionObservable)
                 throws InterruptedException, ExecutionException, TimeoutException {
-
             TestSubscriber<Connection<String, String>> connSub = new TestSubscriber<>();
-            getFactory().connect().subscribe(connSub);
+            connectionObservable.subscribe(connSub);
 
             connSub.awaitTerminalEvent();
             connSub.assertNoErrors();
@@ -291,6 +304,18 @@ public class PooledClientConnectionFactoryImplTest {
             assertThat("Connection is null.", connection, notNullValue());
 
             return (PooledConnection<String, String>) connection;
+        }
+
+        public PooledConnection<String, String> getAConnection(TcpClientEventListener eventListener)
+                throws InterruptedException, ExecutionException, TimeoutException {
+            ConnectionObservable<String, String> connectionObservable = getProvider().nextConnection();
+            connectionObservable.subscribeForEvents(eventListener);
+            return getAConnection(connectionObservable);
+        }
+
+        public PooledConnection<String, String> getAConnection()
+                throws InterruptedException, ExecutionException, TimeoutException {
+            return getAConnection(getProvider().nextConnection());
         }
 
         public void closeAndAwait(Connection<String, String> toClose) throws Exception {
@@ -329,35 +354,6 @@ public class PooledClientConnectionFactoryImplTest {
             assertThat("Unexpected number of idle connections post release.", subscriber.getOnNextEvents(), hasSize(1));
             assertThat("Connection not returned to idle holder on close.",
                        subscriber.getOnNextEvents().get(0), is(conn1));
-        }
-    }
-
-    public static class TestableClientConnectionFactory<W, R> extends ClientConnectionFactory<W, R> {
-
-        private final ClientState<W, R> state;
-
-        public TestableClientConnectionFactory(ClientState<W, R> state) {
-            super(state);
-            this.state = state;
-        }
-
-        @Override
-        public Observable<? extends Connection<R, W>> connect() {
-            return Observable.create(new OnSubscribe<Connection<R, W>>() {
-                @Override
-                public void call(Subscriber<? super Connection<R, W>> subscriber) {
-                    EmbeddedChannel channel = new EmbeddedChannel();
-                    ClientConnectionToChannelBridge.addToPipeline(subscriber, channel.pipeline(),
-                                                                  state.getEventPublisher(), false);
-                    channel.connect(new InetSocketAddress("localhost", 0));
-                    channel.pipeline().fireChannelActive();
-                }
-            });
-        }
-
-        @Override
-        protected <WW, RR> ClientConnectionFactory<WW, RR> doCopy(ClientState<WW, RR> newState) {
-            throw new UnsupportedOperationException("Copy not supported as it breaks test assumptions.");
         }
     }
 

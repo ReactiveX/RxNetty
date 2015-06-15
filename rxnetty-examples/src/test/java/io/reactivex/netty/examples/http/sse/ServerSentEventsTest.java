@@ -17,8 +17,7 @@
 package io.reactivex.netty.examples.http.sse;
 
 import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
@@ -29,6 +28,7 @@ import org.junit.Test;
 
 import java.util.Queue;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -42,8 +42,8 @@ public class ServerSentEventsTest extends ExamplesEnvironment {
         HelloSseClient.main(null);
 
         HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        expectedHeader.headers().add(Names.TRANSFER_ENCODING, Values.CHUNKED);
-        expectedHeader.headers().add(Names.CONTENT_TYPE, "text/event-stream");
+        expectedHeader.headers().add(TRANSFER_ENCODING, HttpHeaderValues.CHUNKED);
+        expectedHeader.headers().add(CONTENT_TYPE, "text/event-stream");
         String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
                                                                           expectedHeader.status(),
                                                                           expectedHeader.headers().iterator());

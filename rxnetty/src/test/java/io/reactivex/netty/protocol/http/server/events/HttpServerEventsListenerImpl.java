@@ -15,7 +15,6 @@
  */
 package io.reactivex.netty.protocol.http.server.events;
 
-import io.reactivex.netty.channel.events.ConnectionEventPublisherTest.ConnectionEventListenerImpl.Event;
 import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventListenerImpl;
 
 import java.util.ArrayList;
@@ -136,7 +135,6 @@ public class HttpServerEventsListenerImpl extends HttpServerEventsListener {
     }
 
     public void assertMethodsCalled(HttpEvent... events) {
-        tcpDelegate.getConnDelegate().assertMethodsCalled(Event.Subscribe);
         assertThat("Unexpected methods called count.", methodsCalled, hasSize(events.length));
         assertThat("Unexpected methods called.", methodsCalled, contains(events));
     }
@@ -159,11 +157,6 @@ public class HttpServerEventsListenerImpl extends HttpServerEventsListener {
 
     public Throwable getRecievedError() {
         return recievedError;
-    }
-
-    @Override
-    public void onSubscribe() {
-        tcpDelegate.onSubscribe();
     }
 
     @Override

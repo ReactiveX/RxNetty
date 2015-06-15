@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.reactivex.netty.protocol.client;
+package io.reactivex.netty.channel.client;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;

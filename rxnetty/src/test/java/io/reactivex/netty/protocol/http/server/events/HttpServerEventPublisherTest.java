@@ -129,70 +129,70 @@ public class HttpServerEventPublisherTest {
     public void testOnConnectionCloseFailed() throws Exception {
         rule.publisher.onConnectionCloseFailed(1, TimeUnit.MILLISECONDS, new NullPointerException());
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.CloseFailed);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.CloseFailed);
     }
 
     @Test(timeout = 60000)
     public void testOnConnectionCloseSuccess() throws Exception {
         rule.publisher.onConnectionCloseSuccess(1, TimeUnit.MILLISECONDS);
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.CloseSuccess);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.CloseSuccess);
     }
 
     @Test(timeout = 60000)
     public void testOnConnectionCloseStart() throws Exception {
         rule.publisher.onConnectionCloseStart();
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.CloseStart);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.CloseStart);
     }
 
     @Test(timeout = 60000)
     public void testOnWriteFailed() throws Exception {
         rule.publisher.onWriteFailed(1, TimeUnit.MILLISECONDS, new NullPointerException());
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.WriteFailed);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.WriteFailed);
     }
 
     @Test(timeout = 60000)
     public void testOnWriteSuccess() throws Exception {
         rule.publisher.onWriteSuccess(1, TimeUnit.MILLISECONDS, 10);
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.WriteSuccess);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.WriteSuccess);
     }
 
     @Test(timeout = 60000)
     public void testOnWriteStart() throws Exception {
         rule.publisher.onWriteStart();
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.WriteStart);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.WriteStart);
     }
 
     @Test(timeout = 60000)
     public void testOnFlushFailed() throws Exception {
         rule.publisher.onFlushFailed(1, TimeUnit.MILLISECONDS, new NullPointerException());
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.FlushFailed);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.FlushFailed);
     }
 
     @Test(timeout = 60000)
     public void testOnFlushSuccess() throws Exception {
         rule.publisher.onFlushSuccess(1, TimeUnit.MILLISECONDS);
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.FlushSuccess);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.FlushSuccess);
     }
 
     @Test(timeout = 60000)
     public void testOnFlushStart() throws Exception {
         rule.publisher.onFlushStart();
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.FlushStart);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.FlushStart);
     }
 
     @Test(timeout = 60000)
     public void testOnByteRead() throws Exception {
         rule.publisher.onByteRead(1);
 
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalledAfterSubscription(Event.BytesRead);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.BytesRead);
     }
 
     @Test(timeout = 60000)
@@ -226,11 +226,6 @@ public class HttpServerEventPublisherTest {
     @Test(timeout = 60000)
     public void testPublishingEnabled() throws Exception {
         assertThat("Publishing not enabled.", rule.publisher.publishingEnabled(), is(true));
-    }
-
-    @Test(timeout = 60000)
-    public void testSubscribe() throws Exception {
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.Subscribe);
     }
 
     @Test(timeout = 60000)

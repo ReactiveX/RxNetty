@@ -31,13 +31,12 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
     private final ChannelOperations<W> delegate;
 
     private ConnectionImpl(Channel nettyChannel, ConnectionEventListener eventListener, EventPublisher eventPublisher) {
-        super(nettyChannel, eventListener, eventPublisher);
+        super(nettyChannel);
         delegate = new DefaultChannelOperations<>(nettyChannel, eventListener, eventPublisher);
     }
 
-    private ConnectionImpl(Channel nettyChannel, ConnectionEventListener eventListener, EventPublisher eventPublisher,
-                           ChannelOperations<W> delegate) {
-        super(nettyChannel, eventListener, eventPublisher);
+    private ConnectionImpl(Channel nettyChannel, ChannelOperations<W> delegate) {
+        super(nettyChannel);
         this.delegate = delegate;
     }
 
@@ -62,8 +61,7 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
     }
 
     @Override
-    public Observable<Void> writeString(Observable<String> msgs,
-                                        Func1<String, Boolean> flushSelector) {
+    public Observable<Void> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
         return delegate.writeString(msgs, flushSelector);
     }
 
@@ -132,11 +130,8 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
     }
 
     /*Visible for testing*/static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel,
-                                                                     ConnectionEventListener eventListener,
-                                                                     EventPublisher eventPublisher,
                                                                      ChannelOperations<W> delegate) {
-        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventListener, eventPublisher,
-                                                                   delegate);
+        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, delegate);
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }

@@ -64,7 +64,7 @@ public class PerfHelloWorldClient extends AbstractClientExample {
          */
         int port = getServerPort(PerfHelloWorldServer.class, args);
 
-        HttpClient.newClient("localhost", port) /*Create a client*/.noConnectionPooling()
+        HttpClient.newClient("localhost", port) /*Create a client*/
                 .createGet("/hello") /*Creates a GET request with URI "/hello"*/
                 .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
                 .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/

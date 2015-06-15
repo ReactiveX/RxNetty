@@ -31,14 +31,14 @@ import java.util.concurrent.TimeUnit;
 public final class TcpClientEventPublisher extends TcpClientEventListener
         implements EventSource<TcpClientEventListener>, EventPublisher {
 
-    private static final Action1<TcpClientEventListener> CONN_START_ACTION = new Action1<TcpClientEventListener>() {
+    public static final Action1<TcpClientEventListener> CONN_START_ACTION = new Action1<TcpClientEventListener>() {
         @Override
         public void call(TcpClientEventListener l) {
             l.onConnectStart();
         }
     };
 
-    private static final Action3<TcpClientEventListener, Long, TimeUnit> CONN_SUCCESS_ACTION =
+    public static final Action3<TcpClientEventListener, Long, TimeUnit> CONN_SUCCESS_ACTION =
             new Action3<TcpClientEventListener, Long, TimeUnit>() {
                 @Override
                 public void call(TcpClientEventListener l, Long duration, TimeUnit timeUnit) {
@@ -46,7 +46,7 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
                 }
             };
 
-    private static final Action4<TcpClientEventListener, Long, TimeUnit, Throwable> CONN_FAILED_ACTION =
+    public static final Action4<TcpClientEventListener, Long, TimeUnit, Throwable> CONN_FAILED_ACTION =
             new Action4<TcpClientEventListener, Long, TimeUnit, Throwable>() {
                 @Override
                 public void call(TcpClientEventListener l, Long duration, TimeUnit timeUnit, Throwable t) {
@@ -54,28 +54,28 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
                 }
             };
 
-    private static final Action1<TcpClientEventListener> EVICTION_ACTION = new Action1<TcpClientEventListener>() {
+    public static final Action1<TcpClientEventListener> EVICTION_ACTION = new Action1<TcpClientEventListener>() {
         @Override
         public void call(TcpClientEventListener l) {
             l.onPooledConnectionEviction();
         }
     };
 
-    private static final Action1<TcpClientEventListener> REUSE_ACTION = new Action1<TcpClientEventListener>() {
+    public static final Action1<TcpClientEventListener> REUSE_ACTION = new Action1<TcpClientEventListener>() {
         @Override
         public void call(TcpClientEventListener l) {
             l.onPooledConnectionReuse();
         }
     };
 
-    private static final Action1<TcpClientEventListener> ACQUIRE_START_ACTION = new Action1<TcpClientEventListener>() {
+    public static final Action1<TcpClientEventListener> ACQUIRE_START_ACTION = new Action1<TcpClientEventListener>() {
         @Override
         public void call(TcpClientEventListener l) {
             l.onPoolAcquireStart();
         }
     };
 
-    private static final Action3<TcpClientEventListener, Long, TimeUnit> ACQUIRE_SUCCESS_ACTION =
+    public static final Action3<TcpClientEventListener, Long, TimeUnit> ACQUIRE_SUCCESS_ACTION =
             new Action3<TcpClientEventListener, Long, TimeUnit>() {
                 @Override
                 public void call(TcpClientEventListener l, Long duration, TimeUnit timeUnit) {
@@ -83,7 +83,7 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
                 }
             };
 
-    private static final Action4<TcpClientEventListener, Long, TimeUnit, Throwable> ACQUIRE_FAILED_ACTION =
+    public static final Action4<TcpClientEventListener, Long, TimeUnit, Throwable> ACQUIRE_FAILED_ACTION =
             new Action4<TcpClientEventListener, Long, TimeUnit, Throwable>() {
                 @Override
                 public void call(TcpClientEventListener l, Long duration, TimeUnit timeUnit, Throwable t) {
@@ -91,14 +91,14 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
                 }
             };
 
-    private static final Action1<TcpClientEventListener> RELEASE_START_ACTION = new Action1<TcpClientEventListener>() {
+    public static final Action1<TcpClientEventListener> RELEASE_START_ACTION = new Action1<TcpClientEventListener>() {
         @Override
         public void call(TcpClientEventListener l) {
             l.onPoolReleaseStart();
         }
     };
 
-    private static final Action3<TcpClientEventListener, Long, TimeUnit> RELEASE_SUCCESS_ACTION =
+    public static final Action3<TcpClientEventListener, Long, TimeUnit> RELEASE_SUCCESS_ACTION =
             new Action3<TcpClientEventListener, Long, TimeUnit>() {
                 @Override
                 public void call(TcpClientEventListener l, Long duration, TimeUnit timeUnit) {
@@ -106,7 +106,7 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
                 }
             };
 
-    private static final Action4<TcpClientEventListener, Long, TimeUnit, Throwable> RELEASE_FAILED_ACTION =
+    public static final Action4<TcpClientEventListener, Long, TimeUnit, Throwable> RELEASE_FAILED_ACTION =
             new Action4<TcpClientEventListener, Long, TimeUnit, Throwable>() {
                 @Override
                 public void call(TcpClientEventListener l, Long duration, TimeUnit timeUnit, Throwable t) {

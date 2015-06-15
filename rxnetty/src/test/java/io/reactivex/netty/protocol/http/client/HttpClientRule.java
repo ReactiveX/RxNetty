@@ -28,20 +28,25 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.protocol.tcp.client.ClientConnectionFactory;
-import io.reactivex.netty.protocol.tcp.client.ClientEmbeddedConnectionFactory;
-import io.reactivex.netty.protocol.tcp.client.ClientState;
+import io.reactivex.netty.channel.pool.PoolConfig;
+import io.reactivex.netty.channel.pool.PooledConnectionProviderImpl;
+import io.reactivex.netty.protocol.http.client.internal.HttpEventPublisherFactory;
+import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
+import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
+import io.reactivex.netty.protocol.tcp.client.EmbeddedChannelWithFeeder;
+import io.reactivex.netty.protocol.tcp.client.EmbeddedConnectionFactory;
+import io.reactivex.netty.protocol.tcp.client.EmbeddedConnectionProvider;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
-import io.reactivex.netty.test.util.InboundRequestFeeder;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.Observable;
-import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
+import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.List;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -49,62 +54,69 @@ import static org.hamcrest.Matchers.*;
 public class HttpClientRule extends ExternalResource {
 
     private HttpClient<ByteBuf, ByteBuf> httpClient;
-    private EmbeddedChannel channel;
-    private TcpClient<ByteBuf, ByteBuf> tcpClient;
-    private InboundRequestFeeder inboundRequestFeeder;
-    private Func1<ClientState<ByteBuf, ByteBuf>, ClientConnectionFactory<ByteBuf, ByteBuf>> connFactory;
+    private EmbeddedConnectionProvider<ByteBuf, ByteBuf> connFactory;
+    private EmbeddedConnectionFactory<ByteBuf, ByteBuf> embeddedChannelBootstrap;
 
     @Override
     public Statement apply(final Statement base, Description description) {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                setup();
+                setup(ConnectionProvider
+                        .create(new Func1<ConnectionFactory<ByteBuf, ByteBuf>, ConnectionProvider<ByteBuf, ByteBuf>>() {
+                            @Override
+                            public ConnectionProvider<ByteBuf, ByteBuf> call(ConnectionFactory<ByteBuf, ByteBuf> cf) {
+                                connFactory = new EmbeddedConnectionProvider<>(cf, new HttpEventPublisherFactory());
+                                return connFactory;
+                            }
+                        }));
                 base.evaluate();
             }
         };
     }
 
-    protected void setup() {
-        inboundRequestFeeder = new InboundRequestFeeder();
-        connFactory = ClientEmbeddedConnectionFactory.newFactoryFunc(new Func0<EmbeddedChannel>() {
-            @Override
-            public EmbeddedChannel call() {
-                channel = new EmbeddedChannel(inboundRequestFeeder);
-                return channel;
-            }
-        });
+    public void setupPooledConnectionFactroy(final PoolConfig<ByteBuf, ByteBuf> pConfig) {
+        ConnectionProvider<ByteBuf, ByteBuf> factory =
+                ConnectionProvider
+                        .create(new Func1<ConnectionFactory<ByteBuf, ByteBuf>, ConnectionProvider<ByteBuf, ByteBuf>>() {
+                            @Override
+                            public ConnectionProvider<ByteBuf, ByteBuf> call(ConnectionFactory<ByteBuf, ByteBuf> cf) {
+                                embeddedChannelBootstrap =
+                                        new EmbeddedConnectionFactory<>(cf, new HttpEventPublisherFactory());
+                                return new PooledConnectionProviderImpl<>(embeddedChannelBootstrap, pConfig,
+                                                                          new InetSocketAddress("127.0.0.1", 0));
+                            }
+                        });
+        TcpClient<ByteBuf, ByteBuf> tcpClient = TcpClient.newClient(factory).enableWireLogging(LogLevel.ERROR);
+        httpClient = HttpClientImpl.unsafeCreate(tcpClient, new HttpEventPublisherFactory());
+    }
 
-        tcpClient = TcpClient.newClient("localhost", 0)
-                             .connectionFactory(connFactory)
-                             .enableWireLogging(LogLevel.ERROR);
-        httpClient = HttpClientImpl.unsafeCreate(tcpClient);
+    private void setup(ConnectionProvider<ByteBuf, ByteBuf> rawFactory) {
+        TcpClient<ByteBuf, ByteBuf> tcpClient = TcpClient.newClient(rawFactory).enableWireLogging(LogLevel.ERROR);
+        httpClient = HttpClientImpl.unsafeCreate(tcpClient, new HttpEventPublisherFactory());
     }
 
     public HttpClient<ByteBuf, ByteBuf> getHttpClient() {
         return httpClient;
     }
 
-    public EmbeddedChannel getChannel() {
-        return channel;
+    public EmbeddedChannel getLastCreatedChannel() {
+        return getLastCreatedChannelWithFeeder().getChannel();
     }
 
-    public TcpClient<ByteBuf, ByteBuf> getTcpClient() {
-        return tcpClient;
+    public EmbeddedChannelWithFeeder getLastCreatedChannelWithFeeder() {
+        List<EmbeddedChannelWithFeeder> createdChannels = getCreatedChannels();
+        return createdChannels.get(createdChannels.size() - 1);
     }
 
-    public Func1<ClientState<ByteBuf, ByteBuf>, ClientConnectionFactory<ByteBuf, ByteBuf>> getConnFactory() {
-        return connFactory;
+    public List<EmbeddedChannelWithFeeder> getCreatedChannels() {
+        return null == embeddedChannelBootstrap ? connFactory.getCreatedChannels()
+                : embeddedChannelBootstrap.getCreatedChannels();
     }
-
-    public void setTcpClient(TcpClient<ByteBuf, ByteBuf> tcpClient) {
-        this.tcpClient = tcpClient;
-        httpClient = HttpClientImpl.unsafeCreate(this.tcpClient);
-    }
-
     public TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(HttpClientRequest<ByteBuf, ByteBuf> request) {
         TestSubscriber<HttpClientResponse<ByteBuf>> testSubscriber = new TestSubscriber<>();
         request.subscribe(testSubscriber);
+        testSubscriber.assertNoErrors();
         return testSubscriber;
     }
 
@@ -122,6 +134,7 @@ public class HttpClientRule extends ExternalResource {
                                });
             }
         }).subscribe(testSubscriber);
+        testSubscriber.assertNoErrors();
         return testSubscriber;
     }
 
@@ -134,7 +147,7 @@ public class HttpClientRule extends ExternalResource {
                 return clientResponse.discardContent();
             }
         }).subscribe(testSubscriber);
-
+        testSubscriber.assertNoErrors();
         return testSubscriber;
     }
 
@@ -143,7 +156,6 @@ public class HttpClientRule extends ExternalResource {
         TestSubscriber<Void> testSubscriber = new TestSubscriber<>();
 
         response.discardContent().subscribe(testSubscriber);
-
         return testSubscriber;
     }
 
@@ -168,20 +180,25 @@ public class HttpClientRule extends ExternalResource {
 
     public void feedResponse(HttpContent... content) {
         for (HttpContent httpContent : content) {
-            inboundRequestFeeder.addToTheFeed(httpContent);
+            getLastCreatedChannelWithFeeder().getFeeder().addToTheFeed(httpContent);
         }
     }
 
     public void feedResponse(HttpResponse response, HttpContent content) {
-        inboundRequestFeeder.addToTheFeed(response, content);
+        getLastCreatedChannelWithFeeder().getFeeder().addToTheFeed(response, content);
+    }
+
+    public void feedResponseHeaders(HttpResponse response, EmbeddedChannelWithFeeder channelWithFeeder) {
+        channelWithFeeder.getFeeder().addToTheFeed(response);
     }
 
     public void feedResponseHeaders(HttpResponse response) {
-        inboundRequestFeeder.addToTheFeed(response);
+        feedResponseHeaders(response, getLastCreatedChannelWithFeeder());
     }
 
     public void feedResponseAndComplete(String... content) {
-        feedResponseHeaders(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK));
+        feedResponseHeaders(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK),
+                            getLastCreatedChannelWithFeeder());
         for (String contentStr : content) {
             ByteBuf contentBuf = Unpooled.buffer().writeBytes(contentStr.getBytes());
             feedResponse(new DefaultHttpContent(contentBuf));
@@ -191,16 +208,25 @@ public class HttpClientRule extends ExternalResource {
     }
 
     public void feedResponseAndComplete(HttpResponse response, HttpContent content) {
-        inboundRequestFeeder.addToTheFeed(response, content, new DefaultLastHttpContent());
+        feedResponseAndComplete(response, content, getLastCreatedChannelWithFeeder());
+    }
+
+    public void feedResponseAndComplete(HttpResponse response, HttpContent content,
+                                        EmbeddedChannelWithFeeder channelWithFeeder) {
+        channelWithFeeder.getFeeder().addToTheFeed(response, content, new DefaultLastHttpContent());
     }
 
     public void feedResponseAndComplete(HttpResponse response) {
-        inboundRequestFeeder.addToTheFeed(response, new DefaultLastHttpContent());
+        feedResponseAndComplete(response, getLastCreatedChannelWithFeeder());
+    }
+
+    public void feedResponseAndComplete(HttpResponse response, EmbeddedChannelWithFeeder channelWithFeeder) {
+        channelWithFeeder.getFeeder().addToTheFeed(response, new DefaultLastHttpContent());
     }
 
     public void assertRequestHeadersWritten(HttpMethod method, String uri) {
 
-        Object outbound = getChannel().readOutbound();
+        Object outbound = getLastCreatedChannel().readOutbound();
 
         assertThat("Request not written.", outbound, is(notNullValue()));
 
@@ -215,7 +241,7 @@ public class HttpClientRule extends ExternalResource {
     }
 
     public void assertContentWritten(String contentStr) {
-        Object outbound = getChannel().readOutbound();
+        Object outbound = getLastCreatedChannel().readOutbound();
 
         assertThat("Content not written.", outbound, is(notNullValue()));
         assertThat("Unxpected content.", outbound, is(instanceOf(ByteBuf.class)));

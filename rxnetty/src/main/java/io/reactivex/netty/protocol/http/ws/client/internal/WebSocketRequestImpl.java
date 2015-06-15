@@ -16,8 +16,8 @@
 package io.reactivex.netty.protocol.http.ws.client.internal;
 
 import io.netty.channel.ChannelHandler;
-import io.netty.handler.codec.http.HttpHeaders.Names;
-import io.netty.handler.codec.http.HttpHeaders.Values;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
@@ -31,6 +31,8 @@ import rx.Subscriber;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.reactivex.netty.codec.HandlerNames.*;
 
 public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
@@ -67,7 +69,7 @@ public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
 
     @Override
     public WebSocketRequest<O> requestSubProtocols(String... subProtocols) {
-        return new WebSocketRequestImpl<O>(httpRequest.setHeader(Names.SEC_WEBSOCKET_PROTOCOL,
+        return new WebSocketRequestImpl<O>(httpRequest.setHeader(SEC_WEBSOCKET_PROTOCOL,
                                                                  expectedSubProtocol(subProtocols)), subProtocols,
                                            version);
     }
@@ -90,7 +92,7 @@ public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
             webSocketVersion = WebSocketVersion.UNKNOWN;
             break;
         }
-        return new WebSocketRequestImpl<O>(httpRequest.setHeader(Names.SEC_WEBSOCKET_VERSION, version),
+        return new WebSocketRequestImpl<O>(httpRequest.setHeader(SEC_WEBSOCKET_VERSION, version),
                                            subProtocolsRequested, webSocketVersion);
     }
 
@@ -105,11 +107,11 @@ public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
                                                                                         return new Ws7To13UpgradeHandler();
                                                                                     }
                                                                                 })
-                                                         .addHeader(Names.UPGRADE, Values.WEBSOCKET);
+                                                         .addHeader(HttpHeaderNames.UPGRADE, WEBSOCKET);
         RawRequest<?, O> rawRequest = upgradeRequest.unsafeRawRequest();
         HttpRequest headers = rawRequest.getHeaders();
-        headers.headers().add(Names.CONNECTION, Values.UPGRADE);
-        headers.headers().add(Names.SEC_WEBSOCKET_VERSION, WebSocketVersion.V13.toHttpHeaderValue());
+        headers.headers().add(CONNECTION, HttpHeaderValues.UPGRADE);
+        headers.headers().add(SEC_WEBSOCKET_VERSION, WebSocketVersion.V13.toHttpHeaderValue());
 
         return new WebSocketRequestImpl<O>(upgradeRequest);
     }
