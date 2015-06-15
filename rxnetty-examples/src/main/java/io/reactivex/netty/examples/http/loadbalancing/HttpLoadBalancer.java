@@ -36,6 +36,6 @@ public class HttpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
     }
 
     public static <W, R> ConnectionProvider<W, R> create(SocketAddress[] hosts) {
-        return ConnectionProvider.create(bootstrapFactory -> new HttpLoadBalancer<W, R>(hosts, bootstrapFactory));
+        return ConnectionProvider.create(connectionFactory -> new HttpLoadBalancer<W, R>(hosts, connectionFactory));
     }
 }
