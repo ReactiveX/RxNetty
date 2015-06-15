@@ -51,14 +51,6 @@ import java.util.concurrent.TimeUnit;
  * <h2>Mutations</h2>
  *
  * All mutations to this request creates a brand new instance.
- *
- * <h2>Optimizing multiple mutations</h2>
- *
- * Typically, creating a request requires multiple mutations, eg: Add multiple headers, multiple cookies, content, etc.
- * Since, every mutation creates a brand new instance, such mutations can be costly in terms of creating garbage. In
- * order to optimize these multiple mutations, one can use {@link HttpClientRequestUpdater} obtained via
- * {@link HttpClientRequest#newUpdater()}. There is no semantic difference between these two approaches of mutations,
- * this approach, optimizes for lesser object creation.
 
  * <h2>Trailing headers</h2>
  *
@@ -280,9 +272,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param timeOut Read timeout duration.
      * @param timeUnit Read timeout time unit.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> readTimeOut(int timeOut, TimeUnit timeUnit);
 
@@ -291,9 +281,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param maxRedirects Maximum number of redirects allowed.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> followRedirects(int maxRedirects);
 
@@ -302,9 +290,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param follow {@code true} for enabling redirects, {@code false} to disable.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> followRedirects(boolean follow);
 
@@ -313,9 +299,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param method New HTTP method to use.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setMethod(HttpMethod method);
 
@@ -324,9 +308,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param newUri New URI to use.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setUri(String newUri);
 
@@ -336,9 +318,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param value Value for the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> addHeader(CharSequence name, Object value);
 
@@ -347,9 +327,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param cookie Cookie to add.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> addCookie(Cookie cookie);
 
@@ -363,9 +341,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param value Value of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> addDateHeader(CharSequence name, Date value);
 
@@ -379,9 +355,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param values Values for the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values);
 
@@ -391,9 +365,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param values Values for the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values);
 
@@ -408,9 +380,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param value Value of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setDateHeader(CharSequence name, Date value);
 
@@ -420,9 +390,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param value Value of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setHeader(CharSequence name, Object value);
 
@@ -437,9 +405,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param values Values of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setDateHeader(CharSequence name, Iterable<Date> values);
 
@@ -449,9 +415,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @param name Name of the header.
      * @param values Values of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values);
 
@@ -460,9 +424,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param name Name of the header.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> removeHeader(CharSequence name);
 
@@ -472,9 +434,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @param keepAlive {@code true} to enable keep alive.
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setKeepAlive(boolean keepAlive);
 
@@ -482,9 +442,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * Sets the HTTP transfer encoding to chunked for this request. This delegates to {@link
      * HttpHeaders#setTransferEncodingChunked(HttpMessage)}
      *
-     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request. Use {@link
-     * #newUpdater()} if you intend to do multiple mutations to this request, to avoid creating unused intermediary
-     * {@link HttpClientRequest} objects.
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setTransferEncodingChunked();
 
@@ -656,16 +614,6 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @return {@code true} if the header exists.
      */
     public abstract boolean containsHeader(CharSequence name);
-
-    /**
-     * Captures the current state of this request instance and creates a new {@link HttpClientRequestUpdater} to be used
-     * for performing multiple mutations to this request. Using {@link HttpClientRequestUpdater} avoids creating
-     * multiple intermediate and unused {@link HttpClientRequest} objects for each mutation.
-     *
-     * @return A new instance of {@link HttpClientRequestUpdater}
-     */
-    @Experimental
-    public abstract HttpClientRequestUpdater<I, O> newUpdater();
 
     /**
      * Checks whether a header with the passed name and value exists for this request.
