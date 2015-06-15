@@ -27,7 +27,6 @@ import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
-import io.reactivex.netty.protocol.http.client.HttpClientRequestUpdater;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
@@ -339,12 +338,6 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     @Override
     public boolean containsHeader(CharSequence name) {
         return rawRequest.getHeaders().headers().contains(name);
-    }
-
-    @Override
-    public HttpClientRequestUpdater<I, O> newUpdater() {
-        // TODO: Implement Updater
-        return null;
     }
 
     @Override
