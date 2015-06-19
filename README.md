@@ -19,26 +19,16 @@ and the corresponding HTTP client is [here] (rxnetty-examples/src/main/java/io/r
 
 ## Binaries
 
-Binaries and dependency information for Maven, Ivy, Gradle and others can be found at [http://search.maven.org](http://search.maven.org/#search|ga|1|io.reactivex.rxnetty).
-
-Example for Maven:
-
-```xml
-<dependency>
-    <groupId>io.reactivex</groupId>
-    <artifactId>rxnetty</artifactId>
-    <version>x.y.z</version>
-</dependency>
-```
-and for Ivy:
-
-```xml
-<dependency org="io.reactivex" name="rxnetty" rev="x.y.z" />
-```
-and for Gradle:
+The binaries for 0.5.x are only available as snapshots at [jfrog artifactory](https://oss.jfrog.org/webapp/search/artifact/?1&q=RxNetty), the following snippet can be used to refer to these artifacts with gradle:
 
 ```groovy
-compile 'io.reactivex:rxnetty:x.y.z'
+repositories {
+    maven { url 'https://oss.jfrog.org/libs-snapshot' }
+}
+```
+
+```groovy
+compile 'io.reactivex:rxnetty:0.5.0-SNAPSHOT'
 ```
 
 ## Build
@@ -46,7 +36,7 @@ compile 'io.reactivex:rxnetty:x.y.z'
 To build:
 
 ```
-$ git clone git@github.com:ReactiveX/RxNetty.git
+$ git clone https://github.com/ReactiveX/RxNetty.git -b 0.5.x
 $ cd RxNetty/
 $ ./gradlew build
 ```
