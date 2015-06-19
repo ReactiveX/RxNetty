@@ -32,22 +32,27 @@ public final class StreamingServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(0)
+        /*Starts a new HTTP server on an ephemeral port.*/
+        server = HttpServer.newServer()
+                            /*Starts the server with a request handler.*/
                            .start((req, resp) ->
+                                          /*Write a message every 10 milliseconds*/
                                           resp.writeStringAndFlushOnEach(
                                                   Observable.interval(10, TimeUnit.MILLISECONDS)
-                                                          .onBackpressureDrop()/*If the channel is backed up with data, drop the numbers*/
-                                                          .map(aLong -> "Interval =>" + aLong)/*Convert the number to a string.*/
+                                                          /*If the channel is backed up with data, drop the numbers*/
+                                                          .onBackpressureDrop()
+                                                          /*Convert the number to a string.*/
+                                                          .map(aLong -> "Interval =>" + aLong)
                                           )
-        );
+                           );
 
-        /*Wait for shutdown if not called from another class (passed an arg)*/
+        /*Wait for shutdown if not called from the client (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
-            /*When testing the args are set, to avoid blocking till shutdown*/
             server.awaitShutdown();
         }
 
-        /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
+        /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
+        the caller, if any.*/
         setServerPort(server.getServerPort());
     }
 }

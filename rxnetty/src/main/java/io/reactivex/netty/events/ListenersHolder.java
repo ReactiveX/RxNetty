@@ -33,7 +33,7 @@ import rx.subscriptions.Subscriptions;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -46,15 +46,15 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
 
     private static final Logger logger = LoggerFactory.getLogger(ListenersHolder.class);
 
-    private final CopyOnWriteArrayList<ListenerHolder<T>> listeners;
+    private final CopyOnWriteArraySet<ListenerHolder<T>> listeners;
 
     public ListenersHolder() {
-        listeners = new CopyOnWriteArrayList<>();
+        listeners = new CopyOnWriteArraySet<>();
     }
 
     public ListenersHolder(ListenersHolder<T> toCopy) {
 
-        listeners = new CopyOnWriteArrayList<>(toCopy.listeners);
+        listeners = new CopyOnWriteArraySet<>(toCopy.listeners);
 
         for (final ListenerHolder<T> holder : listeners) {
             // Add the subscription to the existing holder, so that on unsubscribe, it is also removed from this list.
@@ -257,7 +257,7 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
         return toReturn;
     }
 
-    /*Visible for testing*/CopyOnWriteArrayList<ListenerHolder<T>> getActualListenersList() {
+    /*Visible for testing*/CopyOnWriteArraySet<ListenerHolder<T>> getActualListenersList() {
         return listeners;
     }
 
@@ -304,7 +304,7 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
 
         public static <X extends EventListener> void configureRemoval(CompositeSubscription cs,
                                                                       final X listenerToRemove,
-                                                                      final CopyOnWriteArrayList<ListenerHolder<X>> removeFrom) {
+                                                                      final CopyOnWriteArraySet<ListenerHolder<X>> removeFrom) {
             cs.add(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {

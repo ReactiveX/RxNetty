@@ -117,7 +117,7 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
 
             pipeline.replace(httpDecoderCtx.name(), WsClientDecoder.getName(),
                              new WebSocket13FrameDecoder(false/*Clients must set this to false*/, false,
-                                                         65555));//TODO: Fixe me
+                                                         65555));//TODO: Fix me
             pipeline.remove(HttpRequestEncoder.class);
             upgraded = true;
         }

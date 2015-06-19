@@ -49,6 +49,6 @@ public class HelloWorldTest extends ExamplesEnvironment {
 
         assertThat("Unexpected number of messages echoed", output, hasSize(2));
 
-        assertThat("Unexpected response.", output, contains(expectedHeaderString, "HelloWorld!"));
+        assertThat("Unexpected response.", output, contains(expectedHeaderString, "Hello World!"));
     }
 }

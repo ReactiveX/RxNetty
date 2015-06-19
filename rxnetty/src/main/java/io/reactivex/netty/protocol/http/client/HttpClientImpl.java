@@ -39,9 +39,12 @@ import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
+import rx.subscriptions.CompositeSubscription;
 
 import javax.net.ssl.SSLEngine;
 import java.util.concurrent.TimeUnit;
+
+import static io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl.NO_REDIRECTS;
 
 public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
@@ -49,9 +52,11 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     private final HttpEventPublisherFactory eventPublisherFactory;
     private int maxRedirects;
 
-    private HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client, HttpEventPublisherFactory factory) {
+    private HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client, HttpEventPublisherFactory factory,
+                           int maxRedirects) {
         this.client = client;
         eventPublisherFactory = factory;
+        this.maxRedirects = maxRedirects;
     }
 
     @Override
@@ -124,7 +129,7 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     @Override
     public HttpClient<I, O> followRedirects(boolean follow) {
         HttpClientImpl<I, O> toReturn = _copy(client);
-        toReturn.maxRedirects = follow ? Redirector.DEFAULT_MAX_REDIRECTS : HttpClientRequestImpl.NO_REDIRECTS;
+        toReturn.maxRedirects = follow ? Redirector.DEFAULT_MAX_REDIRECTS : NO_REDIRECTS;
         return toReturn;
     }
 
@@ -217,7 +222,10 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public Subscription subscribe(HttpClientEventsListener listener) {
-        return eventPublisherFactory.getGlobalClientPublisher().subscribe(listener);
+        CompositeSubscription cs = new CompositeSubscription();
+        cs.add(eventPublisherFactory.getGlobalClientPublisher().subscribe(listener));
+        cs.add(client.subscribe(listener));
+        return cs;
     }
 
     public static HttpClient<ByteBuf, ByteBuf> create(final ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
@@ -232,7 +240,7 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
                         pipeline.addLast(HandlerNames.HttpClientCodec.getName(), new HttpClientCodec());
                         pipeline.addLast(new HttpClientToConnectionBridge<>());
                     }
-                }), httpEPF);
+                }), httpEPF, NO_REDIRECTS);
     }
 
     public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(final TcpClient<ByteBuf, ByteBuf> tcpClient,
@@ -243,7 +251,7 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
                     public void call(ChannelPipeline pipeline) {
                         pipeline.addLast(new HttpClientToConnectionBridge<>());
                     }
-                }), eventPublisherFactory);
+                }), eventPublisherFactory, NO_REDIRECTS);
     }
 
     @SuppressWarnings("unchecked")
@@ -252,6 +260,6 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     private <II, OO> HttpClientImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient) {
-        return new HttpClientImpl<>(newClient, eventPublisherFactory.copy());
+        return new HttpClientImpl<>(newClient, eventPublisherFactory.copy(), maxRedirects);
     }
 }

@@ -18,9 +18,11 @@ package io.reactivex.netty.examples.http.secure;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.http.helloworld.HelloWorldServer;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 
 /**
@@ -33,8 +35,8 @@ import java.nio.charset.Charset;
  *
  * <h2>After starting {@link SecureHelloWorldServer}</h2>
  *
- * If you want to see how {@link SecureHelloWorldServer} work, you can run {@link SecureHelloWorldServer} by yourself and then pass
- * the port on which the server started to this class as a program argument:
+ * If you want to see how {@link SecureHelloWorldServer} work, you can run {@link SecureHelloWorldServer} by yourself
+ * and then pass the port on which the server started to this class as a program argument:
  *
  <PRE>
     java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
@@ -43,41 +45,48 @@ import java.nio.charset.Charset;
  * <h2>Existing HTTP server</h2>
  *
  * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
- * {@link SecureHelloWorldServer}) by passing the port fo the existing server similar to the case above:
+ * {@link SecureHelloWorldServer}) by passing the port and host of the existing server similar to the case above:
  *
  <PRE>
- java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
+ java io.reactivex.netty.examples.http.secure.SecureHelloWorldClient [server port] [server host]
  </PRE>
+ * If the server host is omitted from the above, it defaults to "127.0.0.1"
  *
  * In all the above usages, this client will print the response received from the server.
+ *
+ * @see SecureHelloWorldServer Default server for this client.
  */
 public class SecureHelloWorldClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
         /*
-         * Retrieves the server port, using the following algorithm:
+         * Retrieves the server address, using the following algorithm:
          * <ul>
-             <li>If an argument is passed, then use the argument as the server port.</li>
-             <li>Otherwise, see if the server in the passed server class is already running. If so, use that port.</li>
-             <li>Otherwise, start the passed server class and use that port.</li>
+             <li>If any arguments are passed, then use the first argument as the server port.</li>
+             <li>If available, use the second argument as the server host, else default to localhost</li>
+             <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        int port = getServerPort(SecureHelloWorldServer.class, args);
+        SocketAddress serverAddress = getServerAddress(SecureHelloWorldServer.class, args);
 
-        HttpClient.newClient("localhost", port) /*Create a client*/
-                  .unsafeSecure()/*To be used only for testing, use secure() overloads to configure proper security.*/
-                  .createGet("/hello") /*Creates a GET request with URI "/hello"*/
-                  .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
-                  .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/
-                                     /*Now use the content stream.*/
-                                   resp.getContent()
-                                     /*Convert ByteBuf to string for each content*/
-                                       .map(bb -> bb.toString(Charset.defaultCharset()))
-                  )
+        /*Create a new client for the server address*/
+        HttpClient.newClient(serverAddress)
+                /*Enable HTTPS for demo purpose only, for real apps, use secure() methods instead.*/
+                .unsafeSecure()
+                  /*Creates a GET request with URI "/hello"*/
+                .createGet("/hello")
+                  /*Prints the response headers*/
+                .doOnNext(resp -> logger.info(resp.toString()))
+                  /*Since, we are only interested in the content, now, convert the stream to the content stream*/
+                .flatMap((HttpClientResponse<ByteBuf> resp) ->
+                                 resp.getContent()
+                                     /*Convert ByteBuf to string for each content chunk*/
+                                         .map(bb -> bb.toString(Charset.defaultCharset()))
+                )
                   /*Block till the response comes to avoid JVM exit.*/
-                  .toBlocking()
+                .toBlocking()
                   /*Print each content chunk*/
-                  .forEach(logger::info);
+                .forEach(logger::info);
     }
 }

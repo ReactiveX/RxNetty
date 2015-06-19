@@ -471,6 +471,21 @@ public class ListenersHolderTest {
     }
 
     @Test(timeout = 60000)
+    public void testDuplicateListeners() throws Exception {
+        ListenerWithSub l = holderRule.addAListener();
+
+        holderRule.assertListenerAdded(l.listener);
+
+        holderRule.getHolder().subscribe(l.listener);
+
+        assertThat("Duplicate listener added.", holderRule.getHolder().getActualListenersList(), hasSize(1));
+
+        l.subscription.unsubscribe();
+
+        assertThat("Listener not removed on unsubscribe.", holderRule.getHolder().getAllListeners(), is(empty()));
+    }
+
+    @Test(timeout = 60000)
     public void testCopy() throws Exception {
         final TestEventListener listener = new TestEventListener();
         Subscription subscription = holderRule.getHolder().subscribe(listener);

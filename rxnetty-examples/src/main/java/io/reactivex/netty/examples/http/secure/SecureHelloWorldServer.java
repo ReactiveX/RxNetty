@@ -23,7 +23,9 @@ import io.reactivex.netty.protocol.http.server.HttpServer;
 import static rx.Observable.*;
 
 /**
- * An HTTP "Hello World" server. It returns an "Hello World" response for all requests received.
+ * An HTTPS "Hello World" server.
+ *
+ * This server only accepts HTTPs requests and sends a response with "Hello World" as the content for all requests.
  */
 public final class SecureHelloWorldServer extends AbstractServerExample {
 
@@ -31,17 +33,23 @@ public final class SecureHelloWorldServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(0)
-                           .unsafeSecure()/*To be used only for testing, use secure() overloads to configure proper security.*/
-                           .start((req, resp) -> resp.writeString(just("HelloWorld!")));
+        /*Starts a new HTTP server on an ephemeral port.*/
+        server = HttpServer.newServer()
+                           /*Enable HTTPS for demo purpose only, for real apps, use secure() methods instead.*/
+                           .unsafeSecure()
+                           /*Starts the server with a request handler.*/
+                           .start((req, resp) ->
+                               /*Write a single content chunk as string "Hello World!"*/
+                               resp.writeString(just("Hello World!"))
+                           );
 
-        /*Wait for shutdown if not called from another class (passed an arg)*/
+        /*Wait for shutdown if not called from the client (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
-            /*When testing the args are set, to avoid blocking till shutdown*/
             server.awaitShutdown();
         }
 
-        /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
+        /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
+        the caller, if any.*/
         setServerPort(server.getServerPort());
     }
 }

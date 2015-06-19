@@ -27,7 +27,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static io.reactivex.netty.spectator.SpectatorUtils.*;
 /**
  * HttpClientListener.
- *  */
+ */
 public class HttpClientListener extends HttpClientEventsListener {
 
     private final AtomicInteger requestBacklog;

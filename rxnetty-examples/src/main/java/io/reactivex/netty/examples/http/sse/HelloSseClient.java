@@ -20,8 +20,14 @@ import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
+import java.net.SocketAddress;
+
 /**
- * An <a href="http://www.w3.org/TR/eventsource/">Server sent event</a> "Hello World" example.
+ * An <a href="http://www.w3.org/TR/eventsource/">Server sent event</a> "Hello World" example client.
+ *
+ * This example assumes that the server to which this client connects (using the below mentioned option), sends an
+ * infinite Server Sent Event stream adhering to the specifications. This client only takes 10 items from that infinite
+ * stream and then terminates the connection.
  *
  * There are three ways of running this example:
  *
@@ -41,38 +47,49 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
  *
  * <h2>Existing HTTP server</h2>
  *
- * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
- * {@link HelloSseServer}) by passing the port fo the existing server similar to the case above:
+ * You can also use this client to send a GET request "/sse" to an existing HTTP server (different than
+ * {@link HelloSseServer}) by passing the port and host of the existing server similar to the case above:
  *
  <PRE>
-    java io.reactivex.netty.examples.http.sse.HelloSseClient [server port]
+    java io.reactivex.netty.examples.http.sse.HelloSseClient [server port] [server host]
  </PRE>
+ * If the server host is omitted from the above, it defaults to "127.0.0.1"
  *
  * In all the above usages, this client will print the response received from the server.
+ *
+ * @see HelloSseServer Default server for this client.
  */
-public class HelloSseClient extends AbstractClientExample {
+public final class HelloSseClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
         /*
-         * Retrieves the server port, using the following algorithm:
+         * Retrieves the server address, using the following algorithm:
          * <ul>
-             <li>If an argument is passed, then use the argument as the server port.</li>
-             <li>Otherwise, see if the server in the passed server class is already running. If so, use that port.</li>
-             <li>Otherwise, start the passed server class and use that port.</li>
+             <li>If any arguments are passed, then use the first argument as the server port.</li>
+             <li>If available, use the second argument as the server host, else default to localhost</li>
+             <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        int port = getServerPort(HelloSseServer.class, args);
+        SocketAddress serverAddress = getServerAddress(HelloSseServer.class, args);
 
-        HttpClient.newClient("localhost", port) /*Create a client*/
-                .createGet("/sse") /*Creates a GET request with URI "/hello"*/
-                .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
+        /*Create a new client for the server address*/
+        HttpClient.newClient(serverAddress)
+                  /*Creates a GET request with URI "/sse"*/
+                .createGet("/sse")
+                  /*Prints the response headers*/
+                .doOnNext(resp -> logger.info(resp.toString()))
+                  /*
+                   * Since, we are only interested in the content, take the content as a SSE stream. This converts the
+                   * content to an SSE stream if the content type is of type text/event-stream, else it generates an
+                   * error.
+                   */
                 .flatMap(HttpClientResponse::getContentAsServerSentEvents)
                 /*Since, the server sends an infinite stream, take only 10 items*/
                 .take(10)
-                  /*Block till the response comes to avoid JVM exit.*/
+                /*Block till the response comes to avoid JVM exit.*/
                 .toBlocking()
-                  /*Print each content chunk*/
+                /*Print each content chunk*/
                 .forEach(sse -> logger.info(sse.toString()));
     }
 }

@@ -21,6 +21,8 @@ import org.slf4j.helpers.NOPLogger;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 public class AbstractClientExample {
 
@@ -30,11 +32,22 @@ public class AbstractClientExample {
         AbstractClientExample.logger = logger;
     }
 
-    protected static int getServerPort(Class<? extends AbstractServerExample> serverClass, String[] args) {
+    public static SocketAddress getServerAddress(Class<? extends AbstractServerExample> serverClass, String[] args) {
+
+        String host = "127.0.0.1";
 
         if(null != args && args.length > 0) {
             String portAsStr = args[0];
-            return Integer.parseInt(portAsStr);
+            try {
+                int port = Integer.parseInt(portAsStr);
+                if (args.length > 1) {
+                    host = args[1];
+                }
+
+                return new InetSocketAddress(host, port);
+            } catch (NumberFormatException e) {
+                printUsageAndExit();
+            }
         }
 
         boolean started = isStarted(serverClass);
@@ -52,7 +65,7 @@ public class AbstractClientExample {
                     if (AbstractServerExample.NOT_STARTED_PORT == serverPort) {
                         throw new RuntimeException("Failed to start the server: " + serverClass.getName());
                     } else {
-                        return serverPort;
+                        return new InetSocketAddress(host, serverPort);
                     }
                 }
             } catch (IllegalAccessException e) {
@@ -68,6 +81,23 @@ public class AbstractClientExample {
         }
 
         throw new RuntimeException("Failed to start the server: " + serverClass.getName());
+    }
+
+    private static void printUsageAndExit() {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        for (int i = stackTrace.length - 1; i >= 0; i--) {
+            StackTraceElement stackTraceElement = stackTrace[i];
+            try {
+                final String className = stackTraceElement.getClassName();
+                if (AbstractClientExample.class.isAssignableFrom(Class.forName(className))) {
+                    System.out.println("Usage: java " + className + " [<server port> [<server host>]]");
+                    System.exit(-1);
+                }
+            } catch (ClassNotFoundException e) {
+                // Ignore...
+            }
+        }
+        System.exit(-1);
     }
 
     private static boolean isStarted(Class<? extends AbstractServerExample> serverClass) {

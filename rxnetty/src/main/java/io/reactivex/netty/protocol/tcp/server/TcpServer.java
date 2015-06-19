@@ -335,7 +335,8 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
     public abstract TcpServerEventPublisher getEventPublisher();
 
     /**
-     * Creates a new server using an ephemeral port.
+     * Creates a new server using an ephemeral port. The port used can be queried after starting this server, using
+     * {@link #getServerPort()}
      *
      * @return A new {@link TcpServer}
      */
@@ -371,20 +372,20 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
      * Creates a new server using the passed port.
      *
      * @param port Port for the server. {@code 0} to use ephemeral port.
-     * @param serverGroup Eventloop group to be used for server sockets.
+     * @param acceptGroup Eventloop group to be used for server sockets.
      * @param clientGroup Eventloop group to be used for client sockets.
      * @param channelClass The class to be used for server channel.
      *
      * @return A new {@link TcpServer}
      */
-    public static TcpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup serverGroup,
+    public static TcpServer<ByteBuf, ByteBuf> newServer(int port, EventLoopGroup acceptGroup,
                                                          EventLoopGroup clientGroup,
                                                          Class<? extends ServerChannel> channelClass) {
-        return newServer(new InetSocketAddress(port), serverGroup, clientGroup, channelClass);
+        return newServer(new InetSocketAddress(port), acceptGroup, clientGroup, channelClass);
     }
 
     /**
-     * Creates a new server using the passed port.
+     * Creates a new server using the passed address.
      *
      * @param socketAddress Socket address for the server.
      * @return A new {@link TcpServer}
@@ -394,7 +395,7 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
     }
 
     /**
-     * Creates a new server using the passed port.
+     * Creates a new server using the passed address.
      *
      * @param socketAddress Socket address for the server.
      * @param eventLoopGroup Eventloop group to be used for server as well as client sockets.
@@ -408,18 +409,18 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
     }
 
     /**
-     * Creates a new server using the passed port.
+     * Creates a new server using the passed address.
      *
      * @param socketAddress Socket address for the server.
-     * @param serverGroup Eventloop group to be used for server sockets.
+     * @param acceptGroup Eventloop group to be used for server sockets.
      * @param clientGroup Eventloop group to be used for client sockets.
      * @param channelClass The class to be used for server channel.
      *
      * @return A new {@link TcpServer}
      */
-    public static TcpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress, EventLoopGroup serverGroup,
+    public static TcpServer<ByteBuf, ByteBuf> newServer(SocketAddress socketAddress, EventLoopGroup acceptGroup,
                                                          EventLoopGroup clientGroup,
                                                          Class<? extends ServerChannel> channelClass) {
-        return new TcpServerImpl<ByteBuf, ByteBuf>(socketAddress, serverGroup, clientGroup, channelClass);
+        return new TcpServerImpl<ByteBuf, ByteBuf>(socketAddress, acceptGroup, clientGroup, channelClass);
     }
 }

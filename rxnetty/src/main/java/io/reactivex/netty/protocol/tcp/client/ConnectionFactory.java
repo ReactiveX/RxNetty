@@ -19,9 +19,23 @@ import rx.annotations.Beta;
 
 import java.net.SocketAddress;
 
+/**
+ * A factory to create new connections. This is used by {@link ConnectionProvider} to delegate actual connection
+ * creation work.
+ *
+ * @param <W> Type of object that is written to the connections created by this factory.
+ * @param <R> Type of object that is read from the connections created by this factory.
+ */
 @Beta
 public abstract class ConnectionFactory<W, R> {
 
+    /**
+     * Creates a new connection, every time the returned {@code Observable} is subscribed.
+     *
+     * @param hostAddress The socket address to which a client connection is to be established.
+     *
+     * @return A {@link ConnectionObservable}, each subscription to which creates a new connection.
+     */
     public abstract ConnectionObservable<R, W> newConnection(SocketAddress hostAddress);
 
 }

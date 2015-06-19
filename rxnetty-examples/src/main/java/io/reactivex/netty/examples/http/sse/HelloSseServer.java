@@ -26,7 +26,10 @@ import java.util.concurrent.TimeUnit;
 import static io.reactivex.netty.protocol.http.sse.ServerSentEvent.*;
 
 /**
- * An HTTP "Hello World" server. It returns an "Hello World" response for all requests received.
+ * An <a href="http://www.w3.org/TR/eventsource/">Server sent event</a> "Hello World" example server.
+ *
+ * This server send an infinite Server Sent Event stream for any request that it recieves. The infinite stream publishes
+ * an event every 10 milliseconds, with the event data as "Interval => [count starting with 0]"
  */
 public final class HelloSseServer extends AbstractServerExample {
 
@@ -34,21 +37,27 @@ public final class HelloSseServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        server = HttpServer.newServer(0)
+        /*Starts a new HTTP server on an ephemeral port.*/
+        server = HttpServer.newServer()
+                           /*Starts the server with a request handler.*/
                            .start((req, resp) ->
+                               /*Send an SSE response to all requests.*/
                                resp.transformToServerSentEvents()
+                               /* Write the stream that generates an event every 10 milliseconds*/
                                    .writeAndFlushOnEach(Observable.interval(10, TimeUnit.MILLISECONDS)
+                                           /*If the channel puts backpressure, then drop data.*/
                                                                   .onBackpressureDrop()
+                                           /*Convert the tick generated to a ServerSentEvent object.*/
                                                                   .map(aLong -> withData("Interval => " + aLong)))
                            );
 
-        /*Wait for shutdown if not called from another class (passed an arg)*/
+        /*Wait for shutdown if not called from the client (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
-            /*When testing the args are set, to avoid blocking till shutdown*/
             server.awaitShutdown();
         }
 
-        /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
+        /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
+        the caller, if any.*/
         setServerPort(server.getServerPort());
     }
 }

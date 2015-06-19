@@ -18,8 +18,10 @@ package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
@@ -34,6 +36,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import rx.Observable;
 import rx.functions.Action0;
+import rx.functions.Func0;
 import rx.observers.TestSubscriber;
 
 import java.net.SocketAddress;
@@ -104,6 +107,36 @@ public class HttpClientTest {
 
         assertThat("Unexpected response content count.", testSubscriber.getOnNextEvents(), hasSize(2));
         assertThat("Unexpected response content.", testSubscriber.getOnNextEvents(), contains(content1, content2));
+    }
+
+    @Test(timeout = 60000)
+    public void testAggregatedContent() throws Exception {
+
+        HttpClientRequest<ByteBuf, ByteBuf> request = clientRule.getHttpClient()
+                                                                .<ByteBuf, ByteBuf>addChannelHandlerLast("aggregator", new Func0<ChannelHandler>() {
+                                                                    @Override
+                                                                    public ChannelHandler call() {
+                                                                        return new HttpObjectAggregator(1024);
+                                                                    }
+                                                                })
+                                                                .createGet("/");
+
+        TestSubscriber<String> testSubscriber = clientRule.sendRequestAndGetContent(request);
+
+        clientRule.assertRequestHeadersWritten(HttpMethod.GET, "/");
+
+        final String content1 = "Hello1";
+        final String content2 = "Hello2";
+        clientRule.feedResponseAndComplete(content1, content2);
+
+        testSubscriber.awaitTerminalEvent();
+        testSubscriber.assertNoErrors();
+
+        assertThat("Unexpected response content count.", testSubscriber.getOnNextEvents(), hasSize(1));
+        assertThat("Unexpected response content.", testSubscriber.getOnNextEvents().get(0),
+                   containsString(content1));
+        assertThat("Unexpected response content.", testSubscriber.getOnNextEvents().get(0),
+                   containsString(content2));
     }
 
     @Test(timeout = 60000)

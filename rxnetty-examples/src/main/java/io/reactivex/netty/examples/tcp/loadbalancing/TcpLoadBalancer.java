@@ -22,17 +22,35 @@ import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
+/**
+ * This is an implementation of {@link RoundRobinLoadBalancer} for TCP clients.
+ *
+ * This load balancer uses a naive failure detector that removes the host on the first connection failure. The
+ * intention here is just to demonstrate how to write complex load balancing logic using lower level constructs in the
+ * client.
+ *
+ * @param <W> Type of Objects written on the connections created by this load balancer.
+ * @param <R> Type of Objects read from the connections created by this load balancer.
+ */
 public class TcpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
 
     private TcpLoadBalancer(SocketAddress[] hosts, ConnectionFactory<W, R> connectionFactory) {
         super(hosts, connectionFactory, removeAction -> new TcpClientEventListener() {
             @Override
             public void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
+                /*Remove the host from the active list, if a connect fails*/
                 removeAction.call();
             }
         });
     }
 
+    /**
+     * Creates a new instance of {@link TcpLoadBalancer} load balancing on the passed array of hosts.
+     *
+     * @param hosts Array of hosts to load balance on.
+     *
+     * @return A new {@link ConnectionProvider} that creates instances of {@link TcpLoadBalancer}
+     */
     public static <W, R> ConnectionProvider<W, R> create(SocketAddress[] hosts) {
         return ConnectionProvider.create(connectionFactory -> new TcpLoadBalancer<W, R>(hosts, connectionFactory));
     }

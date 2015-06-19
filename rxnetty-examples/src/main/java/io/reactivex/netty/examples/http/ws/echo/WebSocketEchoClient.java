@@ -23,10 +23,14 @@ import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketResponse;
 import rx.Observable;
 
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 
 /**
- * An HTTP "Hello World" example. There are three ways of running this example:
+ * An example to demonstrate how to write a WebSocket client. This example sends a stream of 10 websocket frames to the
+ * specified server and expects 10 websocket frames in response.
+ *
+ * There are three ways of running this example:
  *
  * <h2>Default</h2>
  *
@@ -45,11 +49,12 @@ import java.nio.charset.Charset;
  * <h2>Existing HTTP server</h2>
  *
  * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
- * {@link WebSocketEchoServer}) by passing the port fo the existing server similar to the case above:
+ * {@link WebSocketEchoServer}) by passing the port and host of the existing server similar to the case above:
  *
  <PRE>
  java io.reactivex.netty.examples.http.ws.echo.WebSocketEchoClient [server port]
  </PRE>
+ * If the server host is omitted from the above, it defaults to "127.0.0.1"
  *
  * In all the above usages, this client will print the response received from the server.
  */
@@ -58,30 +63,43 @@ public class WebSocketEchoClient extends AbstractClientExample {
     public static void main(String[] args) {
 
         /*
-         * Retrieves the server port, using the following algorithm:
+         * Retrieves the server address, using the following algorithm:
          * <ul>
-             <li>If an argument is passed, then use the argument as the server port.</li>
-             <li>Otherwise, see if the server in the passed server class is already running. If so, use that port.</li>
-             <li>Otherwise, start the passed server class and use that port.</li>
+             <li>If any arguments are passed, then use the first argument as the server port.</li>
+             <li>If available, use the second argument as the server host, else default to localhost</li>
+             <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        int port = getServerPort(WebSocketEchoServer.class, args);
+        SocketAddress socketAddress = getServerAddress(WebSocketEchoServer.class, args);
 
-        HttpClient.newClient("localhost", port) /*Create a client*/
-                  .createGet("/hello") /*Creates a GET request with URI "/hello"*/
+        /*Create a new client for the server address*/
+        HttpClient.newClient(socketAddress)
+                  /*Creates a GET request with URI "/ws"*/
+                  .createGet("/ws")
+                  /*Requests an upgrade to WebSocket, in case the server rejects, this upgrade, an error will be
+                  generated*/
                   .requestWebSocketUpgrade()
-                  .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
+                  /*Prints the response headers*/
+                  .doOnNext(resp -> logger.info(resp.toString()))
+                  /*For successful upgrades, convert the response to a WebSocket connection*/
                   .flatMap(WebSocketResponse::getWebSocketConnection)
-                  .flatMap(conn -> conn.write(Observable.range(1, 10)
-                                                        .<WebSocketFrame>map(anInt -> new TextWebSocketFrame("Interval " + anInt))
+                  /*Write 10 WebSocket frames on the connection and read the input stream of the connection*/
+                  .flatMap(conn ->
+                           /*Write a 10 websocket frames on the connection.*/
+                           conn.write(Observable.range(1, 10)
+                                                .<WebSocketFrame>map(anInt -> new TextWebSocketFrame("Interval "
+                                                                                                     + anInt))
                                              )
                                        .cast(WebSocketFrame.class)
+                                       /*Merge with the connection input, since the write returns a Void, this is
+                                       * only merging error from the write.*/
                                        .mergeWith(conn.getInput())
                   )
+                 /*Since, we sent 10 frames we expect 10 echo responses.*/
                  .take(10)
-                /*Block till the response comes to avoid JVM exit.*/
+                 /*Block till the response comes to avoid JVM exit.*/
                 .toBlocking()
-                /*Print each content chunk*/
+                 /*Print each WebSocket frame content as a string*/
                 .forEach(frame -> logger.info(frame.content().toString(Charset.defaultCharset())));
     }
 }

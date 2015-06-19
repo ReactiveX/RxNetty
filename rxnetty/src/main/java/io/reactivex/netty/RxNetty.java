@@ -21,7 +21,7 @@ import io.reactivex.netty.channel.SingleNioLoopProvider;
 
 public final class RxNetty {
 
-    private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider(1, Runtime.getRuntime().availableProcessors());
+    private static volatile RxEventLoopProvider rxEventLoopProvider = new SingleNioLoopProvider(Runtime.getRuntime().availableProcessors());
 
     private static volatile boolean usingNativeTransport;
     private static volatile boolean disableEventPublishing;
