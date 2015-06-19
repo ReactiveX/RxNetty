@@ -22,8 +22,16 @@ import io.reactivex.netty.codec.StringLineDecoder;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 
+import java.net.SocketAddress;
+
 /**
- * A TCP "Hello World" example. There are three ways of running this example:
+ * A TCP streaming example.
+ *
+ * This example assumes that the server to which this client connects (using the below mentioned option), sends an
+ * infinite stream of new line seperated strings. This client only takes 10 items from that infinite stream and then
+ * terminates the connection.
+ *
+ * There are three ways of running this example:
  *
  * <h2>Default</h2>
  *
@@ -41,35 +49,46 @@ import io.reactivex.netty.protocol.tcp.client.TcpClient;
  *
  * <h2>Existing TCP server</h2>
  *
- * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
- * {@link StreamingServer}) by passing the port fo the existing server similar to the case above:
+ * You can also use this client to connect to an existing TCP server (different than {@link StreamingServer}) by
+ * passing the port and host of the existing server similar to the case above:
  *
  <PRE>
- java io.reactivex.netty.examples.tcp.streaming.StreamingClient [server port]
+ java io.reactivex.netty.examples.tcp.streaming.StreamingClient [server port] [server host]
  </PRE>
+ * If the server host is omitted from the above, it defaults to "127.0.0.1"
  *
  * In all the above usages, this client will print the response received from the server.
+ *
+ * @see StreamingServer Default server for this client.
  */
 public final class StreamingClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
         /*
-         * Retrieves the server port, using the following algorithm:
+         * Retrieves the server address, using the following algorithm:
          * <ul>
-             <li>If an argument is passed, then use the argument as the server port.</li>
-             <li>Otherwise, see if the server in the passed server class is already running. If so, use that port.</li>
-             <li>Otherwise, start the passed server class and use that port.</li>
+             <li>If any arguments are passed, then use the first argument as the server port.</li>
+             <li>If available, use the second argument as the server host, else default to localhost</li>
+             <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        int port = getServerPort(StreamingServer.class, args);
+        SocketAddress serverAddress = getServerAddress(StreamingServer.class, args);
 
-        TcpClient.<ByteBuf, ByteBuf>newClient("127.0.0.1", port)
+        /*Create a new client for the server address*/
+        TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
+                /*Create a new connection request, each subscription creates a new connection*/
                  .createConnectionRequest()
+                /* Add a decoder that reads the input and splits it on new line, this makes the output predictable, as
+                 * opposed to reading raw bytes*/
                  .<ByteBuf, String>addChannelHandlerLast("string-decoder", StringLineDecoder::new)
+                /*on successful connection, start reading the input*/
                  .flatMap(Connection::getInput)
+                /*Take 10 strings*/
                  .take(10)
+                /*Block till the response comes to avoid JVM exit.*/
                  .toBlocking()
+                /*Print each content chunk*/
                  .forEach(logger::info);
     }
 }

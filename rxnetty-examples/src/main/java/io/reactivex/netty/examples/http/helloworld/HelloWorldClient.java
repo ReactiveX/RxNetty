@@ -21,6 +21,7 @@ import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 
 /**
@@ -43,35 +44,41 @@ import java.nio.charset.Charset;
  * <h2>Existing HTTP server</h2>
  *
  * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
- * {@link HelloWorldServer}) by passing the port fo the existing server similar to the case above:
+ * {@link HelloWorldServer}) by passing the port and host of the existing server similar to the case above:
  *
  <PRE>
- java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
+ java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port] [server host]
  </PRE>
+ * If the server host is omitted from the above, it defaults to "127.0.0.1"
  *
  * In all the above usages, this client will print the response received from the server.
+ *
+ * @see HelloWorldServer Default server for this client.
  */
 public class HelloWorldClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
         /*
-         * Retrieves the server port, using the following algorithm:
+         * Retrieves the server address, using the following algorithm:
          * <ul>
-             <li>If an argument is passed, then use the argument as the server port.</li>
-             <li>Otherwise, see if the server in the passed server class is already running. If so, use that port.</li>
-             <li>Otherwise, start the passed server class and use that port.</li>
+             <li>If any arguments are passed, then use the first argument as the server port.</li>
+             <li>If available, use the second argument as the server host, else default to localhost</li>
+             <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        int port = getServerPort(HelloWorldServer.class, args);
+        SocketAddress serverAddress = getServerAddress(HelloWorldServer.class, args);
 
-        HttpClient.newClient("localhost", port) /*Create a client*/
-                  .createGet("/hello") /*Creates a GET request with URI "/hello"*/
-                  .doOnNext(resp -> logger.info(resp.toString()))/*Prints the response headers*/
-                  .flatMap((HttpClientResponse<ByteBuf> resp) -> /*Return the stream to response content stream.*/
-                                     /*Now use the content stream.*/
+        /*Create a new client for the server address*/
+        HttpClient.newClient(serverAddress)
+                  /*Creates a GET request with URI "/hello"*/
+                  .createGet("/hello")
+                  /*Prints the response headers*/
+                  .doOnNext(resp -> logger.info(resp.toString()))
+                  /*Since, we are only interested in the content, now, convert the stream to the content stream*/
+                  .flatMap((HttpClientResponse<ByteBuf> resp) ->
                                      resp.getContent()
-                                     /*Convert ByteBuf to string for each content*/
+                                     /*Convert ByteBuf to string for each content chunk*/
                                      .map(bb -> bb.toString(Charset.defaultCharset()))
                   )
                   /*Block till the response comes to avoid JVM exit.*/

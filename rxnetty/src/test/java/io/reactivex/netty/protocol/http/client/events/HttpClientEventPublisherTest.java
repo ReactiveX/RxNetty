@@ -260,18 +260,6 @@ public class HttpClientEventPublisherTest {
         assertThat("Publishing not enabled.", rule.publisher.publishingEnabled(), is(true));
     }
 
-    @Test(timeout = 60000)
-    public void testCopy() throws Exception {
-/*
-
-        HttpClientEventPublisher copy = rule.publisher.copy(rule.publisher.getTcpDelegate().copy());
-
-        assertThat("Publisher not copied.", copy, is(not(sameInstance(rule.publisher))));
-        assertThat("Listeners not copied.", copy.getListeners(), is(not(sameInstance(rule.publisher.getListeners()))));
-        assertThat("Delegate not copied.", copy.getTcpDelegate(), is(not(sameInstance(rule.publisher.getTcpDelegate()))));
-*///TODO: Fixe me
-    }
-
     public static class PublisherRule extends ExternalResource {
 
         private HttpClientEventsListenerImpl listener;

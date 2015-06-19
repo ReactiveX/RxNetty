@@ -27,52 +27,87 @@ import java.util.Map.Entry;
 
 import static rx.Observable.*;
 
+/**
+ * An example to demonstrate how to write a simple HTTP proxy.
+ *
+ * The intent here is <em>NOT</em> to prescribe how to write a fully functional proxy, which would otherwise require
+ * setting appropriate request headers, do appropriate routing on the origin endpoints, etc. Instead, it is to
+ * demonstrate how to write a server that forwards the received request, as is to another server using an RxNetty
+ * client.
+ *
+ * This example starts an embedded target server, which is a simple HTTP server that returns a response with HTTP
+ * status of 200 and a content of "Hello World!" for every request it recieves. The proxy server then forwards all
+ * received requests to this target server preserving all the request and response headers as well as content. It
+ * adds an additional response header "X-Proxied-By" with a value "RxNetty" to demonstrate that the response is a
+ * proxied response.
+ */
 public final class ProxyServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
 
+        /*Starts an embedded target server using an ephemeral port.*/
         int targetServerPort = startTargetServer();
 
-        final HttpClient<ByteBuf, ByteBuf> targetClient = HttpClient.newClient("localhost", targetServerPort);
+        /*Create a new HTTP client pointing to the target server.*/
+        final HttpClient<ByteBuf, ByteBuf> targetClient = HttpClient.newClient("127.0.0.1", targetServerPort);
 
         HttpServer<ByteBuf, ByteBuf> server;
 
+        /*Starts a new HTTP server on an ephemeral port which acts as a proxy to the target server started above.*/
         server = HttpServer.newServer()
-                           .start((req, resp) -> {
-                                      HttpClientRequest<ByteBuf, ByteBuf> outReq =
-                                              targetClient.createRequest(req.getHttpMethod(), req.getUri());
+                           /*Starts the server with the proxy request handler.*/
+                           .start((serverReq, serverResp) -> {
+                                      /*
+                                       * Create a new HTTP request for the target server, using the method and URI from
+                                       * the server request.
+                                       */
+                                      HttpClientRequest<ByteBuf, ByteBuf> clientReq =
+                                              targetClient.createRequest(serverReq.getHttpMethod(), serverReq.getUri());
 
-                                      Iterator<Entry<String, String>> headers = req.headerIterator();
-                                      while (headers.hasNext()) {
-                                          Entry<String, String> next = headers.next();
-                                          outReq = outReq.setHeader(next.getKey(), next.getValue());
+                                      /*Copy all server request headers to the client request*/
+                                      Iterator<Entry<String, String>> serverReqHeaders = serverReq.headerIterator();
+                                      while (serverReqHeaders.hasNext()) {
+                                          Entry<String, String> next = serverReqHeaders.next();
+                                          /*Since, the client request is copied for each mutation, use the latest instance*/
+                                          clientReq = clientReq.setHeader(next.getKey(), next.getValue());
                                       }
 
-                                      return outReq.writeContent(req.getContent())
-                                                   .flatMap(outResp -> {
-                                                       Iterator<Entry<String, String>> respH = outResp.headerIterator();
-                                                       while (respH.hasNext()) {
-                                                           Entry<String, String> next = respH.next();
-                                                           resp.setHeader(next.getKey(), next.getValue());
-                                                       }
+                                      /*Write the content that sends the request*/
+                                      return clientReq.writeContent(serverReq.getContent())
+                                                      /*Handle the response by copying it to server response.*/
+                                                      .flatMap(clientResp -> {
 
-                                                       resp.setHeader("X-Proxied-By", "RxNetty");
-                                                       return resp.write(outResp.getContent());
-                                                   });
+                                                          /*Iterator for the client response headers.*/
+                                                          Iterator<Entry<String, String>> clientRespHeaders =
+                                                                  clientResp.headerIterator();
+
+                                                          /*Copy all client response headers to the server response.*/
+                                                          while (clientRespHeaders.hasNext()) {
+                                                              Entry<String, String> next = clientRespHeaders.next();
+                                                              serverResp.setHeader(next.getKey(), next.getValue());
+                                                          }
+
+                                                          /*Add a demo header to indicate proxied response!*/
+                                                          serverResp.setHeader("X-Proxied-By", "RxNetty");
+
+                                                          /*Write the client response content to server response.*/
+                                                          return serverResp.write(clientResp.getContent());
+                                                      });
                                   }
                            );
 
-        /*Wait for shutdown if not called from another class (passed an arg)*/
+        /*Wait for shutdown if not called from the client (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
-            /*When testing the args are set, to avoid blocking till shutdown*/
             server.awaitShutdown();
         }
 
-        /*Assign the ephemeral port used to a field so that it can be read and used by the caller, if any.*/
+        /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
+        the caller, if any.*/
         setServerPort(server.getServerPort());
     }
 
     private static int startTargetServer() {
+        /*Start a hello world server using an ephemeral port*/
         return HttpServer.newServer()
                          .start((req, resp) -> resp.writeString(just("HelloWorld!")))
                          .getServerPort();

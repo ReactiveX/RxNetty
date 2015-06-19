@@ -46,24 +46,6 @@ public class ConnectionProviderTest {
     public final ConnectionFactoryRule cfRule = new ConnectionFactoryRule();
 
     @Test(timeout = 60000)
-    public void testTransform() throws Exception {
-        ConnectionProvider<Integer, Integer> transformed =
-                cfRule.rawFactory
-                        .transform(new Func1<ConnectionFactory<Integer, Integer>, ConnectionFactory<String, String>>() {
-                            @SuppressWarnings("unchecked")
-                            @Override
-                            public ConnectionFactory<String, String> call(ConnectionFactory<Integer, Integer> cf) {
-                                @SuppressWarnings("rawtypes")
-                                ConnectionFactory toReturn = cf;
-                                return toReturn;
-                            }
-                        });
-
-        ConnectionProvider<Integer, Integer> realized = cfRule.start(transformed);
-        cfRule.connectAndAssert(realized);
-    }
-
-    @Test(timeout = 60000)
     public void testForHost() throws Exception {
 
         ConnectionProvider<String, String> cf = serverRule.newConnectionFactoryForClient();

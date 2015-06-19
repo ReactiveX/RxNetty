@@ -15,8 +15,10 @@
  */
 package io.reactivex.netty.protocol.tcp.client;
 
+import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.Connection;
@@ -30,35 +32,24 @@ import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 
 /**
- * A connection factory to be used by TCP clients or any protocol built on top of TCP (eg: HTTP).
+ * A connection provider to be used by TCP clients or any protocol built on top of TCP (eg: HTTP).
  *
- * There are two distinct kind of connection factories, viz.,
+ * There are two distinct kind of connection providers, viz.,
  *
- * <h2>Connection factory for a single host</h2>
+ * <h2>Connection provider for a single host</h2>
  *
- * Such a connection factory can be created using {@code forHost} methods ({@link #forHost(SocketAddress)} ,
+ * Such a connection provider can be created using {@code forHost} methods ({@link #forHost(SocketAddress)} ,
  * {@link #forHost(SocketAddress, EventLoopGroup, Class)}, {@link #forHost(String, int)},
  * {@link #forHost(SocketAddress, EventLoopGroup, Class)}).
  *
- * <h2>Connection factory for a pool of hosts</h2>
+ * <h2>Connection provider for a pool of hosts</h2>
  *
- * Such a connection factory would be created by using the create methods ({@link #create(Func1)},
- * {@link #create(Func1, EventLoopGroup, Class)}) because every {@link ConnectionProvider} requires
- * {@link BootstrapFactory} to create {@link ConnectionFactory} per target server.
+ * Such a connection provider would be created by using the create methods ({@link #create(Func1)},
+ * {@link #create(Func1, EventLoopGroup, Class)}) because such a {@link ConnectionProvider} requires a
+ * {@link ConnectionFactory} to create {@link Connection}s per target server.
  *
- * <h2>Concrete Implementations</h2>
- *
- * In order to create a concrete {@link ConnectionProvider} implementations, one would require one of the following:
- *
- * <ul>
- <li>{@link BootstrapFactory}: A factory for creating {@link ConnectionFactory} per target server, typically used when
- the connection factory creates connections to multiple target servers.</li>
- <li>{@link ConnectionFactory}: A concrete {@link ConnectionFactory} instance for connecting to a single target server,
- typically used when the connection factory is only connecting to a single target server.</li>
- </ul>
- *
- * @param <W> Type of object that is written to the connections created by this factory.
- * @param <R> Type of object that is read from the connections created by this factory.
+ * @param <W> Type of object that is written to the connections created by this provider.
+ * @param <R> Type of object that is read from the connections created by this provider.
  *
  * @see PooledConnectionProvider
  */
@@ -84,8 +75,8 @@ public abstract class ConnectionProvider<W, R> {
      * @param connectionFactory Connection factory.
      */
     protected ConnectionProvider(@SuppressWarnings("unused") ConnectionFactory<W, R> connectionFactory) {
-        this(new UninitializedCreationFunc<W, R>(), RxNetty.getRxEventLoopProvider().globalClientEventLoop(),
-             NioSocketChannel.class);
+        this(new UninitializedCreationFunc<W, R>(), RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
+             defaultSocketChannelClass());
     }
 
     /**
@@ -96,7 +87,7 @@ public abstract class ConnectionProvider<W, R> {
     public abstract ConnectionObservable<R, W> nextConnection();
 
     /**
-     * Starts this connection factory. Implementations can override this to do any initialization tasks. This method
+     * Starts this connection provider. Implementations can override this to do any initialization tasks. This method
      * would at most be called once per {@link ConnectionProvider} instance.
      *
      * @return {@code Observable} which completes when the factory is successfully started.
@@ -126,19 +117,6 @@ public abstract class ConnectionProvider<W, R> {
         return shutdown;
     }
 
-    final <WW, RR> ConnectionProvider<WW, RR> transform(final Func1<ConnectionFactory<WW, RR>, ConnectionFactory<W, R>> func) {
-        final Func1<ConnectionFactory<WW, RR>, ConnectionProvider<WW, RR>> cf =
-                new Func1<ConnectionFactory<WW, RR>, ConnectionProvider<WW, RR>>() {
-                    @SuppressWarnings("unchecked")
-                    @Override
-                    public ConnectionProvider<WW, RR> call(ConnectionFactory<WW, RR> connectionFactory) {
-                        ConnectionFactory<W, R> oldTypeFactory = func.call(connectionFactory);
-                        return (ConnectionProvider<WW, RR>) creationFunc.call(oldTypeFactory);
-                    }
-                };
-        return create(cf);
-    }
-
     /**
      * Creates a concrete {@link ConnectionProvider} for the passed {@code host} and {@code port}
      *
@@ -148,7 +126,8 @@ public abstract class ConnectionProvider<W, R> {
      * @return A concrete {@link ConnectionProvider} for the passed {@code host}.
      */
     public static <W, R> ConnectionProvider<W, R> forHost(final String host, final int port) {
-        return forHost(host, port, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class);
+        return forHost(host, port, RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
+                       defaultSocketChannelClass());
     }
 
     /**
@@ -175,7 +154,8 @@ public abstract class ConnectionProvider<W, R> {
      * @return A concrete {@link ConnectionProvider} for the passed {@code host}.
      */
     public static <W, R> ConnectionProvider<W, R> forHost(final SocketAddress host) {
-        return forHost(host, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class);
+        return forHost(host, RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
+                       defaultSocketChannelClass());
     }
 
     /**
@@ -207,20 +187,21 @@ public abstract class ConnectionProvider<W, R> {
      * Creates a raw {@link ConnectionProvider} using the provided function to create actual {@link ConnectionProvider}
      * instance.
      *
-     * @param func A function to create a concrete {@link ConnectionProvider} using the passed {@link BootstrapFactory}
+     * @param func A function to create a concrete {@link ConnectionProvider} using the passed {@link ConnectionFactory}
      *
      * @return A raw connection factory that will use the passed function to create concrete {@link ConnectionProvider}
      * instance.
      */
     public static <W, R> ConnectionProvider<W, R> create(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> func) {
-        return create(func, RxNetty.getRxEventLoopProvider().globalClientEventLoop(), NioSocketChannel.class);
+        return create(func, RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
+                      defaultSocketChannelClass());
     }
 
     /**
      * Creates a raw {@link ConnectionProvider} using the provided function to create actual {@link ConnectionProvider}
      * instance.
      *
-     * @param func A function to create a concrete {@link ConnectionProvider} using the passed {@link BootstrapFactory}
+     * @param func A function to create a concrete {@link ConnectionProvider} using the passed {@link ConnectionFactory}
      * @param eventLoopGroup Event loop group to use.
      * @param channelClass Class of the channel.
      *
@@ -228,8 +209,8 @@ public abstract class ConnectionProvider<W, R> {
      * instance.
      */
     public static <W, R> ConnectionProvider<W, R> create(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> func,
-                                                        EventLoopGroup eventLoopGroup,
-                                                        Class<? extends Channel> channelClass) {
+                                                         EventLoopGroup eventLoopGroup,
+                                                         Class<? extends Channel> channelClass) {
         return new UninitializedConnectionProvider<W, R>(func, eventLoopGroup, channelClass);
     }
 
@@ -278,5 +259,9 @@ public abstract class ConnectionProvider<W, R> {
         public Observable<Void> start() {
             return Observable.error(new IllegalStateException("Connection factory not initialized"));
         }
+    }
+
+    private static Class<? extends AbstractChannel> defaultSocketChannelClass() {
+        return RxNetty.isUsingNativeTransport() ? EpollSocketChannel.class : NioSocketChannel.class;
     }
 }

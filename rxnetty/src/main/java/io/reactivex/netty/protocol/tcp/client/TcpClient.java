@@ -33,6 +33,7 @@ import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -285,10 +286,36 @@ public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListe
      */
     public abstract TcpClient<W, R> unsafeSecure();
 
+    /**
+     * Creates a new TCP client instance with the passed address of the target server.
+     *
+     * @param host Hostname for the target server.
+     * @param port Port for the target server.
+     *
+     * @return A new {@code TcpClient} instance.
+     */
     public static TcpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
         return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(host, port));
     }
 
+    /**
+     * Creates a new TCP client instance with the passed address of the target server.
+     *
+     * @param serverAddress Socket address for the target server.
+     *
+     * @return A new {@code TcpClient} instance.
+     */
+    public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress serverAddress) {
+        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(serverAddress));
+    }
+
+    /**
+     * Creates a new TCP client instance using the supplied connection provider.
+     *
+     * @param connectionProvider Connection provider for connection to be used by the newly created client.
+     *
+     * @return A new {@code TcpClient} instance.
+     */
     public static TcpClient<ByteBuf, ByteBuf> newClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
         return TcpClientImpl.create(connectionProvider);
     }

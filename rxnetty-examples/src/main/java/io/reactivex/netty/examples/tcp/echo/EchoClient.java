@@ -21,15 +21,18 @@ import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
 
+import java.net.SocketAddress;
 import java.nio.charset.Charset;
 
 /**
- * A TCP "Hello World" example. There are three ways of running this example:
+ * A TCP "Hello World" example that sends a string "Hello World!" to the target server and expects an echo response.
+ *
+ * There are three ways of running this example:
  *
  * <h2>Default</h2>
  *
  * The default way is to just run this class with no arguments, which will start a server ({@link EchoServer}) on
- * an ephemeral port and then send an HTTP request to that server and print the response.
+ * an ephemeral port, send a "Hello World!" message to the server and print the response.
  *
  * <h2>After starting {@link EchoServer}</h2>
  *
@@ -40,42 +43,55 @@ import java.nio.charset.Charset;
  java io.reactivex.netty.examples.tcp.echo.EchoClient [server port]
  </PRE>
  *
- * <h2>Existing HTTP server</h2>
+ * <h2>Existing TCP server</h2>
  *
- * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
- * {@link EchoServer}) by passing the port fo the existing server similar to the case above:
+ * You can also use this client to connect to an already running TCP server (different than
+ * {@link EchoServer}) by passing the port and host of the existing server similar to the case above:
  *
  <PRE>
- java io.reactivex.netty.examples.tcp.echo.EchoClient [server port]
+ java io.reactivex.netty.examples.tcp.echo.EchoClient [server port] [server host]
  </PRE>
+ * If the server host is omitted from the above, it defaults to "127.0.0.1"
  *
  * In all the above usages, this client will print the response received from the server.
+ *
+ * @see EchoServer Default server for this client.
  */
 public final class EchoClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
         /*
-         * Retrieves the server port, using the following algorithm:
+         * Retrieves the server address, using the following algorithm:
          * <ul>
-             <li>If an argument is passed, then use the argument as the server port.</li>
-             <li>Otherwise, see if the server in the passed server class is already running. If so, use that port.</li>
-             <li>Otherwise, start the passed server class and use that port.</li>
+             <li>If any arguments are passed, then use the first argument as the server port.</li>
+             <li>If available, use the second argument as the server host, else default to localhost</li>
+             <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        int port = getServerPort(EchoServer.class, args);
+        SocketAddress serverAddress = getServerAddress(EchoServer.class, args);
 
-        TcpClient.<ByteBuf, ByteBuf>newClient("127.0.0.1", port)
+        /*Create a new client for the server address*/
+        TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
+                /*Create a new connection request, each subscription creates a new connection*/
                  .createConnectionRequest()
+                /*Upon successful connection, write "Hello World" and listen to input*/
                  .flatMap(connection ->
+                                  /*Write the message*/
                                   connection.writeString(Observable.just("Hello World!"))
-                                            .ignoreElements()
-                                            .cast(ByteBuf.class)
-                                            .mergeWith(connection.getInput())
+                                          /*Since, write returns a Void stream, cast it to ByteBuf to be able to merge
+                                          with the input*/
+                                          .cast(ByteBuf.class)
+                                          /*Upon successful completion of the write, subscribe to the connection input*/
+                                          .concatWith(connection.getInput())
                  )
+                /*Since, we only wrote a single message, we expect a single echo message back*/
                  .take(1)
+                /*Convert each ByteBuf to a string*/
                  .map(bb -> bb.toString(Charset.defaultCharset()))
+                /*Block till the response comes to avoid JVM exit.*/
                  .toBlocking()
+                /*Print each content chunk*/
                  .forEach(logger::info);
     }
 }

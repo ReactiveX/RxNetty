@@ -38,6 +38,7 @@ import rx.functions.Func1;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -403,10 +404,36 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      */
     public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
 
+    /**
+     * Creates a new HTTP client instance with the passed host and port for the target server.
+     *
+     * @param host Hostname for the target server.
+     * @param port Port for the target server.
+     *
+     * @return A new {@code HttpClient} instance.
+     */
     public static HttpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
         return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(new InetSocketAddress(host, port)));
     }
 
+    /**
+     * Creates a new HTTP client instance with the passed address of the target server.
+     *
+     * @param serverAddress Socket address for the target server.
+     *
+     * @return A new {@code HttpClient} instance.
+     */
+    public static HttpClient<ByteBuf, ByteBuf> newClient(SocketAddress serverAddress) {
+        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(serverAddress));
+    }
+
+    /**
+     * Creates a new HTTP client instance using the supplied connection provider.
+     *
+     * @param connectionProvider Connection provider for connection to be used by the newly created client.
+     *
+     * @return A new {@code HttpClient} instance.
+     */
     public static HttpClient<ByteBuf, ByteBuf> newClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
         return HttpClientImpl.create(connectionProvider);
     }

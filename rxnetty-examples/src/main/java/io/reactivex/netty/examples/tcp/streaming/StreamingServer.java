@@ -23,11 +23,16 @@ import rx.Observable;
 
 import java.util.concurrent.TimeUnit;
 
+/**
+ * A TCP server that sends an infinite stream of new-line separated strings to all accepted connections.
+ */
 public final class StreamingServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
+
         TcpServer<ByteBuf, ByteBuf> server;
-        server = TcpServer.newServer(0)
+
+        server = TcpServer.newServer()
                           .start(connection ->
                                          connection.writeStringAndFlushOnEach(
                                                  Observable.interval(10, TimeUnit.MILLISECONDS)

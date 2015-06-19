@@ -22,6 +22,7 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
+import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
@@ -235,8 +236,8 @@ public final class ServerState<R, W> {
     }
 
     public static <RR, WW> ServerState<RR, WW> create(SocketAddress socketAddress) {
-        return create(socketAddress, RxNetty.getRxEventLoopProvider().globalServerEventLoop(),
-                      NioServerSocketChannel.class);
+        return create(socketAddress, RxNetty.getRxEventLoopProvider().globalServerEventLoop(true),
+                      RxNetty.isUsingNativeTransport() ? EpollServerSocketChannel.class : NioServerSocketChannel.class);
     }
 
     public static <RR, WW> ServerState<RR, WW> create(SocketAddress socketAddress, EventLoopGroup group,

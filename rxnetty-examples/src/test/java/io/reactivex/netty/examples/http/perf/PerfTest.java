@@ -21,11 +21,15 @@ import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
+import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
+import rx.Observable;
 
 import java.lang.reflect.InvocationTargetException;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.util.Queue;
 
 import static io.reactivex.netty.examples.ExamplesTestUtil.*;
@@ -34,20 +38,29 @@ import static org.hamcrest.Matchers.*;
 
 public class PerfTest extends ExamplesEnvironment {
 
+    public static final String[] ARGS = { };
+
     @Test(timeout = 60000)
     public void testPerf() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
         final Queue<String> output = setupClientLogger(PerfHelloWorldClient.class);
 
-        PerfHelloWorldClient.main(null);
+        InetSocketAddress serverAddress =
+                (InetSocketAddress) AbstractClientExample.getServerAddress(PerfHelloWorldServer.class, ARGS);
 
-        HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
-        expectedHeader.headers().add(HttpHeaderNames.CONTENT_LENGTH, 9);
-        String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
-                                                                          expectedHeader.status(),
-                                                                          expectedHeader.headers().iterator());
+        Observable.range(1, 10)
+                  .toBlocking()
+                  .forEach(interval -> {
+                      PerfHelloWorldClient.main(new String[]{String.valueOf(serverAddress.getPort())});
+                      HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+                      expectedHeader.headers().add(HttpHeaderNames.CONTENT_LENGTH, 9);
+                      String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
+                                                                                        expectedHeader.status(),
+                                                                                        expectedHeader.headers().iterator());
 
-        assertThat("Unexpected number of messages echoed", output, hasSize(2));
+                      assertThat("Unexpected number of messages echoed", output, hasSize(2));
 
-        assertThat("Unexpected response.", output, contains(expectedHeaderString, "Welcome!!"));
+                      assertThat("Unexpected response.", output, contains(expectedHeaderString, "Welcome!!"));
+                      output.clear();
+                  });
     }
 }

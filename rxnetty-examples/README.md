@@ -1,65 +1,56 @@
-RxNetty Examples
+
+This module contains examples for various usecases that `RxNetty` to act as a "Getting Started" guide to use `RxNetty`.
+The examples are not exhaustive in terms of the features `RxNetty` provides but are representative of different 
+usecases that one can achieve using `RxNetty`  
+
+Catalog
 ================
 
-The examples provided are meant to demonstrate how to handle different protocols with RxNetty, as well as to
-show some good practices for different usage scenarios.
+The catalog is categorized with protocol as well as the user level like Beginner, Intermediate, Advanced, for you to get
+to the correct example when using `RxNetty`. The following protocol based categorization links to the elaborate examples
+per protocol.
 
-Examples Catalog
-================
+###TCP
 
-Protocol  | Example / Test | Description
-----------|----------------|------------
-HTTP      | [Plain text](src/main/java/io/reactivex/netty/examples/http/plaintext)              | A performance optimized helloworld. Use this as a template for any simple perf tests.
-HTTP      | [Hello World](src/main/java/io/reactivex/netty/examples/http/helloworld)            | Simple HTTP GET client/server implementation.
-HTTP      | [SSL Hello World](src/main/java/io/reactivex/netty/examples/http/ssl)               | Hello World version with SSL connection.
-HTTP      | [CPU intensive work](src/main/java/io/reactivex/netty/examples/http/cpuintensive)   | Hello World for CPU intensive request processing.
-HTTP      | [Simple POST](src/main/java/io/reactivex/netty/examples/http/post)                  | Simple HTTP POST client/server implementation.
-HTTP      | [Chunked GET](src/main/java/io/reactivex/netty/examples/http/chunk)                 | An example of how to handle large, chunked reply that is not pre-aggregated by the default pipline configurator.
-HTTP      | [Server Side Events](src/main/java/io/reactivex/netty/examples/http/sse)            | This examples demonstrates how to implement server side event stream, and how to handle it on the client side.
-HTTP      | [Log tail](src/main/java/io/reactivex/netty/examples/http/logtail)                  | A more sophisticated server side event example, with multiple event sources and an intermediary aggregating separate data streams.
-HTTP      | [Word Counter](src/main/java/io/reactivex/netty/examples/http/wordcounter)          | More complex HTTP POST example demonstrating how to use ContentSource framework  to upload a file onto the server.
-WebSocket | [WebSocket Hello](src/main/java/io/reactivex/netty/examples/http/websocket)         | Example WebSocket application.
-TCP       | [Echo Server](src/main/java/io/reactivex/netty/examples/tcp/echo)                   | A simple echo client.
-TCP       | [SSL Echo Server](src/main/java/io/reactivex/netty/examples/tcp/ssl)                | A simple echo client with SSL connection.
-TCP       | [TCP Server Side Event Stream](src/main/java/io/reactivex/netty/examples/tcp/event) | TCP server side event stream example, with configurable client side processing delay.
-TCP       | [Interval](src/main/java/io/reactivex/netty/examples/tcp/interval)                  | A bit more sophisticated event stream example, with explicit subscribe/unsubscribe control mechanism.
-TCP       | [CPU intensive work](src/main/java/io/reactivex/netty/examples/tcp/cpuintensive)    | A simple example for cpu intensive connection handling.
-UDP       | [Hello World](src/main/java/io/reactivex/netty/examples/udp)                        | UDP version of a simple request - reply client/server implementation.
+[This catalog](TCP.md) contains all examples for TCP.
 
-Build
-=====
+###HTTP
 
-To build:
+[This catalog](HTTP.md) contains all examples for HTTP.
 
-```
-$ cd RxNetty/rxnetty-examples
-$ ../gradlew build
-```
+###WebSockets
 
-Run
-===
+[This catalog](WS.md) contains all examples for HTTP.
 
-All examples can be run from a command line. Most of them accepts some parameters, but usually the defaults are just
-fine. The examples have their accompanying unit test classes, which run all endpoints in single JVM process.
-Running a test class is thus yet another and convenient way to run a particular example specially within an IDE.
- 
+Using the examples
+===============
 
-It is possible to run example client/server endpoints using Gradle. For list of available tasks check "Examples" group
-in the gradle task list:
+All examples have a `Server` and `Client` class, both of which can be run independently from their `main` methods.
 
-```
-$ ../gradlew tasks
-```
+#####Server
 
-For example to run HelloWorld example, start server and client process with the following commands:
+All servers use ephemeral ports and when started outputs the port it is using. The server code is usually useful when
+you are trying to understand how to write a server for that usecase. If you are only interested in the client, then you
+can safely ignore the server part as the client is standalone.
 
-```
-$ ../gradlew runHelloWorldServer
-```
+#####Client
 
-and in another console:
+All clients can be executed in 3 different ways:
 
-```
-$ ../gradlew runHelloWorldClient
-```
-Some of the examples require parameters. They must be passed with ```-P<name>=<value>``` option. 
+- __Default__: This internally starts the server required by the client and uses the ephermal port used by the server. 
+This is the easiest way to run any example.
+
+
+- __Use an already started server__: In this mode, the client does not try to start a server by itself. For running in
+this mode, you should pass the port as a program argument while running the client, eg:
+
+    ```
+    java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port]
+    ```
+
+- __Use an external server__: In this mode, the client does not try to start a server by itself. For running in
+this mode, you should pass server host & port as a program argument while running the client, eg:
+
+    ```
+     java io.reactivex.netty.examples.http.helloworld.HelloWorldClient [server port] [server host]
+    ```

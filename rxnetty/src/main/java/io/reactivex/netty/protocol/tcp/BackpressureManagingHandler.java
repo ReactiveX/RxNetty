@@ -144,7 +144,8 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
     public final void read(ChannelHandlerContext ctx) throws Exception {
         switch (currentState) {
         case ReadRequested:
-            /*Nothing read since last request, so don't send a read upstream.*/
+            /*Nothing read since last request, but requested more, so push the demand upstream.*/
+            ctx.read();
             break;
         case Reading:
             /*
