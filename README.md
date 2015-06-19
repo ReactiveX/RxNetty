@@ -1,87 +1,21 @@
+Branch Status
+=======
+
+This is the current development branch for RxNetty and it is __not__ stable, if you are looking for a stable release, you should use the [latest 0.4.x artifacts](https://github.com/ReactiveX/RxNetty/releases).
+
 RxNetty
 =======
-[![Build Status](https://netflixoss.ci.cloudbees.com/job/RxNetty-master/badge/icon)](https://netflixoss.ci.cloudbees.com/job/RxNetty-master/)
+<a href='https://travis-ci.org/ReactiveX/RxNetty/builds'><img src='https://travis-ci.org/ReactiveX/RxNetty.svg?branch=0.5.x'></a>
 
 Reactive Extension (Rx) Adaptor for Netty
 
 Getting Started
 ==========
 
-The best place to start exploring this library is to look at the class [RxNetty] (rxnetty/src/main/java/io/reactivex/netty/RxNetty.java)
-
-You can also find some common examples of clients and servers created using RxNetty in the [examples directory] (rxnetty-examples)
+The best place to start exploring this library is to look at the [examples] (rxnetty-examples) for some common usecases addressed by RxNetty.
 
 A very simple HTTP server example can be found [here] (rxnetty-examples/src/main/java/io/reactivex/netty/examples/http/helloworld/HelloWorldServer.java)
-and the corresponding HTTP client is [here] (rxnetty-examples/src/test/java/io/reactivex/netty/examples/http/helloworld/HelloWorldTest.java)
-
-
-Example
-==========
-
-```java
-import io.netty.buffer.ByteBuf;
-import io.netty.handler.codec.http.HttpResponseStatus;
-import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.protocol.http.server.HttpServer;
-
-import java.nio.charset.Charset;
-
-public final class RxNettyExample {
-
-    public static void main(String... args) throws InterruptedException {
-        HttpServer<ByteBuf, ByteBuf> server = RxNetty.createHttpServer(8080, (request, response) -> {
-            System.out.println("Server => Request: " + request.getPath());
-            try {
-                if ("/error".equals(request.getPath())) {
-                    throw new RuntimeException("forced error");
-                }
-                response.setStatus(HttpResponseStatus.OK);
-                response.writeString("Path Requested =>: " + request.getPath() + '\n');
-                return response.close();
-            } catch (Throwable e) {
-                System.err.println("Server => Error [" + request.getPath() + "] => " + e);
-                response.setStatus(HttpResponseStatus.BAD_REQUEST);
-                response.writeString("Error 500: Bad Request\n");
-                return response.close();
-            }
-        });
-
-        server.start();
-
-        RxNetty.createHttpGet("http://localhost:8080/")
-               .flatMap(response -> response.getContent())
-               .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-               .toBlocking().forEach(System.out::println);
-
-        RxNetty.createHttpGet("http://localhost:8080/error")
-               .flatMap(response -> response.getContent())
-               .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-               .toBlocking().forEach(System.out::println);
-
-        RxNetty.createHttpGet("http://localhost:8080/data")
-               .flatMap(response -> response.getContent())
-               .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
-               .toBlocking().forEach(System.out::println);
-
-        server.shutdown();
-    }
-}
-```
-
-Outputs:
-
-```
-Server => Request: /
-Client => Path Requested =>: /
-
-Server => Request: /error
-Server => Error [/error] => java.lang.RuntimeException: forced error
-Client => Error 500: Bad Request
-
-Server => Request: /data
-Client => Path Requested =>: /data
-```
-
+and the corresponding HTTP client is [here] (rxnetty-examples/src/main/java/io/reactivex/netty/examples/http/helloworld/HelloWorldClient.java)
 
 ## Binaries
 
