@@ -122,6 +122,9 @@ $ ./gradlew build
 
 For bugs, questions and discussions please use the [Github Issues](https://github.com/ReactiveX/RxNetty/issues).
 
+## Current development branch
+
+[0.5.x](https://github.com/ReactiveX/RxNetty/tree/0.5.x) is the current development branch. [These FAQs](https://github.com/ReactiveX/RxNetty/wiki/0.5.x-FAQs) details the motivations and status of this branch.
 
 ## LICENSE
 
