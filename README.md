@@ -3,6 +3,10 @@ Branch Status
 
 This is the current development branch for RxNetty and it is __not__ stable, if you are looking for a stable release, you should use the [latest 0.4.x artifacts](https://github.com/ReactiveX/RxNetty/releases).
 
+Motivations
+======
+
+Motivations and detailed status of the breaking changes in 0.5.x can be found [here](https://github.com/ReactiveX/RxNetty/wiki/0.5.x-FAQs)
 RxNetty
 =======
 <a href='https://travis-ci.org/ReactiveX/RxNetty/builds'><img src='https://travis-ci.org/ReactiveX/RxNetty.svg?branch=0.5.x'></a>
