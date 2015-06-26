@@ -35,8 +35,8 @@ public abstract class WebSocketResponse<T> extends HttpClientResponse<T> {
 
     public boolean isUpgraded() {
         return getStatus().equals(HttpResponseStatus.SWITCHING_PROTOCOLS)
-               && containsHeader(CONNECTION, HttpHeaderValues.UPGRADE, false)
-               && containsHeader(HttpHeaderNames.UPGRADE, WEBSOCKET, false)
+               && containsHeader(CONNECTION, HttpHeaderValues.UPGRADE, true)
+               && containsHeader(HttpHeaderNames.UPGRADE, WEBSOCKET, true)
                && containsHeader(SEC_WEBSOCKET_ACCEPT);
     }
 }

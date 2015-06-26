@@ -87,10 +87,9 @@ public class WebSocketEchoClient extends AbstractClientExample {
                   .flatMap(conn ->
                            /*Write a 10 websocket frames on the connection.*/
                            conn.write(Observable.range(1, 10)
-                                                .<WebSocketFrame>map(anInt -> new TextWebSocketFrame("Interval "
-                                                                                                     + anInt))
-                                             )
-                                       .cast(WebSocketFrame.class)
+                                                .<WebSocketFrame>map(anInt -> new TextWebSocketFrame("Interval " + anInt))
+                           )
+                                   .cast(WebSocketFrame.class)
                                        /*Merge with the connection input, since the write returns a Void, this is
                                        * only merging error from the write.*/
                                        .mergeWith(conn.getInput())
