@@ -20,6 +20,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
@@ -37,6 +38,9 @@ import rx.Subscriber;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+
 import static java.util.concurrent.TimeUnit.*;
 
 public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridge<C> {
@@ -45,24 +49,40 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
      * This attribute stores the value of any dynamic idle timeout value sent via an HTTP keep alive header.
      * This follows the proposal specified here: http://tools.ietf.org/id/draft-thomson-hybi-http-timeout-01.html
      * The attribute can be extracted from an HTTP response header using the helper method
-     * {@link io.reactivex.netty.protocol.http.client.internal.HttpClientResponseImpl#getKeepAliveTimeoutSeconds()}
+     * {@link HttpClientResponseImpl#getKeepAliveTimeoutSeconds()}
      */
     public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR =
             AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
 
     private HttpClientEventsListener eventsListener;
     private EventPublisher eventPublisher;
+    private String hostHeader;
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         eventsListener = ctx.channel().attr(HttpEventPublisherFactory.HTTP_CLIENT_EVENT_LISTENER).get();
         eventPublisher = ctx.channel().attr(TcpEventPublisherFactory.EVENT_PUBLISHER).get();
-
         super.handlerAdded(ctx);
     }
 
     @Override
-    protected void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        SocketAddress remoteAddr = ctx.channel().remoteAddress();
+        if (remoteAddr instanceof InetSocketAddress) {
+            InetSocketAddress inetSock = (InetSocketAddress) remoteAddr;
+            String hostString = inetSock.getHostString(); // Don't use hostname that does a DNS lookup.
+            hostHeader = hostString + ':' + inetSock.getPort();
+        }
+        super.channelActive(ctx);
+    }
+
+    @Override
+    protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
+        if (null != hostHeader) {
+            if (!httpMsg.headers().contains(HttpHeaderNames.HOST)) {
+                httpMsg.headers().set(HttpHeaderNames.HOST, hostHeader);
+            }
+        }
         if (eventPublisher.publishingEnabled()) {
             eventsListener.onRequestWriteStart();
         }

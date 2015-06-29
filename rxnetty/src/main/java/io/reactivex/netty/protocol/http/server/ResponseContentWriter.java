@@ -35,7 +35,7 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
     }
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel.
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel.
      *
      * <h2>Flush</h2>
      *
@@ -43,16 +43,16 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      *
      * @param msgs Stream of messages to write.
      *
-     * @return {@link rx.Observable} representing the result of this write. Every subscription to this {@link rx.Observable}
+     * @return {@link Observable} representing the result of this write. Every subscription to this {@link Observable}
      * will replay the write on the channel.
      */
     public abstract ResponseContentWriter<C> write(Observable<C> msgs);
 
     /**
-     * Uses the passed {@link rx.Observable} as the source of content for this request. This method provides a way to
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
      * write trailing headers.
      *
-     * A new instance of {@link io.reactivex.netty.protocol.http.TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
      * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
      * the trailing headers instance.
      *
@@ -67,20 +67,20 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      * The writes are flushed when the passed stream completes.
      *
      * @param contentSource Content source for the response.
-     * @param trailerFactory A factory function to create a new {@link io.reactivex.netty.protocol.http.TrailingHeaders} per subscription of the content.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
      * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
      *
-     * @return An new instance of {@link rx.Observable} which can be subscribed to execute the request.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
     public abstract <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource,
                                                                        Func0<T> trailerFactory,
                                                                        Func2<T, C, T> trailerMutator);
 
     /**
-     * Uses the passed {@link rx.Observable} as the source of content for this request. This method provides a way to
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
      * write trailing headers.
      *
-     * A new instance of {@link io.reactivex.netty.protocol.http.TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
      * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
      * the trailing headers instance.
      *
@@ -91,12 +91,12 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      * So, any subsequent invocation of this method will always emit an error when subscribed.
      *
      * @param contentSource Content source for the response.
-     * @param trailerFactory A factory function to create a new {@link io.reactivex.netty.protocol.http.TrailingHeaders} per subscription of the content.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
      * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
-     * @param flushSelector A {@link rx.functions.Func1} which is invoked for every item emitted from {@code msgs}. Channel is
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. Channel is
      * flushed, iff this function returns, {@code true}.
      *
-     * @return An new instance of {@link rx.Observable} which can be subscribed to execute the request.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
     public abstract <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource,
                                                                        Func0<T> trailerFactory,
@@ -104,37 +104,37 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
                                                                        Func1<C, Boolean> flushSelector);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel
      * and flushes the channel, everytime, {@code flushSelector} returns {@code true} . Any writes issued before
-     * subscribing, will also be flushed. However, the returned {@link rx.Observable} will not capture the result of those
-     * writes, i.e. if the other writes, fail and this write does not, the returned {@link rx.Observable} will not fail.
+     * subscribing, will also be flushed. However, the returned {@link Observable} will not capture the result of those
+     * writes, i.e. if the other writes, fail and this write does not, the returned {@link Observable} will not fail.
      *
      * @param msgs Message stream to write.
-     * @param flushSelector A {@link rx.functions.Func1} which is invoked for every item emitted from {@code msgs}.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}.
      * Channel is flushed, iff this function returns, {@code true}.
      *
-     * @return An {@link rx.Observable} representing the result of this and all writes done prior to the flush. Every
-     * subscription to this {@link rx.Observable} will write the passed messages and flush all pending writes, when the
+     * @return An {@link Observable} representing the result of this and all writes done prior to the flush. Every
+     * subscription to this {@link Observable} will write the passed messages and flush all pending writes, when the
      * {@code flushSelector} returns {@code true}
      */
     public abstract ResponseContentWriter<C> write(Observable<C> msgs, Func1<C, Boolean> flushSelector);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel
      * and flushes the channel, on every write. Any writes issued before subscribing, will also be flushed. However, the
-     * returned {@link rx.Observable} will not capture the result of those writes, i.e. if the other writes, fail and this
-     * write does not, the returned {@link rx.Observable} will not fail.
+     * returned {@link Observable} will not capture the result of those writes, i.e. if the other writes, fail and this
+     * write does not, the returned {@link Observable} will not fail.
      *
      * @param msgs Message stream to write.
      *
-     * @return An {@link rx.Observable} representing the result of this and all writes done prior to the flush. Every
-     * subscription to this {@link rx.Observable} will write the passed messages and flush all pending writes, on every
+     * @return An {@link Observable} representing the result of this and all writes done prior to the flush. Every
+     * subscription to this {@link Observable} will write the passed messages and flush all pending writes, on every
      * write.
      */
     public abstract ResponseContentWriter<C> writeAndFlushOnEach(Observable<C> msgs);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel.
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel.
      *
      * <h2>Flush</h2>
      *
@@ -142,16 +142,16 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      *
      * @param msgs Stream of messages to write.
      *
-     * @return {@link rx.Observable} representing the result of this write. Every subscription to this {@link rx.Observable}
+     * @return {@link Observable} representing the result of this write. Every subscription to this {@link Observable}
      * will replay the write on the channel.
      */
     public abstract ResponseContentWriter<C> writeString(Observable<String> msgs);
 
     /**
-     * Uses the passed {@link rx.Observable} as the source of content for this request. This method provides a way to
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
      * write trailing headers.
      *
-     * A new instance of {@link io.reactivex.netty.protocol.http.TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
      * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
      * the trailing headers instance.
      *
@@ -166,20 +166,20 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      * The writes are flushed when the passed stream completes.
      *
      * @param contentSource Content source for the response.
-     * @param trailerFactory A factory function to create a new {@link io.reactivex.netty.protocol.http.TrailingHeaders} per subscription of the content.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
      * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
      *
-     * @return An new instance of {@link rx.Observable} which can be subscribed to execute the request.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
     public abstract <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
                                                                              Func0<T> trailerFactory,
                                                                              Func2<T, String, T> trailerMutator);
 
     /**
-     * Uses the passed {@link rx.Observable} as the source of content for this request. This method provides a way to
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
      * write trailing headers.
      *
-     * A new instance of {@link io.reactivex.netty.protocol.http.TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
      * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
      * the trailing headers instance.
      *
@@ -190,12 +190,12 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      * So, any subsequent invocation of this method will always emit an error when subscribed.
      *
      * @param contentSource Content source for the response.
-     * @param trailerFactory A factory function to create a new {@link io.reactivex.netty.protocol.http.TrailingHeaders} per subscription of the content.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
      * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
-     * @param flushSelector A {@link rx.functions.Func1} which is invoked for every item emitted from {@code msgs}. Channel is
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. Channel is
      * flushed, iff this function returns, {@code true}.
      *
-     * @return An new instance of {@link rx.Observable} which can be subscribed to execute the request.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
     public abstract <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
                                                                              Func0<T> trailerFactory,
@@ -203,37 +203,37 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
                                                                              Func1<String, Boolean> flushSelector);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel
      * and flushes the channel, everytime, {@code flushSelector} returns {@code true} . Any writes issued before
-     * subscribing, will also be flushed. However, the returned {@link rx.Observable} will not capture the result of those
-     * writes, i.e. if the other writes, fail and this write does not, the returned {@link rx.Observable} will not fail.
+     * subscribing, will also be flushed. However, the returned {@link Observable} will not capture the result of those
+     * writes, i.e. if the other writes, fail and this write does not, the returned {@link Observable} will not fail.
      *
      * @param msgs Message stream to write.
-     * @param flushSelector A {@link rx.functions.Func1} which is invoked for every item emitted from {@code msgs}.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}.
      * Channel is flushed, iff this function returns, {@code true}.
      *
-     * @return An {@link rx.Observable} representing the result of this and all writes done prior to the flush. Every
-     * subscription to this {@link rx.Observable} will write the passed messages and flush all pending writes, when the
+     * @return An {@link Observable} representing the result of this and all writes done prior to the flush. Every
+     * subscription to this {@link Observable} will write the passed messages and flush all pending writes, when the
      * {@code flushSelector} returns {@code true}
      */
     public abstract ResponseContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel
      * and flushes the channel, on every write. Any writes issued before subscribing, will also be flushed. However, the
-     * returned {@link rx.Observable} will not capture the result of those writes, i.e. if the other writes, fail and this
-     * write does not, the returned {@link rx.Observable} will not fail.
+     * returned {@link Observable} will not capture the result of those writes, i.e. if the other writes, fail and this
+     * write does not, the returned {@link Observable} will not fail.
      *
      * @param msgs Message stream to write.
      *
-     * @return An {@link rx.Observable} representing the result of this and all writes done prior to the flush. Every
-     * subscription to this {@link rx.Observable} will write the passed messages and flush all pending writes, on every
+     * @return An {@link Observable} representing the result of this and all writes done prior to the flush. Every
+     * subscription to this {@link Observable} will write the passed messages and flush all pending writes, on every
      * write.
      */
     public abstract ResponseContentWriter<C> writeStringAndFlushOnEach(Observable<String> msgs);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel.
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel.
      *
      * <h2>Flush</h2>
      *
@@ -241,16 +241,16 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      *
      * @param msgs Stream of messages to write.
      *
-     * @return {@link rx.Observable} representing the result of this write. Every subscription to this {@link rx.Observable}
+     * @return {@link Observable} representing the result of this write. Every subscription to this {@link Observable}
      * will replay the write on the channel.
      */
     public abstract ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs);
 
     /**
-     * Uses the passed {@link rx.Observable} as the source of content for this request. This method provides a way to
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
      * write trailing headers.
      *
-     * A new instance of {@link io.reactivex.netty.protocol.http.TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
      * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
      * the trailing headers instance.
      *
@@ -265,20 +265,20 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      * The writes are flushed when the passed stream completes.
      *
      * @param contentSource Content source for the response.
-     * @param trailerFactory A factory function to create a new {@link io.reactivex.netty.protocol.http.TrailingHeaders} per subscription of the content.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
      * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
      *
-     * @return An new instance of {@link rx.Observable} which can be subscribed to execute the request.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
     public abstract <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
                                                                             Func0<T> trailerFactory,
                                                                             Func2<T, byte[], T> trailerMutator);
 
     /**
-     * Uses the passed {@link rx.Observable} as the source of content for this request. This method provides a way to
+     * Uses the passed {@link Observable} as the source of content for this request. This method provides a way to
      * write trailing headers.
      *
-     * A new instance of {@link io.reactivex.netty.protocol.http.TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
+     * A new instance of {@link TrailingHeaders} will be created using the passed {@code trailerFactory} and the passed
      * {@code trailerMutator} will be invoked for every item emitted from the content source, giving a chance to modify
      * the trailing headers instance.
      *
@@ -289,12 +289,12 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
      * So, any subsequent invocation of this method will always emit an error when subscribed.
      *
      * @param contentSource Content source for the response.
-     * @param trailerFactory A factory function to create a new {@link io.reactivex.netty.protocol.http.TrailingHeaders} per subscription of the content.
+     * @param trailerFactory A factory function to create a new {@link TrailingHeaders} per subscription of the content.
      * @param trailerMutator A function to mutate the trailing header on each item emitted from the content source.
-     * @param flushSelector A {@link rx.functions.Func1} which is invoked for every item emitted from {@code msgs}. Channel is
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. Channel is
      * flushed, iff this function returns, {@code true}.
      *
-     * @return An new instance of {@link rx.Observable} which can be subscribed to execute the request.
+     * @return An new instance of {@link Observable} which can be subscribed to execute the request.
      */
     public abstract <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
                                                                             Func0<T> trailerFactory,
@@ -302,31 +302,31 @@ public abstract class ResponseContentWriter<C> extends Observable<Void> {
                                                                             Func1<byte[], Boolean> flushSelector);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel
      * and flushes the channel, everytime, {@code flushSelector} returns {@code true} . Any writes issued before
-     * subscribing, will also be flushed. However, the returned {@link rx.Observable} will not capture the result of those
-     * writes, i.e. if the other writes, fail and this write does not, the returned {@link rx.Observable} will not fail.
+     * subscribing, will also be flushed. However, the returned {@link Observable} will not capture the result of those
+     * writes, i.e. if the other writes, fail and this write does not, the returned {@link Observable} will not fail.
      *
      * @param msgs Message stream to write.
-     * @param flushSelector A {@link rx.functions.Func1} which is invoked for every item emitted from {@code msgs}.
+     * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}.
      * Channel is flushed, iff this function returns, {@code true}.
      *
-     * @return An {@link rx.Observable} representing the result of this and all writes done prior to the flush. Every
-     * subscription to this {@link rx.Observable} will write the passed messages and flush all pending writes, when the
+     * @return An {@link Observable} representing the result of this and all writes done prior to the flush. Every
+     * subscription to this {@link Observable} will write the passed messages and flush all pending writes, when the
      * {@code flushSelector} returns {@code true}
      */
     public abstract ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector);
 
     /**
-     * On subscription of the returned {@link rx.Observable}, writes the passed message stream on the underneath channel
+     * On subscription of the returned {@link Observable}, writes the passed message stream on the underneath channel
      * and flushes the channel, on every write. Any writes issued before subscribing, will also be flushed. However, the
-     * returned {@link rx.Observable} will not capture the result of those writes, i.e. if the other writes, fail and this
-     * write does not, the returned {@link rx.Observable} will not fail.
+     * returned {@link Observable} will not capture the result of those writes, i.e. if the other writes, fail and this
+     * write does not, the returned {@link Observable} will not fail.
      *
      * @param msgs Message stream to write.
      *
-     * @return An {@link rx.Observable} representing the result of this and all writes done prior to the flush. Every
-     * subscription to this {@link rx.Observable} will write the passed messages and flush all pending writes, on every
+     * @return An {@link Observable} representing the result of this and all writes done prior to the flush. Every
+     * subscription to this {@link Observable} will write the passed messages and flush all pending writes, on every
      * write.
      */
     public abstract ResponseContentWriter<C> writeBytesAndFlushOnEach(Observable<byte[]> msgs);
