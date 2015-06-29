@@ -590,7 +590,7 @@ public class AbstractHttpConnectionBridgeTest {
         }
 
         @Override
-        protected void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
+        protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
             // No Op
         }
 

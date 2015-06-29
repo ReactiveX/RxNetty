@@ -103,7 +103,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 httpMsg.headers().set(TRANSFER_ENCODING, CHUNKED);
             }
 
-            onOutboundHeaderWrite(httpMsg, promise, headerWriteStartTimeMillis);
+            beforeOutboundHeaderWrite(httpMsg, promise, headerWriteStartTimeMillis);
 
         } else if (msg instanceof String) {
             msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
@@ -116,7 +116,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         super.write(ctx, msgToWrite, promise);
     }
 
-    protected abstract void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis);
+    protected abstract void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis);
 
     protected abstract void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
                                                        long headerWriteStartTime);

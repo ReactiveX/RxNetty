@@ -52,7 +52,7 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected void onOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, final long startTimeMillis) {
+    protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, final long startTimeMillis) {
         HttpResponse response = (HttpResponse) httpMsg;
         if (eventPublisher.publishingEnabled()) {
             eventPublisher.onResponseWriteStart();

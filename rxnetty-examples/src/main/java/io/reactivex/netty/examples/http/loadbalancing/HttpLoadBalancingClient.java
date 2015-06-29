@@ -20,7 +20,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.examples.tcp.loadbalancing.RoundRobinLoadBalancer;
-import io.reactivex.netty.examples.tcp.loadbalancing.TcpLoadBalancer;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;

@@ -54,8 +54,6 @@ import java.util.concurrent.TimeUnit;
  */
 public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsListener> {
 
-    public static final String HTTP_CLIENT_NO_NAME = "TcpClient-no-name";
-
     /**
      * Creates a GET request for the passed URI.
      *
@@ -324,7 +322,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be more
      * convenient.</em>
      *
-     * @param group   the {@link io.netty.util.concurrent.EventExecutorGroup} which will be used to execute the {@link io.netty.channel.ChannelHandler}
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
      *                 methods
      * @param baseName  the name of the existing handler
      * @param name     the name of the handler to append
