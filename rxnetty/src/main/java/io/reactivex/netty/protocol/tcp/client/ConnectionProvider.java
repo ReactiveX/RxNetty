@@ -25,8 +25,8 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.pool.PooledConnectionProvider;
 import rx.Observable;
 import rx.annotations.Beta;
+import rx.functions.Action0;
 import rx.functions.Func1;
-import rx.subjects.ReplaySubject;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -59,8 +59,12 @@ public abstract class ConnectionProvider<W, R> {
     private final Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> creationFunc;
     private final EventLoopGroup eventLoopGroup;
     private final Class<? extends Channel> channelClass;
-    private final ReplaySubject<Void> shutdownHook = ReplaySubject.create();
+    private Observable<Void> startObservable;/*Guarded by this*/
+    private Observable<Void> shutdownObservable;/*Guarded by this*/
+    private boolean startCalled; /*Guarded by this*/
+    private boolean shutdownCalled; /*Guarded by this*/
     private volatile boolean shutdown;
+    private volatile boolean started;
 
     private ConnectionProvider(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> creationFunc,
                                EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass) {
@@ -80,6 +84,60 @@ public abstract class ConnectionProvider<W, R> {
     }
 
     /**
+     * Starts this connection provider.
+     *
+     * <b>This method is idempotent, so can be called multiple times without any side-effects</b>
+     *
+     * Implementations can override {@link #doStart()} to implement any startup logic, {@link #doStart()} gets called
+     * exactly once.
+     *
+     * @return {@code Observable} which completes when the factory is successfully started.
+     */
+    public final Observable<Void> start() {
+        Observable<Void> _toReturn;
+        synchronized (this) {
+            if (!startCalled) {
+                startCalled = true;
+                startObservable = doStart().doOnTerminate(new Action0() {
+                    @Override
+                    public void call() {
+                        started = true; /*Only one subscription as it uses cache*/
+                    }
+                }).cache();
+            }
+            _toReturn = startObservable;
+        }
+        return _toReturn;
+    }
+
+    /**
+     * Shutdown this connection provider.
+     *
+     * <b>This method is idempotent, so can be called multiple times without any side-effects</b>
+     *
+     * Implementations can override {@link #doShutdown()} to implement any shutdown logic, {@link #doShutdown()} gets
+     * called exactly once.
+     *
+     * @return {@code Observable} which completes when the factory is successfully shutdown.
+     */
+    public final Observable<Void> shutdown() {
+        Observable<Void> _toReturn;
+        synchronized (this) {
+            if (!shutdownCalled) {
+                shutdownCalled = true;
+                shutdownObservable = doShutdown().doOnTerminate(new Action0() {
+                    @Override
+                    public void call() {
+                        shutdown = true; /*Only one subscription as it uses cache*/
+                    }
+                }).cache();
+            }
+            _toReturn = shutdownObservable;
+        }
+        return _toReturn;
+    }
+
+    /**
      * Creates a new connection request, each subscription to which will emit at most one {@link Connection}.
      *
      * @return An {@code Observable}, every subscription to which will emit a connection.
@@ -87,34 +145,31 @@ public abstract class ConnectionProvider<W, R> {
     public abstract ConnectionObservable<R, W> nextConnection();
 
     /**
-     * Starts this connection provider. Implementations can override this to do any initialization tasks. This method
-     * would at most be called once per {@link ConnectionProvider} instance.
+     * This method can be overridden to implement any provider specific initialization. The method gets called exactly
+     * once, irrespective of how many times {@link #start()} is called.
      *
-     * @return {@code Observable} which completes when the factory is successfully started.
+     * @return An {@code Observable} representing the status of the start.
      */
-    public Observable<Void> start() {
+    protected Observable<Void> doStart() {
         return Observable.empty();
     }
 
     /**
-     * Shutdown this factory.
-     */
-    public void shutdown() {
-        shutdown = true;
-        shutdownHook.onCompleted();
-    }
-
-    /**
-     * A hook to listen for shutdown of this factory.
+     * This method can be overridden to implement any provider specific initialization. The method gets called exactly
+     * once, irrespective of how many times {@link #start()} is called.
      *
-     * @return {@code Observable} which completes when this factory shutsdown.
+     * @return An {@code Observable} representing the status of the start.
      */
-    public final Observable<Void> shutdownHook() {
-        return shutdownHook;
+    protected Observable<Void> doShutdown() {
+        return Observable.empty();
     }
 
     protected boolean isShutdown() {
         return shutdown;
+    }
+
+    protected boolean isStarted() {
+        return started;
     }
 
     /**
@@ -256,7 +311,7 @@ public abstract class ConnectionProvider<W, R> {
         }
 
         @Override
-        public Observable<Void> start() {
+        protected Observable<Void> doStart() {
             return Observable.error(new IllegalStateException("Connection factory not initialized"));
         }
     }

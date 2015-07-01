@@ -24,6 +24,7 @@ import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
+import rx.Observable;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -51,7 +52,8 @@ public final class HttpLoadBalancingClient extends AbstractClientExample {
     public static void main(String[] args) {
 
         /*Start 3 embedded servers, two healthy and one unhealthy to demo failure detection*/
-        final SocketAddress[] hosts = { startNewServer(OK), startNewServer(OK), startNewServer(SERVICE_UNAVAILABLE)};
+        final Observable<SocketAddress> hosts = Observable.just(startNewServer(OK), startNewServer(OK),
+                                                                startNewServer(SERVICE_UNAVAILABLE));
 
         /*Create a new client using the load balancer over the hosts above.*/
         HttpClient.newClient(HttpLoadBalancer.create(hosts))

@@ -100,7 +100,7 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
     @Override
     public ConnectionObservable<R, W> nextConnection() {
         if (isShutdown()) {
-            return ConnectionObservable.forError(new IllegalStateException("Connection factory is already shutdown."));
+            return ConnectionObservable.forError(new IllegalStateException("Connection provider is already shutdown."));
         }
 
         return ConnectionObservable.createNew(new OnSubcribeFunc<R, W>() {
@@ -136,7 +136,6 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
 
     @Override
     public Observable<Void> release(final PooledConnection<R, W> connection) {
-
         return Observable.create(new OnSubscribe<Void>() {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
@@ -172,8 +171,14 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
     }
 
     @Override
-    public void shutdown() {
-        idleConnCleanupSubscription.unsubscribe();
+    protected Observable<Void> doShutdown() {
+        return Observable.create(new OnSubscribe<Void>() {
+            @Override
+            public void call(Subscriber<? super Void> subscriber) {
+                idleConnCleanupSubscription.unsubscribe();
+                subscriber.onCompleted();
+            }
+        });
     }
 
 
