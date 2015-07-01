@@ -30,7 +30,6 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.PrimitiveConversionHandler;
-import io.reactivex.netty.codec.HandlerNames;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.events.ListenersHolder;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ClientConnectionSubscriberEvent;
@@ -201,12 +200,10 @@ public class ClientState<W, R> extends ConnectionFactory<W, R> {
     }
 
     public ClientState<W, R> enableWireLogging(final LogLevel wireLogginLevel) {
-        return addChannelHandlerFirst(HandlerNames.WireLogging.getName(),
-                                      LoggingHandlerFactory.getFactory(wireLogginLevel));
+        return addChannelHandlerFirst(WireLogging.getName(), LoggingHandlerFactory.getFactory(wireLogginLevel));
     }
 
     public ConnectionProvider<W, R> getConnectionProvider() {
-        // TODO: When to start?
         return realizedConnectionProvider;
     }
 
