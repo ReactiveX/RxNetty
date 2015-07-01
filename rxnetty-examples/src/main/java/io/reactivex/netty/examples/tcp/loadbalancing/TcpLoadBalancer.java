@@ -18,6 +18,7 @@ package io.reactivex.netty.examples.tcp.loadbalancing;
 import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
 import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
+import rx.Observable;
 
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
@@ -34,7 +35,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class TcpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
 
-    private TcpLoadBalancer(SocketAddress[] hosts, ConnectionFactory<W, R> connectionFactory) {
+    private TcpLoadBalancer(Observable<SocketAddress> hosts, ConnectionFactory<W, R> connectionFactory) {
         super(hosts, connectionFactory, removeAction -> new TcpClientEventListener() {
             @Override
             public void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
@@ -45,13 +46,13 @@ public class TcpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
     }
 
     /**
-     * Creates a new instance of {@link TcpLoadBalancer} load balancing on the passed array of hosts.
+     * Creates a new instance of {@link TcpLoadBalancer} load balancing on the passed hosts.
      *
-     * @param hosts Array of hosts to load balance on.
+     * @param hosts Hosts to load balance on.
      *
      * @return A new {@link ConnectionProvider} that creates instances of {@link TcpLoadBalancer}
      */
-    public static <W, R> ConnectionProvider<W, R> create(SocketAddress[] hosts) {
+    public static <W, R> ConnectionProvider<W, R> create(Observable<SocketAddress> hosts) {
         return ConnectionProvider.create(connectionFactory -> new TcpLoadBalancer<W, R>(hosts, connectionFactory));
     }
 }

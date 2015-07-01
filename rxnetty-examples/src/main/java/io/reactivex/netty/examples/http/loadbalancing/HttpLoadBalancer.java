@@ -19,6 +19,7 @@ import io.reactivex.netty.examples.tcp.loadbalancing.RoundRobinLoadBalancer;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
 import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
+import rx.Observable;
 
 import java.net.SocketAddress;
 
@@ -37,7 +38,7 @@ import java.net.SocketAddress;
  */
 public class HttpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
 
-    private HttpLoadBalancer(SocketAddress[] hosts, ConnectionFactory<W, R> connectionFactory) {
+    private HttpLoadBalancer(Observable<SocketAddress> hosts, ConnectionFactory<W, R> connectionFactory) {
         super(hosts, connectionFactory, removeAction -> new HttpClientEventsListener() {
             @Override
             public void onResponseHeadersReceived(int responseCode) {
@@ -50,13 +51,13 @@ public class HttpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
     }
 
     /**
-     * Creates a new instance of {@link HttpLoadBalancer} load balancing on the passed array of hosts.
+     * Creates a new instance of {@link HttpLoadBalancer} load balancing on the passed stream of hosts.
      *
-     * @param hosts Array of hosts to load balance on.
+     * @param hosts Hosts to load balance on.
      *
      * @return A new {@link ConnectionProvider} that creates instances of {@link HttpLoadBalancer}
      */
-    public static <W, R> ConnectionProvider<W, R> create(SocketAddress[] hosts) {
+    public static <W, R> ConnectionProvider<W, R> create(Observable<SocketAddress> hosts) {
         return ConnectionProvider.create(connectionFactory -> new HttpLoadBalancer<W, R>(hosts, connectionFactory));
     }
 }

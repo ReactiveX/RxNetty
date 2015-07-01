@@ -22,7 +22,9 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.codec.HandlerNames;
+import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func0;
@@ -39,11 +41,40 @@ final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
         super(new OnSubscribe<Connection<R, W>>() {
             @Override
             public void call(Subscriber<? super Connection<R, W>> subscriber) {
-                ConnectionObservable<R, W> nextConnection = clientState.getConnectionProvider()
-                                                                       .nextConnection();
-                nextConnection.subscribeForEvents(clientState.getEventPublisherFactory()
-                                                             .getGlobalClientEventPublisher());
-                nextConnection.unsafeSubscribe(subscriber);
+                final ConnectionProvider<W, R> cp = clientState.getConnectionProvider();
+                if (cp.isStarted()) {
+                    ConnectionObservable<R, W> nextConnection = cp.nextConnection();
+                    nextConnection.subscribeForEvents(clientState.getEventPublisherFactory()
+                                                                 .getGlobalClientEventPublisher());
+                    nextConnection.unsafeSubscribe(subscriber);
+                } else {
+                    cp.start()
+                      .lift(new Operator<Connection<R, W>, Void>() {
+                          @Override
+                          public Subscriber<? super Void> call(final Subscriber<? super Connection<R, W>> o) {
+                              return new Subscriber<Void>() {
+                                  @Override
+                                  public void onCompleted() {
+                                      ConnectionObservable<R, W> nextConnection = cp.nextConnection();
+                                      nextConnection.subscribeForEvents(clientState.getEventPublisherFactory()
+                                                                                   .getGlobalClientEventPublisher());
+                                      nextConnection.unsafeSubscribe(o);
+                                  }
+
+                                  @Override
+                                  public void onError(Throwable e) {
+                                      o.onError(e);
+                                  }
+
+                                  @Override
+                                  public void onNext(Void ignore) {
+                                      // Ignore
+                                  }
+                              };
+                          }
+                      })
+                      .unsafeSubscribe(subscriber);
+                }
             }
         });
         this.clientState = clientState;

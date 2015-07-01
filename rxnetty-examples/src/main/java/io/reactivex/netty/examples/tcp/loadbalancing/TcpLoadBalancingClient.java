@@ -49,7 +49,8 @@ public final class TcpLoadBalancingClient extends AbstractClientExample {
 
         /*Start two embedded servers and use there addresses as two hosts, add a unavailable server to demonstrate
         * failure detection.*/
-        final SocketAddress[] hosts = { startNewServer(), startNewServer(), new InetSocketAddress(0)};
+        final Observable<SocketAddress> hosts = Observable.just(startNewServer(), startNewServer(),
+                                                                new InetSocketAddress(0));
 
         /*Create a new client using the load balancer over the hosts above.*/
         TcpClient.<ByteBuf, ByteBuf>newClient(TcpLoadBalancer.create(hosts))

@@ -23,14 +23,14 @@ import io.reactivex.netty.protocol.tcp.client.ConnectionObservable.AbstractOnSub
 import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import rx.Observable;
+import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func1;
-import rx.functions.Func2;
 import rx.subjects.PublishSubject;
+import rx.subscriptions.CompositeSubscription;
 
-import java.net.BindException;
 import java.net.SocketAddress;
 import java.net.SocketException;
 import java.util.ArrayList;
@@ -61,55 +61,19 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
 
     /*A subject that publishes a ConnectionProvider for a specific host to be removed.*/
     private final PublishSubject<ConnectionProvider<W, R>> hostRemover;
+    private final Observable<SocketAddress> hosts;
+    private final ConnectionFactory<W, R> cf;
+    private volatile CompositeSubscription hostSubscription;
 
-    protected RoundRobinLoadBalancer(SocketAddress[] hosts, ConnectionFactory<W, R> cf,
+    protected RoundRobinLoadBalancer(Observable<SocketAddress> hosts, ConnectionFactory<W, R> cf,
                                      Func1<Action0, TcpClientEventListener> fdFactory) {
         super(cf);
-        activeHosts = new AtomicReference<>();
-
+        this.hosts = hosts;
+        this.cf = cf;
+        activeHosts = new AtomicReference<>(Collections.emptyList());
         hostRemover = PublishSubject.create();
         failureDetetctorFactory = fdFactory;
-
-        List<HostHolder> _hostConnectionProviders = new ArrayList<>(hosts.length);
-
-        /*Iterate over all the provided hosts and create a pooled connection provider for each host. Also, create the
-        * failure detector for that host*/
-        for (SocketAddress host : hosts) {
-            /*Creates an unbounded pool as the bounds should be applied based on the desired concurrency level of the
-            client using it. One may choose to have a relatively higher bound in cases, where the usage is not trusted
-            and can lead to large amount of connections.*/
-            final PooledConnectionProvider<W, R> hostConnProvider = PooledConnectionProvider.createUnbounded(cf, host);
-
-            /*Create the listener that acts as the failure detector for this host.*/
-            TcpClientEventListener fd = failureDetetctorFactory.call(() -> hostRemover.onNext(hostConnProvider));
-
-            /*Add the holder to the list of active hosts.*/
-            _hostConnectionProviders.add(new HostHolder(hostConnProvider, fd));
-        }
-
-        /*For every modification, the list of active hosts is copied to remove contention in the request path, thus this
-        * list is unmodifiable.*/
-        activeHosts.set(Collections.unmodifiableList(_hostConnectionProviders));
-
-        /*Serialize the subject so that even though there are concurrent removals from various failure detectors, the
-        * active host list is not modified concurrently. This makes the implementation simpler*/
-        hostRemover.serialize()
-                   .subscribe(hostToRemove -> {
-                       final List<HostHolder> cps = activeHosts.get();
-                       /*Create a new active hosts list with one lesser slot*/
-                       final List<HostHolder> copyCps = new ArrayList<>(cps.size() - 1);
-                       /*Add all hosts, but the one to be removed*/
-                       cps.stream().forEach(toAdd -> {
-                           if (toAdd.connectionProvider != hostToRemove) {
-                               copyCps.add(toAdd);
-                           }
-                       });
-                       /*Set this new list as the active hosts*/
-                       activeHosts.set(copyCps);
-                   }, Throwable::printStackTrace);
-
-
-        currentHostIndex = new AtomicInteger();
+        currentHostIndex = new AtomicInteger(-1);
     }
 
     @Override
@@ -123,6 +87,71 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
                         /*If there is a connect failure, retry at max two times.*/
                         .retry((count, th) -> count < 3 && th instanceof SocketException)
                         .unsafeSubscribe(sub);
+            }
+        });
+    }
+
+    @Override
+    protected Observable<Void> doStart() {
+
+        /**
+         * Since, a successful start (completion of returned Observable) is required for the associated client to start
+         * processing data, we can not return a potential infinite stream from the start(), hence this subject that
+         * completes on the first host recieved and errors if either of the subscriptions (hosts remover or listener)
+         * error out.
+         */
+        final PublishSubject<Void> startSignal = PublishSubject.create();
+
+        hostSubscription = new CompositeSubscription();
+
+        /*Serialize the subject so that even though there are concurrent removals from various failure detectors, the
+        * active host list is not modified concurrently. This makes the implementation simpler*/
+        hostSubscription.add(hostRemover.serialize()
+                   .subscribe(hostToRemove -> {
+                       final List<HostHolder> cps = activeHosts.get();
+                           /*Create a new active hosts list with one lesser slot*/
+                       final List<HostHolder> copyCps = new ArrayList<>(cps.size() - 1);
+                           /*Add all hosts, but the one to be removed*/
+                       cps.stream().forEach(toAdd -> {
+                           if (toAdd.connectionProvider != hostToRemove) {
+                               copyCps.add(toAdd);
+                           }
+                       });
+                           /*Set this new list as the active hosts*/
+                       activeHosts.set(copyCps);
+                   }, startSignal::onError));
+
+        hostSubscription.add(hosts.map(host -> {
+            /*Wait for atleast one host to get started, this condition can be altered in whichever way is suitable for
+              the load balancer. */
+            startSignal.onCompleted();
+
+            final List<HostHolder> _newList = new ArrayList<>(activeHosts.get());
+
+            /*Creates an unbounded pool as the bounds should be applied based on the desired concurrency level of the
+            client using it. One may choose to have a relatively higher bound in cases, where the usage is not trusted
+            and can lead to large amount of connections.*/
+            final PooledConnectionProvider<W, R> hostConnProvider =
+                    PooledConnectionProvider.createUnbounded(cf, host);
+
+            /*Create the listener that acts as the failure detector for this host.*/
+            TcpClientEventListener fd = failureDetetctorFactory.call(() -> hostRemover.onNext(hostConnProvider));
+
+            /*Add the holder to the list of active hosts.*/
+            _newList.add(new HostHolder(hostConnProvider, fd));
+            return Collections.unmodifiableList(_newList);
+        }).subscribe(activeHosts::set, startSignal::onError));
+
+        return startSignal;
+    }
+
+    @Override
+    protected Observable<Void> doShutdown() {
+        return Observable.create(new OnSubscribe<Void>() {
+            @Override
+            public void call(Subscriber<? super Void> subscriber) {
+                hostSubscription.unsubscribe();
+                subscriber.onCompleted();
             }
         });
     }
