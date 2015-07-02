@@ -52,6 +52,7 @@ import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import rx.Observable;
+import rx.Observer;
 import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func0;
@@ -60,10 +61,13 @@ import rx.functions.Func2;
 import rx.observers.TestSubscriber;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map.Entry;
 import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -724,6 +728,44 @@ public class HttpClientRequestImplTest {
     }
 
     @Test(timeout = 60000)
+    public void testHeaderIterator() throws Exception {
+        final String headerName = "Foo";
+        final String headerVal1 = "bar";
+
+        HttpClientRequestImpl<Object, ByteBuf> newReq =
+                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
+                        .addHeader(headerName, headerVal1);
+
+        requestRule.assertHeaderAdded(newReq, headerName, headerVal1);
+
+        Iterator<Entry<String, String>> headerIter = newReq.headerIterator();
+        List<Entry<String, String>> allHeaders = new ArrayList<>();
+        while (headerIter.hasNext()) {
+            Entry<String, String> next = headerIter.next();
+            allHeaders.add(next);
+        }
+
+        assertThat("Added header not retrievable.", allHeaders, hasSize(1));
+        assertThat("Unexpected header name.", allHeaders.get(0).getKey(), equalTo(headerName));
+        assertThat("Unexpected header value.", allHeaders.get(0).getValue(), equalTo(headerVal1));
+    }
+
+    @Test(timeout = 60000)
+    public void testGetHeaderNames() throws Exception {
+        final String headerName = "Foo";
+        final String headerVal1 = "bar";
+
+        HttpClientRequestImpl<Object, ByteBuf> newReq =
+                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
+                        .addHeader(headerName, headerVal1);
+
+        requestRule.assertHeaderAdded(newReq, headerName, headerVal1);
+
+        assertThat("Added header not retrievable.", newReq.getHeaderNames(), hasSize(1));
+        assertThat("Unexpected header name.", newReq.getHeaderNames(), contains(headerName));
+    }
+
+    @Test(timeout = 60000)
     public void testSubscribe() throws Exception {
         TestSubscriber<Object> subscriber = new TestSubscriber<>();
 
@@ -891,12 +933,6 @@ public class HttpClientRequestImplTest {
             };
         }
 
-        public void createNewRequest(HttpMethod method, String uri) {
-            request = (HttpClientRequestImpl<Object, ByteBuf>) HttpClientRequestImpl.create(HttpVersion.HTTP_1_1,
-                                                                                            method, uri, clientMock
-            );
-        }
-
         public void assertCopy(HttpClientRequestImpl<Object, ByteBuf> newReq) {
             assertCopy(request, newReq);
         }
@@ -1006,7 +1042,7 @@ public class HttpClientRequestImplTest {
             writtenContentSub.assertNoErrors();
 
             TestSubscriber<Object> reqSubscriber = new TestSubscriber<>();
-            reqAsO.subscribe(reqSubscriber);
+            reqAsO.subscribe((Observer<Object>)reqSubscriber);
 
             reqSubscriber.awaitTerminalEvent();
             reqSubscriber.assertNoErrors();
