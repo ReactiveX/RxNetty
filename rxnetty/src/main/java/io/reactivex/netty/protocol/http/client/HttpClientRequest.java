@@ -35,7 +35,10 @@ import rx.functions.Func1;
 import rx.functions.Func2;
 
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -594,8 +597,8 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
     public abstract <II, OO> HttpClientRequest<II, OO> pipelineConfigurator(Action1<ChannelPipeline> configurator);
 
     /**
-     * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
-     * passed level for the newly created client instance.
+     * Creates a new request instance, inheriting all configurations from this request and enabling wire logging at the
+     * passed level for the newly created request instance.
      *
      * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
      *                        logging is enabled at this level for {@link LoggingHandler}
@@ -604,6 +607,12 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      */
     public abstract HttpClientRequest<I, O> enableWireLogging(LogLevel wireLoggingLevel);
 
+    /**
+     * Creates a new {@link WebSocketRequest}, inheriting all configurations from this request, that will request an
+     * upgrade to websockets from the server.
+     *
+     * @return A new {@link WebSocketRequest}.
+     */
     public abstract WebSocketRequest<O> requestWebSocketUpgrade();
 
     /**
@@ -645,6 +654,20 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @return All values of the header, if it exists, {@code null} otherwise.
      */
     public abstract List<String> getAllHeaders(CharSequence name);
+
+    /**
+     * Returns an iterator over the header entries. Multiple values for the same header appear as separate entries in
+     * the returned iterator.
+     *
+     * @return An iterator over the header entries
+     */
+    public abstract Iterator<Entry<String, String>> headerIterator();
+
+    /**
+     * Returns a new {@link Set} that contains the names of all headers in this request.  Note that modifying the
+     * returned {@link Set} will not affect the state of this response.
+     */
+    public abstract Set<String> getHeaderNames();
 
     /**
      * Returns the HTTP version of this request.

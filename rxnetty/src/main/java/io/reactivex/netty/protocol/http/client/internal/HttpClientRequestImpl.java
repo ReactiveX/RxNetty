@@ -43,7 +43,10 @@ import rx.functions.Func1;
 import rx.functions.Func2;
 
 import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map.Entry;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.*;
@@ -353,6 +356,16 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     @Override
     public List<String> getAllHeaders(CharSequence name) {
         return rawRequest.getHeaders().headers().getAll(name);
+    }
+
+    @Override
+    public Iterator<Entry<String, String>> headerIterator() {
+        return rawRequest.getHeaders().headers().iterator();
+    }
+
+    @Override
+    public Set<String> getHeaderNames() {
+        return rawRequest.getHeaders().headers().names();
     }
 
     @Override
