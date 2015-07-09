@@ -108,6 +108,18 @@ public abstract class ConnectionEventListener implements EventListener {
     public void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
 
     @Override
+    public void onCustomEvent(Object event) { }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) { }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) { }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) { }
+
+    @Override
     public void onCompleted() { }
 
 }

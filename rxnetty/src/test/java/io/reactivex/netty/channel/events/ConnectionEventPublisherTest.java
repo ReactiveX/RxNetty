@@ -122,6 +122,50 @@ public class ConnectionEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testCustomEvent() throws Exception {
+        Object event = "Hello";
+        rule.publisher.onCustomEvent(event);
+        rule.listener.assertMethodsCalled(Event.CustomEvent);
+
+        assertThat("Listener not called with event.", rule.listener.getCustomEvent(), is(event));
+    }
+
+    @Test(timeout = 60000)
+    public void testCustomEventWithError() throws Exception {
+        final Throwable expected = new NullPointerException("Deliberate");
+        Object event = "Hello";
+        rule.publisher.onCustomEvent(event, expected);
+        rule.listener.assertMethodsCalled(Event.CustomEventWithError);
+
+        assertThat("Listener not called with event.", rule.listener.getCustomEvent(), is(event));
+        assertThat("Listener not called with error.", rule.listener.getRecievedError(), is(expected));
+    }
+
+    @Test(timeout = 60000)
+    public void testCustomEventWithDuration() throws Exception {
+        Object event = "Hello";
+        rule.publisher.onCustomEvent(event, 1, TimeUnit.MILLISECONDS);
+        rule.listener.assertMethodsCalled(Event.CustomEventWithDuration);
+
+        assertThat("Listener not called with event.", rule.listener.getCustomEvent(), is(event));
+        assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
+        assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
+    }
+
+    @Test(timeout = 60000)
+    public void testCustomEventWithDurationAndError() throws Exception {
+        final Throwable expected = new NullPointerException("Deliberate");
+        Object event = "Hello";
+        rule.publisher.onCustomEvent(event, 1, TimeUnit.MILLISECONDS, expected);
+        rule.listener.assertMethodsCalled(Event.CustomEventWithDurationAndError);
+
+        assertThat("Listener not called with event.", rule.listener.getCustomEvent(), is(event));
+        assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
+        assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
+        assertThat("Listener not called with error.", rule.listener.getRecievedError(), is(expected));
+    }
+
+    @Test(timeout = 60000)
     public void testPublishingEnabled() throws Exception {
         assertThat("Publishing not enabled.", rule.publisher.publishingEnabled(), is(true));
     }
@@ -157,7 +201,8 @@ public class ConnectionEventPublisherTest {
 
         public enum Event {
             BytesRead, FlushStart, FlushSuccess, FlushFailed, WriteStart, WriteSuccess, WriteFailed, CloseStart,
-            CloseSuccess, CloseFailed, Complete
+            CloseSuccess, CloseFailed, CustomEvent, CustomEventWithDuration, CustomEventWithDurationAndError,
+            CustomEventWithError, Complete
         }
 
         private final List<Event> methodsCalled = new ArrayList<>();
@@ -166,6 +211,7 @@ public class ConnectionEventPublisherTest {
         private TimeUnit timeUnit;
         private long bytesWritten;
         private Throwable recievedError;
+        private Object customeEvent;
 
         @Override
         public void onByteRead(long bytesRead) {
@@ -235,6 +281,36 @@ public class ConnectionEventPublisherTest {
         }
 
         @Override
+        public void onCustomEvent(Object event) {
+            methodsCalled.add(Event.CustomEvent);
+            customeEvent = event;
+        }
+
+        @Override
+        public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+            methodsCalled.add(Event.CustomEventWithDuration);
+            customeEvent = event;
+            this.duration = duration;
+            this.timeUnit = timeUnit;
+        }
+
+        @Override
+        public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+            methodsCalled.add(Event.CustomEventWithDurationAndError);
+            customeEvent = event;
+            this.duration = duration;
+            this.timeUnit = timeUnit;
+            recievedError = throwable;
+        }
+
+        @Override
+        public void onCustomEvent(Object event, Throwable throwable) {
+            methodsCalled.add(Event.CustomEventWithError);
+            customeEvent = event;
+            recievedError = throwable;
+        }
+
+        @Override
         public void onCompleted() {
             methodsCalled.add(Event.Complete);
         }
@@ -266,6 +342,10 @@ public class ConnectionEventPublisherTest {
 
         public Throwable getRecievedError() {
             return recievedError;
+        }
+
+        public Object getCustomEvent() {
+            return customeEvent;
         }
     }
 

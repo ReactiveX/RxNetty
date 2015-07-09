@@ -233,6 +233,26 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
     }
 
     @Override
+    public void onCustomEvent(Object event) {
+        connDelegate.onCustomEvent(event);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+        connDelegate.onCustomEvent(event, duration, timeUnit);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        connDelegate.onCustomEvent(event, duration, timeUnit, throwable);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) {
+        connDelegate.onCustomEvent(event, throwable);
+    }
+
+    @Override
     public Subscription subscribe(TcpClientEventListener listener) {
         if (!SafeEventListener.class.isAssignableFrom(listener.getClass())) {
             listener = new SafeTcpClientEventListener(listener);

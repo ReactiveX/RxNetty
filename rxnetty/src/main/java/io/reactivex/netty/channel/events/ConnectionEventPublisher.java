@@ -24,6 +24,7 @@ import rx.functions.Action1;
 import rx.functions.Action2;
 import rx.functions.Action3;
 import rx.functions.Action4;
+import rx.functions.Action5;
 
 import java.util.concurrent.TimeUnit;
 
@@ -108,6 +109,35 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
                 }
             };
 
+    private final Action2<T, Object> customEventAction = new Action2<T, Object>() {
+        @Override
+        public void call(T l, Object event) {
+            l.onCustomEvent(event);
+        }
+    };
+
+    private final Action3<T, Throwable, Object> customEventErrorAction = new Action3<T, Throwable, Object>() {
+        @Override
+        public void call(T l, Throwable throwable, Object event) {
+            l.onCustomEvent(event, throwable);
+        }
+    };
+
+    private final Action4<T, Long, TimeUnit, Object> customEventDurationAction = new Action4<T, Long, TimeUnit, Object>() {
+        @Override
+        public void call(T l, Long duration, TimeUnit timeUnit, Object event) {
+            l.onCustomEvent(event, duration, timeUnit);
+        }
+    };
+
+    private final Action5<T, Long, TimeUnit, Throwable, Object> customEventDurationErrAction =
+            new Action5<T, Long, TimeUnit, Throwable, Object>() {
+        @Override
+        public void call(T l, Long duration, TimeUnit timeUnit, Throwable throwable, Object event) {
+            l.onCustomEvent(event, duration, timeUnit, throwable);
+        }
+    };
+
     private final ListenersHolder<T> listeners;
 
     public ConnectionEventPublisher() {
@@ -166,6 +196,26 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
     @Override
     public void onConnectionCloseFailed(final long duration, final TimeUnit timeUnit, final Throwable throwable) {
         listeners.invokeListeners(closeFailedAction, duration, timeUnit, throwable);
+    }
+
+    @Override
+    public void onCustomEvent(Object event) {
+        listeners.invokeListeners(customEventAction, event);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+        listeners.invokeListeners(customEventDurationAction, duration, timeUnit, event);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        listeners.invokeListeners(customEventDurationErrAction, duration, timeUnit, throwable, event);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) {
+        listeners.invokeListeners(customEventErrorAction, throwable, event);
     }
 
     @Override

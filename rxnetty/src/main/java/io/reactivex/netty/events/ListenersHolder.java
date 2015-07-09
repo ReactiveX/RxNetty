@@ -28,6 +28,7 @@ import rx.functions.Action1;
 import rx.functions.Action2;
 import rx.functions.Action3;
 import rx.functions.Action4;
+import rx.functions.Action5;
 import rx.subscriptions.CompositeSubscription;
 import rx.subscriptions.Subscriptions;
 
@@ -214,6 +215,36 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
      * validations required for invoking a listener and also guards against a listener throwing exceptions on invocation.
      *
      * @param invocationAction The action to perform on all listeners.
+     * @param duration Duration.
+     * @param timeUnit Time unit for the duration.
+     * @param throwable An error.
+     * @param arg Any arbitrary argument
+     */
+    public <A> void invokeListeners(Action5<T, Long, TimeUnit, Throwable, A> invocationAction, long duration,
+                                    TimeUnit timeUnit, Throwable throwable, A arg) {
+        ListenerInvocationException exception = null;
+        for (ListenerHolder<T> listener : listeners) {
+            if (!listener.subscription.isUnsubscribed()) {
+                try {
+                    invocationAction.call(listener.delegate, duration, timeUnit, throwable, arg);
+                } catch (Throwable e) {
+                    exception = handleListenerError(exception, listener, e);
+                }
+            }
+        }
+
+        if (null != exception) {
+            exception.finish();
+            /*Do not bubble event notification errors to the caller, event notifications are best effort.*/
+            logger.error("Error occured while invoking event listeners.", exception);
+        }
+    }
+
+    /**
+     * Invoke listeners with an action expressed by the passed {@code invocationAction}. This method does the necessary
+     * validations required for invoking a listener and also guards against a listener throwing exceptions on invocation.
+     *
+     * @param invocationAction The action to perform on all listeners.
      * @param arg Any arbitrary argument
      */
     public <A> void invokeListeners(Action2<T, A> invocationAction, A arg) {
@@ -222,6 +253,33 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
             if (!listener.subscription.isUnsubscribed()) {
                 try {
                     invocationAction.call(listener.delegate, arg);
+                } catch (Throwable e) {
+                    exception = handleListenerError(exception, listener, e);
+                }
+            }
+        }
+
+        if (null != exception) {
+            exception.finish();
+            /*Do not bubble event notification errors to the caller, event notifications are best effort.*/
+            logger.error("Error occured while invoking event listeners.", exception);
+        }
+    }
+
+    /**
+     * Invoke listeners with an action expressed by the passed {@code invocationAction}. This method does the necessary
+     * validations required for invoking a listener and also guards against a listener throwing exceptions on invocation.
+     *
+     * @param invocationAction The action to perform on all listeners.
+     * @param throwable An error.
+     * @param arg Any arbitrary argument
+     */
+    public <A> void invokeListeners(Action3<T, Throwable, A> invocationAction, Throwable throwable, A arg) {
+        ListenerInvocationException exception = null;
+        for (ListenerHolder<T> listener : listeners) {
+            if (!listener.subscription.isUnsubscribed()) {
+                try {
+                    invocationAction.call(listener.delegate, throwable, arg);
                 } catch (Throwable e) {
                     exception = handleListenerError(exception, listener, e);
                 }
@@ -297,6 +355,18 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
                 }
             }
         }
+
+        @Override
+        public void onCustomEvent(Object event) { }
+
+        @Override
+        public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) { }
+
+        @Override
+        public void onCustomEvent(Object event, Throwable throwable) { }
+
+        @Override
+        public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) { }
 
         public static <X extends EventListener> ListenerHolder<X> forRemoval(X listenerToRemove) {
             return new ListenerHolder<>(listenerToRemove, EMPTY_SUB_FOR_REMOVAL);

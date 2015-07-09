@@ -224,6 +224,30 @@ public class HttpServerEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testOnCustomEvent() throws Exception {
+        rule.publisher.onCustomEvent("Hello");
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.CustomEvent);
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", new NullPointerException());
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.CustomEventWithError);
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithDuration() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, TimeUnit.MINUTES);
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.CustomEventWithDuration);
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithDurationAndError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, TimeUnit.MINUTES, new NullPointerException());
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.CustomEventWithDurationAndError);
+    }
+
+    @Test(timeout = 60000)
     public void testPublishingEnabled() throws Exception {
         assertThat("Publishing not enabled.", rule.publisher.publishingEnabled(), is(true));
     }
