@@ -38,109 +38,179 @@ final class SafeTcpClientEventListener extends TcpClientEventListener implements
 
     @Override
     public void onConnectStart() {
-        delegate.onConnectStart();
+        if (!completed.get()) {
+            delegate.onConnectStart();
+        }
     }
 
     @Override
     public void onConnectSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onConnectSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onConnectSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        delegate.onConnectFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onConnectFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onPoolReleaseStart() {
-        delegate.onPoolReleaseStart();
+        if (!completed.get()) {
+            delegate.onPoolReleaseStart();
+        }
     }
 
     @Override
     public void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onPoolReleaseSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onPoolReleaseSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onPoolReleaseFailed(long duration, TimeUnit timeUnit,
                                     Throwable throwable) {
-        delegate.onPoolReleaseFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onPoolReleaseFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onPooledConnectionEviction() {
-        delegate.onPooledConnectionEviction();
+        if (!completed.get()) {
+            delegate.onPooledConnectionEviction();
+        }
     }
 
     @Override
     public void onPooledConnectionReuse() {
-        delegate.onPooledConnectionReuse();
+        if (!completed.get()) {
+            delegate.onPooledConnectionReuse();
+        }
     }
 
     @Override
     public void onPoolAcquireStart() {
-        delegate.onPoolAcquireStart();
+        if (!completed.get()) {
+            delegate.onPoolAcquireStart();
+        }
     }
 
     @Override
     public void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onPoolAcquireSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onPoolAcquireSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onPoolAcquireFailed(long duration, TimeUnit timeUnit,
                                     Throwable throwable) {
-        delegate.onPoolAcquireFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onPoolAcquireFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onByteRead(long bytesRead) {
-        delegate.onByteRead(bytesRead);
+        if (!completed.get()) {
+            delegate.onByteRead(bytesRead);
+        }
     }
 
     @Override
     public void onFlushStart() {
-        delegate.onFlushStart();
+        if (!completed.get()) {
+            delegate.onFlushStart();
+        }
     }
 
     @Override
     public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onFlushSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onFlushSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        delegate.onFlushFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onFlushFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onWriteStart() {
-        delegate.onWriteStart();
+        if (!completed.get()) {
+            delegate.onWriteStart();
+        }
     }
 
     @Override
     public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        delegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+        if (!completed.get()) {
+            delegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+        }
     }
 
     @Override
     public void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        delegate.onWriteFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onWriteFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onConnectionCloseStart() {
-        delegate.onConnectionCloseStart();
+        if (!completed.get()) {
+            delegate.onConnectionCloseStart();
+        }
     }
 
     @Override
     public void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onConnectionCloseSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onConnectionCloseSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onConnectionCloseFailed(long duration, TimeUnit timeUnit,
                                         Throwable throwable) {
-        delegate.onConnectionCloseFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onConnectionCloseFailed(duration, timeUnit, throwable);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event, duration, timeUnit);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event, duration, timeUnit, throwable);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event, throwable);
+        }
     }
 }

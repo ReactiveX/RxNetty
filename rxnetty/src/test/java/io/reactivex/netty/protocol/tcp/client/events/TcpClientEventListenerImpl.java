@@ -161,6 +161,26 @@ public class TcpClientEventListenerImpl extends TcpClientEventListener {
     }
 
     @Override
+    public void onCustomEvent(Object event) {
+        delegate.onCustomEvent(event);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+        delegate.onCustomEvent(event, duration, timeUnit);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        delegate.onCustomEvent(event, duration, timeUnit, throwable);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) {
+        delegate.onCustomEvent(event, throwable);
+    }
+
+    @Override
     public void onCompleted() {
         delegate.onCompleted();
     }

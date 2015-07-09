@@ -150,6 +150,26 @@ public final class TcpServerEventPublisher extends TcpServerEventListener
     }
 
     @Override
+    public void onCustomEvent(Object event) {
+        connDelegate.onCustomEvent(event);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+        connDelegate.onCustomEvent(event, duration, timeUnit);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        connDelegate.onCustomEvent(event, duration, timeUnit, throwable);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) {
+        connDelegate.onCustomEvent(event, throwable);
+    }
+
+    @Override
     public boolean publishingEnabled() {
         return listeners.publishingEnabled();
     }

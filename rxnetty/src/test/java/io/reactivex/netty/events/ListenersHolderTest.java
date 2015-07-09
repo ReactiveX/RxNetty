@@ -23,6 +23,7 @@ import rx.functions.Action1;
 import rx.functions.Action2;
 import rx.functions.Action3;
 import rx.functions.Action4;
+import rx.functions.Action5;
 
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
@@ -160,7 +161,7 @@ public class ListenersHolderTest {
     }
 
     @Test(timeout = 60000)
-    public void testInvokeListenersWithException() throws Exception {
+    public void testInvokeListenersRaiseException() throws Exception {
         final TestEventListener listener1 = new TestEventListener(true);
         final TestEventListener listener2 = new TestEventListener();
         holderRule.getHolder().subscribe(listener1);
@@ -225,7 +226,7 @@ public class ListenersHolderTest {
     }
 
     @Test(timeout = 60000)
-    public void testInvokeListenersWithDurationAndException() throws Exception {
+    public void testInvokeListenersWithDurationRaiseException() throws Exception {
         final TestEventListener listener1 = new TestEventListener(true);
         holderRule.getHolder().subscribe(listener1);
 
@@ -300,7 +301,7 @@ public class ListenersHolderTest {
     }
 
     @Test(timeout = 60000)
-    public void testInvokeListenersWithDurationAndErrorAndException() throws Exception {
+    public void testInvokeListenersWithDurationAndErrorRaiseException() throws Exception {
         final TestEventListener listener1 = new TestEventListener(true);
         holderRule.getHolder().subscribe(listener1);
 
@@ -377,7 +378,39 @@ public class ListenersHolderTest {
     }
 
     @Test(timeout = 60000)
-    public void testInvokeListenersWithDurationArgAndException() throws Exception {
+    public void testInvokeListenersMultiWithDurationErrorAndArg() throws Exception {
+        final TestEventListener listener1 = new TestEventListener();
+        holderRule.getHolder().subscribe(listener1);
+
+        final TestEventListener listener2 = new TestEventListener();
+        holderRule.getHolder().subscribe(listener2);
+        holderRule.assertListenerAdded(listener1, listener2);
+
+        final Object event = "doom";
+        final Throwable expected = new NullPointerException();
+        holderRule.getHolder().invokeListeners(new Action5<TestEventListener, Long, TimeUnit, Throwable, Object>() {
+            @Override
+            public void call(TestEventListener testEventListener, Long duration, TimeUnit timeUnit, Throwable throwable,
+                             Object event) {
+                testEventListener.onCustomEvent(event, duration, timeUnit, throwable);
+            }
+        }, 1, TimeUnit.MICROSECONDS, expected, event);
+
+        assertThat("Listener not invoked.", listener1.getEventInvocationCount(), is(1));
+        assertThat("Listener not invoked with duration.", listener1.getDuration(), is(1L));
+        assertThat("Listener not invoked with time unit.", listener1.getTimeUnit(), is(TimeUnit.MICROSECONDS));
+        assertThat("Listener not invoked with error.", listener1.getRecievedError(), is(expected));
+        assertThat("Listener not invoked with argument.", listener1.getCustomEvent(), is(event));
+
+        assertThat("Second listener not invoked.", listener2.getEventInvocationCount(), is(1));
+        assertThat("Second listener not invoked with duration.", listener2.getDuration(), is(1L));
+        assertThat("Second listener not invoked with time unit.", listener2.getTimeUnit(), is(TimeUnit.MICROSECONDS));
+        assertThat("Second listener not invoked with error.", listener2.getRecievedError(), is(expected));
+        assertThat("Second listener not invoked with argument.", listener2.getCustomEvent(), is(event));
+    }
+
+    @Test(timeout = 60000)
+    public void testInvokeListenersWithDurationArgRaiseException() throws Exception {
         final TestEventListener listener1 = new TestEventListener(true);
         holderRule.getHolder().subscribe(listener1);
 
@@ -423,6 +456,26 @@ public class ListenersHolderTest {
     }
 
     @Test(timeout = 60000)
+    public void testInvokeListenersWithExceptionAndArg() throws Exception {
+        final TestEventListener listener = new TestEventListener();
+        holderRule.getHolder().subscribe(listener);
+        holderRule.assertListenerAdded(listener);
+
+        final Object event = "doom";
+        final Throwable expected = new NullPointerException();
+        holderRule.getHolder().invokeListeners(new Action3<TestEventListener, Throwable, Object>() {
+            @Override
+            public void call(TestEventListener testEventListener, Throwable throwable, Object arg) {
+                testEventListener.onCustomEvent(arg, throwable);
+            }
+        }, expected, event);
+
+        assertThat("Listener not invoked.", listener.getEventInvocationCount(), is(1));
+        assertThat("Listener not invoked with argument.", listener.getCustomEvent(), equalTo(event));
+        assertThat("Listener not invoked with exception.", listener.getRecievedError(), is(expected));
+    }
+
+    @Test(timeout = 60000)
     public void testInvokeListenersMultiWithArg() throws Exception {
         final TestEventListener listener1 = new TestEventListener();
         holderRule.getHolder().subscribe(listener1);
@@ -447,7 +500,7 @@ public class ListenersHolderTest {
     }
 
     @Test(timeout = 60000)
-    public void testInvokeListenersWithArgAndException() throws Exception {
+    public void testInvokeListenersWithArgAndRaiseException() throws Exception {
         final TestEventListener listener1 = new TestEventListener(true);
         holderRule.getHolder().subscribe(listener1);
 
@@ -515,6 +568,7 @@ public class ListenersHolderTest {
         private TimeUnit timeUnit;
         private Throwable recievedError;
         private String arg;
+        private Object customEvent;
 
         public TestEventListener() {
             this(false);
@@ -576,6 +630,48 @@ public class ListenersHolderTest {
             }
         }
 
+        @Override
+        public void onCustomEvent(Object event) {
+            customEvent = event;
+            eventInvocationCount++;
+            if (raiseErrorOnAllInvocations) {
+                throw new IllegalStateException("Deliberate exception.");
+            }
+        }
+
+        @Override
+        public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+            this.duration = duration;
+            this.timeUnit = timeUnit;
+            customEvent = event;
+            eventInvocationCount++;
+            if (raiseErrorOnAllInvocations) {
+                throw new IllegalStateException("Deliberate exception.");
+            }
+        }
+
+        @Override
+        public void onCustomEvent(Object event, Throwable throwable) {
+            customEvent = event;
+            recievedError = throwable;
+            eventInvocationCount++;
+            if (raiseErrorOnAllInvocations) {
+                throw new IllegalStateException("Deliberate exception.");
+            }
+        }
+
+        @Override
+        public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+            this.duration = duration;
+            this.timeUnit = timeUnit;
+            recievedError = throwable;
+            customEvent = event;
+            eventInvocationCount++;
+            if (raiseErrorOnAllInvocations) {
+                throw new IllegalStateException("Deliberate exception.");
+            }
+        }
+
         public int getOnCompletedCount() {
             return onCompletedCount;
         }
@@ -598,6 +694,10 @@ public class ListenersHolderTest {
 
         public String getArg() {
             return arg;
+        }
+
+        public Object getCustomEvent() {
+            return customEvent;
         }
     }
 

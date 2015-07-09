@@ -143,6 +143,30 @@ public class TcpServerEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testOnCustomEvent() throws Exception {
+        rule.publisher.onCustomEvent("Hello");
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.CustomEvent); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", new NullPointerException());
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.CustomEventWithError); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithDuration() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, MINUTES);
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.CustomEventWithDuration); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithDurationError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, MINUTES, new NullPointerException());
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.CustomEventWithDurationAndError); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
     public void testPublishingEnabled() throws Exception {
         assertThat("Publishing not enabled.", rule.publisher.publishingEnabled(), is(true));
     }

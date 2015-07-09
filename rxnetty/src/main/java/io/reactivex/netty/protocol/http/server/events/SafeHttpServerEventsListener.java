@@ -38,125 +38,201 @@ final class SafeHttpServerEventsListener extends HttpServerEventsListener implem
 
     @Override
     public void onNewRequestReceived() {
-        delegate.onNewRequestReceived();
+        if (!completed.get()) {
+            delegate.onNewRequestReceived();
+        }
     }
 
     @Override
     public void onRequestHandlingStart(long duration, TimeUnit timeUnit) {
-        delegate.onRequestHandlingStart(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onRequestHandlingStart(duration, timeUnit);
+        }
     }
 
     @Override
     public void onRequestHandlingSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onRequestHandlingSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onRequestHandlingSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onRequestHandlingFailed(long duration, TimeUnit timeUnit,
                                         Throwable throwable) {
-        delegate.onRequestHandlingFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onRequestHandlingFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onRequestHeadersReceived() {
-        delegate.onRequestHeadersReceived();
+        if (!completed.get()) {
+            delegate.onRequestHeadersReceived();
+        }
     }
 
     @Override
     public void onRequestContentReceived() {
-        delegate.onRequestContentReceived();
+        if (!completed.get()) {
+            delegate.onRequestContentReceived();
+        }
     }
 
     @Override
     public void onRequestReceiveComplete(long duration, TimeUnit timeUnit) {
-        delegate.onRequestReceiveComplete(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onRequestReceiveComplete(duration, timeUnit);
+        }
     }
 
     @Override
     public void onResponseWriteStart() {
-        delegate.onResponseWriteStart();
+        if (!completed.get()) {
+            delegate.onResponseWriteStart();
+        }
     }
 
     @Override
     public void onResponseWriteSuccess(long duration, TimeUnit timeUnit, int responseCode) {
-        delegate.onResponseWriteSuccess(duration, timeUnit, responseCode);
+        if (!completed.get()) {
+            delegate.onResponseWriteSuccess(duration, timeUnit, responseCode);
+        }
     }
 
     @Override
     public void onResponseWriteFailed(long duration, TimeUnit timeUnit,
                                       Throwable throwable) {
-        delegate.onResponseWriteFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onResponseWriteFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onNewClientConnected() {
-        delegate.onNewClientConnected();
+        if (!completed.get()) {
+            delegate.onNewClientConnected();
+        }
     }
 
     @Override
     public void onConnectionHandlingStart(long duration, TimeUnit timeUnit) {
-        delegate.onConnectionHandlingStart(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onConnectionHandlingStart(duration, timeUnit);
+        }
     }
 
     @Override
     public void onConnectionHandlingSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onConnectionHandlingSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onConnectionHandlingSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onConnectionHandlingFailed(long duration, TimeUnit timeUnit,
                                            Throwable throwable) {
-        delegate.onConnectionHandlingFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onConnectionHandlingFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onByteRead(long bytesRead) {
-        delegate.onByteRead(bytesRead);
+        if (!completed.get()) {
+            delegate.onByteRead(bytesRead);
+        }
     }
 
     @Override
     public void onFlushStart() {
-        delegate.onFlushStart();
+        if (!completed.get()) {
+            delegate.onFlushStart();
+        }
     }
 
     @Override
     public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onFlushSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onFlushSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        delegate.onFlushFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onFlushFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onWriteStart() {
-        delegate.onWriteStart();
+        if (!completed.get()) {
+            delegate.onWriteStart();
+        }
     }
 
     @Override
     public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        delegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+        if (!completed.get()) {
+            delegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+        }
     }
 
     @Override
     public void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        delegate.onWriteFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onWriteFailed(duration, timeUnit, throwable);
+        }
     }
 
     @Override
     public void onConnectionCloseStart() {
-        delegate.onConnectionCloseStart();
+        if (!completed.get()) {
+            delegate.onConnectionCloseStart();
+        }
     }
 
     @Override
     public void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onConnectionCloseSuccess(duration, timeUnit);
+        if (!completed.get()) {
+            delegate.onConnectionCloseSuccess(duration, timeUnit);
+        }
     }
 
     @Override
     public void onConnectionCloseFailed(long duration, TimeUnit timeUnit,
                                         Throwable throwable) {
-        delegate.onConnectionCloseFailed(duration, timeUnit, throwable);
+        if (!completed.get()) {
+            delegate.onConnectionCloseFailed(duration, timeUnit, throwable);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event, duration, timeUnit);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event, duration, timeUnit, throwable);
+        }
+    }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) {
+        if (!completed.get()) {
+            delegate.onCustomEvent(event, throwable);
+        }
     }
 }

@@ -213,6 +213,30 @@ public class TcpClientEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testCustomEvent() throws Exception {
+        rule.publisher.onCustomEvent("Hello");
+        rule.listener.assertMethodsCalled(Event.CustomEvent); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testCustomEventWithError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", new NullPointerException());
+        rule.listener.assertMethodsCalled(Event.CustomEventWithError); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testCustomEventWithDuration() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, TimeUnit.MINUTES);
+        rule.listener.assertMethodsCalled(Event.CustomEventWithDuration); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testCustomEventWithDurationAndError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, TimeUnit.MINUTES, new NullPointerException());
+        rule.listener.assertMethodsCalled(Event.CustomEventWithDurationAndError); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
     public void testCopy() throws Exception {
         TcpClientEventPublisher copy = rule.publisher.copy();
 

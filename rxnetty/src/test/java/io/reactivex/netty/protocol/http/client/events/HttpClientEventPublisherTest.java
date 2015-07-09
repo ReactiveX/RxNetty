@@ -256,6 +256,30 @@ public class HttpClientEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testOnCustomEvent() throws Exception {
+        rule.publisher.onCustomEvent("Hello");
+        rule.listener.getTcpDelegate().assertMethodsCalled(Event.CustomEvent); // Test for TCP should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", new NullPointerException());
+        rule.listener.getTcpDelegate().assertMethodsCalled(Event.CustomEventWithError); // Test for TCP should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithDuration() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, MINUTES);
+        rule.listener.getTcpDelegate().assertMethodsCalled(Event.CustomEventWithDuration); // Test for TCP should verify rest
+    }
+
+    @Test(timeout = 60000)
+    public void testOnCustomEventWithDurationAndError() throws Exception {
+        rule.publisher.onCustomEvent("Hello", 1, MINUTES, new NullPointerException());
+        rule.listener.getTcpDelegate().assertMethodsCalled(Event.CustomEventWithDurationAndError); // Test for TCP should verify rest
+    }
+
+    @Test(timeout = 60000)
     public void testPublishingEnabled() throws Exception {
         assertThat("Publishing not enabled.", rule.publisher.publishingEnabled(), is(true));
     }

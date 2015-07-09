@@ -209,4 +209,24 @@ public class HttpServerEventsListenerImpl extends HttpServerEventsListener {
     public void onFlushStart() {
         tcpDelegate.onFlushStart();
     }
+
+    @Override
+    public void onCustomEvent(Object event) {
+        tcpDelegate.onCustomEvent(event);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit) {
+        tcpDelegate.onCustomEvent(event, duration, timeUnit);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, long duration, TimeUnit timeUnit, Throwable throwable) {
+        tcpDelegate.onCustomEvent(event, duration, timeUnit, throwable);
+    }
+
+    @Override
+    public void onCustomEvent(Object event, Throwable throwable) {
+        tcpDelegate.onCustomEvent(event, throwable);
+    }
 }
