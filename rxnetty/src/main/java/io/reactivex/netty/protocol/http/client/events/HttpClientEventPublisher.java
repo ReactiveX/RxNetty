@@ -65,11 +65,12 @@ public final class HttpClientEventPublisher extends HttpClientEventsListener
                 }
             };
 
-    private static final Action2<HttpClientEventsListener, Integer> RESP_HEADER_RECIEVED_ACTION =
-            new Action2<HttpClientEventsListener, Integer>() {
+    private static final Action4<HttpClientEventsListener, Long, TimeUnit, Integer> RESP_HEADER_RECIEVED_ACTION =
+            new Action4<HttpClientEventsListener, Long, TimeUnit, Integer>() {
                 @Override
-                public void call(HttpClientEventsListener listener, Integer responseCode) {
-                    listener.onResponseHeadersReceived(responseCode);
+                public void call(HttpClientEventsListener listener, Long duration, TimeUnit timeUnit,
+                                 Integer responseCode) {
+                    listener.onResponseHeadersReceived(responseCode, duration, timeUnit);
                 }
             };
 
@@ -139,8 +140,8 @@ public final class HttpClientEventPublisher extends HttpClientEventsListener
     }
 
     @Override
-    public void onResponseHeadersReceived(final int responseCode) {
-        listeners.invokeListeners(RESP_HEADER_RECIEVED_ACTION, responseCode);
+    public void onResponseHeadersReceived(final int responseCode, long duration, TimeUnit timeUnit) {
+        listeners.invokeListeners(RESP_HEADER_RECIEVED_ACTION, duration, timeUnit, responseCode);
     }
 
     @Override

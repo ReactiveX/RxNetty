@@ -68,10 +68,12 @@ public class HttpClientEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnResponseHeadersReceived() throws Exception {
-        rule.publisher.onResponseHeadersReceived(200);
+        rule.publisher.onResponseHeadersReceived(200, 1, MILLISECONDS);
         rule.listener.assertMethodCalled(HttpEvent.ResHeadersReceived);
 
         assertThat("Listener not called with response code.", rule.listener.getResponseCode(), is(200));
+        assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
+        assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(MILLISECONDS));
     }
 
     @Test(timeout = 60000)

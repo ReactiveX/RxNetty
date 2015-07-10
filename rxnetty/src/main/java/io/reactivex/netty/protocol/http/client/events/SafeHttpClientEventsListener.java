@@ -67,9 +67,9 @@ final class SafeHttpClientEventsListener extends HttpClientEventsListener implem
     }
 
     @Override
-    public void onResponseHeadersReceived(int responseCode) {
+    public void onResponseHeadersReceived(int responseCode, long duration, TimeUnit timeUnit) {
         if (!completed.get()) {
-            delegate.onResponseHeadersReceived(responseCode);
+            delegate.onResponseHeadersReceived(responseCode, duration, TimeUnit.MILLISECONDS);
         }
     }
 

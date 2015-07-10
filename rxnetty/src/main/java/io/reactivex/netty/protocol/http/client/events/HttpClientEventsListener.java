@@ -58,9 +58,11 @@ public abstract class HttpClientEventsListener extends TcpClientEventListener {
      * Event when the response headers are received.
      *
      * @param responseCode The HTTP response code.
+     * @param duration The time between the request write completion and response header recieve.
+     * @param timeUnit Timeunit for the duration.
      */
     @SuppressWarnings("unused")
-    public void onResponseHeadersReceived(int responseCode) {}
+    public void onResponseHeadersReceived(int responseCode, long duration, TimeUnit timeUnit) {}
 
     /**
      * Event whenever an HTTP response content is received (an HTTP response can have multiple content chunks, in which
@@ -86,9 +88,9 @@ public abstract class HttpClientEventsListener extends TcpClientEventListener {
     public void onResponseFailed(Throwable throwable) {}
 
     /**
-     * Event when the entire request processing (request submitted to response failed/complete) is completed.
+     * Event when the entire request processing (request header write to response failed/complete) is completed.
      *
-     * @param duration Time taken from submission of request to completion.
+     * @param duration Time taken from start of write of request to response receive completion.
      * @param timeUnit Time unit for the duration.
      */
     @SuppressWarnings("unused")
