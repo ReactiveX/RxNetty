@@ -22,6 +22,7 @@ import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import rx.Observable;
 
 import java.net.SocketAddress;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This is an implementation of {@link RoundRobinLoadBalancer} for HTTP clients.
@@ -41,7 +42,7 @@ public class HttpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
     private HttpLoadBalancer(Observable<SocketAddress> hosts, ConnectionFactory<W, R> connectionFactory) {
         super(hosts, connectionFactory, removeAction -> new HttpClientEventsListener() {
             @Override
-            public void onResponseHeadersReceived(int responseCode) {
+            public void onResponseHeadersReceived(int responseCode, long duration, TimeUnit timeUnit) {
                 if (503 == responseCode) {
                     /*Remove the host from the active list, if we get a 503 response*/
                     removeAction.call();

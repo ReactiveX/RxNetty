@@ -69,8 +69,10 @@ public class HttpClientEventsListenerImpl extends HttpClientEventsListener {
     }
 
     @Override
-    public void onResponseHeadersReceived(int responseCode) {
+    public void onResponseHeadersReceived(int responseCode, long duration, TimeUnit timeUnit) {
         this.responseCode = responseCode;
+        this.duration = duration;
+        this.timeUnit = timeUnit;
         methodsCalled.add(HttpEvent.ResHeadersReceived);
     }
 

@@ -57,6 +57,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     private HttpClientEventsListener eventsListener;
     private EventPublisher eventPublisher;
     private String hostHeader;
+    private long requestWriteCompletionTimeMillis;
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
@@ -78,6 +79,9 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
+        /*Reset on every request write, we do not currently support pipelining, otherwise, this should be stored in a
+        queue.*/
+        requestWriteCompletionTimeMillis = -1;
         if (null != hostHeader) {
             if (!httpMsg.headers().contains(HttpHeaderNames.HOST)) {
                 httpMsg.headers().set(HttpHeaderNames.HOST, hostHeader);
@@ -96,6 +100,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if (eventPublisher.publishingEnabled()) {
+                        requestWriteCompletionTimeMillis = Clock.newStartTimeMillis();
                         if (future.isSuccess()) {
                             eventsListener.onRequestWriteComplete(Clock.onEndMillis(headerWriteStartTimeMillis),
                                                                   MILLISECONDS);
@@ -146,7 +151,11 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
         final HttpResponse nettyResponse = (HttpResponse) nextItem;
 
         if (eventPublisher.publishingEnabled()) {
-            eventsListener.onResponseHeadersReceived(nettyResponse.status().code());
+            long duration = -1;
+            if (requestWriteCompletionTimeMillis != -1) {
+                duration = Clock.onEndMillis(requestWriteCompletionTimeMillis);
+            }
+            eventsListener.onResponseHeadersReceived(nettyResponse.status().code(), duration, MILLISECONDS);
         }
 
         final HttpClientResponseImpl<C> rxResponse = HttpClientResponseImpl.unsafeCreate(nettyResponse);
@@ -173,7 +182,9 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     protected void onContentReceiveComplete(long receiveStartTimeMillis) {
         connectionInputSubscriber.onCompleted(); /*Unsubscribe from the input and hence close/release connection*/
         if (eventPublisher.publishingEnabled()) {
+            long headerWriteStart = getHeaderWriteStartTimeMillis();
             eventsListener.onResponseReceiveComplete(Clock.onEndMillis(receiveStartTimeMillis), MILLISECONDS);
+            eventsListener.onRequestProcessingComplete(Clock.onEndMillis(headerWriteStart), MILLISECONDS);
         }
     }
 

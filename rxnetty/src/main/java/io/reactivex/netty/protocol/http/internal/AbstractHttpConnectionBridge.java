@@ -93,6 +93,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         Object msgToWrite = msg;
 
         if (isOutboundHeader(msg)) {
+            /*Reset on every header write, when we support pipelining, this should be a queue.*/
             headerWriteStartTimeMillis = Clock.newStartTimeMillis();
             HttpMessage httpMsg = (HttpMessage) msg;
             if (!HttpHeaderUtil.isContentLengthSet(httpMsg) && !HttpVersion.HTTP_1_0.equals(httpMsg.protocolVersion())) {
@@ -185,6 +186,10 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
     protected void onNewContentSubscriber(ConnectionInputSubscriber inputSubscriber, Subscriber<? super C> newSub) {
         // No Op.
+    }
+
+    protected long getHeaderWriteStartTimeMillis() {
+        return headerWriteStartTimeMillis;
     }
 
     private void processNextItemInEventloop(Object nextItem, ConnectionInputSubscriber connectionInputSubscriber) {
