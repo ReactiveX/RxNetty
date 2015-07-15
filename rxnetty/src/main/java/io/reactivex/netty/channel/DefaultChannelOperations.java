@@ -221,7 +221,7 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
         @SuppressWarnings("unchecked")
         public void call(final Subscriber<? super Void> subscriber) {
 
-            final long closeStartTimeMillis = Clock.newStartTimeMillis();
+            final long closeStartTimeNanos = Clock.newStartTimeNanos();
 
             ChannelCloseListener closeListener;
             if (CLOSE_ISSUED_UPDATER.compareAndSet(DefaultChannelOperations.this, 0, 1)) {
@@ -231,7 +231,7 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
                 nettyChannel.close(); // close only once.
 
-                closeListener = new ChannelCloseListener(eventListener, eventPublisher, closeStartTimeMillis,
+                closeListener = new ChannelCloseListener(eventListener, eventPublisher, closeStartTimeNanos,
                                                          subscriber);
             } else {
                 closeListener = new ChannelCloseListener(subscriber);
@@ -243,16 +243,16 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
         private class ChannelCloseListener implements ChannelFutureListener {
 
-            private final long closeStartTimeMillis;
+            private final long closeStartTimeNanos;
             private final Subscriber<? super Void> subscriber;
             private final ConnectionEventListener eventListener;
             private final EventPublisher eventPublisher;
 
             public ChannelCloseListener(ConnectionEventListener eventListener, EventPublisher eventPublisher,
-                                        long closeStartTimeMillis, Subscriber<? super Void> subscriber) {
+                                        long closeStartTimeNanos, Subscriber<? super Void> subscriber) {
                 this.eventListener = eventListener;
                 this.eventPublisher = eventPublisher;
-                this.closeStartTimeMillis = closeStartTimeMillis;
+                this.closeStartTimeNanos = closeStartTimeNanos;
                 this.subscriber = subscriber;
             }
 
@@ -265,14 +265,14 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
             public void operationComplete(ChannelFuture future) throws Exception {
                 if (future.isSuccess()) {
                     if (null != eventListener && eventPublisher.publishingEnabled()) {
-                        eventListener.onConnectionCloseSuccess(Clock.onEndMillis(closeStartTimeMillis), MILLISECONDS);
+                        eventListener.onConnectionCloseSuccess(Clock.onEndNanos(closeStartTimeNanos), NANOSECONDS);
                     }
                     if (!subscriber.isUnsubscribed()) {
                         subscriber.onCompleted();
                     }
                 } else {
                     if (null != eventListener && eventPublisher.publishingEnabled()) {
-                        eventListener.onConnectionCloseFailed(Clock.onEndMillis(closeStartTimeMillis), MILLISECONDS,
+                        eventListener.onConnectionCloseFailed(Clock.onEndNanos(closeStartTimeNanos), NANOSECONDS,
                                                               future.cause());
                     }
                     if (!subscriber.isUnsubscribed()) {

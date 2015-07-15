@@ -186,8 +186,8 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
         return Observable.create(new OnSubscribe<PooledConnection<R, W>>() {
             @Override
             public void call(Subscriber<? super PooledConnection<R, W>> subscriber) {
-                final long startTimeMillis = Clock.newStartTimeMillis();
-                if (limitDeterminationStrategy.acquireCreationPermit(startTimeMillis, MILLISECONDS)) {
+                final long startTimeNanos = Clock.newStartTimeNanos();
+                if (limitDeterminationStrategy.acquireCreationPermit(startTimeNanos, NANOSECONDS)) {
                     ConnectionObservable<R, W> newConnObsv = connFactory.newConnection(host);
                     ls.subscribeAllTo(newConnObsv);
                     newConnObsv.map(
@@ -253,14 +253,14 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
 
         private final PooledConnection<R, W> connection;
         private final Subscriber<? super Void> subscriber;
-        private final long releaseStartTime;
+        private final long releaseStartTimeNanos;
         private final EventPublisher eventPublisher;
         private final TcpClientEventListener eventListener;
 
         private ReleaseTask(PooledConnection<R, W> connection, Subscriber<? super Void> subscriber) {
             this.connection = connection;
             this.subscriber = subscriber;
-            releaseStartTime = Clock.newStartTimeMillis();
+            releaseStartTimeNanos = Clock.newStartTimeNanos();
             eventPublisher = connection.unsafeNettyChannel().attr(EVENT_PUBLISHER).get();
             eventListener = connection.unsafeNettyChannel().attr(TCP_CLIENT_EVENT_LISTENER).get();
         }
@@ -279,12 +279,12 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
                 }
 
                 if (eventPublisher.publishingEnabled()) {
-                    eventListener.onPoolReleaseSuccess(Clock.onEndMillis(releaseStartTime), MILLISECONDS);
+                    eventListener.onPoolReleaseSuccess(Clock.onEndNanos(releaseStartTimeNanos), NANOSECONDS);
                 }
                 subscriber.onCompleted();
             } catch (Throwable throwable) {
                 if (eventPublisher.publishingEnabled()) {
-                    eventListener.onPoolReleaseFailed(Clock.onEndMillis(releaseStartTime), MILLISECONDS, throwable);
+                    eventListener.onPoolReleaseFailed(Clock.onEndNanos(releaseStartTimeNanos), NANOSECONDS, throwable);
                 }
                 subscriber.onError(throwable);
             }
@@ -303,7 +303,7 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
 
         @Override
         public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super Connection<R, W>> o) {
-            final long startTimeMillis = isEventPublishingEnabled() ? Clock.newStartTimeMillis() : -1;
+            final long startTimeNanos = isEventPublishingEnabled() ? Clock.newStartTimeNanos() : -1;
 
             if (isEventPublishingEnabled()) {
                 listeners.invokeListeners(TcpClientEventPublisher.ACQUIRE_START_ACTION);
@@ -314,10 +314,10 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
                 public void onCompleted() {
                     if (isEventPublishingEnabled()) {
                         if (null != eventListener) {
-                            eventListener.onPoolAcquireSuccess(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                            eventListener.onPoolAcquireSuccess(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
                         } else {
                             listeners.invokeListeners(TcpClientEventPublisher.ACQUIRE_SUCCESS_ACTION,
-                                                      Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                                                      Clock.onEndNanos(startTimeNanos), NANOSECONDS);
                         }
                     }
                     o.onCompleted();
@@ -328,7 +328,7 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
                     if (isEventPublishingEnabled()) {
                         /*Error means no connection was received, as it always every gets at most one connection*/
                         listeners.invokeListeners(TcpClientEventPublisher.ACQUIRE_FAILED_ACTION,
-                                                  Clock.onEndMillis(startTimeMillis), MILLISECONDS, e);
+                                                  Clock.onEndNanos(startTimeNanos), NANOSECONDS, e);
                     }
                     o.onError(e);
                 }

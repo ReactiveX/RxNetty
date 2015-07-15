@@ -52,7 +52,7 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, final long startTimeMillis) {
+    protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, final long startTimeNanos) {
         HttpResponse response = (HttpResponse) httpMsg;
         if (eventPublisher.publishingEnabled()) {
             eventPublisher.onResponseWriteStart();
@@ -62,7 +62,7 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     protected void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
-                                              final long headerWriteStartTime) {
+                                              final long headerWriteStartTimeNanos) {
         final int _responseCode = lastSeenResponseCode;
 
         if (eventPublisher.publishingEnabled()) {
@@ -70,11 +70,11 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if (eventPublisher.publishingEnabled()) {
-                        long endMillis = Clock.onEndMillis(headerWriteStartTime);
+                        long endNanos = Clock.onEndNanos(headerWriteStartTimeNanos);
                         if (future.isSuccess()) {
-                            eventPublisher.onResponseWriteSuccess(endMillis, MILLISECONDS, _responseCode);
+                            eventPublisher.onResponseWriteSuccess(endNanos, NANOSECONDS, _responseCode);
                         } else {
-                            eventPublisher.onResponseWriteFailed(endMillis, MILLISECONDS, future.cause());
+                            eventPublisher.onResponseWriteFailed(endNanos, NANOSECONDS, future.cause());
                         }
                     }
                 }
@@ -152,9 +152,9 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected void onContentReceiveComplete(long receiveStartTimeMillis) {
+    protected void onContentReceiveComplete(long receiveStartTimeNanos) {
         if (eventPublisher.publishingEnabled()) {
-            eventPublisher.onRequestReceiveComplete(Clock.onEndMillis(receiveStartTimeMillis), MILLISECONDS);
+            eventPublisher.onRequestReceiveComplete(Clock.onEndNanos(receiveStartTimeNanos), NANOSECONDS);
         }
     }
 

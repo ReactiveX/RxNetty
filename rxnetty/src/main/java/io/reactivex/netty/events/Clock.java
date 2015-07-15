@@ -38,52 +38,52 @@ public class Clock {
      * The value returned by all static methods in this class, viz.,
      * <ul>
      <li>{@link #newStartTime(TimeUnit)}</li>
-     <li>{@link #newStartTimeMillis()}</li>
-     <li>{@link #onEndMillis(long)}</li>
+     <li>{@link #newStartTimeNanos()}</li>
+     <li>{@link #onEndNanos(long)}</li>
      <li>{@link #onEnd(long, TimeUnit)}</li>
      </ul>
      * after calling {@link RxNetty#disableEventPublishing()}
      */
     public static final long SYSTEM_TIME_DISABLED_TIME = -1;
 
-    private final long startTimeMillis = System.currentTimeMillis();
-    private long endTimeMillis = -1;
-    private long durationMillis = -1;
+    private final long startTimeNanos = System.nanoTime();
+    private long endTimeNanos = -1;
+    private long durationNanos = -1;
 
     /**
      * Stops this clock. This method is idempotent, so, after invoking this method, the duration of the clock is
      * immutable. Hence, you can call this method multiple times with no side-effects.
      *
-     * @return The duration in milliseconds for which the clock was running.
+     * @return The duration in nanoseconds for which the clock was running.
      */
     public long stop() {
-        if (-1 != endTimeMillis) {
-            endTimeMillis = System.currentTimeMillis();
-            durationMillis = endTimeMillis - startTimeMillis;
+        if (-1 != endTimeNanos) {
+            endTimeNanos = System.nanoTime();
+            durationNanos = endTimeNanos - startTimeNanos;
         }
-        return durationMillis;
+        return durationNanos;
     }
 
-    public long getStartTimeMillis() {
-        return startTimeMillis;
+    public long getStartTimeNanos() {
+        return startTimeNanos;
     }
 
     public long getStartTime(TimeUnit targetUnit) {
-        return targetUnit.convert(startTimeMillis, TimeUnit.MILLISECONDS);
+        return targetUnit.convert(startTimeNanos, TimeUnit.NANOSECONDS);
     }
 
     /**
-     * Returns the duration for which this clock was running in milliseconds.
+     * Returns the duration for which this clock was running in nanoseconds.
      *
-     * @return The duration for which this clock was running in milliseconds.
+     * @return The duration for which this clock was running in nanoseconds.
      *
      * @throws IllegalStateException If the clock is not yet stopped.
      */
-    public long getDurationInMillis() {
+    public long getDurationInNanos() {
         if (isRunning()) {
             throw new IllegalStateException("The clock is not yet stopped.");
         }
-        return durationMillis;
+        return durationNanos;
     }
 
     /**
@@ -97,15 +97,15 @@ public class Clock {
         if (isRunning()) {
             throw new IllegalStateException("The clock is not yet stopped.");
         }
-        return targetUnit.convert(durationMillis, TimeUnit.MILLISECONDS);
+        return targetUnit.convert(durationNanos, TimeUnit.NANOSECONDS);
     }
 
     public boolean isRunning() {
-        return -1 != durationMillis;
+        return -1 != durationNanos;
     }
 
-    public static long newStartTimeMillis() {
-        return RxNetty.isEventPublishingDisabled() ? SYSTEM_TIME_DISABLED_TIME : System.currentTimeMillis();
+    public static long newStartTimeNanos() {
+        return RxNetty.isEventPublishingDisabled() ? SYSTEM_TIME_DISABLED_TIME : System.nanoTime();
     }
 
     public static long newStartTime(TimeUnit timeUnit) {
@@ -113,27 +113,27 @@ public class Clock {
             return SYSTEM_TIME_DISABLED_TIME;
         }
 
-        if (TimeUnit.MILLISECONDS == timeUnit) {
-            return newStartTimeMillis();
+        if (TimeUnit.NANOSECONDS == timeUnit) {
+            return newStartTimeNanos();
         }
-        return timeUnit.convert(newStartTimeMillis(), TimeUnit.MILLISECONDS);
+        return timeUnit.convert(newStartTimeNanos(), TimeUnit.NANOSECONDS);
     }
 
     public static long onEnd(long startTime, TimeUnit timeUnit) {
         if (RxNetty.isEventPublishingDisabled() ) {
             return SYSTEM_TIME_DISABLED_TIME;
         }
-        if (TimeUnit.MILLISECONDS == timeUnit) {
-            return onEndMillis(startTime);
+        if (TimeUnit.NANOSECONDS == timeUnit) {
+            return onEndNanos(startTime);
         }
-        long startTimeMillis = TimeUnit.MILLISECONDS.convert(startTime, timeUnit);
-        return timeUnit.convert(onEndMillis(startTimeMillis), TimeUnit.MILLISECONDS);
+        long startTimeNanos = TimeUnit.NANOSECONDS.convert(startTime, timeUnit);
+        return timeUnit.convert(onEndNanos(startTimeNanos), TimeUnit.NANOSECONDS);
     }
 
-    public static long onEndMillis(long startTimeMillis) {
+    public static long onEndNanos(long startTimeNanos) {
         if (RxNetty.isEventPublishingDisabled() ) {
             return SYSTEM_TIME_DISABLED_TIME;
         }
-        return System.currentTimeMillis() - startTimeMillis;
+        return System.nanoTime() - startTimeNanos;
     }
 }

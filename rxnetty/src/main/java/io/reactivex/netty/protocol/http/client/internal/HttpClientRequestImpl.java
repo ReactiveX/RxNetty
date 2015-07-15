@@ -525,7 +525,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
         @Override
         public Subscriber<? super Void> call(final Subscriber<? super Void> o) {
-            final long startTimeMillis = eventPublisher.publishingEnabled() ? Clock.newStartTimeMillis() : -1;
+            final long startTimeNanos = eventPublisher.publishingEnabled() ? Clock.newStartTimeNanos() : -1;
             if (eventPublisher.publishingEnabled()) {
                 eventsListener.onRequestSubmitted();
             }
@@ -533,7 +533,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                 @Override
                 public void onCompleted() {
                     if (eventPublisher.publishingEnabled()) {
-                        eventsListener.onRequestWriteComplete(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                        eventsListener.onRequestWriteComplete(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
                     }
                     o.onCompleted();
                 }
@@ -541,7 +541,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                 @Override
                 public void onError(Throwable e) {
                     if (eventPublisher.publishingEnabled()) {
-                        eventsListener.onRequestWriteFailed(Clock.onEndMillis(startTimeMillis), MILLISECONDS, e);
+                        eventsListener.onRequestWriteFailed(Clock.onEndNanos(startTimeNanos), NANOSECONDS, e);
                     }
                     o.onError(e);
                 }

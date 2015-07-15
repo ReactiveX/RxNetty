@@ -71,7 +71,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     private EventPublisher eventPublisher;
     private TcpClientEventListener eventListener;
     private final boolean isSecure;
-    private long connectStartTimeMillis;
+    private long connectStartTimeNanos;
 
     private ClientConnectionToChannelBridge(boolean isSecure) {
         super(HANDLER_NAME, CONNECTION_EVENT_LISTENER, EVENT_PUBLISHER);
@@ -140,7 +140,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
                         ChannelPromise promise) throws Exception {
 
-        connectStartTimeMillis = Clock.newStartTimeMillis();
+        connectStartTimeNanos = Clock.newStartTimeNanos();
 
         if (eventPublisher.publishingEnabled()) {
             eventListener.onConnectStart();
@@ -149,11 +149,11 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if (eventPublisher.publishingEnabled()) {
-                        long endTimeMillis = Clock.onEndMillis(connectStartTimeMillis);
+                        long endTimeNanos = Clock.onEndNanos(connectStartTimeNanos);
                         if (!future.isSuccess()) {
-                            eventListener.onConnectFailed(endTimeMillis, MILLISECONDS, future.cause());
+                            eventListener.onConnectFailed(endTimeNanos, NANOSECONDS, future.cause());
                         } else {
-                            eventListener.onConnectSuccess(endTimeMillis, MILLISECONDS);
+                            eventListener.onConnectSuccess(endTimeNanos, NANOSECONDS);
                         }
                     }
                 }
@@ -217,7 +217,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     @SuppressWarnings("unchecked")
     private void onConnectFailedEvent(ConnectionCreationFailedEvent event) {
         if (eventPublisher.publishingEnabled()) {
-            eventListener.onConnectFailed(connectStartTimeMillis, MILLISECONDS, event.getThrowable());
+            eventListener.onConnectFailed(connectStartTimeNanos, NANOSECONDS, event.getThrowable());
         }
     }
 

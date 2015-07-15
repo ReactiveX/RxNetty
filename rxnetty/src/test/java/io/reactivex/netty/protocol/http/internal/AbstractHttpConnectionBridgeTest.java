@@ -585,18 +585,18 @@ public class AbstractHttpConnectionBridgeTest {
         }
 
         @Override
-        protected void onContentReceiveComplete(long receiveStartTimeMillis) {
+        protected void onContentReceiveComplete(long receiveStartTimeNanos) {
             // No Op
         }
 
         @Override
-        protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
+        protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeNanos) {
             // No Op
         }
 
         @Override
         protected void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
-                                                  long headerWriteStartTime) {
+                                                  long headerWriteStartTimeNanos) {
             // No Op
         }
 
