@@ -57,7 +57,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     private HttpClientEventsListener eventsListener;
     private EventPublisher eventPublisher;
     private String hostHeader;
-    private long requestWriteCompletionTimeMillis;
+    private long requestWriteCompletionTimeNanos;
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
@@ -78,10 +78,10 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis) {
+    protected void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeNanos) {
         /*Reset on every request write, we do not currently support pipelining, otherwise, this should be stored in a
         queue.*/
-        requestWriteCompletionTimeMillis = -1;
+        requestWriteCompletionTimeNanos = -1;
         if (null != hostHeader) {
             if (!httpMsg.headers().contains(HttpHeaderNames.HOST)) {
                 httpMsg.headers().set(HttpHeaderNames.HOST, hostHeader);
@@ -94,19 +94,19 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     protected void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
-                                              final long headerWriteStartTimeMillis) {
+                                              final long headerWriteStartTimeNanos) {
         if (eventPublisher.publishingEnabled()) {
             promise.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
                     if (eventPublisher.publishingEnabled()) {
-                        requestWriteCompletionTimeMillis = Clock.newStartTimeMillis();
+                        requestWriteCompletionTimeNanos = Clock.newStartTimeNanos();
                         if (future.isSuccess()) {
-                            eventsListener.onRequestWriteComplete(Clock.onEndMillis(headerWriteStartTimeMillis),
-                                                                  MILLISECONDS);
+                            eventsListener.onRequestWriteComplete(Clock.onEndNanos(headerWriteStartTimeNanos),
+                                                                  NANOSECONDS);
                         } else {
-                            eventsListener.onRequestWriteFailed(Clock.onEndMillis(headerWriteStartTimeMillis),
-                                                                MILLISECONDS, future.cause());
+                            eventsListener.onRequestWriteFailed(Clock.onEndNanos(headerWriteStartTimeNanos),
+                                                                NANOSECONDS, future.cause());
                         }
                     }
                 }
@@ -152,10 +152,10 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
         if (eventPublisher.publishingEnabled()) {
             long duration = -1;
-            if (requestWriteCompletionTimeMillis != -1) {
-                duration = Clock.onEndMillis(requestWriteCompletionTimeMillis);
+            if (requestWriteCompletionTimeNanos != -1) {
+                duration = Clock.onEndNanos(requestWriteCompletionTimeNanos);
             }
-            eventsListener.onResponseHeadersReceived(nettyResponse.status().code(), duration, MILLISECONDS);
+            eventsListener.onResponseHeadersReceived(nettyResponse.status().code(), duration, NANOSECONDS);
         }
 
         final HttpClientResponseImpl<C> rxResponse = HttpClientResponseImpl.unsafeCreate(nettyResponse);
@@ -179,12 +179,12 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected void onContentReceiveComplete(long receiveStartTimeMillis) {
+    protected void onContentReceiveComplete(long receiveStartTimeNanos) {
         connectionInputSubscriber.onCompleted(); /*Unsubscribe from the input and hence close/release connection*/
         if (eventPublisher.publishingEnabled()) {
-            long headerWriteStart = getHeaderWriteStartTimeMillis();
-            eventsListener.onResponseReceiveComplete(Clock.onEndMillis(receiveStartTimeMillis), MILLISECONDS);
-            eventsListener.onRequestProcessingComplete(Clock.onEndMillis(headerWriteStart), MILLISECONDS);
+            long headerWriteStart = getHeaderWriteStartTimeNanos();
+            eventsListener.onResponseReceiveComplete(Clock.onEndNanos(receiveStartTimeNanos), NANOSECONDS);
+            eventsListener.onRequestProcessingComplete(Clock.onEndNanos(headerWriteStart), NANOSECONDS);
         }
     }
 

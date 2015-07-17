@@ -287,7 +287,7 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                     @Override
                     public void onNext(HttpServerRequest<I> request) {
 
-                        final long startMillis = eventPublisher.publishingEnabled() ? newStartTimeMillis() : -1;
+                        final long startNanos = eventPublisher.publishingEnabled() ? newStartTimeNanos() : -1;
 
                         if (eventPublisher.publishingEnabled()) {
                             eventPublisher.onNewRequestReceived();
@@ -295,7 +295,7 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
                         final HttpServerResponse<O> response = newResponse(request);
 
-                        final Subscription processingSubscription = handleRequest(request, startMillis, response)
+                        final Subscription processingSubscription = handleRequest(request, startNanos, response)
                                                                         .doOnTerminate( new Action0() {
                                                                             @Override
                                                                             public void call() {
@@ -321,7 +321,7 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
             }
 
             @SuppressWarnings("unchecked")
-            private Observable<Void> handleRequest(HttpServerRequest<I> request, final long startTimeMillis,
+            private Observable<Void> handleRequest(HttpServerRequest<I> request, final long startTimeNanos,
                                                    final HttpServerResponse<O> response) {
                 Observable<Void> requestHandlingResult = null;
                 try {
@@ -352,15 +352,15 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                         public Subscriber<? super Void> call(final Subscriber<? super Void> o) {
 
                             if (eventPublisher.publishingEnabled()) {
-                                eventPublisher.onRequestHandlingStart(onEndMillis(startTimeMillis), MILLISECONDS);
+                                eventPublisher.onRequestHandlingStart(onEndNanos(startTimeNanos), NANOSECONDS);
                             }
 
                             return new Subscriber<Void>(o) {
                                 @Override
                                 public void onCompleted() {
                                     if (eventPublisher.publishingEnabled()) {
-                                        eventPublisher.onRequestHandlingSuccess(onEndMillis(startTimeMillis),
-                                                                                MILLISECONDS);
+                                        eventPublisher.onRequestHandlingSuccess(onEndNanos(startTimeNanos),
+                                                                                NANOSECONDS);
                                     }
                                     o.onCompleted();
                                 }
@@ -368,8 +368,8 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
                                 @Override
                                 public void onError(Throwable e) {
                                     if (eventPublisher.publishingEnabled()) {
-                                        eventPublisher.onRequestHandlingFailed(onEndMillis(startTimeMillis),
-                                                                               MILLISECONDS, e);
+                                        eventPublisher.onRequestHandlingFailed(onEndNanos(startTimeNanos),
+                                                                               NANOSECONDS, e);
                                     }
                                     logger.error("Unexpected error processing a request.", e);
                                     o.onError(e);

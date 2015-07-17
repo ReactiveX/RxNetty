@@ -81,7 +81,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     protected ConnectionInputSubscriber connectionInputSubscriber;
     private final UnsafeEmptySubscriber<C> emptyContentSubscriber;
     private final UnsafeEmptySubscriber<TrailingHeaders> emptyTrailerSubscriber;
-    private long headerWriteStartTimeMillis;
+    private long headerWriteStartTimeNanos;
 
     protected AbstractHttpConnectionBridge() {
         emptyContentSubscriber = new UnsafeEmptySubscriber<>("Error while waiting for HTTP content.");
@@ -94,7 +94,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
         if (isOutboundHeader(msg)) {
             /*Reset on every header write, when we support pipelining, this should be a queue.*/
-            headerWriteStartTimeMillis = Clock.newStartTimeMillis();
+            headerWriteStartTimeNanos = Clock.newStartTimeNanos();
             HttpMessage httpMsg = (HttpMessage) msg;
             if (!HttpHeaderUtil.isContentLengthSet(httpMsg) && !HttpVersion.HTTP_1_0.equals(httpMsg.protocolVersion())) {
                 // If there is no content length we need to specify the transfer encoding as chunked as we always
@@ -104,23 +104,23 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 httpMsg.headers().set(TRANSFER_ENCODING, CHUNKED);
             }
 
-            beforeOutboundHeaderWrite(httpMsg, promise, headerWriteStartTimeMillis);
+            beforeOutboundHeaderWrite(httpMsg, promise, headerWriteStartTimeNanos);
 
         } else if (msg instanceof String) {
             msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
         } else if (msg instanceof byte[]) {
             msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
         } else if (msg instanceof LastHttpContent) {
-            onOutboundLastContentWrite((LastHttpContent) msg, promise, headerWriteStartTimeMillis);
+            onOutboundLastContentWrite((LastHttpContent) msg, promise, headerWriteStartTimeNanos);
         }
 
         super.write(ctx, msgToWrite, promise);
     }
 
-    protected abstract void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeMillis);
+    protected abstract void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeNanos);
 
     protected abstract void onOutboundLastContentWrite(LastHttpContent msg, ChannelPromise promise,
-                                                       long headerWriteStartTime);
+                                                       long headerWriteStartTimeNanos);
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
@@ -182,14 +182,14 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
     protected abstract void onContentReceived();
 
-    protected abstract void onContentReceiveComplete(long receiveStartTimeMillis);
+    protected abstract void onContentReceiveComplete(long receiveStartTimeNanos);
 
     protected void onNewContentSubscriber(ConnectionInputSubscriber inputSubscriber, Subscriber<? super C> newSub) {
         // No Op.
     }
 
-    protected long getHeaderWriteStartTimeMillis() {
-        return headerWriteStartTimeMillis;
+    protected long getHeaderWriteStartTimeNanos() {
+        return headerWriteStartTimeNanos;
     }
 
     private void processNextItemInEventloop(Object nextItem, ConnectionInputSubscriber connectionInputSubscriber) {
@@ -235,7 +235,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 }
 
                 connectionInputSubscriber.contentComplete();
-                onContentReceiveComplete(state.headerReceivedTimeMillis);
+                onContentReceiveComplete(state.headerReceivedTimeNanos);
             } else {
                 connectionInputSubscriber.nextContent(content);
             }
@@ -332,12 +332,12 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         @SuppressWarnings("rawtypes") private Subscriber headerSub;
         @SuppressWarnings("rawtypes") private Subscriber contentSub;
         protected Subscriber<? super TrailingHeaders> trailerSub;
-        private long headerReceivedTimeMillis;
+        private long headerReceivedTimeNanos;
 
         private volatile Stage stage = Stage.Created;
 
         private void headerReceived() {
-            headerReceivedTimeMillis = Clock.newStartTimeMillis();
+            headerReceivedTimeNanos = Clock.newStartTimeNanos();
             stage = Stage.HeaderReceived;
         }
 
@@ -373,8 +373,8 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             return trailerSub;
         }
 
-        /*Visible for testing*/long getHeaderReceivedTimeMillis() {
-            return headerReceivedTimeMillis;
+        /*Visible for testing*/long getHeaderReceivedTimeNanos() {
+            return headerReceivedTimeNanos;
         }
 
         /*Visible for testing*/Stage getStage() {

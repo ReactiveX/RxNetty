@@ -97,14 +97,14 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
         @Override
         public void onNext(final Connection<R, W> connection) {
-            final long startTimeMillis = eventPublisher.publishingEnabled() ? Clock.newStartTimeMillis() : -1;
+            final long startTimeNanos = eventPublisher.publishingEnabled() ? Clock.newStartTimeNanos() : -1;
             if (eventPublisher.publishingEnabled()) {
                 eventPublisher.onNewClientConnected();
             }
             Observable<Void> handledObservable;
             try {
                 if (eventPublisher.publishingEnabled()) {
-                    eventPublisher.onConnectionHandlingStart(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                    eventPublisher.onConnectionHandlingStart(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
                 }
                 handledObservable = connectionHandler.handle(connection);
             } catch (Throwable throwable) {
@@ -119,7 +119,7 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 @Override
                 public void onCompleted() {
                     if (eventPublisher.publishingEnabled()) {
-                        eventPublisher.onConnectionHandlingSuccess(Clock.onEndMillis(startTimeMillis), MILLISECONDS);
+                        eventPublisher.onConnectionHandlingSuccess(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
                     }
                     connection.closeNow();
                 }
@@ -128,7 +128,7 @@ public class ServerConnectionToChannelBridge<R, W> extends AbstractConnectionToC
                 public void onError(Throwable e) {
                     if (!(e instanceof ClosedChannelException)) {
                         if (eventPublisher.publishingEnabled()) {
-                            eventPublisher.onConnectionHandlingFailed(Clock.onEndMillis(startTimeMillis), MILLISECONDS,
+                            eventPublisher.onConnectionHandlingFailed(Clock.onEndNanos(startTimeNanos), NANOSECONDS,
                                                                       e);
                         }
                         /*Since, this is always reading input for new requests, it will always get a closed channel
