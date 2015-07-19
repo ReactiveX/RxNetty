@@ -75,7 +75,7 @@ public class SSEInboundHandler extends SimpleChannelInboundHandler<Object> {
 
             ChannelPipeline pipeline = ctx.channel().pipeline();
             if (!HttpHeaders.isTransferEncodingChunked((HttpResponse) msg)) {
-                pipeline.addFirst(SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
+                pipeline.addBefore(NAME, SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
                 /*
                  * If there are buffered messages in the previous handler at the time this message is read, we would
                  * not be able to convert the content into an SseEvent. For this reason, we also add the decoder after
