@@ -23,6 +23,7 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import io.reactivex.netty.pipeline.PrimitiveConversionHandler.DelayedTransformationMessage;
 import io.reactivex.netty.util.MultipleFutureListener;
 import rx.Observable;
 import rx.functions.Action0;
@@ -84,35 +85,39 @@ public class DefaultChannelWriter<O> implements ChannelWriter<O> {
     }
 
     @Override
-    public <R> void write(R msg, ContentTransformer<R> transformer) {
-        ByteBuf contentBytes = transformer.call(msg, getAllocator());
-        writeOnChannel(contentBytes);
+    public <R> void write(final R msg, final ContentTransformer<R> transformer) {
+        writeOnChannel(new DelayedTransformationMessage() {
+            @Override
+            public Object getTransformed(ByteBufAllocator allocator) {
+                return transformer.call(msg, allocator);
+            }
+        });
     }
 
     @Override
     public void writeBytes(ByteBuf msg) {
-        write(msg, IdentityTransformer.DEFAULT_INSTANCE);
+        writeOnChannel(msg);
     }
 
     @Override
     public void writeBytes(byte[] msg) {
-        write(msg, ByteTransformer.DEFAULT_INSTANCE);
+        writeOnChannel(msg);
     }
 
     @Override
     public void writeString(String msg) {
-        write(msg, new StringTransformer());
+        writeOnChannel(msg);
     }
 
     @Override
     public Observable<Void> writeBytesAndFlush(byte[] msg) {
-        write(msg, ByteTransformer.DEFAULT_INSTANCE);
+        writeBytes(msg);
         return flush();
     }
 
     @Override
     public Observable<Void> writeStringAndFlush(String msg) {
-        write(msg, new StringTransformer());
+        writeString(msg);
         return flush();
     }
     

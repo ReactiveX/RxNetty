@@ -73,6 +73,7 @@ public abstract class RxRequiredConfigurator<I, O> implements PipelineConfigurat
         ObservableAdapter observableAdapter = new ObservableAdapter();
 
         pipeline.addFirst(BYTES_INSPECTOR_HANDLER_NAME, bytesInspector);
+        pipeline.addLast("primitive-converter", PrimitiveConversionHandler.INSTANCE);
         pipeline.addLast(getConnectionLifecycleHandlerExecutor(), CONN_LIFECYCLE_HANDLER_NAME, lifecycleHandler);
         pipeline.addLast(getObservableAdapterExecutor(), NETTY_OBSERVABLE_ADAPTER_NAME, observableAdapter);
     }
@@ -86,4 +87,5 @@ public abstract class RxRequiredConfigurator<I, O> implements PipelineConfigurat
     }
 
     protected abstract ChannelHandler newConnectionLifecycleHandler(ChannelPipeline pipeline);
+
 }
