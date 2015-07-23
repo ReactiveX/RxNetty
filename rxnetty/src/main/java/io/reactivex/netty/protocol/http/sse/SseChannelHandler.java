@@ -69,18 +69,7 @@ public class SseChannelHandler extends SimpleChannelInboundHandler<Object> {
             ctx.channel().attr(ClientRequestResponseConverter.DISCARD_CONNECTION).set(true); // SSE traffic should always discard connection on close.
 
             ChannelPipeline pipeline = ctx.channel().pipeline();
-            if (!HttpHeaders.isTransferEncodingChunked((HttpResponse) msg)) {
-                pipeline.addFirst(SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
-                /*
-                 * If there are buffered messages in the previous handler at the time this message is read, we would
-                 * not be able to convert the content into an SseEvent. For this reason, we also add the decoder after
-                 * this handler, so that we can handle the buffered messages.
-                 * See the class level javadoc for more details.
-                 */
-                pipeline.addAfter(NAME, SSE_DECODER_POST_INBOUND_HANDLER, new ServerSentEventDecoder());
-            } else {
-                pipeline.addAfter(NAME, SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
-            }
+            pipeline.addAfter(NAME, SSE_DECODER_HANDLER_NAME, new ServerSentEventDecoder());
             ctx.fireChannelRead(msg);
         } else if (msg instanceof LastHttpContent) {
             LastHttpContent lastHttpContent = (LastHttpContent) msg;
