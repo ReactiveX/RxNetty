@@ -90,14 +90,15 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
                            .concatWith(wsUpEvt.handler.handle(new WebSocketConnection(wsConn)))
                            .concatWith(Observable.create(new OnSubscribe<Void>() {
                                @Override
-                               public void call(Subscriber<? super Void> subscriber) {
+                               public void call(Subscriber<? super Void> sub) {
                                    /*
                                     * In this case, the client did not send a close frame but the server end processing
                                     * is over, so we should send a close frame to indicate closure from server.
                                     */
                                    if (wsConn.unsafeNettyChannel().isOpen()) {
                                        wsConn.write(Observable.<WebSocketFrame>just(new CloseWebSocketFrame()))
-                                             .unsafeSubscribe(subscriber);
+                                             .concatWith(wsConn.close())
+                                             .unsafeSubscribe(sub);
                                    }
                                }
                            }))

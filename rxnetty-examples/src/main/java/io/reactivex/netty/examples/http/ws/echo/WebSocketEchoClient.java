@@ -16,6 +16,7 @@
 
 package io.reactivex.netty.examples.http.ws.echo;
 
+import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.examples.AbstractClientExample;
@@ -48,7 +49,7 @@ import java.nio.charset.Charset;
  *
  * <h2>Existing HTTP server</h2>
  *
- * You can also use this client to send a GET request "/hello" to an existing HTTP server (different than
+ * You can also use this client to send a GET request "/ws" to an existing HTTP server (different than
  * {@link WebSocketEchoServer}) by passing the port and host of the existing server similar to the case above:
  *
  <PRE>
@@ -86,19 +87,21 @@ public class WebSocketEchoClient extends AbstractClientExample {
                   /*Write 10 WebSocket frames on the connection and read the input stream of the connection*/
                   .flatMap(conn ->
                            /*Write a 10 websocket frames on the connection.*/
-                           conn.write(Observable.range(1, 10)
-                                                .<WebSocketFrame>map(anInt -> new TextWebSocketFrame("Interval " + anInt))
-                           )
-                                   .cast(WebSocketFrame.class)
+                                   conn.write(Observable.range(1, 10)
+                                                        .map(anInt -> new TextWebSocketFrame("Interval " + anInt))
+                                                        .cast(WebSocketFrame.class)
+                                                        .concatWith(Observable.just(new CloseWebSocketFrame())))
+                                           .cast(WebSocketFrame.class)
                                        /*Merge with the connection input, since the write returns a Void, this is
                                        * only merging error from the write.*/
-                                       .mergeWith(conn.getInput())
-                  )
+                                           .mergeWith(conn.getInput())
+                                   )
                  /*Since, we sent 10 frames we expect 10 echo responses.*/
-                 .take(10)
+                                           .take(10)
                  /*Block till the response comes to avoid JVM exit.*/
-                .toBlocking()
+                                           .toBlocking()
                  /*Print each WebSocket frame content as a string*/
-                .forEach(frame -> logger.info(frame.content().toString(Charset.defaultCharset())));
+                                           .forEach(frame -> logger
+                                                   .info(frame.content().toString(Charset.defaultCharset())));
     }
 }

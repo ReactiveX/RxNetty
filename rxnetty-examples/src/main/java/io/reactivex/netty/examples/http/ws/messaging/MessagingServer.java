@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-package io.reactivex.netty.examples.http.ws.echo;
+package io.reactivex.netty.examples.http.ws.messaging;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
+import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
 
 /**
- * An example to demonstrate how to write a WebSocket client. This example accepts WebSocket upgrade as well as normal
- * HTTP requests.
+ * An example of how to process discrete messages on a WebSocket server and send acknowledgments for each message
+ * depicting processing complete.
  *
- * If a request to WebSockets is requested, then this server echoes all received frames, else if the request is a
- * "/hello" request it sends a "Hello World!" response.
+ * All messages follow the format as specified by {@link MessageFrame}.
  */
-public final class WebSocketEchoServer extends AbstractServerExample {
+public final class MessagingServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
 
@@ -41,13 +42,18 @@ public final class WebSocketEchoServer extends AbstractServerExample {
                            .start((req, resp) -> {
                                /*If WebSocket upgrade is requested, then accept the request with an echo handler.*/
                                if (req.isWebSocketUpgradeRequested()) {
-                                   return resp.acceptWebSocketUpgrade(wsConn ->
-                                           /*Write each frame back and flush on each item as it is an infinite stream*/
-                                                               wsConn.writeAndFlushOnEach(wsConn.getInput()));
-                               } else if (req.getUri().startsWith("/hello")) {
-                                   /*If upgrade is not requested and the URI is "hello" then send an "Hello World"
-                                   response*/
-                                   return resp.writeString(Observable.just("Hello World"));
+                                   return resp.acceptWebSocketUpgrade(wsConn -> {
+                                       Observable<WebSocketFrame> in = wsConn.getInput()
+                                                                             .filter(AcceptOnlyBinaryFramesFilter.INSTANCE)
+                                                                             .cast(BinaryWebSocketFrame.class)
+                                                                             .map(f -> {
+                                                                                 ByteBuf data = f.content();
+                                                                                 /*Convert to ack*/
+                                                                                 data.setByte(data.readerIndex(), 1);
+                                                                                 return new MessageFrame(data);
+                                                                             });
+                                       return wsConn.writeAndFlushOnEach(in);
+                                   });
                                } else {
                                    /*Else send a NOT FOUND response.*/
                                    return resp.setStatus(HttpResponseStatus.NOT_FOUND);

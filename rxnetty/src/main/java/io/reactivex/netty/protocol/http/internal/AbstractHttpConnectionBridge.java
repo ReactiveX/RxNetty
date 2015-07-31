@@ -52,20 +52,25 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractHttpConnectionBridge.class);
 
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED =
             new IllegalStateException("Only one subscriber allowed for HTTP content.");
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException LAZY_CONTENT_INPUT_SUB =
             new IllegalStateException("Channel is set to auto-read but the subscription was lazy.");
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException CONTENT_ARRIVED_WITH_NO_SUB =
             new IllegalStateException("HTTP Content received but no subscriber was registered.");
-
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException ONLY_ONE_TRAILER_INPUT_SUB_ALLOWED =
             new IllegalStateException("Only one subscriber allowed for HTTP trailing headers.");
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException LAZY_TRAILER_SUB =
             new IllegalStateException("Channel is set to auto-read but the subscription was lazy.");
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException TRAILER_ARRIVED_WITH_NO_SUB =
             new IllegalStateException("HTTP trailing headers received but no subscriber was registered.");
-
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final ClosedChannelException CLOSED_CHANNEL_EXCEPTION = new ClosedChannelException();
 
     static {
@@ -548,7 +553,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 contentArrivedWhenSubscriberNotValid();
                 if (logger.isWarnEnabled()) {
                     logger.warn("Data received on channel, but no subscriber registered. Discarding data. Message class: "
-                                + nextObject.getClass().getName());
+                                + nextObject.getClass().getName() + ", channel: " + channel);
                 }
                 ReferenceCountUtil.release(nextObject);
             }
