@@ -22,6 +22,7 @@ import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.annotations.Beta;
 import rx.functions.Func1;
 
 /**
@@ -42,18 +43,35 @@ public final class WebSocketConnection {
      * @return The input stream for this connection.
      */
     public Observable<WebSocketFrame> getInput() {
-        return Observable.create(new OnSubscribe<WebSocketFrame>() {
+        return getInput(true);
+    }
+
+    /**
+     * Returns the input stream for this connection. If {@code untilCloseFrame} is {@code true} then the returned stream
+     * completes after receiving (and emitting) a {@link CloseWebSocketFrame}, otherwise, it completes with an error
+     * when the underlying channel is closed.
+     *
+     * @return The input stream for this connection.
+     */
+    @Beta
+    public Observable<WebSocketFrame> getInput(boolean untilCloseFrame) {
+        Observable<WebSocketFrame> rawInput = Observable.create(new OnSubscribe<WebSocketFrame>() {
             @Override
             public void call(Subscriber<? super WebSocketFrame> subscriber) {
                 delegate.unsafeNettyChannel().pipeline()
                         .fireUserEventTriggered(new HttpContentSubscriberEvent<>(subscriber));
             }
-        }).takeUntil(new Func1<WebSocketFrame, Boolean>() {
-            @Override
-            public Boolean call(WebSocketFrame webSocketFrame) {
-                return webSocketFrame instanceof CloseWebSocketFrame;
-            }
         });
+        if (untilCloseFrame) {
+            return rawInput.takeUntil(new Func1<WebSocketFrame, Boolean>() {
+                @Override
+                public Boolean call(WebSocketFrame webSocketFrame) {
+                    return webSocketFrame instanceof CloseWebSocketFrame;
+                }
+            });
+        } else {
+            return rawInput;
+        }
     }
 
     /**
