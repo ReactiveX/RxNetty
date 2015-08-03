@@ -16,15 +16,13 @@
 package io.reactivex.netty.protocol.http.ws;
 
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PingWebSocketFrame;
-import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
-import rx.annotations.Experimental;
+import rx.annotations.Beta;
 import rx.functions.Func1;
 
 /**
@@ -39,47 +37,41 @@ public final class WebSocketConnection {
     }
 
     /**
-     * In general WebSocket endpoints respond to frames received from the input. This method is a convenience method over
-     * the raw {@link #getInput()} to do the following:
-     *
-     * <ul>
-     <li>Transfor a {@link PingWebSocketFrame}</li> to a {@link PongWebSocketFrame}.
-     <li>Read no more frames after a {@link CloseWebSocketFrame} is received.</li>
-     </ul>
-     *
-     * @return The input stream for this connection.
-     */
-    @Experimental
-    public Observable<WebSocketFrame> getInputForWrite() {
-        return getInput().map(new Func1<WebSocketFrame, WebSocketFrame>() {
-            @Override
-            public WebSocketFrame call(WebSocketFrame webSocketFrame) {
-                if (webSocketFrame instanceof PingWebSocketFrame) {
-                    return new PongWebSocketFrame();
-                }
-                return webSocketFrame;
-            }
-        }).takeUntil(new Func1<WebSocketFrame, Boolean>() {
-            @Override
-            public Boolean call(WebSocketFrame webSocketFrame) {
-                return webSocketFrame instanceof CloseWebSocketFrame;
-            }
-        });
-    }
-
-    /**
-     * Returns the input stream for this connection.
+     * Returns the input stream for this connection, until a {@link CloseWebSocketFrame} is received. The terminal
+     * {@link CloseWebSocketFrame} is included in the returned stream.
      *
      * @return The input stream for this connection.
      */
     public Observable<WebSocketFrame> getInput() {
-        return Observable.create(new OnSubscribe<WebSocketFrame>() {
+        return getInput(true);
+    }
+
+    /**
+     * Returns the input stream for this connection. If {@code untilCloseFrame} is {@code true} then the returned stream
+     * completes after receiving (and emitting) a {@link CloseWebSocketFrame}, otherwise, it completes with an error
+     * when the underlying channel is closed.
+     *
+     * @return The input stream for this connection.
+     */
+    @Beta
+    public Observable<WebSocketFrame> getInput(boolean untilCloseFrame) {
+        Observable<WebSocketFrame> rawInput = Observable.create(new OnSubscribe<WebSocketFrame>() {
             @Override
             public void call(Subscriber<? super WebSocketFrame> subscriber) {
                 delegate.unsafeNettyChannel().pipeline()
-                        .fireUserEventTriggered(new HttpContentSubscriberEvent<WebSocketFrame>(subscriber));
+                        .fireUserEventTriggered(new HttpContentSubscriberEvent<>(subscriber));
             }
         });
+        if (untilCloseFrame) {
+            return rawInput.takeUntil(new Func1<WebSocketFrame, Boolean>() {
+                @Override
+                public Boolean call(WebSocketFrame webSocketFrame) {
+                    return webSocketFrame instanceof CloseWebSocketFrame;
+                }
+            });
+        } else {
+            return rawInput;
+        }
     }
 
     /**
@@ -153,6 +145,15 @@ public final class WebSocketConnection {
      */
     public Observable<Void> close(boolean flush) {
         return delegate.close(flush);
+    }
+
+    /**
+     * Returns an {@link Observable} that completes when this connection is closed.
+     *
+     * @return An {@link Observable} that completes when this connection is closed.
+     */
+    public Observable<Void> closeListener() {
+        return delegate.closeListener();
     }
 
     /**

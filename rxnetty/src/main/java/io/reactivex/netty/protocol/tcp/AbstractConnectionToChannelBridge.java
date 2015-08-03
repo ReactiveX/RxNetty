@@ -53,15 +53,17 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractConnectionToChannelBridge.class);
 
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException ONLY_ONE_CONN_SUB_ALLOWED =
             new IllegalStateException("Only one subscriber allowed for connection observable.");
-
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException ONLY_ONE_CONN_INPUT_SUB_ALLOWED =
             new IllegalStateException("Only one subscriber allowed for connection input.");
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException LAZY_CONN_INPUT_SUB =
             new IllegalStateException("Channel is set to auto-read but the subscription was lazy.");
 
-
+    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final ClosedChannelException CLOSED_CHANNEL_EXCEPTION = new ClosedChannelException();
 
     static {
@@ -186,7 +188,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         } else {
             if (logger.isWarnEnabled()) {
                 logger.warn("Data received on channel, but no subscriber registered. Discarding data. Message class: "
-                            + msg.getClass().getName());
+                            + msg.getClass().getName() + ", channel: " + ctx.channel());
             }
             ReferenceCountUtil.release(msg); // No consumer of the message, so discard.
         }

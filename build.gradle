@@ -30,7 +30,7 @@ configure(subprojects) {
     targetCompatibility = JavaVersion.VERSION_1_7
 
     dependencies {
-        compile "io.reactivex:rxjava:1.0.+"
+        compile "io.reactivex:rxjava:1.0.13"
 
         testCompile 'junit:junit:4.12'
         testCompile "org.hamcrest:hamcrest-library:1.3"
