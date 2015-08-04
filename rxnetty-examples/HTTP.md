@@ -40,5 +40,5 @@ and a [Server](src/main/java/io/reactivex/netty/examples/http/sse/HelloSseServer
 - __Streaming__: An example to demonstrate how to write basic HTTP streaming client and server, where the server sends an
 infinite stream of HTTP chunks and the client reads a pre-defined number of these chunks. This example constitutes of a 
  [Streaming Client](src/main/java/io/reactivex/netty/examples/http/streaming/StreamingClient.java)
-and a [Streaming Server](src/main/java/io/reactivex/netty/examples/http/sse/StreamingServer.java)
+and a [Streaming Server](src/main/java/io/reactivex/netty/examples/http/streaming/StreamingServer.java)
 
