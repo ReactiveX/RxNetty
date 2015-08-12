@@ -20,7 +20,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
-import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionReuseEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -225,7 +225,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      * @param connectionSubscriber Subscriber for the pooled connection for reuse.
      */
     public void reuse(Subscriber<? super PooledConnection<R, W>> connectionSubscriber) {
-        unsafeNettyChannel().pipeline().fireUserEventTriggered(new ConnectionResueEvent<R, W>(connectionSubscriber, this));
+        unsafeNettyChannel().pipeline().fireUserEventTriggered(new ConnectionReuseEvent<R, W>(connectionSubscriber, this));
     }
 
     public static <R, W> PooledConnection<R, W> create(Owner<R, W> owner, long maxIdleTimeMillis,

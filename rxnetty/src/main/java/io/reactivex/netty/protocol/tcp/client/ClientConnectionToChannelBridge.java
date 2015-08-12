@@ -49,13 +49,13 @@ import static java.util.concurrent.TimeUnit.*;
  *
  * <h2>Reuse</h2>
  *
- * A channel can be reused for multiple operations, provided the reuses is signalled by {@link ConnectionResueEvent}.
+ * A channel can be reused for multiple operations, provided the reuses is signalled by {@link ConnectionReuseEvent}.
  * Failure to do so, will result in errors on the {@link Subscriber} trying to reuse the channel.
  * A typical reuse should have the following events:
  *
  <PRE>
-    ConnectionSubscriberEvent => ConnectionInputSubscriberEvent => ConnectionResueEvent =>
-    ConnectionInputSubscriberEvent => ConnectionResueEvent => ConnectionInputSubscriberEvent
+    ConnectionSubscriberEvent => ConnectionInputSubscriberEvent => ConnectionReuseEvent =>
+    ConnectionInputSubscriberEvent => ConnectionReuseEvent => ConnectionInputSubscriberEvent
  </PRE>
  *
  * @param <R> Type read from the connection held by this handler.
@@ -124,9 +124,9 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             if (event.getSubscriber() == getNewConnectionSub()) { // If this subscriber wasn't a duplicate
                 connectSubscriberToFuture(event.getSubscriber(), event.getConnectFuture());
             }
-        } else if (evt instanceof ConnectionResueEvent) {
+        } else if (evt instanceof ConnectionReuseEvent) {
             @SuppressWarnings("unchecked")
-            ConnectionResueEvent<R, W> event = (ConnectionResueEvent<R, W>) evt;
+            ConnectionReuseEvent<R, W> event = (ConnectionReuseEvent<R, W>) evt;
 
             newConnectionReuseEvent(ctx.channel(), event);
         } else if (evt instanceof ConnectionCreationFailedEvent) {
@@ -204,7 +204,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         }));
     }
 
-    private void newConnectionReuseEvent(Channel channel, final ConnectionResueEvent<R, W> event) {
+    private void newConnectionReuseEvent(Channel channel, final ConnectionReuseEvent<R, W> event) {
         Subscriber<? super PooledConnection<R, W>> subscriber = event.getSubscriber();
         if (isValidToEmit(subscriber)) {
             subscriber.onNext(event.getPooledConnection());
@@ -275,12 +275,12 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
      * @param <I> Type read from the connection held by the event.
      * @param <O> Type written to the connection held by the event.
      */
-    public static final class ConnectionResueEvent<I, O> implements ConnectionInputSubscriberResetEvent {
+    public static final class ConnectionReuseEvent<I, O> implements ConnectionInputSubscriberResetEvent {
 
         private final Subscriber<? super PooledConnection<I, O>> subscriber;
         private final PooledConnection<I, O> pooledConnection;
 
-        public ConnectionResueEvent(Subscriber<? super PooledConnection<I, O>> subscriber,
+        public ConnectionReuseEvent(Subscriber<? super PooledConnection<I, O>> subscriber,
                                     PooledConnection<I, O> pooledConnection) {
             this.subscriber = subscriber;
             this.pooledConnection = pooledConnection;

@@ -31,7 +31,7 @@ import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge;
-import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
+import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.ConnectionReuseEvent;
 import io.reactivex.netty.protocol.tcp.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 import io.reactivex.netty.protocol.tcp.client.internal.TcpEventPublisherFactory;
 import rx.Subscriber;
@@ -116,7 +116,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof ConnectionResueEvent) {
+        if (evt instanceof ConnectionReuseEvent) {
             resetSubscriptionState(connectionInputSubscriber);
             connectionInputSubscriber = null;
         } else if (PooledConnectionReleaseEvent.INSTANCE == evt) {
