@@ -12,18 +12,19 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.loadbalancing;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.examples.tcp.loadbalancing.RoundRobinLoadBalancer;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
-import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -41,7 +42,7 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
  * robins on the set of available hosts.
  *
  * This example, starts a couple emebedded HTTP servers two always sending 200 responses and one always sending 503
- * responses to demonstrate failure detetction (not using the server that sends 503) and round-robin load balancing
+ * responses to demonstrate failure detection (not using the server that sends 503) and round-robin load balancing
  * (alternating between the two available hosts for the requests)
  *
  * @see ConnectionProvider Low level abstraction to create varied load balancing schemes.

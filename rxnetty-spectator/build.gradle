@@ -1,4 +1,0 @@
-dependencies {
-    compile project(':rxnetty')
-    compile 'com.netflix.spectator:spectator-api:0.14.2'
-}

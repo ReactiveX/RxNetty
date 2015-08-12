@@ -12,11 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package io.reactivex.netty.examples.tcp.loadbalancing;
 
-import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
-import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
+import io.reactivex.netty.client.ConnectionFactory;
+import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import rx.Observable;
 
@@ -53,6 +54,6 @@ public class TcpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
      * @return A new {@link ConnectionProvider} that creates instances of {@link TcpLoadBalancer}
      */
     public static <W, R> ConnectionProvider<W, R> create(Observable<SocketAddress> hosts) {
-        return ConnectionProvider.create(connectionFactory -> new TcpLoadBalancer<W, R>(hosts, connectionFactory));
+        return ConnectionProvider.create(connectionFactory -> new TcpLoadBalancer<>(hosts, connectionFactory));
     }
 }

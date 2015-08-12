@@ -12,13 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
-import io.reactivex.netty.codec.StringLineDecoder;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.examples.tcp.echo.EchoServer;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
