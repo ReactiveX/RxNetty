@@ -12,15 +12,16 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package io.reactivex.netty.examples.tcp.loadbalancing;
 
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.channel.pool.PooledConnectionProvider;
-import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
-import io.reactivex.netty.protocol.tcp.client.ConnectionObservable;
-import io.reactivex.netty.protocol.tcp.client.ConnectionObservable.AbstractOnSubscribeFunc;
-import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
+import io.reactivex.netty.client.ConnectionFactory;
+import io.reactivex.netty.client.ConnectionObservable;
+import io.reactivex.netty.client.ConnectionObservable.AbstractOnSubscribeFunc;
+import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.pool.PooledConnectionProvider;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -54,7 +55,7 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
     private final AtomicReference<List<HostHolder>> activeHosts;
 
     /*A Failure detector factory that returns an event listener to be subscribed to the events pertaining to a host*/
-    private final Func1<Action0, TcpClientEventListener> failureDetetctorFactory;
+    private final Func1<Action0, TcpClientEventListener> failureDetectorFactory;
 
     /*An index to the active host list that selects the next host to be used*/
     private final AtomicInteger currentHostIndex;
@@ -72,8 +73,9 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
         this.cf = cf;
         activeHosts = new AtomicReference<>(Collections.emptyList());
         hostRemover = PublishSubject.create();
-        failureDetetctorFactory = fdFactory;
+        failureDetectorFactory = fdFactory;
         currentHostIndex = new AtomicInteger(-1);
+        subscribeToHostStream();
     }
 
     @Override
@@ -91,16 +93,7 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
         });
     }
 
-    @Override
-    protected Observable<Void> doStart() {
-
-        /**
-         * Since, a successful start (completion of returned Observable) is required for the associated client to start
-         * processing data, we can not return a potential infinite stream from the start(), hence this subject that
-         * completes on the first host recieved and errors if either of the subscriptions (hosts remover or listener)
-         * error out.
-         */
-        final PublishSubject<Void> startSignal = PublishSubject.create();
+    private void subscribeToHostStream() {
 
         hostSubscription = new CompositeSubscription();
 
@@ -119,12 +112,9 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
                        });
                            /*Set this new list as the active hosts*/
                        activeHosts.set(copyCps);
-                   }, startSignal::onError));
+                   }));
 
         hostSubscription.add(hosts.map(host -> {
-            /*Wait for atleast one host to get started, this condition can be altered in whichever way is suitable for
-              the load balancer. */
-            startSignal.onCompleted();
 
             final List<HostHolder> _newList = new ArrayList<>(activeHosts.get());
 
@@ -135,14 +125,12 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
                     PooledConnectionProvider.createUnbounded(cf, host);
 
             /*Create the listener that acts as the failure detector for this host.*/
-            TcpClientEventListener fd = failureDetetctorFactory.call(() -> hostRemover.onNext(hostConnProvider));
+            TcpClientEventListener fd = failureDetectorFactory.call(() -> hostRemover.onNext(hostConnProvider));
 
             /*Add the holder to the list of active hosts.*/
             _newList.add(new HostHolder(hostConnProvider, fd));
             return Collections.unmodifiableList(_newList);
-        }).subscribe(activeHosts::set, startSignal::onError));
-
-        return startSignal;
+        }).subscribe(activeHosts::set));
     }
 
     @Override
@@ -158,6 +146,10 @@ public abstract class RoundRobinLoadBalancer<W, R> extends ConnectionProvider<W,
 
     private Observable<Connection<R, W>> _connect(Action1<ConnectionObservable<R, W>> subscribeAllListenersAction) {
         return Observable.create(subscriber -> {
+
+            if (isShutdown()) {
+                subscriber.onError(new IllegalStateException("Load balancer is already shutdown."));
+            }
 
             /*Hold a reference to the current list of active hosts, so that any change to the list does not happen
             during this processing*/
