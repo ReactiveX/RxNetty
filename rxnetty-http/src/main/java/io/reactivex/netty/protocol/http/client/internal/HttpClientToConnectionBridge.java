@@ -28,7 +28,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge;
-import io.reactivex.netty.client.ClientConnectionToChannelBridge.ConnectionResueEvent;
+import io.reactivex.netty.client.ClientConnectionToChannelBridge.ConnectionReuseEvent;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge.PooledConnectionReleaseEvent;
 import io.reactivex.netty.client.pool.PooledConnection;
 import io.reactivex.netty.events.Clock;
@@ -118,7 +118,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof ConnectionResueEvent) {
+        if (evt instanceof ConnectionReuseEvent) {
             resetSubscriptionState(connectionInputSubscriber);
             connectionInputSubscriber = null;
         } else if (PooledConnectionReleaseEvent.INSTANCE == evt) {

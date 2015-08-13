@@ -218,7 +218,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
      then writes it on the channel.</li>
      <li>byte[]: If the pipeline is not configured to write a byte[], this converts the byte[] to a {@link io.netty.buffer.ByteBuf} and
      then writes it on the channel.</li>
-     <li>Observable: Subscribes to the {@link Observable} and writes all items, requesting the next item if an only if
+     <li>Observable: Subscribes to the {@link Observable} and writes all items, requesting the next item if and only if
      the channel is writable as indicated by {@link Channel#isWritable()}</li>
      </ul>
      *
@@ -232,7 +232,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof Observable) {
             @SuppressWarnings("rawtypes")
-            Observable observable = (Observable) msg; /*One can write heterogneous objects on a channel.*/
+            Observable observable = (Observable) msg; /*One can write heterogeneous objects on a channel.*/
             final WriteStreamSubscriber subscriber = new WriteStreamSubscriber(ctx, promise);
             bytesWriteInterceptor.addSubscriber(subscriber);
             subscriber.subscribeTo(observable);
@@ -487,7 +487,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                         listeningTo--;
                         if (0 == listeningTo && isDone) {
                             /**
-                             * If the listening count is 0 and no more items will arive, this thread wins the race of
+                             * If the listening count is 0 and no more items will arrive, this thread wins the race of
                              * completing the overarchingWritePromise
                              */
                             isPromiseCompletedOnWriteComplete = true;
