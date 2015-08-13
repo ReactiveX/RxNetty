@@ -12,13 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 package io.reactivex.netty.examples.http.loadbalancing;
 
+import io.reactivex.netty.client.ConnectionFactory;
+import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.examples.tcp.loadbalancing.RoundRobinLoadBalancer;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
-import io.reactivex.netty.protocol.tcp.client.ConnectionFactory;
-import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -59,6 +60,6 @@ public class HttpLoadBalancer<W, R> extends RoundRobinLoadBalancer<W, R> {
      * @return A new {@link ConnectionProvider} that creates instances of {@link HttpLoadBalancer}
      */
     public static <W, R> ConnectionProvider<W, R> create(Observable<SocketAddress> hosts) {
-        return ConnectionProvider.create(connectionFactory -> new HttpLoadBalancer<W, R>(hosts, connectionFactory));
+        return ConnectionProvider.create(connectionFactory -> new HttpLoadBalancer<>(hosts, connectionFactory));
     }
 }

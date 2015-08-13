@@ -12,7 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 rootProject.name='RxNetty'
-include 'rxnetty', 'rxnetty-examples', 'rxnetty-spectator'
+include 'rxnetty-common'
+include 'rxnetty-tcp'
+include 'rxnetty-spectator-tcp'
+include 'rxnetty-http'
+include 'rxnetty-spectator-http'
+include 'rxnetty-examples'
+include 'rxnetty-test-utils'
 

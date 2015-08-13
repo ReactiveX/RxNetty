@@ -12,13 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.tcp.loadbalancing;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.protocol.tcp.client.ConnectionProvider;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import rx.Observable;
