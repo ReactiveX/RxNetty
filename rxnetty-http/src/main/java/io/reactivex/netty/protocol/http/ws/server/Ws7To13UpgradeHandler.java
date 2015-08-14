@@ -42,6 +42,7 @@ import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Action0;
+import rx.functions.Func0;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
@@ -88,7 +89,12 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
                                    pipeline.remove(HttpServerEncoder.getName());
                                }
                            })
-                           .concatWith(wsUpEvt.handler.handle(new WebSocketConnection(wsConn)))
+                           .concatWith(Observable.defer(new Func0<Observable<Void>>() {
+                               @Override
+                               public Observable<Void> call() {
+                                   return wsUpEvt.handler.handle(new WebSocketConnection(wsConn));
+                               }
+                           }))
                            .concatWith(Observable.create(new OnSubscribe<Void>() {
                                @Override
                                public void call(Subscriber<? super Void> sub) {
