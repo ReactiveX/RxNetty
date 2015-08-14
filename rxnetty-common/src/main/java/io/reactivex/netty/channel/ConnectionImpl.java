@@ -123,6 +123,11 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
         delegate.closeNow();
     }
 
+    @Override
+    public Observable<Void> closeListener() {
+        return delegate.closeListener();
+    }
+
     public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, ConnectionEventListener eventListener,
                                                      EventPublisher eventPublisher) {
         final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventListener, eventPublisher);

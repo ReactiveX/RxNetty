@@ -265,7 +265,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
     private void newConnectionInputSubscriber(final Channel channel, final Subscriber<? super R> subscriber,
                                               final Connection<R, W> connection) {
-        final Subscriber<? super R> connInputSub = null == readProducer? null : readProducer.subscriber;
+        final Subscriber<? super R> connInputSub = null == readProducer ? null : readProducer.subscriber;
         if (isValidToEmit(connInputSub)) {
             /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
             subscriber.onError(ONLY_ONE_CONN_INPUT_SUB_ALLOWED);

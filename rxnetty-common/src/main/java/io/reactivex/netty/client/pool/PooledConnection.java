@@ -192,6 +192,11 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         });
     }
 
+    @Override
+    public Observable<Void> closeListener() {
+        return unpooledDelegate.closeListener();
+    }
+
     /**
      * Discards this connection, to be called when this connection will never be used again.
      *

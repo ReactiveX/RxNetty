@@ -263,4 +263,11 @@ public interface ChannelOperations<W> {
      * {@code Observable}
      */
     void closeNow();
+
+    /**
+     * Returns an {@link Observable} that completes when this connection is closed.
+     *
+     * @return An {@link Observable} that completes when this connection is closed.
+     */
+    Observable<Void> closeListener();
 }

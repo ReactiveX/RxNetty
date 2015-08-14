@@ -240,6 +240,23 @@ public class DefaultChannelOperationsTest {
         channelOpRule.verifyOutboundMessages(expected);
     }
 
+    @Test(timeout = 60000)
+    public void testCloseListener() throws Exception {
+        Observable<Void> closeListener = channelOpRule.channelOperations.closeListener();
+        TestSubscriber<Void> subscriber = new TestSubscriber<>();
+        closeListener.subscribe(subscriber);
+
+        subscriber.assertNoTerminalEvent();
+
+        subscriber.unsubscribe();
+
+        subscriber.assertNoTerminalEvent();
+
+        channelOpRule.channel.close().sync();
+
+        subscriber.assertNoTerminalEvent();
+    }
+
     public static class ChannelOpRule extends ExternalResource {
 
         private DefaultChannelOperations<ByteBuf> channelOperations;
