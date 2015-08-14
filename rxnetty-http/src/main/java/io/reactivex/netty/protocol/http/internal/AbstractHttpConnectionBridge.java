@@ -21,7 +21,6 @@ import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
@@ -34,6 +33,7 @@ import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
+import io.reactivex.netty.channel.SubscriberToChannelFutureBridge;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import org.slf4j.Logger;
@@ -130,7 +130,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                                                        long headerWriteStartTimeNanos);
 
     @Override
-    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+    public void userEventTriggered(final ChannelHandlerContext ctx, Object evt) throws Exception {
 
         Object eventToPropagateFurther = evt;
 
@@ -141,12 +141,21 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
 
             connectionInputSubscriber = _connectionInputSubscriber;
-            ctx.channel().closeFuture().addListener(new ChannelFutureListener() {
+
+            final SubscriberToChannelFutureBridge l = new SubscriberToChannelFutureBridge() {
+
                 @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
+                protected void doOnSuccess(ChannelFuture future) {
                     onChannelClose(_connectionInputSubscriber);
                 }
-            });
+
+                @Override
+                protected void doOnFailure(ChannelFuture future, Throwable cause) {
+                    onChannelClose(_connectionInputSubscriber);
+                }
+            };
+
+            l.bridge(ctx.channel().closeFuture(), _connectionInputSubscriber);
 
             @SuppressWarnings({"unchecked", "rawtypes"})
             ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber,

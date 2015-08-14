@@ -16,8 +16,6 @@
  */
 package io.reactivex.netty.protocol.tcp.server;
 
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.channel.AbstractConnectionToChannelBridge;
@@ -30,7 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Subscriber;
-import rx.Subscription;
+import rx.functions.Action0;
+import rx.functions.Func1;
 
 import java.nio.channels.ClosedChannelException;
 
@@ -82,8 +81,6 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
 
     private final class NewConnectionSubscriber extends Subscriber<Connection<R, W>> {
 
-        private Subscription handlingSubscription;
-
         @Override
         public void onCompleted() {
             // No Op.
@@ -114,41 +111,40 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
                 handledObservable = Observable.empty();
             }
 
-            handlingSubscription = handledObservable.subscribe(new Subscriber<Void>() {
-                @Override
-                public void onCompleted() {
-                    if (eventPublisher.publishingEnabled()) {
-                        eventPublisher.onConnectionHandlingSuccess(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
-                    }
-                    connection.closeNow();
-                }
-
-                @Override
-                public void onError(Throwable e) {
-                    if (!(e instanceof ClosedChannelException)) {
-                        if (eventPublisher.publishingEnabled()) {
-                            eventPublisher.onConnectionHandlingFailed(Clock.onEndNanos(startTimeNanos), NANOSECONDS,
-                                                                      e);
+            handledObservable
+                    .doOnCompleted(new Action0() {
+                        @Override
+                        public void call() {
+                            if (eventPublisher.publishingEnabled()) {
+                                eventPublisher.onConnectionHandlingSuccess(Clock.onEndNanos(startTimeNanos),
+                                                                           NANOSECONDS);
+                            }
                         }
-                        /*Since, this is always reading input for new requests, it will always get a closed channel
-                        exception on connection close from client. No point in logging that error.*/
-                        logger.error("Error processing connection.", e);
-                    }
-                    connection.closeNow();
-                }
+                    })
+                    .concatWith(connection.close())
+                    .onErrorResumeNext(
+                            new Func1<Throwable, Observable<? extends Void>>() {
+                                @Override
+                                public Observable<? extends Void> call(Throwable throwable) {
+                                    if (eventPublisher.publishingEnabled()) {
+                                        eventPublisher.onConnectionHandlingFailed(Clock.onEndNanos(startTimeNanos),
+                                                                                  NANOSECONDS,
+                                                                                  throwable);
+                                    }
 
-                @Override
-                public void onNext(Void aVoid) {
-                    // No Op.
-                }
-            });
-
-            connection.unsafeNettyChannel().closeFuture().addListener(new ChannelFutureListener() {
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    handlingSubscription.unsubscribe(); // Cancel on connection close.
-                }
-            });
+                                    if (throwable instanceof ClosedChannelException) {
+                                        return Observable.empty();
+                                    } else {
+                                        /*Since, this is always reading input for new requests, it will always get a
+                                        closed channel exception on connection close from client. No point in logging
+                                        that error.*/
+                                        logger.error("Error processing connection.", throwable);
+                                        return connection.close();
+                                    }
+                                }
+                            })
+                    .ambWith(connection.closeListener())
+                    .subscribe();
         }
     }
 }

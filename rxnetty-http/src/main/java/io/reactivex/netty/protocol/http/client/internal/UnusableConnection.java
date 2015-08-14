@@ -113,6 +113,11 @@ final class UnusableConnection<R, W> extends Connection<R, W> {
         throw new IllegalStateException("Connection is not usable.");
     }
 
+    @Override
+    public Observable<Void> closeListener() {
+        throw new IllegalStateException("Connection is not usable.");
+    }
+
     public static Connection<?, ?> create() {
         return new UnusableConnection<>(new EmbeddedChannel(), null, null);
     }

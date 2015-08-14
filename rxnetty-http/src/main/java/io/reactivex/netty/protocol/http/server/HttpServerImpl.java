@@ -18,8 +18,6 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -296,27 +294,19 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
 
                         final HttpServerResponse<O> response = newResponse(request);
 
-                        final Subscription processingSubscription = handleRequest(request, startNanos, response)
-                                                                        .doOnTerminate( new Action0() {
-                                                                            @Override
-                                                                            public void call() {
-                                                                                if (!newConnection.unsafeNettyChannel()
-                                                                                                  .config()
-                                                                                                  .isAutoRead()) {
-                                                                                    request(1);
-                                                                                }
-                                                                            }
-                                                                        })
-                                                                        .subscribe();
-
-                        newConnection.unsafeNettyChannel()
-                                     .closeFuture()
-                                     .addListener(new ChannelFutureListener() {
-                                         @Override
-                                         public void operationComplete(ChannelFuture future) throws Exception {
-                                             processingSubscription.unsubscribe();
-                                         }
-                                     });
+                        handleRequest(request, startNanos, response)
+                                .doOnTerminate(new Action0() {
+                                    @Override
+                                    public void call() {
+                                        if (!newConnection.unsafeNettyChannel()
+                                                          .config()
+                                                          .isAutoRead()) {
+                                            request(1);
+                                        }
+                                    }
+                                })
+                                .ambWith(newConnection.closeListener())
+                                .subscribe();
                     }
                 };
             }

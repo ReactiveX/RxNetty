@@ -163,6 +163,28 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
         });
     }
 
+    @Override
+    public Observable<Void> closeListener() {
+        return Observable.create(new OnSubscribe<Void>() {
+            @Override
+            public void call(final Subscriber<? super Void> subscriber) {
+                final SubscriberToChannelFutureBridge l = new SubscriberToChannelFutureBridge() {
+
+                    @Override
+                    protected void doOnSuccess(ChannelFuture future) {
+                        subscriber.onCompleted();
+                    }
+
+                    @Override
+                    protected void doOnFailure(ChannelFuture future, Throwable cause) {
+                        subscriber.onCompleted();
+                    }
+                };
+                l.bridge(nettyChannel.closeFuture(), subscriber);
+            }
+        });
+    }
+
     private <X> Observable<Void> _write(final Observable<X> msgs, Func1<X, Boolean> flushSelector) {
         return _write(msgs.lift(new FlushSelectorOperator<>(flushSelector, nettyChannel)));
     }
@@ -224,7 +246,7 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
             final long closeStartTimeNanos = Clock.newStartTimeNanos();
 
-            ChannelCloseListener closeListener;
+            final ChannelCloseListener closeListener;
             if (CLOSE_ISSUED_UPDATER.compareAndSet(DefaultChannelOperations.this, 0, 1)) {
                 if (eventPublisher.publishingEnabled()) {
                     eventListener.onConnectionCloseStart();
@@ -238,11 +260,10 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
                 closeListener = new ChannelCloseListener(subscriber);
             }
 
-            nettyChannel.closeFuture().addListener(closeListener);
-
+            closeListener.bridge(nettyChannel.closeFuture(), subscriber);
         }
 
-        private class ChannelCloseListener implements ChannelFutureListener {
+        private class ChannelCloseListener extends SubscriberToChannelFutureBridge {
 
             private final long closeStartTimeNanos;
             private final Subscriber<? super Void> subscriber;
@@ -261,24 +282,24 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
                 this(null, null, -1, subscriber);
             }
 
-            @SuppressWarnings("unchecked")
             @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                if (future.isSuccess()) {
-                    if (null != eventListener && eventPublisher.publishingEnabled()) {
-                        eventListener.onConnectionCloseSuccess(Clock.onEndNanos(closeStartTimeNanos), NANOSECONDS);
-                    }
-                    if (!subscriber.isUnsubscribed()) {
-                        subscriber.onCompleted();
-                    }
-                } else {
-                    if (null != eventListener && eventPublisher.publishingEnabled()) {
-                        eventListener.onConnectionCloseFailed(Clock.onEndNanos(closeStartTimeNanos), NANOSECONDS,
-                                                              future.cause());
-                    }
-                    if (!subscriber.isUnsubscribed()) {
-                        subscriber.onError(future.cause());
-                    }
+            protected void doOnSuccess(ChannelFuture future) {
+                if (null != eventListener && eventPublisher.publishingEnabled()) {
+                    eventListener.onConnectionCloseSuccess(Clock.onEndNanos(closeStartTimeNanos), NANOSECONDS);
+                }
+                if (!subscriber.isUnsubscribed()) {
+                    subscriber.onCompleted();
+                }
+            }
+
+            @Override
+            protected void doOnFailure(ChannelFuture future, Throwable cause) {
+                if (null != eventListener && eventPublisher.publishingEnabled()) {
+                    eventListener.onConnectionCloseFailed(Clock.onEndNanos(closeStartTimeNanos), NANOSECONDS,
+                                                          future.cause());
+                }
+                if (!subscriber.isUnsubscribed()) {
+                    subscriber.onError(future.cause());
                 }
             }
         }
