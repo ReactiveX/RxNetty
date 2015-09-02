@@ -17,9 +17,11 @@
 package io.reactivex.netty.client.pool;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge.ConnectionReuseEvent;
@@ -195,6 +197,59 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     @Override
     public Observable<Void> closeListener() {
         return unpooledDelegate.closeListener();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(String baseName, String name,
+                                                              ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerAfter(baseName, name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(EventExecutorGroup group,
+                                                              String baseName, String name,
+                                                              ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerAfter(group, baseName, name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(String baseName, String name,
+                                                               ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerBefore(baseName, name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(EventExecutorGroup group,
+                                                               String baseName, String name,
+                                                               ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerBefore(group, baseName, name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(EventExecutorGroup group,
+                                                              String name, ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerFirst(group, name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(String name, ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerFirst(name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(EventExecutorGroup group,
+                                                             String name, ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerLast(group, name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(String name, ChannelHandler handler) {
+        return unpooledDelegate.addChannelHandlerLast(name, handler);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+        return unpooledDelegate.pipelineConfigurator(pipelineConfigurator);
     }
 
     /**

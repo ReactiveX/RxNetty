@@ -19,12 +19,15 @@ package io.reactivex.netty.channel;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
+import io.netty.util.concurrent.EventExecutorGroup;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 /**
@@ -97,6 +100,148 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
             }
         }).ignoreElements();
     }
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified handler is added at
+     * the first position of the pipeline as specified by {@link ChannelPipeline#addFirst(String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> addChannelHandlerFirst(String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified handler is added at
+     * the first position of the pipeline as specified by
+     * {@link ChannelPipeline#addFirst(EventExecutorGroup, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified handler is added at
+     * the last position of the pipeline as specified by {@link ChannelPipeline#addLast(String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW>  addChannelHandlerLast(String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified handler is added at
+     * the last position of the pipeline as specified by
+     * {@link ChannelPipeline#addLast(EventExecutorGroup, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                                      ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified
+     * handler is added before an existing handler with the passed {@code baseName} in the pipeline as specified by
+     * {@link ChannelPipeline#addBefore(String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param baseName  the name of the existing handler
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> addChannelHandlerBefore(String baseName, String name,
+                                                                        ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified
+     * handler is added before an existing handler with the passed {@code baseName} in the pipeline as specified by
+     * {@link ChannelPipeline#addBefore(EventExecutorGroup, String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler}
+     *                 methods
+     * @param baseName  the name of the existing handler
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
+                                                                        String name, ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified
+     * handler is added after an existing handler with the passed {@code baseName} in the pipeline as specified by
+     * {@link ChannelPipeline#addAfter(String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param baseName  the name of the existing handler
+     * @param name Name of the handler.
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> addChannelHandlerAfter(String baseName, String name,
+                                                                       ChannelHandler handler);
+
+    /**
+     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for this connection. The specified
+     * handler is added after an existing handler with the passed {@code baseName} in the pipeline as specified by
+     * {@link ChannelPipeline#addAfter(EventExecutorGroup, String, String, ChannelHandler)}
+     *
+     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
+     * more convenient.</em>
+     *
+     * @param group   the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
+     * @param baseName  the name of the existing handler
+     * @param name     the name of the handler to append
+     * @param handler Handler instance to add.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
+                                                                       String name, ChannelHandler handler);
+
+    /**
+     * Configures the {@link ChannelPipeline} for this channel, using the passed {@code pipelineConfigurator}.
+     *
+     * @param pipelineConfigurator Action to configure {@link ChannelPipeline}.
+     *
+     * @return {@code this}.
+     */
+    public abstract <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
 
     /**
      * Returns the {@link MarkAwarePipeline} for this connection, changes to which can be reverted at any point in time.
