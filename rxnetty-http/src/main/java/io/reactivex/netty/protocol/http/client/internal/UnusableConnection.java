@@ -17,12 +17,16 @@
 package io.reactivex.netty.protocol.http.client.internal;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
 import io.reactivex.netty.events.EventPublisher;
 import rx.Observable;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 final class UnusableConnection<R, W> extends Connection<R, W> {
@@ -120,5 +124,59 @@ final class UnusableConnection<R, W> extends Connection<R, W> {
 
     public static Connection<?, ?> create() {
         return new UnusableConnection<>(new EmbeddedChannel(), null, null);
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(String name, ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                              ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(String name, ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                             ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(String baseName, String name, ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
+                                                               ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(String baseName, String name, ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
+                                                              ChannelHandler handler) {
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+        return cast();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <RR, WW> Connection<RR, WW> cast() {
+        return (Connection<RR, WW>) this;
     }
 }

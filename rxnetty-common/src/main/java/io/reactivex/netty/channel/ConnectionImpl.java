@@ -17,10 +17,14 @@
 package io.reactivex.netty.channel;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
 import io.reactivex.netty.events.EventPublisher;
 import rx.Observable;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 /**
@@ -140,5 +144,68 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
         final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, delegate);
         toReturn.connectCloseToChannelClose();
         return toReturn;
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addFirst(name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                              ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addFirst(group, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addLast(name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                             ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addLast(group, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(String baseName, String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addBefore(baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
+                                                               ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addBefore(group, baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(String baseName, String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addAfter(baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
+                                                              ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addAfter(group, baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+        pipelineConfigurator.call(getResettableChannelPipeline().markIfNotYetMarked());
+        return cast();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <RR, WW> Connection<RR, WW> cast() {
+        return (Connection<RR, WW>) this;
     }
 }
