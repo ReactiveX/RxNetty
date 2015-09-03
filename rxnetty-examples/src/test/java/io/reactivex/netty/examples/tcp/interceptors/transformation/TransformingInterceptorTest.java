@@ -35,6 +35,6 @@ public class TransformingInterceptorTest {
         InterceptingClient.main(null);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(2));
-        assertThat("Unexpected number of messages echoed", output, contains("Hello", "23"));
+        assertThat("Unexpected number of messages echoed", output, contains("Hello", "3"));
     }
 }
