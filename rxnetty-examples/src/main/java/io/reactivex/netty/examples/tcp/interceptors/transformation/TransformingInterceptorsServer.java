@@ -32,6 +32,7 @@ import io.reactivex.netty.protocol.tcp.server.TcpServerInterceptorChain.Transfor
 import rx.Observable;
 
 import java.nio.charset.Charset;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -142,7 +143,7 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
         return new Transformer<Integer, String>() {
             @Override
             public List<String> transform(Integer toTransform, ByteBufAllocator allocator) {
-                return Collections.singletonList(String.valueOf(++toTransform));
+                return Arrays.asList(String.valueOf(toTransform), String.valueOf(++toTransform));
             }
         };
     }
