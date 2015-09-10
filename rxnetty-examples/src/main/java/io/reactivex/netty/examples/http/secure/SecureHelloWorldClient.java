@@ -12,13 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.secure;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.examples.http.helloworld.HelloWorldServer;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 
@@ -72,6 +73,7 @@ public class SecureHelloWorldClient extends AbstractClientExample {
 
         /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
+                .enableWireLogging(LogLevel.DEBUG)
                 /*Enable HTTPS for demo purpose only, for real apps, use secure() methods instead.*/
                 .unsafeSecure()
                   /*Creates a GET request with URI "/hello"*/

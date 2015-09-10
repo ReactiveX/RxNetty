@@ -18,6 +18,7 @@
 package io.reactivex.netty.examples.tcp.loadbalancing;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -55,6 +56,7 @@ public final class TcpLoadBalancingClient extends AbstractClientExample {
 
         /*Create a new client using the load balancer over the hosts above.*/
         TcpClient.<ByteBuf, ByteBuf>newClient(TcpLoadBalancer.create(hosts))
+                 .enableWireLogging(LogLevel.DEBUG)
                 /*Create a new connection request, each subscription creates a new connection*/
                  .createConnectionRequest()
                 /*Log which host is being used, to show load balancing b/w hosts*/

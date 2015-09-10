@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.examples.tcp.echo.EchoServer;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -75,6 +77,7 @@ public final class SecureEchoClient extends AbstractClientExample {
 
         /*Create a new client for the server address*/
         TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
+                 .enableWireLogging(LogLevel.DEBUG)
                 /*Enable TLS for demo purpose only, for real apps, use secure() methods instead.*/
                  .unsafeSecure()
                 /*Create a new connection request, each subscription creates a new connection*/

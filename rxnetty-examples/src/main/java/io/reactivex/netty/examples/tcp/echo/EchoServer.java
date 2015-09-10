@@ -12,12 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.tcp.echo;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 
@@ -40,16 +42,17 @@ public final class EchoServer extends AbstractServerExample {
 
         /*Starts a new TCP server on an ephemeral port.*/
         server = TcpServer.newServer(0)
+                          .enableWireLogging(LogLevel.DEBUG)
                           /*Starts the server with a connection handler.*/
                           .start(connection -> connection
                                   /*Write the connection input to the output (echo) after prepending "echo => to it.*/
                                   .writeStringAndFlushOnEach(connection.getInput()
                                           /*Convert the byte buffer to a string, so that it can be printed*/
-                                                                       .map(bb -> bb.toString(Charset.defaultCharset()))
+                                                                     .map(bb -> bb.toString(Charset.defaultCharset()))
                                           /*Log each byte buffer recieved*/
-                                                                       .doOnNext(logger::info)
+                                                                     .doOnNext(logger::info)
                                           /*Prepend echo to the received string.*/
-                                                                       .map(msg -> "echo => " + msg)));
+                                                                     .map(msg -> "echo => " + msg)));
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
         if (shouldWaitForShutdown(args)) {

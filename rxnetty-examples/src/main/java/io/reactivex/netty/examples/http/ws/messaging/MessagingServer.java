@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
@@ -39,6 +40,7 @@ public final class MessagingServer extends AbstractServerExample {
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
+                           .enableWireLogging(LogLevel.DEBUG)
                            /*Starts the server with a request handler.*/
                            .start((req, resp) -> {
                                /*If WebSocket upgrade is requested, then accept the request with an echo handler.*/
