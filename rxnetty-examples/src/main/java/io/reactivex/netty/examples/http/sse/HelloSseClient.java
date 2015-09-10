@@ -12,10 +12,12 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.sse;
 
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
@@ -75,6 +77,7 @@ public final class HelloSseClient extends AbstractClientExample {
 
         /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
+                .enableWireLogging(LogLevel.DEBUG)
                   /*Creates a GET request with URI "/sse"*/
                 .createGet("/sse")
                   /*Prints the response headers*/

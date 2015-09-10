@@ -12,12 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.perf;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.examples.http.helloworld.HelloWorldServer;
@@ -25,7 +27,7 @@ import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import rx.Observable;
 
-import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static rx.Observable.*;
 
 /**
@@ -59,15 +61,16 @@ public final class PerfHelloWorldServer extends AbstractServerExample {
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
+                           .enableWireLogging(LogLevel.DEBUG)
                            /*Starts the server with a request handler.*/
                            .start((req, resp) ->
                                           /*Set content length*/
                                           resp.setHeader(CONTENT_LENGTH, CONTENT_LENGTH_HEADER_VAL)
                                               /*Do not flush on every response write to enable gathering write for pipelined
                                                * requests, which is usually the case for most load testing clients.*/
-                                              .flushOnlyOnReadComplete()
+                                                  .flushOnlyOnReadComplete()
                                               /*Write the response content.*/
-                                              .write(RESPONSE_CONTENT)
+                                                  .write(RESPONSE_CONTENT)
                            );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/

@@ -19,6 +19,7 @@ package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.examples.tcp.echo.EchoServer;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -40,6 +41,7 @@ public final class SecureEchoServer extends AbstractServerExample {
 
         /*Starts a new TCP server on an ephemeral port.*/
         TcpServer<ByteBuf, ByteBuf> server = TcpServer.newServer()
+                                                      .enableWireLogging(LogLevel.DEBUG)
                     /*Enable TLS for demo purpose only, for real apps, use secure() methods instead.*/
                                                       .unsafeSecure()
                                                         /*Starts the server with a connection handler.*/

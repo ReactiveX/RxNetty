@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.tcp.proxy;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.tcp.client.ConnectionRequest;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -52,28 +54,31 @@ public final class ProxyServer extends AbstractServerExample {
 
         /*Starts a new HTTP server on an ephemeral port which acts as a proxy to the target server started above.*/
         server = TcpServer.newServer()
+                          .enableWireLogging(LogLevel.DEBUG)
                 /*Starts the server with the proxy connection handler.*/
                           .start(serverConn ->
                              /*Create a new client connection, write the data recieved on the server connection and
                              * write the data received on the client connection back to the server connection*/
-                             serverConn.writeStringAndFlushOnEach(
-                                     connReq.flatMap(clientConn -> {
-                                                         Observable<String> clientOutput =
-                                                                 clientConn.getInput()
+                                         serverConn.writeStringAndFlushOnEach(
+                                                 connReq.flatMap(clientConn -> {
+                                                                     Observable<String> clientOutput =
+                                                                             clientConn.getInput()
                                                                          /*Convert the byte buffer to string*/
-                                                                           .map(bb -> bb.toString(defaultCharset()))
+                                                                                     .map(bb -> bb.toString(
+                                                                                             defaultCharset()))
                                                                          /*Prepend the string to demo proxying*/
-                                                                           .map(msg -> "proxy => " + msg);
+                                                                                     .map(msg -> "proxy => " + msg);
                                                          /*Write the data received on the server connection to the
                                                          * client connection*/
-                                                         return clientConn.writeAndFlushOnEach(serverConn.getInput())
-                                                                          .cast(String.class)
+                                                                     return clientConn
+                                                                             .writeAndFlushOnEach(serverConn.getInput())
+                                                                             .cast(String.class)
                                                          /*Merge the data received from the client so that it is
                                                          written back to the server connection.*/
-                                                                          .mergeWith(clientOutput);
-                                                     }
-                                     )
-                             )
+                                                                             .mergeWith(clientOutput);
+                                                                 }
+                                                 )
+                                         )
                           );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/

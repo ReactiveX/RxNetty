@@ -12,12 +12,14 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.ws.echo;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
@@ -37,13 +39,15 @@ public final class WebSocketEchoServer extends AbstractServerExample {
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
+                           .enableWireLogging(LogLevel.DEBUG)
                            /*Starts the server with a request handler.*/
                            .start((req, resp) -> {
                                /*If WebSocket upgrade is requested, then accept the request with an echo handler.*/
                                if (req.isWebSocketUpgradeRequested()) {
                                    return resp.acceptWebSocketUpgrade(wsConn ->
                                            /*Write each frame back and flush on each item as it is an infinite stream*/
-                                                               wsConn.writeAndFlushOnEach(wsConn.getInput()));
+                                                                              wsConn.writeAndFlushOnEach(
+                                                                                      wsConn.getInput()));
                                } else if (req.getUri().startsWith("/hello")) {
                                    /*If upgrade is not requested and the URI is "hello" then send an "Hello World"
                                    response*/
