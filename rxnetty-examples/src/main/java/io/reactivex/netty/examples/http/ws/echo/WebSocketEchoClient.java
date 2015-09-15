@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.ws.echo;
@@ -19,6 +20,7 @@ package io.reactivex.netty.examples.http.ws.echo;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketResponse;
@@ -75,6 +77,7 @@ public class WebSocketEchoClient extends AbstractClientExample {
 
         /*Create a new client for the server address*/
         HttpClient.newClient(socketAddress)
+                  .enableWireLogging(LogLevel.DEBUG)
                   /*Creates a GET request with URI "/ws"*/
                   .createGet("/ws")
                   /*Requests an upgrade to WebSocket, in case the server rejects, this upgrade, an error will be

@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.secure;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 
@@ -35,6 +37,7 @@ public final class SecureHelloWorldServer extends AbstractServerExample {
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
+                           .enableWireLogging(LogLevel.DEBUG)
                            /*Enable HTTPS for demo purpose only, for real apps, use secure() methods instead.*/
                            .unsafeSecure()
                            /*Starts the server with a request handler.*/

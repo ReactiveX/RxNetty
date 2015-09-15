@@ -41,9 +41,9 @@ import java.util.concurrent.TimeoutException;
  * an eventloop instance belonging to this group. If so, the same instance is returned from {@link #next()} otherwise,
  * the call to {@link #next()} is delegated to the actual {@link EventLoopGroup} passed to this instance.
  *
- * This is generally useful for applications that process a recieved request by calling some other downstream
+ * This is generally useful for applications that process a received request by calling some other downstream
  * applications. If, during processing of these requests, there is no new thread introduced, then the {@link EventLoop}
- * processing the recieved request will also execute the outbound request to another application.
+ * processing the received request will also execute the outbound request to another application.
  *
  * The above, although being subtle has benefits around removing queuing while writing data to any channel in the entire
  * request processing.

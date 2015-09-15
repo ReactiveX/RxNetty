@@ -26,3 +26,9 @@ dependencies {
     compile "io.reactivex:rxjava-string:1.0.0"
     compile "org.slf4j:slf4j-log4j12:${slf4j_version}"
 }
+
+test {
+    testLogging {
+        showStandardStreams = true
+    }
+}
