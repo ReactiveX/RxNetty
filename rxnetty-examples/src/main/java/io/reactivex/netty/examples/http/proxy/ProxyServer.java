@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.proxy;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
@@ -55,6 +57,7 @@ public final class ProxyServer extends AbstractServerExample {
 
         /*Starts a new HTTP server on an ephemeral port which acts as a proxy to the target server started above.*/
         server = HttpServer.newServer()
+                           .enableWireLogging(LogLevel.DEBUG)
                            /*Starts the server with the proxy request handler.*/
                            .start((serverReq, serverResp) -> {
                                       /*
@@ -75,24 +78,24 @@ public final class ProxyServer extends AbstractServerExample {
                                       /*Write the content that sends the request*/
                                       return clientReq.writeContent(serverReq.getContent())
                                                       /*Handle the response by copying it to server response.*/
-                                                      .flatMap(clientResp -> {
+                                              .flatMap(clientResp -> {
 
                                                           /*Iterator for the client response headers.*/
-                                                          Iterator<Entry<String, String>> clientRespHeaders =
-                                                                  clientResp.headerIterator();
+                                                  Iterator<Entry<String, String>> clientRespHeaders =
+                                                          clientResp.headerIterator();
 
                                                           /*Copy all client response headers to the server response.*/
-                                                          while (clientRespHeaders.hasNext()) {
-                                                              Entry<String, String> next = clientRespHeaders.next();
-                                                              serverResp.setHeader(next.getKey(), next.getValue());
-                                                          }
+                                                  while (clientRespHeaders.hasNext()) {
+                                                      Entry<String, String> next = clientRespHeaders.next();
+                                                      serverResp.setHeader(next.getKey(), next.getValue());
+                                                  }
 
                                                           /*Add a demo header to indicate proxied response!*/
-                                                          serverResp.setHeader("X-Proxied-By", "RxNetty");
+                                                  serverResp.setHeader("X-Proxied-By", "RxNetty");
 
                                                           /*Write the client response content to server response.*/
-                                                          return serverResp.write(clientResp.getContent());
-                                                      });
+                                                  return serverResp.write(clientResp.getContent());
+                                              });
                                   }
                            );
 

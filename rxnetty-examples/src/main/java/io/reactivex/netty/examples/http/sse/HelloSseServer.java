@@ -12,11 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.sse;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
@@ -39,16 +41,18 @@ public final class HelloSseServer extends AbstractServerExample {
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
+                           .enableWireLogging(LogLevel.DEBUG)
                            /*Starts the server with a request handler.*/
                            .start((req, resp) ->
                                /*Send an SSE response to all requests.*/
-                               resp.transformToServerSentEvents()
+                                          resp.transformToServerSentEvents()
                                /* Write the stream that generates an event every 10 milliseconds*/
-                                   .writeAndFlushOnEach(Observable.interval(10, TimeUnit.MILLISECONDS)
+                                                  .writeAndFlushOnEach(Observable.interval(10, TimeUnit.MILLISECONDS)
                                            /*If the channel puts backpressure, then drop data.*/
-                                                                  .onBackpressureDrop()
+                                                                               .onBackpressureDrop()
                                            /*Convert the tick generated to a ServerSentEvent object.*/
-                                                                  .map(aLong -> withData("Interval => " + aLong)))
+                                                                               .map(aLong -> withData(
+                                                                                       "Interval => " + aLong)))
                            );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/

@@ -19,6 +19,7 @@ package io.reactivex.netty.examples.http.loadbalancing;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.examples.tcp.loadbalancing.RoundRobinLoadBalancer;
@@ -58,6 +59,7 @@ public final class HttpLoadBalancingClient extends AbstractClientExample {
 
         /*Create a new client using the load balancer over the hosts above.*/
         HttpClient.newClient(HttpLoadBalancer.create(hosts))
+                .enableWireLogging(LogLevel.DEBUG)
                 /*Creates a GET request with URI "/hello"*/
                 .createGet("/hello")
                 /*Prints the response headers*/
