@@ -19,7 +19,7 @@ package io.reactivex.netty.protocol.http.client.internal;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.HttpHeaderUtil;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -121,12 +121,12 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public long getContentLength() {
-        return HttpHeaderUtil.getContentLength(nettyResponse);
+        return HttpUtil.getContentLength(nettyResponse);
     }
 
     @Override
     public long getContentLength(long defaultValue) {
-        return HttpHeaderUtil.getContentLength(nettyResponse, defaultValue);
+        return HttpUtil.getContentLength(nettyResponse, defaultValue);
     }
 
     @Override
@@ -161,17 +161,17 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public boolean isContentLengthSet() {
-        return HttpHeaderUtil.isContentLengthSet(nettyResponse);
+        return HttpUtil.isContentLengthSet(nettyResponse);
     }
 
     @Override
     public boolean isKeepAlive() {
-        return HttpHeaderUtil.isKeepAlive(nettyResponse);
+        return HttpUtil.isKeepAlive(nettyResponse);
     }
 
     @Override
     public boolean isTransferEncodingChunked() {
-        return HttpHeaderUtil.isTransferEncodingChunked(nettyResponse);
+        return HttpUtil.isTransferEncodingChunked(nettyResponse);
     }
 
     @Override
