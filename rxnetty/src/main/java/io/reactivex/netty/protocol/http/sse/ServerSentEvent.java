@@ -151,6 +151,30 @@ public class ServerSentEvent implements ByteBufHolder {
     }
 
     @Override
+    public ByteBufHolder touch() {
+        if(hasEventId()) {
+            eventId.touch();
+        }
+        if(hasEventType()) {
+            eventType.touch();
+        }
+        data.touch();
+        return this;
+    }
+
+    @Override
+    public ByteBufHolder touch(Object hint) {
+        if(hasEventId()) {
+            eventId.touch(hint);
+        }
+        if(hasEventType()) {
+            eventType.touch(hint);
+        }
+        data.touch(hint);
+        return this;
+    }
+
+    @Override
     public ByteBufHolder retain() {
         if(hasEventId()) {
             eventId.retain();

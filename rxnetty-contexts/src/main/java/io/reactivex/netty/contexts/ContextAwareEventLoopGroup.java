@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -69,6 +70,11 @@ public class ContextAwareEventLoopGroup implements EventLoopGroup {
     @Override
     public Iterator<EventExecutor> iterator() {
         return delegate.iterator();
+    }
+
+    @Override
+    public <E extends EventExecutor> Set<E> children() {
+        return delegate.children();
     }
 
     @Override
