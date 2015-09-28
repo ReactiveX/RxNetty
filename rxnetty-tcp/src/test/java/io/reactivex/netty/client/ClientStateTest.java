@@ -55,7 +55,7 @@ public class ClientStateTest {
     @Test(timeout = 60000)
     public void testChannelOption() throws Exception {
         ClientState<String, String> newState = clientStateRule.clientState
-                .channelOption(ChannelOption.MAX_MESSAGES_PER_READ, 100);
+                .channelOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 100);
 
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
         assertThat("Options not copied.", clientStateRule.clientState.unsafeChannelOptions(),
@@ -66,10 +66,10 @@ public class ClientStateTest {
         ClientState<String, String> oldState = clientStateRule.updateState(newState);
 
         Channel channel = clientStateRule.connect();
-        assertThat("Channel option not set in the channel.", channel.config().getMaxMessagesPerRead(), is(100));
+        assertThat("Channel option not set in the channel.", channel.config().getConnectTimeoutMillis(), is(100));
 
         Channel oldStateChannel = clientStateRule.connect(oldState);
-        assertThat("Channel option updated in the old state.", oldStateChannel.config().getMaxMessagesPerRead(),
+        assertThat("Channel option updated in the old state.", oldStateChannel.config().getConnectTimeoutMillis(),
                    is(not(100)));
     }
 
