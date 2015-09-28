@@ -18,7 +18,7 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
-import io.netty.handler.codec.http.HttpHeaderUtil;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpVersion;
@@ -123,12 +123,12 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public long getContentLength() {
-        return HttpHeaderUtil.getContentLength(nettyRequest);
+        return HttpUtil.getContentLength(nettyRequest);
     }
 
     @Override
     public long getContentLength(long defaultValue) {
-        return HttpHeaderUtil.getContentLength(nettyRequest, defaultValue);
+        return HttpUtil.getContentLength(nettyRequest, defaultValue);
     }
 
     @Override
@@ -163,22 +163,22 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public boolean is100ContinueExpected() {
-        return HttpHeaderUtil.is100ContinueExpected(nettyRequest);
+        return HttpUtil.is100ContinueExpected(nettyRequest);
     }
 
     @Override
     public boolean isContentLengthSet() {
-        return HttpHeaderUtil.isContentLengthSet(nettyRequest);
+        return HttpUtil.isContentLengthSet(nettyRequest);
     }
 
     @Override
     public boolean isKeepAlive() {
-        return HttpHeaderUtil.isKeepAlive(nettyRequest);
+        return HttpUtil.isKeepAlive(nettyRequest);
     }
 
     @Override
     public boolean isTransferEncodingChunked() {
-        return HttpHeaderUtil.isTransferEncodingChunked(nettyRequest);
+        return HttpUtil.isTransferEncodingChunked(nettyRequest);
     }
 
     @Override

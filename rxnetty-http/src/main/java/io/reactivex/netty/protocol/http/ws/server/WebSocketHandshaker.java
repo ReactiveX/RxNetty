@@ -92,12 +92,12 @@ public abstract class WebSocketHandshaker extends Observable<Void> {
 
     public static boolean isUpgradeRequested(HttpServerRequest<?> upgradeRequest) {
         return null != upgradeRequest && upgradeRequest.containsHeader(HttpHeaderNames.UPGRADE)
-                                      && WEBSOCKET.equalsIgnoreCase(upgradeRequest.getHeader(HttpHeaderNames.UPGRADE));
+                                      && WEBSOCKET.contentEqualsIgnoreCase(upgradeRequest.getHeader(HttpHeaderNames.UPGRADE));
     }
 
     public static boolean isUpgradeRequested(HttpRequest upgradeRequest) {
         return null != upgradeRequest && upgradeRequest.headers().contains(HttpHeaderNames.UPGRADE)
-                                      && WEBSOCKET.equalsIgnoreCase(upgradeRequest.headers()
+                                      && WEBSOCKET.contentEqualsIgnoreCase(upgradeRequest.headers()
                                                                                   .get(HttpHeaderNames.UPGRADE));
     }
 
