@@ -247,14 +247,19 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
         @Override
         public FullHttpResponse copy() {
-            DefaultFullHttpResponse copy = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(), content.copy());
+            return copy(content.copy());
+        }
+
+        @Override
+        public FullHttpResponse copy(ByteBuf newContent) {
+            DefaultFullHttpResponse copy = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(), newContent);
             copy.headers().set(headers());
             copy.trailingHeaders().set(trailingHeaders());
             return copy;
         }
 
         @Override
-        public HttpContent duplicate() {
+        public FullHttpResponse duplicate() {
             DefaultFullHttpResponse dup = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(),
                                                                       content.duplicate());
             dup.headers().set(headers());
@@ -271,6 +276,18 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
         @Override
         public FullHttpResponse retain() {
             content.retain();
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse touch() {
+            content.touch();
+            return this;
+        }
+
+        @Override
+        public FullHttpResponse touch(Object hint) {
+            content.touch(hint);
             return this;
         }
 
@@ -293,12 +310,22 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
         @Override
         public HttpResponseStatus getStatus() {
-            return headers.getStatus();
+            return headers.status();
+        }
+
+        @Override
+        public HttpResponseStatus status() {
+            return headers.status();
         }
 
         @Override
         public HttpVersion getProtocolVersion() {
-            return headers.getProtocolVersion();
+            return headers.protocolVersion();
+        }
+
+        @Override
+        public HttpVersion protocolVersion() {
+            return headers.protocolVersion();
         }
 
         @Override
@@ -313,6 +340,11 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
         @Override
         public DecoderResult getDecoderResult() {
+            return DecoderResult.SUCCESS;
+        }
+
+        @Override
+        public DecoderResult decoderResult() {
             return DecoderResult.SUCCESS;
         }
 

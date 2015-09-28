@@ -137,6 +137,11 @@ public class NoOpChannelHandlerContext implements ChannelHandlerContext {
     }
 
     @Override
+    public <T> boolean hasAttr(AttributeKey<T> key) {
+        return attributeMap.hasAttr(key);
+    }
+
+    @Override
     public ChannelFuture bind(SocketAddress localAddress) {
         return completedPromise;
     }

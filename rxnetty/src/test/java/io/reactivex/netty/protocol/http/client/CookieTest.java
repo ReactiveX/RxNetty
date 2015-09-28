@@ -80,7 +80,7 @@ public class CookieTest {
         Assert.assertEquals("Unexpected number of cookies.", 1, decodeCookies.size());
         Cookie decodedCookie = decodeCookies.iterator().next();
         Assert.assertEquals("Unexpected cookie name.", cookie1Name, decodedCookie.getName());
-        Assert.assertEquals("Unexpected cookie path.", cookie1Path, decodedCookie.getPath());
-        Assert.assertEquals("Unexpected cookie domain.", cookie1Domain, decodedCookie.getDomain());
+        Assert.assertNull("Unexpected cookie path.", decodedCookie.getPath());
+        Assert.assertNull("Unexpected cookie domain.", decodedCookie.getDomain());
     }
 }
