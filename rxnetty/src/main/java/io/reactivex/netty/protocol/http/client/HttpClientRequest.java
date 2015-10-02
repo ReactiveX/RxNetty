@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.protocol.http.client;
@@ -29,6 +30,7 @@ import io.reactivex.netty.channel.ByteTransformer;
 import io.reactivex.netty.channel.ContentTransformer;
 import rx.Observable;
 import rx.functions.Action0;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 import java.nio.charset.Charset;
@@ -44,6 +46,7 @@ public class HttpClientRequest<T> {
     private Observable<ByteBuf> rawContentSource;
     private String absoluteUri;
     private Action0 onWriteCompleteAction;
+    private Action1<Throwable> onWriteFailedAction;
 
     HttpClientRequest(HttpRequest nettyRequest) {
         this.nettyRequest = nettyRequest;
@@ -196,9 +199,19 @@ public class HttpClientRequest<T> {
         this.onWriteCompleteAction = onWriteCompleteAction;
     }
 
+    void doOnWriteFailed(Action1<Throwable> onWriteFailedAction) {
+        this.onWriteFailedAction = onWriteFailedAction;
+    }
+
     void onWriteComplete() {
         if (null != onWriteCompleteAction) {
             onWriteCompleteAction.call();
+        }
+    }
+
+    void onWriteFailed(Throwable throwable) {
+        if (null != onWriteFailedAction) {
+            onWriteFailedAction.call(throwable);
         }
     }
 

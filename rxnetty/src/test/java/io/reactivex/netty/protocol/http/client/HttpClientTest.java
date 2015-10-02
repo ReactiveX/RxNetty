@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.protocol.http.client;
@@ -45,6 +46,7 @@ import rx.Observer;
 import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func1;
+import rx.observers.TestSubscriber;
 
 import java.net.ConnectException;
 import java.nio.charset.Charset;
@@ -117,6 +119,25 @@ public class HttpClientTest {
         final List<String> result = new ArrayList<String>();
         readResponseContent(response, result);
         assertEquals(RequestProcessor.smallStreamContent, result);
+    }
+
+    @Test(timeout = 60000)
+    public void testWriteWithErrorContent() throws Exception {
+        HttpClient<ByteBuf, ByteBuf> client = RxNetty.createHttpClient("localhost", port);
+        Observable<ByteBuf> errSource = Observable.error(new NullPointerException());
+
+        HttpClientRequest<ByteBuf> request = HttpClientRequest.createPost("/")
+                                                              .withContentSource(errSource);
+
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(request);
+
+        final List<String> result = new ArrayList<String>();
+
+        TestSubscriber<HttpClientResponse<ByteBuf>> testSub = new TestSubscriber<HttpClientResponse<ByteBuf>>();
+        response.subscribe(testSub);
+
+        testSub.awaitTerminalEvent();
+        testSub.assertError(NullPointerException.class);
     }
 
     @Test
