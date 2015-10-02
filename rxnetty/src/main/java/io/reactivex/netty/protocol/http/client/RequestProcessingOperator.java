@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Netflix, Inc.
+ * Copyright 2015 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.protocol.http.client;
@@ -89,6 +90,16 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                                              }
                                          })
                                          .subscribe(child)); //subscribe the child for response.
+
+                        request.doOnWriteFailed(new Action1<Throwable>() {
+                            @Override
+                            public void call(Throwable throwable) {
+                                eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_WRITE_FAILED,
+                                                      Clock.onEndMillis(startTimeMillis), throwable);
+                                child.onError(throwable);
+                            }
+                        });
+
                         request.doOnWriteComplete(new Action0() {
                             @Override
                             public void call() {

@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.protocol.http.client;
@@ -276,7 +277,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             public void onError(Throwable e) {
                 eventsSubject.onEvent(HttpClientMetricsEvent.REQUEST_CONTENT_SOURCE_ERROR, e);
                 promise.tryFailure(e);
-                rxRequest.onWriteComplete();
+                rxRequest.onWriteFailed(e);
             }
 
             @Override
