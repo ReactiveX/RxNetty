@@ -1,5 +1,34 @@
 # RxNetty Releases #
 
+### Version 0.4.12 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.12+is%3Aclosed)
+
+* [Pull 425] (https://github.com/ReactiveX/RxNetty/pull/425) Update to netty 4.1.0-Beta6.
+* [Issue 419] (https://github.com/ReactiveX/RxNetty/issues/419) Http client request with an error stream as content, never completes
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.12%7C)
+
+### Version 0.4.11 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.11+is%3Aclosed)
+
+* [Pull 394] (https://github.com/ReactiveX/RxNetty/pull/394) SSE now works with preceding channel handlers such as SSL.
+* [Issue 395] (https://github.com/ReactiveX/RxNetty/issues/395) High object allocations when using `writeString` and `writeBytes` from a different thread..
+
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.11%7C)
+
+### Version 0.4.10 ###
+
+[Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.10+is%3Aclosed)
+
+* [Issue 357] (https://github.com/ReactiveX/RxNetty/issues/357) `ByteArrayPipelineConfigurator ` was leaking read `ByteBuffer`.
+* [Issue 365] (https://github.com/ReactiveX/RxNetty/issues/365) Fixed buffer management issue in `ServerSentEventDecoder`.
+
+
+Artifacts: [Maven Central](http://search.maven.org/#artifactdetails%7Cio.reactivex%7Crxnetty%7C0.4.10%7C)
+
 ### Version 0.4.9 ###
 
 [Milestone](https://github.com/ReactiveX/RxNetty/issues?q=milestone%3A0.4.9+is%3Aclosed)
