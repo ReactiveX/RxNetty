@@ -126,7 +126,11 @@ class RequestProcessingOperator<I, O> implements Observable.Operator<HttpClientR
                                 });
                             }
                         });
-                        connection.write(request);
+                        if (connection.getChannel().eventLoop().inEventLoop()) {
+                            connection.write(request);
+                        } else {
+                            connection.writeAndFlush(request);
+                        }
                     }
                 };
         return toReturn;
