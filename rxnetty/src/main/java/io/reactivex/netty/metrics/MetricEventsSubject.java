@@ -130,7 +130,12 @@ public class MetricEventsSubject<E extends MetricsEvent<?>> implements MetricEve
         Subscription subscription = Subscriptions.create(new Action0() {
             @Override
             public void call() {
-                listeners.remove(listener);
+                for (SafeListener safeListener : listeners) {
+                    if (safeListener.delegate == listener) {
+                        listeners.remove(safeListener);
+                        break;
+                    }
+                }
             }
         });
         listeners.add(new SafeListener<E>(listener, subscription));
