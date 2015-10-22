@@ -34,6 +34,9 @@ repositories {
 ```groovy
 compile 'io.reactivex:rxnetty:0.5.0-SNAPSHOT'
 ```
+###### Unintentional release artifacts
+
+There are two artifacts in maven central 0.5.0 and 0.5.1 which were unintentionally released from 0.4.x branch. Do not use them. [More details here](https://github.com/ReactiveX/RxNetty/issues/439)
 
 ## Build
 
