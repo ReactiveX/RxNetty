@@ -193,6 +193,26 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
         return Observable.create(new OnSubscribe<Void>() {
             @Override
             public void call(final Subscriber<? super Void> subscriber) {
+                /*
+                 * If a write happens from outside the eventloop, it does not wakeup the selector, till a flush happens.
+                 * In absence of a selector wakeup, this write will be delayed by the selector sleep interval.
+                 * The code below makes sure that the selector is woken up on a write (by executing a task that does
+                 * the write)
+                 */
+                if (nettyChannel.eventLoop().inEventLoop()) {
+                    _writeStreamToChannel(subscriber);
+                } else {
+                    nettyChannel.eventLoop()
+                                .execute(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        _writeStreamToChannel(subscriber);
+                                    }
+                                });
+                }
+            }
+
+            private void _writeStreamToChannel(final Subscriber<? super Void> subscriber) {
                 final ChannelFuture writeFuture = nettyChannel.write(msgs.doOnCompleted(new Action0() {
                     @Override
                     public void call() {
