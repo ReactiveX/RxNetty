@@ -20,7 +20,6 @@ package io.reactivex.netty.examples.http.perf;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.examples.http.helloworld.HelloWorldServer;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -55,7 +54,7 @@ public final class PerfHelloWorldServer extends AbstractServerExample {
     public static void main(final String[] args) {
 
         /*Reduce overhead of event publishing*/
-        RxNetty.disableEventPublishing();
+        //RxNetty.disableEventPublishing();
 
         HttpServer<ByteBuf, ByteBuf> server;
 

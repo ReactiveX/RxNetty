@@ -43,6 +43,14 @@ public class ConnectionEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testOnByteWritten() throws Exception {
+        rule.publisher.onByteWritten(1);
+        rule.listener.assertMethodsCalled(Event.BytesWritten);
+
+        assertThat("Listener not called with bytes written.", rule.listener.getBytesWritten(), is(1L));
+    }
+
+    @Test(timeout = 60000)
     public void testOnFlushStart() throws Exception {
         rule.publisher.onFlushStart();
         rule.listener.assertMethodsCalled(Event.FlushStart);
@@ -50,22 +58,11 @@ public class ConnectionEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnFlushSuccess() throws Exception {
-        rule.publisher.onFlushSuccess(1, TimeUnit.MILLISECONDS);
+        rule.publisher.onFlushComplete(1, TimeUnit.MILLISECONDS);
         rule.listener.assertMethodsCalled(Event.FlushSuccess);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
-    }
-
-    @Test(timeout = 60000)
-    public void testOnFlushFailed() throws Exception {
-        final Throwable expected = new NullPointerException("Deliberate");
-        rule.publisher.onFlushFailed(1, TimeUnit.MILLISECONDS, expected);
-        rule.listener.assertMethodsCalled(Event.FlushFailed);
-
-        assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
-        assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
-        assertThat("Listener not called with error.", rule.listener.getRecievedError(), is(expected));
     }
 
     @Test(timeout = 60000)
@@ -76,12 +73,11 @@ public class ConnectionEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnWriteSuccess() throws Exception {
-        rule.publisher.onWriteSuccess(1, TimeUnit.MILLISECONDS, 10);
+        rule.publisher.onWriteSuccess(1, TimeUnit.MILLISECONDS);
         rule.listener.assertMethodsCalled(Event.WriteSuccess);
 
         assertThat("Listener not called with duration.", rule.listener.getDuration(), is(1L));
         assertThat("Listener not called with time unit.", rule.listener.getTimeUnit(), is(TimeUnit.MILLISECONDS));
-        assertThat("Listener not called with bytes written.", rule.listener.getBytesWritten(), is(10L));
     }
 
     @Test(timeout = 60000)

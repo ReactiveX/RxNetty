@@ -82,6 +82,13 @@ public class TcpServerEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testOnByteWritten() throws Exception {
+        rule.publisher.onByteWritten(1);
+
+        rule.listener.getConnDelegate().assertMethodsCalled(Event.BytesWritten); // Test for Connection publisher should verify rest
+    }
+
+    @Test(timeout = 60000)
     public void testOnFlushStart() throws Exception {
         rule.publisher.onFlushStart();
 
@@ -90,16 +97,9 @@ public class TcpServerEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnFlushSuccess() throws Exception {
-        rule.publisher.onFlushSuccess(1, MILLISECONDS);
+        rule.publisher.onFlushComplete(1, MILLISECONDS);
 
         rule.listener.getConnDelegate().assertMethodsCalled(Event.FlushSuccess); // Test for Connection publisher should verify rest
-    }
-
-    @Test(timeout = 60000)
-    public void testOnFlushFailed() throws Exception {
-        rule.publisher.onFlushFailed(1, MILLISECONDS, new NullPointerException());
-
-        rule.listener.getConnDelegate().assertMethodsCalled(Event.FlushFailed); // Test for Connection publisher should verify rest
     }
 
     @Test(timeout = 60000)
@@ -111,7 +111,7 @@ public class TcpServerEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnWriteSuccess() throws Exception {
-        rule.publisher.onWriteSuccess(1, MILLISECONDS, 10);
+        rule.publisher.onWriteSuccess(1, MILLISECONDS);
 
         rule.listener.getConnDelegate().assertMethodsCalled(Event.WriteSuccess); // Test for Connection publisher should verify rest
     }

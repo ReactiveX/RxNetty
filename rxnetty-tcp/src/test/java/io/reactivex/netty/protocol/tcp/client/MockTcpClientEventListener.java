@@ -54,6 +54,11 @@ public class MockTcpClientEventListener extends TcpClientEventListener {
     }
 
     @Override
+    public void onByteWritten(long bytesWritten) {
+        mockDelegate.onByteWritten(bytesWritten);
+    }
+
+    @Override
     public void onCompleted() {
         mockDelegate.onCompleted();
     }
@@ -111,18 +116,13 @@ public class MockTcpClientEventListener extends TcpClientEventListener {
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        mockDelegate.onFlushFailed(duration, timeUnit, throwable);
-    }
-
-    @Override
     public void onFlushStart() {
         mockDelegate.onFlushStart();
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        mockDelegate.onFlushSuccess(duration, timeUnit);
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
+        mockDelegate.onFlushComplete(duration, timeUnit);
     }
 
     @Override
@@ -178,7 +178,7 @@ public class MockTcpClientEventListener extends TcpClientEventListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        mockDelegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
+        mockDelegate.onWriteSuccess(duration, timeUnit);
     }
 }

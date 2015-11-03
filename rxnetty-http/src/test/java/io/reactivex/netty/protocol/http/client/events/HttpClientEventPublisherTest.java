@@ -203,6 +203,13 @@ public class HttpClientEventPublisherTest {
     }
 
     @Test(timeout = 60000)
+    public void testOnByteWritten() throws Exception {
+        rule.publisher.onByteWritten(1);
+
+        rule.listener.getTcpDelegate().assertMethodsCalled(Event.BytesWritten); // Test for TCP should verify rest
+    }
+
+    @Test(timeout = 60000)
     public void testOnFlushStart() throws Exception {
         rule.publisher.onFlushStart();
 
@@ -211,16 +218,9 @@ public class HttpClientEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnFlushSuccess() throws Exception {
-        rule.publisher.onFlushSuccess(1, MILLISECONDS);
+        rule.publisher.onFlushComplete(1, MILLISECONDS);
 
         rule.listener.getTcpDelegate().assertMethodsCalled(Event.FlushSuccess); // Test for TCP should verify rest
-    }
-
-    @Test(timeout = 60000)
-    public void testOnFlushFailed() throws Exception {
-        rule.publisher.onFlushFailed(1, MILLISECONDS, new NullPointerException());
-
-        rule.listener.getTcpDelegate().assertMethodsCalled(Event.FlushFailed); // Test for TCP should verify rest
     }
 
     @Test(timeout = 60000)
@@ -232,7 +232,7 @@ public class HttpClientEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnWriteSuccess() throws Exception {
-        rule.publisher.onWriteSuccess(1, MILLISECONDS, 10);
+        rule.publisher.onWriteSuccess(1, MILLISECONDS);
 
         rule.listener.getTcpDelegate().assertMethodsCalled(Event.WriteSuccess); // Test for TCP should verify rest
     }

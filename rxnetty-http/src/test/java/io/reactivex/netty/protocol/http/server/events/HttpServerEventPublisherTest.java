@@ -156,7 +156,7 @@ public class HttpServerEventPublisherTest {
 
     @Test(timeout = 60000)
     public void testOnWriteSuccess() throws Exception {
-        rule.publisher.onWriteSuccess(1, TimeUnit.MILLISECONDS, 10);
+        rule.publisher.onWriteSuccess(1, TimeUnit.MILLISECONDS);
 
         rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.WriteSuccess);
     }
@@ -169,15 +169,8 @@ public class HttpServerEventPublisherTest {
     }
 
     @Test(timeout = 60000)
-    public void testOnFlushFailed() throws Exception {
-        rule.publisher.onFlushFailed(1, TimeUnit.MILLISECONDS, new NullPointerException());
-
-        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.FlushFailed);
-    }
-
-    @Test(timeout = 60000)
     public void testOnFlushSuccess() throws Exception {
-        rule.publisher.onFlushSuccess(1, TimeUnit.MILLISECONDS);
+        rule.publisher.onFlushComplete(1, TimeUnit.MILLISECONDS);
 
         rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.FlushSuccess);
     }
@@ -194,6 +187,13 @@ public class HttpServerEventPublisherTest {
         rule.publisher.onByteRead(1);
 
         rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.BytesRead);
+    }
+
+    @Test(timeout = 60000)
+    public void testOnByteWritten() throws Exception {
+        rule.publisher.onByteWritten(1);
+
+        rule.listener.getTcpDelegate().getConnDelegate().assertMethodsCalled(Event.BytesWritten);
     }
 
     @Test(timeout = 60000)

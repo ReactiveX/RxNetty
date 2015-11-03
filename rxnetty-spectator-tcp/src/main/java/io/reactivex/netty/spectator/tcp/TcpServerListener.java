@@ -117,13 +117,12 @@ public class TcpServerListener extends TcpServerEventListener {
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        pendingFlushes.decrementAndGet();
-        failedFlushes.increment();
+    public void onByteWritten(long bytesWritten) {
+        this.bytesWritten.increment(bytesWritten);
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
         pendingFlushes.decrementAndGet();
         flushTimes.record(duration, timeUnit);
     }
@@ -140,9 +139,8 @@ public class TcpServerListener extends TcpServerEventListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
         pendingWrites.decrementAndGet();
-        this.bytesWritten.increment(bytesWritten);
         writeTimes.record(duration, timeUnit);
     }
 

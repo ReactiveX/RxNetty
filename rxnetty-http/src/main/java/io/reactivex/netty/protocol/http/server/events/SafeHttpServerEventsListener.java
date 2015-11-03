@@ -146,6 +146,13 @@ final class SafeHttpServerEventsListener extends HttpServerEventsListener implem
     }
 
     @Override
+    public void onByteWritten(long bytesWritten) {
+        if (!completed.get()) {
+            delegate.onByteWritten(bytesWritten);
+        }
+    }
+
+    @Override
     public void onFlushStart() {
         if (!completed.get()) {
             delegate.onFlushStart();
@@ -153,16 +160,9 @@ final class SafeHttpServerEventsListener extends HttpServerEventsListener implem
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
         if (!completed.get()) {
-            delegate.onFlushSuccess(duration, timeUnit);
-        }
-    }
-
-    @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        if (!completed.get()) {
-            delegate.onFlushFailed(duration, timeUnit, throwable);
+            delegate.onFlushComplete(duration, timeUnit);
         }
     }
 
@@ -174,9 +174,9 @@ final class SafeHttpServerEventsListener extends HttpServerEventsListener implem
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
         if (!completed.get()) {
-            delegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+            delegate.onWriteSuccess(duration, timeUnit);
         }
     }
 
@@ -235,5 +235,29 @@ final class SafeHttpServerEventsListener extends HttpServerEventsListener implem
         if (!completed.get()) {
             delegate.onCustomEvent(event, throwable);
         }
+    }
+
+    public HttpServerEventsListener unwrap() {
+        return delegate;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof SafeHttpServerEventsListener)) {
+            return false;
+        }
+
+        SafeHttpServerEventsListener that = (SafeHttpServerEventsListener) o;
+
+        return !(delegate != null? !delegate.equals(that.delegate) : that.delegate != null);
+
+    }
+
+    @Override
+    public int hashCode() {
+        return delegate != null? delegate.hashCode() : 0;
     }
 }

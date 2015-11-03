@@ -132,8 +132,8 @@ public class MockClientEventListener extends ClientEventListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        delegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
+        delegate.onWriteSuccess(duration, timeUnit);
     }
 
     @Override
@@ -142,13 +142,8 @@ public class MockClientEventListener extends ClientEventListener {
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        delegate.onFlushFailed(duration, timeUnit, throwable);
-    }
-
-    @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        delegate.onFlushSuccess(duration, timeUnit);
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
+        delegate.onFlushComplete(duration, timeUnit);
     }
 
     @Override
@@ -159,6 +154,11 @@ public class MockClientEventListener extends ClientEventListener {
     @Override
     public void onByteRead(long bytesRead) {
         delegate.onByteRead(bytesRead);
+    }
+
+    @Override
+    public void onByteWritten(long bytesWritten) {
+        delegate.onByteWritten(bytesWritten);
     }
 
     @Override

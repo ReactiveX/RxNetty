@@ -131,6 +131,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
             return;
         }
 
+        ctx.pipeline().addFirst(new BytesInspector(eventPublisher, eventListener));
 
         super.handlerAdded(ctx);
     }
