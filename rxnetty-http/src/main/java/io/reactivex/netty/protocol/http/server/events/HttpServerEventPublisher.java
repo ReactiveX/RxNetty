@@ -20,6 +20,7 @@ import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.events.ListenersHolder;
 import io.reactivex.netty.events.internal.SafeEventListener;
+import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventListener;
 import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventPublisher;
 import rx.Subscription;
 import rx.functions.Action1;
@@ -194,8 +195,8 @@ public final class HttpServerEventPublisher extends HttpServerEventsListener
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        tcpDelegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onWriteSuccess(duration, timeUnit);
     }
 
     @Override
@@ -204,13 +205,8 @@ public final class HttpServerEventPublisher extends HttpServerEventsListener
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        tcpDelegate.onFlushFailed(duration, timeUnit, throwable);
-    }
-
-    @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        tcpDelegate.onFlushSuccess(duration, timeUnit);
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onFlushComplete(duration, timeUnit);
     }
 
     @Override
@@ -221,6 +217,11 @@ public final class HttpServerEventPublisher extends HttpServerEventsListener
     @Override
     public void onByteRead(long bytesRead) {
         tcpDelegate.onByteRead(bytesRead);
+    }
+
+    @Override
+    public void onByteWritten(long bytesWritten) {
+        tcpDelegate.onByteWritten(bytesWritten);
     }
 
     @Override
@@ -277,7 +278,15 @@ public final class HttpServerEventPublisher extends HttpServerEventsListener
 
         CompositeSubscription cs = new CompositeSubscription();
         cs.add(listeners.subscribe(listener));
-        cs.add(tcpDelegate.subscribe(listener));
+
+        TcpServerEventListener tcpListener = listener;
+
+        if (listener instanceof SafeHttpServerEventsListener) {
+            tcpListener = ((SafeHttpServerEventsListener) listener).unwrap();
+        }
+
+        cs.add(tcpDelegate.subscribe(tcpListener));
+
         return cs;
     }
 

@@ -29,7 +29,7 @@ import static org.hamcrest.Matchers.*;
 public class MockConnectionEventListener extends ConnectionEventListener {
 
     public enum Event {
-        BytesRead, FlushStart, FlushSuccess, FlushFailed, WriteStart, WriteSuccess, WriteFailed, CloseStart,
+        BytesRead, BytesWritten, FlushStart, FlushSuccess, WriteStart, WriteSuccess, WriteFailed, CloseStart,
         CloseSuccess, CloseFailed, CustomEvent, CustomEventWithDuration, CustomEventWithDurationAndError,
         CustomEventWithError, Complete
     }
@@ -49,23 +49,21 @@ public class MockConnectionEventListener extends ConnectionEventListener {
     }
 
     @Override
+    public void onByteWritten(long bytesWritten) {
+        methodsCalled.add(Event.BytesWritten);
+        this.bytesWritten = bytesWritten;
+    }
+
+    @Override
     public void onFlushStart() {
         methodsCalled.add(Event.FlushStart);
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
         methodsCalled.add(Event.FlushSuccess);
         this.duration = duration;
         this.timeUnit = timeUnit;
-    }
-
-    @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        methodsCalled.add(Event.FlushFailed);
-        this.duration = duration;
-        this.timeUnit = timeUnit;
-        recievedError = throwable;
     }
 
     @Override
@@ -74,11 +72,10 @@ public class MockConnectionEventListener extends ConnectionEventListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
         methodsCalled.add(Event.WriteSuccess);
         this.duration = duration;
         this.timeUnit = timeUnit;
-        this.bytesWritten = bytesWritten;
     }
 
     @Override

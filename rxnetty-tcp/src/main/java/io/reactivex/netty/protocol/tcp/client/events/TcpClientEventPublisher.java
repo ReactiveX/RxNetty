@@ -189,18 +189,18 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
     }
 
     @Override
+    public void onByteWritten(long bytesWritten) {
+        connDelegate.onByteWritten(bytesWritten);
+    }
+
+    @Override
     public void onFlushStart() {
         connDelegate.onFlushStart();
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        connDelegate.onFlushSuccess(duration, timeUnit);
-    }
-
-    @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        connDelegate.onFlushFailed(duration, timeUnit, throwable);
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
+        connDelegate.onFlushComplete(duration, timeUnit);
     }
 
     @Override
@@ -209,8 +209,8 @@ public final class TcpClientEventPublisher extends TcpClientEventListener
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        connDelegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
+        connDelegate.onWriteSuccess(duration, timeUnit);
     }
 
     @Override

@@ -21,6 +21,7 @@ targetCompatibility = JavaVersion.VERSION_1_8
 
 dependencies {
     compile project(':rxnetty-http')
+    compile project(':rxnetty-spectator-http')
     compile project(':rxnetty-tcp')
     compile project(':rxnetty-common')
     compile "io.reactivex:rxjava-string:1.0.0"

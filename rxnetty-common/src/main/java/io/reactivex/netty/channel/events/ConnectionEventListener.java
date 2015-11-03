@@ -34,28 +34,26 @@ public abstract class ConnectionEventListener implements EventListener {
     public void onByteRead(long bytesRead) { }
 
     /**
+     * Event whenever any bytes are successfully written on any open connection.
+     *
+     * @param bytesWritten Number of bytes written.
+     */
+    @SuppressWarnings("unused")
+    public void onByteWritten(long bytesWritten) { }
+
+    /**
      * Event whenever a flush is issued on a connection.
      */
     public void onFlushStart() {}
 
     /**
-     * Event whenever flush succeeds.
+     * Event whenever flush completes.
      *
      * @param duration Duration between flush start and completion.
      * @param timeUnit Timeunit for the duration.
      */
     @SuppressWarnings("unused")
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {}
-
-    /**
-     * Event whenever flush fails.
-     *
-     * @param duration Duration between flush start and failure.
-     * @param timeUnit Timeunit for the duration.
-     * @param throwable Error that caused the failure.
-     */
-    @SuppressWarnings("unused")
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {}
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {}
 
     /**
      * Event whenever a write is issued on a connection.
@@ -63,14 +61,14 @@ public abstract class ConnectionEventListener implements EventListener {
     public void onWriteStart() {}
 
     /**
-     * Event whenever data is written successfully on a connection.
+     * Event whenever data is written successfully on a connection. Use {@link #onByteWritten(long)} to capture number
+     * of bytes written.
      *
      * @param duration Duration between write start and completion.
      * @param timeUnit Timeunit for the duration.
-     * @param bytesWritten Number of bytes written.
      */
     @SuppressWarnings("unused")
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {}
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {}
 
     /**
      * Event whenever a write failed on a connection.

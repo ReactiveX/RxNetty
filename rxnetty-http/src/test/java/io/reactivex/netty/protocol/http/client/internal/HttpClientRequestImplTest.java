@@ -37,6 +37,7 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.events.EventAttributeKeys;
+import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -792,7 +793,7 @@ public class HttpClientRequestImplTest {
         writtenOSub.assertNoErrors();
 
         @SuppressWarnings("unchecked")
-        Observable<Object> rawReqO = (Observable<Object>) rawReq.asObservable(requestRule.channel);
+        Observable<Object> rawReqO = (Observable<Object>) rawReq.asObservable(requestRule.connMock);
 
         TestSubscriber<Object> rawReqOSub = new TestSubscriber<>();
         rawReqO.subscribe(rawReqOSub);
@@ -1034,7 +1035,15 @@ public class HttpClientRequestImplTest {
                 }
             };
 
-            Observable<?> reqAsO = rawReq.asObservable(channel);
+            ConnectionImpl<Object, Object> conn =
+                    ConnectionImpl.create(channel, null, new EventPublisher() {
+                        @Override
+                        public boolean publishingEnabled() {
+                            return false;
+                        }
+                    });
+
+            Observable<?> reqAsO = rawReq.asObservable(conn);
 
             TestSubscriber<T> writtenContentSub = new TestSubscriber<>();
             content.subscribe(writtenContentSub);

@@ -55,6 +55,8 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
     private volatile int closeIssued; // updated by the atomic updater, so required to be volatile.
 
     private final Channel nettyChannel;
+    private final ConnectionEventListener eventListener;
+    private final EventPublisher eventPublisher;
 
     private final Observable<Void> closeObservable;
     private final Observable<Void> flushAndCloseObservable;
@@ -69,11 +71,13 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
     public DefaultChannelOperations(final Channel nettyChannel, ConnectionEventListener eventListener,
                                     EventPublisher eventPublisher) {
         this.nettyChannel = nettyChannel;
-        closeObservable = Observable.create(new OnSubscribeForClose(eventListener, eventPublisher, nettyChannel));
+        this.eventListener = eventListener;
+        this.eventPublisher = eventPublisher;
+        closeObservable = Observable.create(new OnSubscribeForClose(nettyChannel));
         flushAndCloseObservable = closeObservable.doOnSubscribe(new Action0() {
             @Override
             public void call() {
-                nettyChannel.flush();
+                flush();
             }
         });
     }
@@ -140,7 +144,23 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
 
     @Override
     public void flush() {
-        nettyChannel.flush();
+        if (eventPublisher.publishingEnabled()) {
+            final long startTimeNanos = Clock.newStartTimeNanos();
+            eventListener.onFlushStart();
+            if (nettyChannel.eventLoop().inEventLoop()) {
+                _flushInEventloop(startTimeNanos);
+            } else {
+                nettyChannel.eventLoop()
+                            .execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    _flushInEventloop(startTimeNanos);
+                                }
+                            });
+            }
+        } else {
+            nettyChannel.flush();
+        }
     }
 
     @Override
@@ -186,13 +206,26 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
     }
 
     private <X> Observable<Void> _write(final Observable<X> msgs, Func1<X, Boolean> flushSelector) {
-        return _write(msgs.lift(new FlushSelectorOperator<>(flushSelector, nettyChannel)));
+        return _write(msgs.lift(new FlushSelectorOperator<>(flushSelector, this)));
+    }
+
+    private void _flushInEventloop(long startTimeNanos) {
+        assert nettyChannel.eventLoop().inEventLoop();
+        nettyChannel.flush(); // Flush is sync when from eventloop.
+        eventListener.onFlushComplete(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
     }
 
     private Observable<Void> _write(final Observable<?> msgs) {
         return Observable.create(new OnSubscribe<Void>() {
             @Override
             public void call(final Subscriber<? super Void> subscriber) {
+
+                final long startTimeNanos = Clock.newStartTimeNanos();
+
+                if (eventPublisher.publishingEnabled()) {
+                    eventListener.onWriteStart();
+                }
+
                 /*
                  * If a write happens from outside the eventloop, it does not wakeup the selector, till a flush happens.
                  * In absence of a selector wakeup, this write will be delayed by the selector sleep interval.
@@ -200,25 +233,25 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
                  * the write)
                  */
                 if (nettyChannel.eventLoop().inEventLoop()) {
-                    _writeStreamToChannel(subscriber);
+                    _writeStreamToChannel(subscriber, startTimeNanos);
                 } else {
                     nettyChannel.eventLoop()
                                 .execute(new Runnable() {
                                     @Override
                                     public void run() {
-                                        _writeStreamToChannel(subscriber);
+                                        _writeStreamToChannel(subscriber, startTimeNanos);
                                     }
                                 });
                 }
             }
 
-            private void _writeStreamToChannel(final Subscriber<? super Void> subscriber) {
+            private void _writeStreamToChannel(final Subscriber<? super Void> subscriber, final long startTimeNanos) {
                 final ChannelFuture writeFuture = nettyChannel.write(msgs.doOnCompleted(new Action0() {
                     @Override
                     public void call() {
                         Boolean shdNotFlush = nettyChannel.attr(FLUSH_ONLY_ON_READ_COMPLETE).get();
                         if (null == shdNotFlush || !shdNotFlush) {
-                            nettyChannel.flush();
+                            flush();
                         }
                     }
                 }));
@@ -237,8 +270,15 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
                         }
 
                         if (future.isSuccess()) {
+                            if (eventPublisher.publishingEnabled()) {
+                                eventListener.onWriteSuccess(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
+                            }
                             subscriber.onCompleted();
                         } else {
+                            if (eventPublisher.publishingEnabled()) {
+                                eventListener.onWriteFailed(Clock.onEndNanos(startTimeNanos), NANOSECONDS,
+                                                            future.cause());
+                            }
                             subscriber.onError(future.cause());
                         }
                     }
@@ -250,13 +290,8 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
     private class OnSubscribeForClose implements OnSubscribe<Void> {
 
         private final Channel nettyChannel;
-        private final ConnectionEventListener eventListener;
-        private final EventPublisher eventPublisher;
 
-        public OnSubscribeForClose(ConnectionEventListener eventListener, EventPublisher eventPublisher,
-                                   Channel nettyChannel) {
-            this.eventListener = eventListener;
-            this.eventPublisher = eventPublisher;
+        public OnSubscribeForClose(Channel nettyChannel) {
             this.nettyChannel = nettyChannel;
         }
 

@@ -17,8 +17,8 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.handler.codec.http.DefaultLastHttpContent;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.HttpUtil;
 import io.reactivex.netty.channel.ChannelOperations;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.FlushSelectorOperator;
@@ -110,14 +110,13 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
     public <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource, Func0<T> trailerFactory,
                                                               Func2<T, C, T> trailerMutator,
                                                               Func1<C, Boolean> flushSelector) {
-        return write(contentSource.lift(new FlushSelectorOperator<>(flushSelector, connection.unsafeNettyChannel())),
+        return write(contentSource.lift(new FlushSelectorOperator<>(flushSelector, connection)),
                      trailerFactory, trailerMutator);
     }
 
     @Override
     public ResponseContentWriter<C> write(Observable<C> msgs, final Func1<C, Boolean> flushSelector) {
-        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<>(flushSelector,
-                                                                                   connection.unsafeNettyChannel())),
+        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<>(flushSelector, connection)),
                                        true);
     }
 
@@ -147,16 +146,14 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
                                                                     Func2<T, String, T> trailerMutator,
                                                                     Func1<String, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
-        Observable rawObservable = contentSource.lift(new FlushSelectorOperator<>(flushSelector,
-                                                                                  connection.unsafeNettyChannel()));
+        Observable rawObservable = contentSource.lift(new FlushSelectorOperator<>(flushSelector, connection));
         return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
                                        false);
     }
 
     @Override
     public ResponseContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
-        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<>(flushSelector,
-                                                                                   connection.unsafeNettyChannel())),
+        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<>(flushSelector, connection)),
                                        true);
     }
 
@@ -186,16 +183,14 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
                                                                    Func2<T, byte[], T> trailerMutator,
                                                                    Func1<byte[], Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
-        Observable rawObservable = contentSource.lift(new FlushSelectorOperator<>(flushSelector,
-                                                                                  connection.unsafeNettyChannel()));
+        Observable rawObservable = contentSource.lift(new FlushSelectorOperator<>(flushSelector, connection));
         return new ContentWriterImpl<>(this, OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator),
                                        false);
     }
 
     @Override
     public ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector) {
-        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<>(flushSelector,
-                                                                                   connection.unsafeNettyChannel())),
+        return new ContentWriterImpl<>(this, msgs.lift(new FlushSelectorOperator<>(flushSelector, connection)),
                                        true);
     }
 
