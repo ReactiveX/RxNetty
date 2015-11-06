@@ -31,7 +31,10 @@ configure(subprojects) {
     targetCompatibility = JavaVersion.VERSION_1_7
 
     dependencies {
-        compile "io.reactivex:rxjava:1.0.13"
+        compile "io.reactivex:rxjava:1.0.15"
+
+        compile 'org.openjdk.jmh:jmh-generator-annprocess:1.11.2'
+        compile 'org.openjdk.jmh:jmh-core:1.11.2'
 
         testCompile 'junit:junit:4.12'
         testCompile "org.hamcrest:hamcrest-library:1.3"

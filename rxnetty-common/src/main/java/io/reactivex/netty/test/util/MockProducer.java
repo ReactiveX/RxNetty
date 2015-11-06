@@ -16,8 +16,6 @@
  */
 package io.reactivex.netty.test.util;
 
-import org.hamcrest.MatcherAssert;
-import org.hamcrest.Matchers;
 import rx.Producer;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,12 +44,16 @@ public class MockProducer implements Producer {
 
     public void assertIllegalRequest() {
         final int negReqCnt = negativeRequestCount.get();
-        MatcherAssert.assertThat("Negative items requested " + negReqCnt + " times.", negReqCnt, Matchers.is(0));
+        if (negReqCnt != 0) {
+            throw new AssertionError("Negative items requested " + negReqCnt + " times.");
+        }
     }
 
     public void assertBackpressureRequested() {
         final int maxValReqCnt = maxValueRequestedCount.get();
-        MatcherAssert.assertThat("Backpressure disabled " + maxValReqCnt + " times.", maxValReqCnt, Matchers.is(0));
+        if (maxValReqCnt != 0) {
+            throw new AssertionError("Backpressure disabled " + maxValReqCnt + " times.");
+        }
     }
 
     public void reset() {
