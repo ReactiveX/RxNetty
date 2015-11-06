@@ -194,7 +194,7 @@ public class MockClientEventListener extends ClientEventListener {
                                      + ". Expected: " + events.length);
         }
 
-        if (methodsCalled.containsAll(Arrays.asList(events))) {
+        if (!methodsCalled.containsAll(Arrays.asList(events))) {
             throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled
                                      + ". Expected: " + Arrays.toString(events));
         }
