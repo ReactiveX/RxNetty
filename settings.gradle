@@ -21,5 +21,4 @@ include 'rxnetty-spectator-tcp'
 include 'rxnetty-http'
 include 'rxnetty-spectator-http'
 include 'rxnetty-examples'
-include 'rxnetty-test-utils'
 

@@ -16,5 +16,4 @@
  */
 dependencies {
     compile project(':rxnetty-common')
-    testCompile project(':rxnetty-test-utils')
 }

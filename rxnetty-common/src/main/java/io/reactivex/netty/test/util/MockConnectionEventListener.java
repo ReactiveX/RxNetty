@@ -20,11 +20,9 @@ package io.reactivex.netty.test.util;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
 
 public class MockConnectionEventListener extends ConnectionEventListener {
 
@@ -142,8 +140,15 @@ public class MockConnectionEventListener extends ConnectionEventListener {
     }
 
     public void assertMethodsCalled(Event... events) {
-        assertThat("Unexpected methods called count. Methods called: " + methodsCalled, methodsCalled, hasSize(events.length));
-        assertThat("Unexpected methods called.", methodsCalled, contains(events));
+        if (methodsCalled.size() != events.length) {
+            throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled.size()
+                                     + ". Expected: " + events.length);
+        }
+
+        if (!methodsCalled.containsAll(Arrays.asList(events))) {
+            throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled
+                                     + ". Expected: " + Arrays.toString(events));
+        }
     }
 
     public List<Event> getMethodsCalled() {
