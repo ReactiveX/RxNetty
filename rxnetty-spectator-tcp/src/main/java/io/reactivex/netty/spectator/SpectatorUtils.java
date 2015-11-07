@@ -30,13 +30,36 @@ public final class SpectatorUtils {
         return Spectator.registry().counter(name, "id", id);
     }
 
+    public static Counter newCounter(String name, String id, String... tags) {
+        String[] allTags = getTagsWithId(id, tags);
+        return Spectator.registry().counter(name, allTags);
+    }
+
     public static Timer newTimer(String name, String id) {
         return Spectator.registry().timer(name, "id", id);
+    }
+
+    public static Timer newTimer(String name, String id, String... tags) {
+        return Spectator.registry().timer(name, getTagsWithId(id, tags));
     }
 
     public static <T extends Number> T newGauge(String name, String id, T number) {
         final ExtendedRegistry registry = Spectator.registry();
         Id gaugeId = registry.createId(name, "id", id);
         return registry.gauge(gaugeId, number);
+    }
+
+    public static <T extends Number> T newGauge(String name, String id, T number, String... tags) {
+        final ExtendedRegistry registry = Spectator.registry();
+        Id gaugeId = registry.createId(name, getTagsWithId(id, tags));
+        return registry.gauge(gaugeId, number);
+    }
+
+    private static String[] getTagsWithId(String id, String[] tags) {
+        String[] allTags = new String[tags.length + 2];
+        System.arraycopy(tags, 0, allTags, 0, tags.length);
+        allTags[allTags.length - 2] = "id";
+        allTags[allTags.length - 1] = id;
+        return allTags;
     }
 }

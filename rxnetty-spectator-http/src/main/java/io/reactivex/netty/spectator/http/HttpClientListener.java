@@ -18,8 +18,8 @@
 package io.reactivex.netty.spectator.http;
 
 import com.netflix.spectator.api.Counter;
-import com.netflix.spectator.api.Timer;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
+import io.reactivex.netty.spectator.LatencyMetrics;
 import io.reactivex.netty.spectator.tcp.TcpClientListener;
 
 import java.util.concurrent.TimeUnit;
@@ -36,20 +36,22 @@ public class HttpClientListener extends HttpClientEventsListener {
     private final Counter processedRequests;
     private final Counter requestWriteFailed;
     private final Counter failedResponses;
-    private final Timer requestWriteTimes;
-    private final Timer responseReadTimes;
-    private final Timer requestProcessingTimes;
+    private final ResponseCodesHolder responseCodesHolder;
+    private final LatencyMetrics requestWriteTimes;
+    private final LatencyMetrics responseReadTimes;
+    private final LatencyMetrics requestProcessingTimes;
     private final TcpClientListener tcpDelegate;
 
     public HttpClientListener(String monitorId) {
         requestBacklog = newGauge("requestBacklog", monitorId, new AtomicInteger());
         inflightRequests = newGauge("inflightRequests", monitorId, new AtomicInteger());
-        requestWriteTimes = newTimer("requestWriteTimes", monitorId);
-        responseReadTimes = newTimer("responseReadTimes", monitorId);
+        requestWriteTimes = new LatencyMetrics("requestWriteTimes", monitorId);
+        responseReadTimes = new LatencyMetrics("responseReadTimes", monitorId);
         processedRequests = newCounter("processedRequests", monitorId);
         requestWriteFailed = newCounter("requestWriteFailed", monitorId);
         failedResponses = newCounter("failedResponses", monitorId);
-        requestProcessingTimes = newTimer("requestProcessingTimes", monitorId);
+        requestProcessingTimes = new LatencyMetrics("requestProcessingTimes", monitorId);
+        responseCodesHolder = new ResponseCodesHolder(monitorId);
         tcpDelegate = new TcpClientListener(monitorId);
     }
 
@@ -73,17 +75,34 @@ public class HttpClientListener extends HttpClientEventsListener {
         return failedResponses.count();
     }
 
-    public Timer getRequestWriteTimes() {
-        return requestWriteTimes;
+    public long getResponse1xx() {
+        return responseCodesHolder.getResponse1xx();
     }
 
-    public Timer getResponseReadTimes() {
-        return responseReadTimes;
+    public long getResponse2xx() {
+        return responseCodesHolder.getResponse2xx();
+    }
+
+    public long getResponse3xx() {
+        return responseCodesHolder.getResponse3xx();
+    }
+
+    public long getResponse4xx() {
+        return responseCodesHolder.getResponse4xx();
+    }
+
+    public long getResponse5xx() {
+        return responseCodesHolder.getResponse5xx();
     }
 
     @Override
     public void onRequestProcessingComplete(long duration, TimeUnit timeUnit) {
         requestProcessingTimes.record(duration, timeUnit);
+    }
+
+    @Override
+    public void onResponseHeadersReceived(int responseCode, long duration, TimeUnit timeUnit) {
+        responseCodesHolder.update(responseCode);
     }
 
     @Override
@@ -246,10 +265,6 @@ public class HttpClientListener extends HttpClientEventsListener {
         return tcpDelegate.getFailedConnects();
     }
 
-    public Timer getConnectionTimes() {
-        return tcpDelegate.getConnectionTimes();
-    }
-
     public long getPendingConnectionClose() {
         return tcpDelegate.getPendingConnectionClose();
     }
@@ -266,20 +281,12 @@ public class HttpClientListener extends HttpClientEventsListener {
         return tcpDelegate.getFailedPoolAcquires();
     }
 
-    public Timer getPoolAcquireTimes() {
-        return tcpDelegate.getPoolAcquireTimes();
-    }
-
     public long getPendingPoolReleases() {
         return tcpDelegate.getPendingPoolReleases();
     }
 
     public long getFailedPoolReleases() {
         return tcpDelegate.getFailedPoolReleases();
-    }
-
-    public Timer getPoolReleaseTimes() {
-        return tcpDelegate.getPoolReleaseTimes();
     }
 
     public long getPoolEvictions() {
@@ -302,10 +309,6 @@ public class HttpClientListener extends HttpClientEventsListener {
         return tcpDelegate.getBytesWritten();
     }
 
-    public Timer getWriteTimes() {
-        return tcpDelegate.getWriteTimes();
-    }
-
     public long getBytesRead() {
         return tcpDelegate.getBytesRead();
     }
@@ -316,10 +319,6 @@ public class HttpClientListener extends HttpClientEventsListener {
 
     public long getFailedFlushes() {
         return tcpDelegate.getFailedFlushes();
-    }
-
-    public Timer getFlushTimes() {
-        return tcpDelegate.getFlushTimes();
     }
 
     public long getPoolAcquires() {
