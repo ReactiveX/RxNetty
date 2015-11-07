@@ -18,8 +18,8 @@
 package io.reactivex.netty.spectator.tcp;
 
 import com.netflix.spectator.api.Counter;
-import com.netflix.spectator.api.Timer;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
+import io.reactivex.netty.spectator.LatencyMetrics;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -35,18 +35,18 @@ public class TcpClientListener extends TcpClientEventListener {
     private final Counter connectionCount;
     private final AtomicInteger pendingConnects;
     private final Counter failedConnects;
-    private final Timer connectionTimes;
+    private final LatencyMetrics connectionTimes;
 
     private final AtomicInteger pendingConnectionClose;
     private final Counter failedConnectionClose;
 
     private final AtomicInteger pendingPoolAcquires;
     private final Counter failedPoolAcquires;
-    private final Timer poolAcquireTimes;
+    private final LatencyMetrics poolAcquireTimes;
 
     private final AtomicInteger pendingPoolReleases;
     private final Counter failedPoolReleases;
-    private final Timer poolReleaseTimes;
+    private final LatencyMetrics poolReleaseTimes;
 
     private final Counter poolAcquires;
     private final Counter poolEvictions;
@@ -57,25 +57,25 @@ public class TcpClientListener extends TcpClientEventListener {
     private final AtomicInteger pendingFlushes;
 
     private final Counter bytesWritten;
-    private final Timer writeTimes;
+    private final LatencyMetrics writeTimes;
     private final Counter bytesRead;
     private final Counter failedWrites;
     private final Counter failedFlushes;
-    private final Timer flushTimes;
+    private final LatencyMetrics flushTimes;
 
     public TcpClientListener(String monitorId) {
         liveConnections = newGauge("liveConnections", monitorId, new AtomicInteger());
         connectionCount = newCounter("connectionCount", monitorId);
         pendingConnects = newGauge("pendingConnects", monitorId, new AtomicInteger());
         failedConnects = newCounter("failedConnects", monitorId);
-        connectionTimes = newTimer("connectionTimes", monitorId);
+        connectionTimes = new LatencyMetrics("connectionTimes", monitorId);
         pendingConnectionClose = newGauge("pendingConnectionClose", monitorId, new AtomicInteger());
         failedConnectionClose = newCounter("failedConnectionClose", monitorId);
         pendingPoolAcquires = newGauge("pendingPoolAcquires", monitorId, new AtomicInteger());
-        poolAcquireTimes = newTimer("poolAcquireTimes", monitorId);
+        poolAcquireTimes = new LatencyMetrics("poolAcquireTimes", monitorId);
         failedPoolAcquires = newCounter("failedPoolAcquires", monitorId);
         pendingPoolReleases = newGauge("pendingPoolReleases", monitorId, new AtomicInteger());
-        poolReleaseTimes = newTimer("poolReleaseTimes", monitorId);
+        poolReleaseTimes = new LatencyMetrics("poolReleaseTimes", monitorId);
         failedPoolReleases = newCounter("failedPoolReleases", monitorId);
         poolAcquires = newCounter("poolAcquires", monitorId);
         poolEvictions = newCounter("poolEvictions", monitorId);
@@ -86,11 +86,11 @@ public class TcpClientListener extends TcpClientEventListener {
         pendingFlushes = newGauge("pendingFlushes", monitorId, new AtomicInteger());
 
         bytesWritten = newCounter("bytesWritten", monitorId);
-        writeTimes = newTimer("writeTimes", monitorId);
+        writeTimes = new LatencyMetrics("writeTimes", monitorId);
         bytesRead = newCounter("bytesRead", monitorId);
         failedWrites = newCounter("failedWrites", monitorId);
         failedFlushes = newCounter("failedFlushes", monitorId);
-        flushTimes = newTimer("flushTimes", monitorId);
+        flushTimes = new LatencyMetrics("flushTimes", monitorId);
     }
 
     @Override
@@ -232,10 +232,6 @@ public class TcpClientListener extends TcpClientEventListener {
         return failedConnects.count();
     }
 
-    public Timer getConnectionTimes() {
-        return connectionTimes;
-    }
-
     public long getPendingConnectionClose() {
         return pendingConnectionClose.get();
     }
@@ -252,20 +248,12 @@ public class TcpClientListener extends TcpClientEventListener {
         return failedPoolAcquires.count();
     }
 
-    public Timer getPoolAcquireTimes() {
-        return poolAcquireTimes;
-    }
-
     public long getPendingPoolReleases() {
         return pendingPoolReleases.get();
     }
 
     public long getFailedPoolReleases() {
         return failedPoolReleases.count();
-    }
-
-    public Timer getPoolReleaseTimes() {
-        return poolReleaseTimes;
     }
 
     public long getPoolEvictions() {
@@ -288,10 +276,6 @@ public class TcpClientListener extends TcpClientEventListener {
         return bytesWritten.count();
     }
 
-    public Timer getWriteTimes() {
-        return writeTimes;
-    }
-
     public long getBytesRead() {
         return bytesRead.count();
     }
@@ -302,10 +286,6 @@ public class TcpClientListener extends TcpClientEventListener {
 
     public long getFailedFlushes() {
         return failedFlushes.count();
-    }
-
-    public Timer getFlushTimes() {
-        return flushTimes;
     }
 
     public long getPoolAcquires() {
