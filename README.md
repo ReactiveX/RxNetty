@@ -1,6 +1,3 @@
-[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Average time to resolve an issue")
-[![Percentage of issues still open](http://isitmaintained.com/badge/open/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Percentage of issues still open")
-
 Branch Status
 =======
 
@@ -13,6 +10,8 @@ Motivations and detailed status of the breaking changes in 0.5.x can be found [h
 RxNetty
 =======
 <a href='https://travis-ci.org/ReactiveX/RxNetty/builds'><img src='https://travis-ci.org/ReactiveX/RxNetty.svg?branch=0.5.x'></a>
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Average time to resolve an issue")
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Percentage of issues still open")
 
 Reactive Extension (Rx) Adaptor for Netty
 
