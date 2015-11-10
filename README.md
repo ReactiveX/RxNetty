@@ -1,3 +1,6 @@
+[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Average time to resolve an issue")
+[![Percentage of issues still open](http://isitmaintained.com/badge/open/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Percentage of issues still open")
+
 Branch Status
 =======
 
@@ -30,9 +33,9 @@ repositories {
     maven { url 'https://oss.jfrog.org/libs-snapshot' }
 }
 ```
-
+##### For HTTP
 ```groovy
-compile 'io.reactivex:rxnetty:0.5.0-SNAPSHOT'
+compile 'io.reactivex:rxnetty-http:0.5.0-SNAPSHOT'
 ```
 ###### Unintentional release artifacts
 
