@@ -22,6 +22,7 @@ import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
+import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import rx.Observable;
 import rx.Subscriber;
@@ -390,7 +391,7 @@ public abstract class HttpServerRequest<T> {
      *
      * @return Stream of content.
      */
-    public abstract Observable<T> getContent();
+    public abstract ContentSource<T> getContent();
 
     /**
      * Subscribes to the content and discards.

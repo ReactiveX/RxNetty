@@ -24,6 +24,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
@@ -363,7 +364,7 @@ public abstract class HttpClientResponse<T> {
      *
      * @return Stream of content as {@link ServerSentEvent} messages.
      */
-    public abstract Observable<ServerSentEvent> getContentAsServerSentEvents();
+    public abstract ContentSource<ServerSentEvent> getContentAsServerSentEvents();
 
     /**
      * Returns the content as a stream. There can only be one {@link Subscriber} to the returned {@link Observable}, any
@@ -371,7 +372,7 @@ public abstract class HttpClientResponse<T> {
      *
      * @return Stream of content.
      */
-    public abstract Observable<T> getContent();
+    public abstract ContentSource<T> getContent();
 
     /**
      * Marks the content to be discarded. This means that the content can not be read from this response from now.
