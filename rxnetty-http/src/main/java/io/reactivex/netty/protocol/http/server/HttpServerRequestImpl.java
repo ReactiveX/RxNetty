@@ -18,18 +18,18 @@ package io.reactivex.netty.protocol.http.server;
 
 import io.netty.channel.Channel;
 import io.netty.handler.codec.DecoderResult;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import io.reactivex.netty.protocol.http.ws.server.WebSocketHandshaker;
 import rx.Observable;
-import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Func1;
 
@@ -254,12 +254,12 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
     }
 
     @Override
-    public Observable<T> getContent() {
-        return Observable.create(new OnSubscribe<T>() {
+    public ContentSource<T> getContent() {
+
+        return new ContentSource<T>(nettyChannel, new Func1<Subscriber<? super T>, Object>() {
             @Override
-            public void call(Subscriber<? super T> subscriber) {
-                nettyChannel.pipeline()
-                            .fireUserEventTriggered(new HttpContentSubscriberEvent<>(subscriber));
+            public Object call(Subscriber<? super T> subscriber) {
+                return new HttpContentSubscriberEvent<>(subscriber);
             }
         });
     }

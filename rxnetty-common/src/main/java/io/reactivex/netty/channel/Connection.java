@@ -23,7 +23,6 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.ReferenceCountUtil;
 import rx.Observable;
-import rx.Observable.OnSubscribe;
 import rx.Subscriber;
 import rx.functions.Func1;
 
@@ -68,12 +67,11 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
      *
      * @return The stream of data that is read from the connection.
      */
-    public Observable<R> getInput() {
-        return Observable.create(new OnSubscribe<R>() {
+    public ContentSource<R> getInput() {
+        return new ContentSource<>(nettyChannel, new Func1<Subscriber<? super R>, Object>() {
             @Override
-            public void call(Subscriber<? super R> subscriber) {
-                nettyChannel.pipeline()
-                            .fireUserEventTriggered(new ConnectionInputSubscriberEvent<>(subscriber, Connection.this));
+            public Object call(Subscriber<? super R> subscriber) {
+                return new ConnectionInputSubscriberEvent<>(subscriber, Connection.this);
             }
         });
     }

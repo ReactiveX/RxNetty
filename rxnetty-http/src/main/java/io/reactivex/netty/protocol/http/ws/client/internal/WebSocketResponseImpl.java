@@ -22,6 +22,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
@@ -226,12 +227,12 @@ public final class WebSocketResponseImpl<T> extends WebSocketResponse<T> {
     }
 
     @Override
-    public Observable<ServerSentEvent> getContentAsServerSentEvents() {
+    public ContentSource<ServerSentEvent> getContentAsServerSentEvents() {
         return delegate.getContentAsServerSentEvents();
     }
 
     @Override
-    public Observable<T> getContent() {
+    public ContentSource<T> getContent() {
         return delegate.getContent();
     }
 
