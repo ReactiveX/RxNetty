@@ -24,6 +24,8 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.contexts.ContextsContainer;
+import io.reactivex.netty.contexts.RequestCorrelator;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
@@ -51,6 +53,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static java.util.concurrent.TimeUnit.*;
+import static io.reactivex.netty.contexts.AbstractClientContextHandler.NewContextEvent;
 
 public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
@@ -387,13 +390,13 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
                                                         final TcpClient<?, HttpClientResponse<O>> client,
-                                                        int maxRedirects) {
+                                                        int maxRedirects, RequestCorrelator correlator) {
         Redirector<I, O> redirector = NO_REDIRECTS == maxRedirects
                                                                 ? null
                                                                 : new Redirector<I, O>(maxRedirects, client
         );
 
-        final RawRequest<I, O> rawRequest = RawRequest.create(version, httpMethod, uri, redirector);
+        final RawRequest<I, O> rawRequest = RawRequest.create(version, httpMethod, uri, redirector, correlator);
 
         if (null != redirector) {
             redirector.setOriginalRequest(rawRequest);
@@ -405,7 +408,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
                                                         final TcpClient<?, HttpClientResponse<O>> client) {
-        return create(version, httpMethod, uri, client, NO_REDIRECTS);
+        return create(version, httpMethod, uri, client, NO_REDIRECTS, null);
     }
 
     public static <I, O> HttpClientRequest<I, O> create(final RawRequest<I, O> rawRequest,
@@ -426,7 +429,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     @SuppressWarnings("rawtypes")
     private Observable<HttpClientResponse<O>> _writeContentRaw(Observable rawContent, boolean hasTrailers) {
         final RawRequest<I, O> r = RawRequest.create(rawRequest.getHeaders(), rawContent, hasTrailers,
-                                               rawRequest.getRedirector());
+                                               rawRequest.getRedirector(), rawRequest.getCorrelator());
         return new HttpClientRequestImpl<>(r, client);
     }
 
@@ -435,7 +438,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                                Func1<?, Boolean> flushSelector, boolean hasTrailers) {
         final RawRequest<I, O> r = RawRequest
                 .create(rawRequest.getHeaders(), rawContent, flushSelector, hasTrailers,
-                        rawRequest.getRedirector());
+                        rawRequest.getRedirector(), rawRequest.getCorrelator());
         return new HttpClientRequestImpl<>(r, client);
     }
 
@@ -449,7 +452,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         private final Observable source;
         private final TcpClient<?, HttpClientResponse<O>> client;
 
-        public OnSubscribeFuncImpl(final TcpClient<?, HttpClientResponse<O>> client, RawRequest<I, O> rawRequest) {
+        public OnSubscribeFuncImpl(final TcpClient<?, HttpClientResponse<O>> client, final RawRequest<I, O> rawRequest) {
             this.client = client;
             ConnToResponseFunc<I, O> connToResponseFunc = new ConnToResponseFunc<>(rawRequest);
             Observable<HttpClientResponse<O>> source = this.client.createConnectionRequest()
@@ -477,9 +480,19 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             implements Func1<Connection<HttpClientResponse<O>, ?>, Observable<HttpClientResponse<O>>> {
 
         private final RawRequest<I, O> rawRequest;
+        private final String requestId;
+        private final ContextsContainer container;
 
         public ConnToResponseFunc(RawRequest<I, O> rawRequest) {
             this.rawRequest = rawRequest;
+            final RequestCorrelator correlator = rawRequest.getCorrelator();
+            if (null != correlator) {
+                requestId = correlator.getRequestIdForClientRequest();
+                container = correlator.getContextForClientRequest(requestId);
+            } else {
+                requestId = null;
+                container = null;
+            }
         }
 
         @Override
@@ -505,6 +518,9 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
         @SuppressWarnings("unchecked")
         protected Observable<Void> writeRequest(Connection<HttpClientResponse<O>, ?> conn) {
+            if (null != requestId && null != container) {
+                conn.unsafeNettyChannel().pipeline().fireUserEventTriggered(new NewContextEvent(requestId, container));
+            }
             return conn.write(rawRequest.asObservable(conn));
         }
     }

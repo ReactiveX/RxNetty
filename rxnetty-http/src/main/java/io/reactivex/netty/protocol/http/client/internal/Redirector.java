@@ -164,7 +164,7 @@ public class Redirector<I, O> implements Func1<HttpClientResponse<O>, Observable
             // according to HTTP spec, 303 mandates the change of request type to GET
             // If it is a get, then the content is not to be sent.
             redirectRequest = RawRequest.create(redirectRequest.getHeaders().protocolVersion(), HttpMethod.GET,
-                                                redirectUri, this);
+                                                redirectUri, this, original.getCorrelator());
         }
 
         return HttpClientRequestImpl.create(redirectRequest, client);

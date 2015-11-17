@@ -29,6 +29,8 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.contexts.RequestCorrelator;
+import io.reactivex.netty.contexts.RequestIdProvider;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
@@ -343,6 +345,26 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      * @return A new {@link HttpClient} instance.
      */
     public abstract <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
+
+    /**
+     * Creates a new client instances which is context aware, inheriting all configurations from this client
+     *
+     * @param requestIdHeaderName Header name to use for extracting the request Id
+     * @param correlator {@link RequestCorrelator} for an inbound request to all outbound requests that are made
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> context(String requestIdHeaderName, RequestCorrelator correlator);
+
+    /**
+     * Creates a new client instances which is context aware, inheriting all configurations from this client
+     *
+     * @param provider {@link RequestIdProvider} for a globally unique identifier for a request
+     * @param correlator {@link RequestCorrelator} for an inbound request to all outbound requests that are made
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> context(RequestIdProvider provider, RequestCorrelator correlator);
 
     /**
      * Creates a new client instance, inheriting all configurations from this client and using the passed

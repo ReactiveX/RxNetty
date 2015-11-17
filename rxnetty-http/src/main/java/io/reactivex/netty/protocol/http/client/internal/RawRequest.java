@@ -27,6 +27,7 @@ import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.FlushSelectorOperator;
+import io.reactivex.netty.contexts.RequestCorrelator;
 import rx.Observable;
 import rx.functions.Func1;
 
@@ -36,6 +37,7 @@ import java.util.Map.Entry;
 public final class RawRequest<I, O> {
 
     private final Redirector<I, O> redirector;
+    private final RequestCorrelator correlator;
     private final HttpRequest headers;
     @SuppressWarnings("rawtypes")
     private final Observable content;
@@ -44,24 +46,25 @@ public final class RawRequest<I, O> {
 
     @SuppressWarnings("rawtypes")
     private RawRequest(HttpRequest headers, Observable content, Func1<?, Boolean> flushSelector, boolean hasTrailers,
-                       Redirector<I, O> redirector) {
+                       Redirector<I, O> redirector, RequestCorrelator correlator) {
         this.headers = headers;
         this.content = content;
         this.flushSelector = flushSelector;
         this.hasTrailers = hasTrailers;
         this.redirector = redirector;
+        this.correlator = correlator;
     }
 
     public RawRequest<I, O> addHeader(CharSequence name, Object value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().add(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().add(name, values);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> addCookie(Cookie cookie) {
@@ -72,7 +75,7 @@ public final class RawRequest<I, O> {
     public RawRequest<I, O> addDateHeader(CharSequence name, Date value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().add(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
@@ -80,25 +83,25 @@ public final class RawRequest<I, O> {
         for (Date value : values) {
             headersCopy.headers().add(name, value);
         }
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setDateHeader(CharSequence name, Date value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().set(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setHeader(CharSequence name, Object value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().set(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().set(name, values);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
@@ -112,39 +115,43 @@ public final class RawRequest<I, O> {
                 addNow = true;
             }
         }
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setKeepAlive(boolean keepAlive) {
         HttpRequest headersCopy = _copyHeaders();
         HttpUtil.setKeepAlive(headersCopy, keepAlive);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setTransferEncodingChunked() {
         HttpRequest headersCopy = _copyHeaders();
         HttpUtil.setTransferEncodingChunked(headersCopy, true);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> removeHeader(CharSequence name) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().remove(name);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setMethod(HttpMethod method) {
         HttpRequest headersCopy = _copyHeaders(headers.uri(), method);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> setUri(String uri) {
         HttpRequest headersCopy = _copyHeaders(uri, headers.method());
-        return create(headersCopy, content, hasTrailers, redirector);
+        return create(headersCopy, content, hasTrailers, redirector, correlator);
     }
 
     public RawRequest<I, O> followRedirect(Redirector<I, O> redirectHandler) {
-        return create(headers, content, hasTrailers, redirectHandler);
+        return create(headers, content, hasTrailers, redirectHandler, correlator);
+    }
+
+    public RawRequest<I, O> setCorrelator(RequestCorrelator correlator) {
+        return create(headers, content, hasTrailers, redirector, correlator);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -180,22 +187,22 @@ public final class RawRequest<I, O> {
     }
 
     public static <I, O> RawRequest<I, O> create(HttpVersion version, HttpMethod httpMethod, String uri,
-                                                 Redirector<I, O> redirectHandler) {
+                                                 Redirector<I, O> redirectHandler, RequestCorrelator correlator) {
         final HttpRequest headers = new DefaultHttpRequest(version, httpMethod, uri);
-        return create(headers, null, null, false, redirectHandler);
+        return create(headers, null, null, false, redirectHandler, correlator);
     }
 
     @SuppressWarnings("rawtypes")
     public static <I, O> RawRequest<I, O> create(HttpRequest headers, Observable content, boolean hasTrailers,
-                                                 Redirector<I, O> redirectHandler) {
-        return create(headers, content, null, hasTrailers, redirectHandler);
+                                                 Redirector<I, O> redirectHandler, RequestCorrelator correlator) {
+        return create(headers, content, null, hasTrailers, redirectHandler, correlator);
     }
 
     @SuppressWarnings("rawtypes")
     public static <I, O> RawRequest<I, O>  create(HttpRequest headers, Observable content,
                                                   Func1<?, Boolean> flushSelector, boolean hasTrailers,
-                                                  Redirector<I, O> redirectHandler) {
-        return new RawRequest<>(headers, content, flushSelector, hasTrailers, redirectHandler);
+                                                  Redirector<I, O> redirectHandler, RequestCorrelator correlator) {
+        return new RawRequest<>(headers, content, flushSelector, hasTrailers, redirectHandler, correlator);
     }
 
     public HttpRequest getHeaders() {
@@ -217,5 +224,9 @@ public final class RawRequest<I, O> {
 
     public Redirector<I, O> getRedirector() {
         return redirector;
+    }
+
+    public RequestCorrelator getCorrelator() {
+        return correlator;
     }
 }
