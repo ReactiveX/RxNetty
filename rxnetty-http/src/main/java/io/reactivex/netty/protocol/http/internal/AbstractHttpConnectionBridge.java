@@ -24,9 +24,9 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
@@ -36,6 +36,7 @@ import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.channel.SubscriberToChannelFutureBridge;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
+import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge.State.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Producer;
@@ -264,23 +265,37 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         @SuppressWarnings("unchecked")
         HttpContentSubscriberEvent<C> contentSubscriberEvent = (HttpContentSubscriberEvent<C>) evt;
         Subscriber<? super C> newSub = contentSubscriberEvent.getSubscriber();
+        Throwable errorToRaise = null;
 
         if (null == inputSubscriber) {
-            newSub.onError(new IllegalStateException("Received an HTTP Content subscriber without HTTP message."));
+            errorToRaise = new NullPointerException("Null Connection input subscriber.");
         } else {
             final State state = inputSubscriber.state;
 
             if (state.raiseErrorOnInputSubscription()) {
-                newSub.onError(state.raiseErrorOnInputSubscription);
+                errorToRaise = state.raiseErrorOnInputSubscription;
             } else if (isValidToEmit(state.contentSub)) {
-                /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
+                /*Allow only one concurrent input subscriber but allow concatenated subscribers*/
                 if (!newSub.isUnsubscribed()) {
-                    newSub.onError(ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED);
+                    errorToRaise = ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED;
                 }
-            } else {
+            } else if (evt instanceof UpgradedHttpContentSubscriberEvent) {
+                if (state.receiveStarted()) {
+                    inputSubscriber.setupContentSubscriber(newSub);
+                    onNewContentSubscriber(inputSubscriber, newSub);
+                } else {
+                    errorToRaise = new IllegalStateException("Content subscription received without request start.");
+                }
+            } else if (state.stage == Stage.HeaderReceived) {
                 inputSubscriber.setupContentSubscriber(newSub);
                 onNewContentSubscriber(inputSubscriber, newSub);
+            } else {
+                errorToRaise = new IllegalStateException("Content subscription received without request start.");
             }
+        }
+
+        if (null != errorToRaise && isValidToEmit(newSub)) {
+            newSub.onError(errorToRaise);
         }
     }
 
@@ -352,7 +367,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
         private volatile Stage stage = Stage.Created;
 
-        private void headerReceived() {
+        /*Visible for testing*/void headerReceived() {
             headerReceivedTimeNanos = Clock.newStartTimeNanos();
             stage = Stage.HeaderReceived;
         }
@@ -387,22 +402,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
         /*Visible for testing*/Subscriber<? super TrailingHeaders> getTrailerSub() {
             return trailerSub;
-        }
-
-        /*Visible for testing*/long getHeaderReceivedTimeNanos() {
-            return headerReceivedTimeNanos;
-        }
-
-        /*Visible for testing*/Stage getStage() {
-            return stage;
-        }
-
-        /*Visible for testing*/IllegalStateException getRaiseErrorOnInputSubscription() {
-            return raiseErrorOnInputSubscription;
-        }
-
-        /*Visible for testing*/IllegalStateException getRaiseErrorOnTrailerSubscription() {
-            return raiseErrorOnTrailerSubscription;
         }
     }
 
