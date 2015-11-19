@@ -50,6 +50,7 @@ import rx.functions.Action0;
 import rx.observers.TestSubscriber;
 import rx.subscriptions.Subscriptions;
 
+import java.nio.channels.ClosedChannelException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -111,7 +112,7 @@ public class AbstractHttpConnectionBridgeTest {
 
         assertThat("Subscriber did not get an error", subscriber.getOnErrorEvents(), hasSize(1));
         assertThat("Subscriber got an unexpected error", subscriber.getOnErrorEvents().get(0),
-                   instanceOf(IllegalStateException.class));
+                   instanceOf(NullPointerException.class));
     }
 
     @Test(timeout = 60000)
@@ -129,7 +130,7 @@ public class AbstractHttpConnectionBridgeTest {
     @Test(timeout = 60000)
     public void testHttpContentSub() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
-
+        handlerRule.simulateHeaderReceive(); /*Simulate header receive, required for content sub.*/
         ProducerAwareSubscriber<String> subscriber = new ProducerAwareSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpContentSubscriberEvent<>(subscriber));
 
@@ -264,6 +265,7 @@ public class AbstractHttpConnectionBridgeTest {
     @Test(timeout = 60000)
     public void testHttpChunked() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
+        handlerRule.simulateHeaderReceive();
 
         /*Eager content subscription*/
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
@@ -363,6 +365,7 @@ public class AbstractHttpConnectionBridgeTest {
     @Test(timeout = 60000)
     public void testConnectionInputCompleteWithNoHeaders() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
+        handlerRule.simulateHeaderReceive();
 
         /*Eager content subscription*/
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
@@ -375,13 +378,14 @@ public class AbstractHttpConnectionBridgeTest {
         handlerRule.connInSub.onCompleted();
 
         handlerRule.headerSub.assertTerminalEvent();
-        handlerRule.headerSub.assertNoErrors();
+        /*Since headers started but not content*/
+        handlerRule.headerSub.assertError(ClosedChannelException.class);
 
         contentSub.assertTerminalEvent();
-        contentSub.assertNoErrors();
+        contentSub.assertError(ClosedChannelException.class);
 
         trailerSub.assertTerminalEvent();
-        trailerSub.assertNoErrors();
+        trailerSub.assertError(ClosedChannelException.class);
     }
 
     @Test(timeout = 60000)
@@ -418,6 +422,7 @@ public class AbstractHttpConnectionBridgeTest {
     @Test(timeout = 60000)
     public void testMultiSubscribers() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
+        handlerRule.simulateHeaderReceive();
 
         /*Eager content subscription*/
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
@@ -484,6 +489,10 @@ public class AbstractHttpConnectionBridgeTest {
                     base.evaluate();
                 }
             };
+        }
+
+        public void simulateHeaderReceive() {
+            connInSub.getState().headerReceived();
         }
 
         protected void setupAndAssertConnectionInputSub() {

@@ -19,7 +19,7 @@ package io.reactivex.netty.protocol.http.ws;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
+import io.reactivex.netty.protocol.http.internal.UpgradedHttpContentSubscriberEvent;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
 import rx.Subscriber;
@@ -60,7 +60,7 @@ public final class WebSocketConnection {
             @Override
             public void call(Subscriber<? super WebSocketFrame> subscriber) {
                 delegate.unsafeNettyChannel().pipeline()
-                        .fireUserEventTriggered(new HttpContentSubscriberEvent<>(subscriber));
+                        .fireUserEventTriggered(new UpgradedHttpContentSubscriberEvent<>(subscriber));
             }
         });
         if (untilCloseFrame) {
