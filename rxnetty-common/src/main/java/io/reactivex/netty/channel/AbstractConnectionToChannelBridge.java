@@ -358,5 +358,10 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         /*Visible for testing*/long getRequested() {
             return requested;
         }
+
+        @Override
+        public String toString() {
+            return "ReadProducer{" + "requested=" + requested + '}';
+        }
     }
 }
