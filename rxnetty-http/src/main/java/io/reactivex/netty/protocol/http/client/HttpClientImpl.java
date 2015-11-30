@@ -27,12 +27,16 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.contexts.RequestCorrelator;
+import io.reactivex.netty.contexts.RequestIdProvider;
 import io.reactivex.netty.protocol.http.HttpHandlerNames;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientToConnectionBridge;
 import io.reactivex.netty.protocol.http.client.internal.HttpEventPublisherFactory;
 import io.reactivex.netty.protocol.http.client.internal.Redirector;
+import io.reactivex.netty.protocol.http.context.HttpRequestIdProvider;
+import io.reactivex.netty.protocol.http.context.client.HttpClientContextConfigurator;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.client.TcpClientImpl;
 import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
@@ -52,12 +56,14 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     private final TcpClient<?, HttpClientResponse<O>> client;
     private final HttpEventPublisherFactory eventPublisherFactory;
     private int maxRedirects;
+    private RequestCorrelator correlator;
 
     private HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client, HttpEventPublisherFactory factory,
-                           int maxRedirects) {
+                           int maxRedirects, RequestCorrelator correlator) {
         this.client = client;
         eventPublisherFactory = factory;
         this.maxRedirects = maxRedirects;
+        this.correlator = correlator;
     }
 
     @Override
@@ -112,7 +118,7 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public HttpClientRequest<I, O> createRequest(HttpVersion version, HttpMethod method, String uri) {
-        return HttpClientRequestImpl.create(version, method, uri, client, maxRedirects);
+        return HttpClientRequestImpl.create(version, method, uri, client, maxRedirects, correlator);
     }
 
     @Override
@@ -197,6 +203,18 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
+    public HttpClient<I, O> context(String requestIdHeaderName, RequestCorrelator correlator) {
+        return context(new HttpRequestIdProvider(requestIdHeaderName, correlator), correlator);
+    }
+
+    @Override
+    public HttpClient<I, O> context(RequestIdProvider provider, RequestCorrelator correlator) {
+        HttpClientImpl<I, O> toReturn = (HttpClientImpl<I, O>)pipelineConfigurator(new HttpClientContextConfigurator(provider, correlator));
+        toReturn.correlator = correlator;
+        return toReturn;
+    }
+
+    @Override
     public HttpClient<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
         return _copy(client.secure(sslEngineFactory));
     }
@@ -241,7 +259,7 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
                         pipeline.addLast(HttpHandlerNames.HttpClientCodec.getName(), new HttpClientCodec());
                         pipeline.addLast(new HttpClientToConnectionBridge<>());
                     }
-                }), httpEPF, NO_REDIRECTS);
+                }), httpEPF, NO_REDIRECTS, null);
     }
 
     public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(final TcpClient<ByteBuf, ByteBuf> tcpClient,
@@ -252,7 +270,7 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
                     public void call(ChannelPipeline pipeline) {
                         pipeline.addLast(new HttpClientToConnectionBridge<>());
                     }
-                }), eventPublisherFactory, NO_REDIRECTS);
+                }), eventPublisherFactory, NO_REDIRECTS, null);
     }
 
     @SuppressWarnings("unchecked")
@@ -261,6 +279,6 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     private <II, OO> HttpClientImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient) {
-        return new HttpClientImpl<>(newClient, eventPublisherFactory.copy(), maxRedirects);
+        return new HttpClientImpl<>(newClient, eventPublisherFactory.copy(), maxRedirects, correlator);
     }
 }

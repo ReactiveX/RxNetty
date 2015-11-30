@@ -26,6 +26,8 @@ import io.netty.channel.ServerChannel;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.contexts.RequestCorrelator;
+import io.reactivex.netty.contexts.RequestIdProvider;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -215,6 +217,26 @@ public abstract class HttpServer<I, O> implements EventSource<HttpServerEventsLi
      * @return A new {@link HttpServer} instance.
      */
     public abstract <II, OO> HttpServer<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
+
+    /**
+     * Creates a new server instances which is context aware, inheriting all configurations from this server
+     *
+     * @param requestIdHeaderName Header name to use for extracting the request Id
+     * @param correlator {@link RequestCorrelator} for an inbound request to all outbound requests that are made
+     *
+     * @return A new {@link HttpServer} instance.
+     */
+    public abstract HttpServer<I, O> context(String requestIdHeaderName, RequestCorrelator correlator);
+
+    /**
+     * Creates a new server instances which is context aware, inheriting all configurations from this server
+     *
+     * @param provider {@link RequestIdProvider} for a globally unique identifier for a request
+     * @param correlator {@link RequestCorrelator} for an inbound request to all outbound requests that are made
+     *
+     * @return A new {@link HttpServer} instance.
+     */
+    public abstract HttpServer<I, O> context(RequestIdProvider provider, RequestCorrelator correlator);
 
     /**
      * Creates a new server instances, inheriting all configurations from this server and using the passed

@@ -21,16 +21,15 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.DefaultHttpResponse;
-import io.netty.handler.codec.http.HttpHeaderValues;
-import io.netty.handler.codec.http.HttpRequestDecoder;
-import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseEncoder;
-import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.codec.http.*;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.contexts.RequestCorrelator;
+import io.reactivex.netty.contexts.RequestIdProvider;
 import io.reactivex.netty.protocol.http.HttpHandlerNames;
+import io.reactivex.netty.protocol.http.context.HttpRequestIdProvider;
+import io.reactivex.netty.protocol.http.context.server.HttpServerContextConfigurator;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventPublisher;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
 import io.reactivex.netty.protocol.http.ws.server.Ws7To13UpgradeHandler;
@@ -141,6 +140,16 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
     public <II, OO> HttpServer<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         return _copy(HttpServerImpl.<II>castServer(server.pipelineConfigurator(pipelineConfigurator)),
                      eventPublisher);
+    }
+
+    @Override
+    public HttpServer<I, O> context(String requestIdHeaderName, RequestCorrelator correlator) {
+        return context(new HttpRequestIdProvider(requestIdHeaderName, correlator), correlator);
+    }
+
+    @Override
+    public HttpServer<I, O> context(RequestIdProvider provider, RequestCorrelator correlator) {
+        return pipelineConfigurator(new HttpServerContextConfigurator(provider, correlator));
     }
 
     @Override
