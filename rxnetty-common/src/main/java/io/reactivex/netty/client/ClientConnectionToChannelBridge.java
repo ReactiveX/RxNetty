@@ -34,6 +34,7 @@ import io.reactivex.netty.client.pool.PooledConnection;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
+import io.reactivex.netty.internal.ExecuteInEventloopAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscriber;
@@ -73,6 +74,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     private ClientEventListener eventListener;
     private final boolean isSecure;
     private long connectStartTimeNanos;
+    private Channel channel;
 
     private ClientConnectionToChannelBridge(boolean isSecure) {
         super(HANDLER_NAME, EventAttributeKeys.CONNECTION_EVENT_LISTENER, EventAttributeKeys.EVENT_PUBLISHER);
@@ -86,7 +88,8 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        eventPublisher = ctx.channel().attr(EventAttributeKeys.EVENT_PUBLISHER).get();
+        channel = ctx.channel();
+        eventPublisher = channel.attr(EventAttributeKeys.EVENT_PUBLISHER).get();
         eventListener = ctx.channel().attr(EventAttributeKeys.CLIENT_EVENT_LISTENER).get();
 
         if (null == eventPublisher) {
@@ -188,15 +191,17 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
     @Override
     protected void onNewReadSubscriber(final Connection<R, W> connection, Subscriber<? super R> subscriber) {
-        subscriber.add(Subscriptions.create(new Action0() {
+        // Unsubscribe from the input closes the connection as there can only be one subscriber to the
+        // input and, if nothing is read, it means, nobody is using the connection.
+        // For fire-and-forget usecases, one should explicitly ignore content on the connection which
+        // adds a discard all subscriber that never unsubscribes. For this case, then, the close becomes
+        // explicit.
+        subscriber.add(Subscriptions.create(new ExecuteInEventloopAction(channel) {
             @Override
-            public void call() {
-                // Unsubscribe from the input closes the connection as there can only be one subscriber to the
-                // input and, if nothing is read, it means, nobody is using the connection.
-                // For fire-and-forget usecases, one should explicitly ignore content on the connection which
-                // adds a discard all subscriber that never unsubscribes. For this case, then, the close becomes
-                // explicit.
-                connection.closeNow();
+            public void run() {
+                if (!connectionInputSubscriberExists(channel)) {
+                    connection.closeNow();
+                }
             }
         }));
     }

@@ -33,6 +33,7 @@ import io.netty.handler.codec.http.websocketx.WebSocketServerHandshaker13;
 import io.netty.util.CharsetUtil;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.MarkAwarePipeline;
+import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.ws.WebSocketConnection;
@@ -87,6 +88,7 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
                                public void call() {
                                    /*We are no more talking HTTP*/
                                    pipeline.remove(HttpServerEncoder.getName());
+                                   pipeline.channel().attr(AbstractHttpConnectionBridge.CONNECTION_UPGRADED).set(true);
                                }
                            })
                            .concatWith(Observable.defer(new Func0<Observable<Void>>() {

@@ -33,9 +33,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
-import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge.ConnectionInputSubscriber;
-import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge.TrailerProducer;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridgeTest.AbstractHttpConnectionBridgeMock.HttpObject;
 import org.junit.Rule;
 import org.junit.Test;
@@ -116,18 +114,6 @@ public class AbstractHttpConnectionBridgeTest {
     }
 
     @Test(timeout = 60000)
-    public void testHttpTrailerSubscriberEventWithNoContentInputSub() throws Exception {
-        TestSubscriber<TrailingHeaders> subscriber = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(subscriber));
-
-        subscriber.assertTerminalEvent();
-
-        assertThat("Subscriber did not get an error", subscriber.getOnErrorEvents(), hasSize(1));
-        assertThat("Subscriber got an unexpected error", subscriber.getOnErrorEvents().get(0),
-                   instanceOf(IllegalStateException.class));
-    }
-
-    @Test(timeout = 60000)
     public void testHttpContentSub() throws Exception {
         handlerRule.setupAndAssertConnectionInputSub();
         handlerRule.simulateHeaderReceive(); /*Simulate header receive, required for content sub.*/
@@ -152,31 +138,6 @@ public class AbstractHttpConnectionBridgeTest {
     }
 
     @Test(timeout = 60000)
-    public void testHttpTrailerSub() throws Exception {
-        handlerRule.setupAndAssertConnectionInputSub();
-
-        ProducerAwareSubscriber<TrailingHeaders> subscriber = new ProducerAwareSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(subscriber));
-
-        subscriber.assertNoErrors();
-
-        @SuppressWarnings("unchecked")
-        Subscriber<TrailingHeaders> trailerSub =
-                (Subscriber<TrailingHeaders>) handlerRule.connInSub.getState().getTrailerSub();
-
-        assertThat("Unexpected HTTP trailer subscriber found", trailerSub,
-                   equalTo((Subscriber<TrailingHeaders>) subscriber));
-
-        assertThat("Unexpected trailer subscriber producer.", subscriber.getProducer(),
-                   instanceOf(TrailerProducer.class));
-
-        final TrailerProducer trailerProducer = (TrailerProducer) subscriber.getProducer();
-
-        assertThat("Unexpected trailer subscriber producer delegate.", trailerProducer.getDelegateProducer(),
-                   equalTo(handlerRule.connInputProducerMock));
-    }
-
-    @Test(timeout = 60000)
     public void testContentArrivedBeforeSubscription() throws Exception {
         handlerRule.channel.config().setAutoRead(false);
 
@@ -191,14 +152,6 @@ public class AbstractHttpConnectionBridgeTest {
 
         assertThat("Content received on delayed subscription.", contentSub.getOnNextEvents(), is(empty()));
         assertThat("Error not received on delayed subscription.", contentSub.getOnErrorEvents(), hasSize(1));
-
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
-
-        trailerSub.assertTerminalEvent();
-
-        assertThat("Trailers received on delayed subscription.", trailerSub.getOnNextEvents(), is(empty()));
-        assertThat("Error not received on delayed subscription.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
     @Test(timeout = 60000)
@@ -218,15 +171,6 @@ public class AbstractHttpConnectionBridgeTest {
 
         assertThat("Content received on lazy subscription.", contentSub.getOnNextEvents(), is(empty()));
         assertThat("Error not received on lazy subscription.", contentSub.getOnErrorEvents(), hasSize(1));
-
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        /*Lazy subscription*/
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
-
-        trailerSub.assertTerminalEvent();
-
-        assertThat("Trailers received on lazy subscription.", trailerSub.getOnNextEvents(), is(empty()));
-        assertThat("Error not received on lazy subscription.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
     @Test(timeout = 60000)
@@ -251,15 +195,6 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Error not received on lazy subscription.", contentSub.getOnErrorEvents(), hasSize(1));
 
         handlerRule.connInSub.onNext(new DefaultLastHttpContent());/*Simulate completion.*/
-
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        /*Content already completed, lazy sub now.*/
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
-
-        trailerSub.assertTerminalEvent();
-
-        assertThat("Trailers received on lazy subscription.", trailerSub.getOnNextEvents(), is(empty()));
-        assertThat("Error not received on lazy subscription.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
     @Test(timeout = 60000)
@@ -270,10 +205,6 @@ public class AbstractHttpConnectionBridgeTest {
         /*Eager content subscription*/
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpContentSubscriberEvent<>(contentSub));
-
-        /*Eager trailer subscription*/
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
 
         /*Headers sent*/
         handlerRule.connInSub.onNext(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"));
@@ -301,16 +232,6 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Unexpected content chunks.", contentSub.getOnNextEvents(), hasSize(3));
         assertThat("Unexpected content chunks.", contentSub.getOnNextEvents(), contains(content1, content2,
                                                                                         contentLast));
-
-        trailerSub.assertTerminalEvent();
-        trailerSub.assertNoErrors();
-
-        assertThat("Unexpected trailer.", trailerSub.getOnNextEvents(), hasSize(1));
-
-        TrailingHeaders trailingHeaders = trailerSub.getOnNextEvents().get(0);
-        assertThat("Unexpected trailing header name.", trailingHeaders.getAllHeaderValues(trailer1Name), hasSize(1));
-        assertThat("Unexpected trailing header name.", trailingHeaders.getAllHeaderValues(trailer1Name).get(0),
-                   equalTo(trailer1Value));
     }
 
     @Test(timeout = 60000)
@@ -321,10 +242,6 @@ public class AbstractHttpConnectionBridgeTest {
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpContentSubscriberEvent<>(contentSub));
 
-        /*Eager trailer subscription*/
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
-
         /*Headers sent*/
         handlerRule.connInSub.onNext(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"));
 
@@ -333,11 +250,9 @@ public class AbstractHttpConnectionBridgeTest {
 
         handlerRule.headerSub.assertTerminalEvent();
         contentSub.assertTerminalEvent();
-        trailerSub.assertTerminalEvent();
 
         assertThat("No error to header subscriber on close.", handlerRule.headerSub.getOnErrorEvents(), hasSize(1));
         assertThat("No error to content subscriber on close.", contentSub.getOnErrorEvents(), hasSize(1));
-        assertThat("No error to trailer subscriber on close.", trailerSub.getOnErrorEvents(), hasSize(1));
 
         assertThat("Close before complete did not get invoked.", handlerRule.handler.closedBeforeReceive, is(true));
     }
@@ -371,10 +286,6 @@ public class AbstractHttpConnectionBridgeTest {
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpContentSubscriberEvent<>(contentSub));
 
-        /*Eager trailer subscription*/
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
-
         handlerRule.connInSub.onCompleted();
 
         handlerRule.headerSub.assertTerminalEvent();
@@ -383,9 +294,6 @@ public class AbstractHttpConnectionBridgeTest {
 
         contentSub.assertTerminalEvent();
         contentSub.assertError(ClosedChannelException.class);
-
-        trailerSub.assertTerminalEvent();
-        trailerSub.assertError(ClosedChannelException.class);
     }
 
     @Test(timeout = 60000)
@@ -396,10 +304,6 @@ public class AbstractHttpConnectionBridgeTest {
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpContentSubscriberEvent<>(contentSub));
 
-        /*Eager trailer subscription*/
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
-
         /*Headers sent*/
         handlerRule.connInSub.onNext(new DefaultHttpRequest(HttpVersion.HTTP_1_1, HttpMethod.GET, "/"));
 
@@ -408,15 +312,11 @@ public class AbstractHttpConnectionBridgeTest {
         /*Look only for one HTTP message*/
         handlerRule.headerSub.unsubscribe();
         assertThat("Content subscriber unsubscribed post header unsubscribe.", contentSub.isUnsubscribed(), is(false));
-        assertThat("Trailer subscriber unsubscribed post header unsubscribe.", trailerSub.isUnsubscribed(), is(false));
 
         handlerRule.connInSub.onCompleted();
 
         contentSub.assertTerminalEvent();
         assertThat("Content subscriber did not get an error.", contentSub.getOnErrorEvents(), hasSize(1));
-
-        trailerSub.assertTerminalEvent();
-        assertThat("Trailer subscriber did not get an error.", trailerSub.getOnErrorEvents(), hasSize(1));
     }
 
     @Test(timeout = 60000)
@@ -434,33 +334,14 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("Unexpected HTTP Content subscriber found", contentSubFound,
                    equalTo((Subscriber<ByteBuf>) contentSub));
 
-        /*Eager trailer subscription*/
-        TestSubscriber<TrailingHeaders> trailerSub = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub));
-
-        @SuppressWarnings("unchecked")
-        Subscriber<TrailingHeaders> trailerSubFound =
-                (Subscriber<TrailingHeaders>) handlerRule.connInSub.getState().getTrailerSub();
-
-        assertThat("Unexpected HTTP trailer subscriber found", trailerSubFound,
-                   equalTo((Subscriber<TrailingHeaders>) trailerSub));
-
         contentSub.assertNoErrors();
-        trailerSub.assertNoErrors();
 
         /*Second active subscription*/
         TestSubscriber<ByteBuf> contentSub2 = new TestSubscriber<>();
         handlerRule.channel.pipeline().fireUserEventTriggered(new HttpContentSubscriberEvent<>(contentSub2));
 
-        /*Second active subscription*/
-        TestSubscriber<TrailingHeaders> trailerSub2 = new TestSubscriber<>();
-        handlerRule.channel.pipeline().fireUserEventTriggered(new HttpTrailerSubscriberEvent(trailerSub2));
-
         contentSub2.assertTerminalEvent();
         assertThat("Second content subscriber did not get an error.", contentSub2.getOnErrorEvents(), hasSize(1));
-
-        trailerSub2.assertTerminalEvent();
-        assertThat("Second trailer subscriber did not get an error.", trailerSub2.getOnErrorEvents(), hasSize(1));
     }
 
     public static class HandlerRule extends ExternalResource {
@@ -611,7 +492,7 @@ public class AbstractHttpConnectionBridgeTest {
         }
 
         @Override
-        protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
+        protected void onClosedBeforeReceiveComplete(Channel channel) {
             closedBeforeReceive = true;
         }
 

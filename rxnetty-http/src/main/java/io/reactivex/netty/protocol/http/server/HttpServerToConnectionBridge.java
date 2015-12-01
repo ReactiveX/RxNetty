@@ -26,7 +26,6 @@ import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.channel.ChannelOperations;
-import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
@@ -130,11 +129,6 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
     @Override
     protected boolean isOutboundHeader(Object nextItem) {
         return nextItem instanceof HttpResponse;
-    }
-
-    @Override
-    protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig) {
-        return new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection(), true);
     }
 
     @Override

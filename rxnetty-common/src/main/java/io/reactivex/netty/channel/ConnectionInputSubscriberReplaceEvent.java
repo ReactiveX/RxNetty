@@ -14,14 +14,20 @@
  * limitations under the License.
  *
  */
+package io.reactivex.netty.channel;
 
-package io.reactivex.netty.protocol.http.internal;
+/**
+ * This event is an indication to atomically replace existing connection input subscriber, if any, with another.
+ */
+public class ConnectionInputSubscriberReplaceEvent<R, W> {
 
-import rx.Subscriber;
+    private final ConnectionInputSubscriberEvent<R, W> newSubEvent;
 
-public class UpgradedHttpContentSubscriberEvent<T> extends HttpContentSubscriberEvent<T> {
+    public ConnectionInputSubscriberReplaceEvent(ConnectionInputSubscriberEvent<R, W> newSubEvent) {
+        this.newSubEvent = newSubEvent;
+    }
 
-    public UpgradedHttpContentSubscriberEvent(Subscriber<? super T> subscriber) {
-        super(subscriber);
+    public ConnectionInputSubscriberEvent<R, W> getNewSubEvent() {
+        return newSubEvent;
     }
 }
