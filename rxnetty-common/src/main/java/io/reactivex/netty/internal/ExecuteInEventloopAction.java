@@ -15,13 +15,25 @@
  *
  */
 
-package io.reactivex.netty.protocol.http.internal;
+package io.reactivex.netty.internal;
 
-import rx.Subscriber;
+import io.netty.channel.Channel;
+import rx.functions.Action0;
 
-public class UpgradedHttpContentSubscriberEvent<T> extends HttpContentSubscriberEvent<T> {
+public abstract class ExecuteInEventloopAction implements Action0, Runnable {
 
-    public UpgradedHttpContentSubscriberEvent(Subscriber<? super T> subscriber) {
-        super(subscriber);
+    private final Channel channel;
+
+    protected ExecuteInEventloopAction(Channel channel) {
+        this.channel = channel;
+    }
+
+    @Override
+    public void call() {
+        if (channel.eventLoop().inEventLoop()) {
+            run();
+        } else {
+            channel.eventLoop().execute(this);
+        }
     }
 }

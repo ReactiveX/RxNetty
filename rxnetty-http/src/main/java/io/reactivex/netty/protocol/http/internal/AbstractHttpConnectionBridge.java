@@ -29,10 +29,12 @@ import io.netty.handler.codec.http.HttpObject;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
+import io.reactivex.netty.channel.ConnectionInputSubscriberReplaceEvent;
 import io.reactivex.netty.channel.SubscriberToChannelFutureBridge;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge.State.Stage;
@@ -51,6 +53,9 @@ import static io.netty.handler.codec.http.HttpHeaderValues.*;
 public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractHttpConnectionBridge.class);
+
+    public static final AttributeKey<Boolean> CONNECTION_UPGRADED =
+            AttributeKey.valueOf("rxnetty_http_upgraded_connection");
 
     @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED =
@@ -117,34 +122,47 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     public void userEventTriggered(final ChannelHandlerContext ctx, Object evt) throws Exception {
 
         Object eventToPropagateFurther = evt;
+        Boolean connUpgradedAttr = ctx.channel().attr(CONNECTION_UPGRADED).get();
+        boolean connUpgraded = null != connUpgradedAttr ? connUpgradedAttr : false;
 
         if (evt instanceof ConnectionInputSubscriberEvent) {
-            @SuppressWarnings({"unchecked", "rawtypes"})
+
+            @SuppressWarnings({ "unchecked", "rawtypes" })
             ConnectionInputSubscriberEvent orig = (ConnectionInputSubscriberEvent) evt;
-            /*Local copy to refer from the channel close listener. As the instance level copy can change*/
-            final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
 
-            connectionInputSubscriber = _connectionInputSubscriber;
+            if (!connUpgraded) {
+                /*Local copy to refer from the channel close listener. As the instance level copy can change*/
+                final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
 
-            final SubscriberToChannelFutureBridge l = new SubscriberToChannelFutureBridge() {
+                connectionInputSubscriber = _connectionInputSubscriber;
 
-                @Override
-                protected void doOnSuccess(ChannelFuture future) {
-                    onChannelClose(_connectionInputSubscriber);
+                final SubscriberToChannelFutureBridge l = new SubscriberToChannelFutureBridge() {
+
+                    @Override
+                    protected void doOnSuccess(ChannelFuture future) {
+                        onChannelClose(_connectionInputSubscriber);
+                    }
+
+                    @Override
+                    protected void doOnFailure(ChannelFuture future, Throwable cause) {
+                        onChannelClose(_connectionInputSubscriber);
+                    }
+                };
+
+                l.bridge(ctx.channel().closeFuture(), _connectionInputSubscriber);
+
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber,
+                                                                                             orig.getConnection());
+                eventToPropagateFurther = newEvent;
+            } else {
+                if (null != connectionInputSubscriber) {
+                    connectionInputSubscriber.state.stage = Stage.Upgraded;
                 }
-
-                @Override
-                protected void doOnFailure(ChannelFuture future, Throwable cause) {
-                    onChannelClose(_connectionInputSubscriber);
-                }
-            };
-
-            l.bridge(ctx.channel().closeFuture(), _connectionInputSubscriber);
-
-            @SuppressWarnings({"unchecked", "rawtypes"})
-            ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber,
-                                                                                         orig.getConnection());
-            eventToPropagateFurther = newEvent;
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                ConnectionInputSubscriberReplaceEvent replaceEvt = new ConnectionInputSubscriberReplaceEvent<>(orig);
+                eventToPropagateFurther = replaceEvt;
+            }
         } else if (evt instanceof HttpContentSubscriberEvent) {
             newHttpContentSubscriber(evt, connectionInputSubscriber);
         }
@@ -153,7 +171,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     }
 
     protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig) {
-        return new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection(), false);
+        ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection());
+        toReturn.state.headerSub.add(Subscriptions.create(toReturn));
+        return toReturn;
     }
 
     protected final void onChannelClose(ConnectionInputSubscriber connectionInputSubscriber) {
@@ -164,7 +184,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         connectionInputSubscriber.onError(CLOSED_CHANNEL_EXCEPTION);
     }
 
-    protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
+    protected void onClosedBeforeReceiveComplete(Channel channel) {
         // No Op. Override to add behavior
     }
 
@@ -254,13 +274,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 if (!newSub.isUnsubscribed()) {
                     errorToRaise = ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED;
                 }
-            } else if (evt instanceof UpgradedHttpContentSubscriberEvent) {
-                if (state.receiveStarted()) {
-                    inputSubscriber.setupContentSubscriber(newSub);
-                    onNewContentSubscriber(inputSubscriber, newSub);
-                } else {
-                    errorToRaise = new IllegalStateException("Content subscription received without request start.");
-                }
             } else if (state.stage == Stage.HeaderReceived) {
                 inputSubscriber.setupContentSubscriber(newSub);
                 onNewContentSubscriber(inputSubscriber, newSub);
@@ -304,7 +317,8 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             /*Strictly in the order in which the transitions would happen*/
             Created,
             HeaderReceived,
-            ContentComplete
+            ContentComplete,
+            Upgraded
         }
 
         protected IllegalStateException raiseErrorOnInputSubscription;
@@ -344,26 +358,17 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         }
     }
 
-    protected class ConnectionInputSubscriber extends Subscriber<Object> {
+    protected class ConnectionInputSubscriber extends Subscriber<Object> implements Action0, Runnable {
 
         private final Channel channel;
         private final State state;
         private Producer producer;
 
         @SuppressWarnings("rawtypes")
-        public ConnectionInputSubscriber(Subscriber subscriber, Connection connection,
-                                         final boolean unsubscribeOnHeadersUnsubscribe) {
+        private ConnectionInputSubscriber(Subscriber subscriber, Connection connection) {
             state = new State();
-            state.headerSub = subscriber;
-            state.headerSub.add(Subscriptions.create(new Action0() {
-                @Override
-                public void call() {
-                    if (unsubscribeOnHeadersUnsubscribe || !state.receiveStarted()) {
-                        unsubscribe(); // If the receive has not yet started, unsubscribe from input, which closes connection
-                    }
-                }
-            }));
             channel = connection.unsafeNettyChannel();
+            state.headerSub = subscriber;
         }
 
         @Override
@@ -382,7 +387,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             errorAllSubs(e);
 
             if (state.startButNotCompleted()) {
-                onClosedBeforeReceiveComplete(this);
+                onClosedBeforeReceiveComplete(channel);
             }
         }
 
@@ -458,6 +463,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             assert channel.eventLoop().inEventLoop();
 
             state.contentSub = newSub;
+            state.contentSub.add(Subscriptions.create(this));
             state.contentSub.setProducer(producer); /*Content demand matches upstream demand*/
         }
 
@@ -485,5 +491,31 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         /*Visible for testing*/State getState() {
             return state;
         }
+
+        @Override
+        public void run() {
+            if (state.contentSub != null) {
+                if (state.contentSub.isUnsubscribed()) {
+                    // Content sub exists and unsubscribed, so unsubscribe from input.
+                    unsubscribe();
+                } else if (state.headerSub.isUnsubscribed() && !state.receiveStarted()) {
+                    // Header sub unsubscribed before request started, unsubscribe from input.
+                    unsubscribe();
+                }
+            } else if (state.headerSub.isUnsubscribed() && !state.receiveStarted()) {
+                // Header sub unsubscribed before request started, unsubscribe from input.
+                unsubscribe();
+            }
+        }
+
+        @Override
+        public void call() {
+            if (channel.eventLoop().inEventLoop()) {
+                run();
+            } else {
+                channel.eventLoop().execute(ConnectionInputSubscriber.this);
+            }
+        }
+
     }
 }

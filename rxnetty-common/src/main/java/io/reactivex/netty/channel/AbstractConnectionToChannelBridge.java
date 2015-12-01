@@ -167,9 +167,13 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
             @SuppressWarnings("unchecked")
             ConnectionInputSubscriberEvent<R, W> event = (ConnectionInputSubscriberEvent<R, W>) evt;
 
-            newConnectionInputSubscriber(ctx.channel(), event.getSubscriber(), event.getConnection());
+            newConnectionInputSubscriber(ctx.channel(), event.getSubscriber(), event.getConnection(), false);
         } else if (evt instanceof ConnectionInputSubscriberResetEvent) {
             resetConnectionInputSubscriber();
+        } else if (evt instanceof ConnectionInputSubscriberReplaceEvent) {
+            @SuppressWarnings("unchecked")
+            ConnectionInputSubscriberReplaceEvent<R, W> event = (ConnectionInputSubscriberReplaceEvent<R, W>) evt;
+            replaceConnectionInputSubscriber(event);
         }
 
         super.userEventTriggered(ctx, evt);
@@ -218,6 +222,12 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         return null != readProducer && !readProducer.subscriber.isUnsubscribed();
     }
 
+    protected boolean connectionInputSubscriberExists(Channel channel) {
+        assert channel.eventLoop().inEventLoop();
+
+        return null != readProducer && null != readProducer.subscriber && !readProducer.subscriber.isUnsubscribed();
+    }
+
     protected void onNewReadSubscriber(Connection<R, W> connection, Subscriber<? super R> subscriber) {
         // NOOP
     }
@@ -237,10 +247,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
     protected final Subscriber<? super Connection<R, W>> getNewConnectionSub() {
         return newConnectionSub;
-    }
-
-    protected final boolean isConnectionEmitted() {
-        return connectionEmitted;
     }
 
     private void createNewConnection(Channel channel) {
@@ -265,19 +271,34 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     }
 
     private void newConnectionInputSubscriber(final Channel channel, final Subscriber<? super R> subscriber,
-                                              final Connection<R, W> connection) {
+                                              final Connection<R, W> connection, boolean replace) {
         final Subscriber<? super R> connInputSub = null == readProducer ? null : readProducer.subscriber;
         if (isValidToEmit(connInputSub)) {
-            /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
-            subscriber.onError(ONLY_ONE_CONN_INPUT_SUB_ALLOWED);
+            if (!replace) {
+                /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
+                subscriber.onError(ONLY_ONE_CONN_INPUT_SUB_ALLOWED);
+            } else {
+                setNewReadProducer(channel, subscriber, connection);
+                connInputSub.onCompleted();
+            }
         } else if (raiseErrorOnInputSubscription) {
             subscriber.onError(LAZY_CONN_INPUT_SUB);
         } else {
-            final ReadProducer<R> producer = new ReadProducer<>(subscriber, channel);
-            subscriber.setProducer(producer);
-            onNewReadSubscriber(connection, subscriber);
-            readProducer = producer;
+            setNewReadProducer(channel, subscriber, connection);
         }
+    }
+
+    private void setNewReadProducer(Channel channel, Subscriber<? super R> subscriber, Connection<R, W> connection) {
+        final ReadProducer<R> producer = new ReadProducer<>(subscriber, channel);
+        subscriber.setProducer(producer);
+        onNewReadSubscriber(connection, subscriber);
+        readProducer = producer;
+    }
+
+    private void replaceConnectionInputSubscriber(ConnectionInputSubscriberReplaceEvent<R, W> event) {
+        ConnectionInputSubscriberEvent<R, W> newSubEvent = event.getNewSubEvent();
+        newConnectionInputSubscriber(newSubEvent.getConnection().unsafeNettyChannel(), newSubEvent.getSubscriber(),
+                                     newSubEvent.getConnection(), true);
     }
 
     private void newConnectionSubscriber(ConnectionSubscriberEvent<R, W> event) {

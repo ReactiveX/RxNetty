@@ -492,7 +492,7 @@ public class AbstractHttpConnectionBridgeTest {
         }
 
         @Override
-        protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
+        protected void onClosedBeforeReceiveComplete(Channel channel) {
             closedBeforeReceive = true;
         }
 
