@@ -222,7 +222,8 @@ public class ClientState<W, R> extends ConnectionFactory<W, R> {
     /*Visible for testing*/ Bootstrap newBootstrap(ListenersHolder<ClientEventListener> listeners) {
         final Bootstrap nettyBootstrap = new Bootstrap().group(rawConnectionProvider.getEventLoopGroup())
                                                         .channel(rawConnectionProvider.getChannelClass())
-                                                        .option(ChannelOption.AUTO_READ, false);// by default do not read content unless asked.
+                                                        .option(ChannelOption.AUTO_READ, false)// by default do not read content unless asked.
+                                                        .resolver(rawConnectionProvider.getNameResolver());
 
         for (Entry<ChannelOption<?>, Object> optionEntry : options.entrySet()) {
             // Type is just for safety for user of ClientState, internally in Bootstrap, types are thrown on the floor.

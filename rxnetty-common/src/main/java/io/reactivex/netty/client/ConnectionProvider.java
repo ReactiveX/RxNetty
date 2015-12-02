@@ -21,6 +21,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.resolver.DefaultNameResolverGroup;
+import io.netty.resolver.NameResolverGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.pool.PooledConnectionProvider;
@@ -34,24 +36,23 @@ import java.net.SocketAddress;
 
 /**
  * A connection provider to be used by clients.
- *
+ * <p>
  * There are two distinct kind of connection providers, viz.,
- *
+ * <p>
  * <h2>Connection provider for a single host</h2>
- *
+ * <p>
  * Such a connection provider can be created using {@code forHost} methods ({@link #forHost(SocketAddress)} ,
  * {@link #forHost(SocketAddress, EventLoopGroup, Class)}, {@link #forHost(String, int)},
  * {@link #forHost(SocketAddress, EventLoopGroup, Class)}).
- *
+ * <p>
  * <h2>Connection provider for a pool of hosts</h2>
- *
+ * <p>
  * Such a connection provider would be created by using the create methods ({@link #create(Func1)},
  * {@link #create(Func1, EventLoopGroup, Class)}) because such a {@link ConnectionProvider} requires a
  * {@link ConnectionFactory} to create {@link Connection}s per target server.
  *
  * @param <W> Type of object that is written to the connections created by this provider.
  * @param <R> Type of object that is read from the connections created by this provider.
- *
  * @see PooledConnectionProvider
  */
 @Beta
@@ -63,12 +64,15 @@ public abstract class ConnectionProvider<W, R> {
     private Observable<Void> shutdownObservable;/*Guarded by this*/
     private boolean shutdownCalled; /*Guarded by this*/
     private volatile boolean shutdown;
+    private final NameResolverGroup<?> nameResolver;
 
     private ConnectionProvider(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> creationFunc,
-                               EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass) {
+                               EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass,
+                               NameResolverGroup<?> nameResolver) {
         this.creationFunc = creationFunc;
         this.eventLoopGroup = eventLoopGroup;
         this.channelClass = channelClass;
+        this.nameResolver = nameResolver;
     }
 
     /**
@@ -78,7 +82,17 @@ public abstract class ConnectionProvider<W, R> {
      */
     protected ConnectionProvider(@SuppressWarnings("unused") ConnectionFactory<W, R> connectionFactory) {
         this(new UninitializedCreationFunc<W, R>(), RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
-             defaultSocketChannelClass());
+                defaultSocketChannelClass(), DefaultNameResolverGroup.INSTANCE);
+    }
+
+    /**
+     * Creates a new {@link ConnectionProvider} using the passed {@code connectionFactory} and {@code nameResolver}
+     *
+     * @param connectionFactory Connection factory.
+     */
+    protected ConnectionProvider(@SuppressWarnings("unused") ConnectionFactory<W, R> connectionFactory, NameResolverGroup nameResolver) {
+        this(new UninitializedCreationFunc<W, R>(), RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
+                defaultSocketChannelClass(), nameResolver);
     }
 
     /**
@@ -153,9 +167,10 @@ public abstract class ConnectionProvider<W, R> {
      * @return A concrete {@link ConnectionProvider} for the passed {@code host}.
      */
     public static <W, R> ConnectionProvider<W, R> forHost(final String host, final int port,
-                                                         EventLoopGroup eventLoopGroup,
-                                                         Class<? extends Channel> channelClass) {
-        return forHost(new InetSocketAddress(host, port), eventLoopGroup, channelClass);
+                                                          EventLoopGroup eventLoopGroup,
+                                                          Class<? extends Channel> channelClass) {
+        return forHost(new InetSocketAddress(host, port), eventLoopGroup, channelClass,
+                DefaultNameResolverGroup.INSTANCE);
     }
 
     /**
@@ -167,20 +182,32 @@ public abstract class ConnectionProvider<W, R> {
      */
     public static <W, R> ConnectionProvider<W, R> forHost(final SocketAddress host) {
         return forHost(host, RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
-                       defaultSocketChannelClass());
+                defaultSocketChannelClass(), DefaultNameResolverGroup.INSTANCE);
     }
 
     /**
      * Creates a concrete {@link ConnectionProvider} for the passed {@code host}
      *
      * @param host The target server address.
+     * @return A concrete {@link ConnectionProvider} for the passed {@code host}.
+     */
+    public static <W, R> ConnectionProvider<W, R> forHost(final SocketAddress host, NameResolverGroup nameResolver) {
+        return forHost(host, RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
+                defaultSocketChannelClass(), nameResolver);
+    }
+
+    /**
+     * Creates a concrete {@link ConnectionProvider} for the passed {@code host}
+     *
+     * @param host           The target server address.
      * @param eventLoopGroup Event loop group to use.
-     * @param channelClass Class of the channel.
+     * @param channelClass   Class of the channel.
+     * @param nameResolver Domain name resolver.
      *
      * @return A concrete {@link ConnectionProvider} for the passed {@code host}.
      */
     public static <W, R> ConnectionProvider<W, R> forHost(final SocketAddress host, EventLoopGroup eventLoopGroup,
-                                                         Class<? extends Channel> channelClass) {
+                                                          Class<? extends Channel> channelClass, NameResolverGroup nameResolver) {
         return create(new Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>>() {
             @Override
             public ConnectionProvider<W, R> call(final ConnectionFactory<W, R> connectionFactory) {
@@ -192,7 +219,7 @@ public abstract class ConnectionProvider<W, R> {
                     }
                 };
             }
-        }, eventLoopGroup, channelClass);
+        }, eventLoopGroup, channelClass, nameResolver);
     }
 
     /**
@@ -206,24 +233,40 @@ public abstract class ConnectionProvider<W, R> {
      */
     public static <W, R> ConnectionProvider<W, R> create(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> func) {
         return create(func, RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
-                      defaultSocketChannelClass());
+                defaultSocketChannelClass(), DefaultNameResolverGroup.INSTANCE);
     }
+
 
     /**
      * Creates a raw {@link ConnectionProvider} using the provided function to create actual {@link ConnectionProvider}
      * instance.
      *
      * @param func A function to create a concrete {@link ConnectionProvider} using the passed {@link ConnectionFactory}
+     *
+     * @return A raw connection factory that will use the passed function to create concrete {@link ConnectionProvider}
+     * instance.
+     */
+    public static <W, R> ConnectionProvider<W, R> create(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> func, NameResolverGroup nameResolver) {
+        return create(func, RxNetty.getRxEventLoopProvider().globalClientEventLoop(true),
+                defaultSocketChannelClass(), nameResolver);
+    }
+
+    /**
+     * Creates a raw {@link ConnectionProvider} using the provided function to create actual {@link ConnectionProvider}
+     * instance.
+     *
+     * @param func           A function to create a concrete {@link ConnectionProvider} using the passed {@link ConnectionFactory}
      * @param eventLoopGroup Event loop group to use.
-     * @param channelClass Class of the channel.
+     * @param channelClass   Class of the channel.
+     * @param nameResolver Domain name resolver.
      *
      * @return A raw connection factory that will use the passed function to create concrete {@link ConnectionProvider}
      * instance.
      */
     public static <W, R> ConnectionProvider<W, R> create(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> func,
                                                          EventLoopGroup eventLoopGroup,
-                                                         Class<? extends Channel> channelClass) {
-        return new UninitializedConnectionProvider<>(func, eventLoopGroup, channelClass);
+                                                         Class<? extends Channel> channelClass, NameResolverGroup nameResolver) {
+        return new UninitializedConnectionProvider<>(func, eventLoopGroup, channelClass, nameResolver);
     }
 
     protected final boolean isEventPublishingEnabled() {
@@ -242,6 +285,11 @@ public abstract class ConnectionProvider<W, R> {
         return channelClass;
     }
 
+    public NameResolverGroup<?> getNameResolver() {
+        return nameResolver;
+    }
+
+
     private static class UninitializedCreationFunc<W, R>
             implements Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> {
 
@@ -258,8 +306,8 @@ public abstract class ConnectionProvider<W, R> {
         }
 
         private UninitializedConnectionProvider(Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>> func,
-                                                EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass) {
-            super(func, eventLoopGroup, channelClass);
+                                                EventLoopGroup eventLoopGroup, Class<? extends Channel> channelClass, NameResolverGroup nameResolver) {
+            super(func, eventLoopGroup, channelClass, nameResolver);
         }
 
         @Override
