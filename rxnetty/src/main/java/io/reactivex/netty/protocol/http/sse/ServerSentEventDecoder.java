@@ -16,9 +16,9 @@
 package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufProcessor;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.util.ByteProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,21 +38,21 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
     private static final char[] DATA_FIELD_NAME = "data".toCharArray();
     private static final char[] ID_FIELD_NAME = "id".toCharArray();
 
-    protected static final ByteBufProcessor SKIP_TILL_LINE_DELIMITER_PROCESSOR = new ByteBufProcessor() {
+    protected static final ByteProcessor SKIP_TILL_LINE_DELIMITER_PROCESSOR = new ByteProcessor() {
         @Override
         public boolean process(byte value) throws Exception {
             return !isLineDelimiter((char) value);
         }
     };
 
-    protected static final ByteBufProcessor SKIP_LINE_DELIMITERS_AND_SPACES_PROCESSOR = new ByteBufProcessor() {
+    protected static final ByteProcessor SKIP_LINE_DELIMITERS_AND_SPACES_PROCESSOR = new ByteProcessor() {
         @Override
         public boolean process(byte value) throws Exception {
             return isLineDelimiter((char) value) || (char) value == ' ';
         }
     };
 
-    protected static final ByteBufProcessor SKIP_COLON_AND_WHITE_SPACE_PROCESSOR = new ByteBufProcessor() {
+    protected static final ByteProcessor SKIP_COLON_AND_WHITE_SPACE_PROCESSOR = new ByteProcessor() {
         @Override
         public boolean process(byte value) throws Exception {
             char valueChar = (char) value;
@@ -60,14 +60,14 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
         }
     };
 
-    protected static final ByteBufProcessor SCAN_COLON_PROCESSOR = new ByteBufProcessor() {
+    protected static final ByteProcessor SCAN_COLON_PROCESSOR = new ByteProcessor() {
         @Override
         public boolean process(byte value) throws Exception {
             return (char) value != ':';
         }
     };
 
-    protected static final ByteBufProcessor SCAN_EOL_PROCESSOR = new ByteBufProcessor() {
+    protected static final ByteProcessor SCAN_EOL_PROCESSOR = new ByteProcessor() {
         @Override
         public boolean process(byte value) throws Exception {
             return !isLineDelimiter((char) value);
@@ -340,7 +340,7 @@ public class ServerSentEventDecoder extends ByteToMessageDecoder {
         return skipTillMatching(in, SKIP_TILL_LINE_DELIMITER_PROCESSOR);
     }
 
-    protected static boolean skipTillMatching(ByteBuf byteBuf, ByteBufProcessor processor) {
+    protected static boolean skipTillMatching(ByteBuf byteBuf, ByteProcessor processor) {
         final int lastIndexProcessed = byteBuf.forEachByte(processor);
         if (-1 == lastIndexProcessed) {
             byteBuf.readerIndex(byteBuf.readerIndex() + byteBuf.readableBytes()); // If all the remaining bytes are to be ignored, discard the buffer.

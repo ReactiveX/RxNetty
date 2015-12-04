@@ -16,10 +16,10 @@
 package io.reactivex.netty.protocol.http.sse;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufProcessor;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.MessageToByteEncoder;
+import io.netty.util.ByteProcessor;
 
 /**
  * An encoder to convert {@link ServerSentEvent} to a {@link io.netty.buffer.ByteBuf}
@@ -67,7 +67,7 @@ public class ServerSentEventEncoder extends MessageToByteEncoder<ServerSentEvent
         if (splitSseData) {
             while (content.isReadable()) { // Scan the buffer and split on new line into multiple data lines.
                 final int readerIndexAtStart = content.readerIndex();
-                int newLineIndex = content.forEachByte(new ByteBufProcessor() {
+                int newLineIndex = content.forEachByte(new ByteProcessor() {
                     @Override
                     public boolean process(byte value) throws Exception {
                         return (char) value != '\n';
