@@ -44,6 +44,13 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
         }
     };
 
+    private final Action2<T, Long> bytesWrittenAction = new Action2<T, Long>() {
+        @Override
+        public void call(T l, Long bytesWritten) {
+            l.onByteWritten(bytesWritten);
+        }
+    };
+
     private final Action1<T> flushStartAction = new Action1<T>() {
         @Override
         public void call(T l) {
@@ -51,18 +58,10 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
         }
     };
 
-    private final Action3<T, Long, TimeUnit> flushSuccessAction = new Action3<T, Long, TimeUnit>() {
+    private final Action3<T, Long, TimeUnit> flushCompleteAction = new Action3<T, Long, TimeUnit>() {
                 @Override
                 public void call(T l, Long duration, TimeUnit timeUnit) {
-                    l.onFlushSuccess(duration, timeUnit);
-                }
-            };
-
-    private final Action4<T, Long, TimeUnit, Throwable> flushFailedAction =
-            new Action4<T, Long, TimeUnit, Throwable>() {
-                @Override
-                public void call(T l, Long duration, TimeUnit timeUnit, Throwable t) {
-                    l.onFlushFailed(duration, timeUnit, t);
+                    l.onFlushComplete(duration, timeUnit);
                 }
             };
 
@@ -73,10 +72,10 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
         }
     };
 
-    private final Action4<T, Long, TimeUnit, Long> writeSuccessAction = new Action4<T, Long, TimeUnit, Long>() {
+    private final Action3<T, Long, TimeUnit> writeSuccessAction = new Action3<T, Long, TimeUnit>() {
         @Override
-        public void call(T l, Long duration, TimeUnit timeUnit, Long bytesWritten) {
-            l.onWriteSuccess(duration, timeUnit, bytesWritten);
+        public void call(T l, Long duration, TimeUnit timeUnit) {
+            l.onWriteSuccess(duration, timeUnit);
         }
     };
 
@@ -155,18 +154,18 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
     }
 
     @Override
+    public void onByteWritten(long bytesWritten) {
+        listeners.invokeListeners(bytesWrittenAction, bytesWritten);
+    }
+
+    @Override
     public void onFlushStart() {
         listeners.invokeListeners(flushStartAction);
     }
 
     @Override
-    public void onFlushSuccess(final long duration, final TimeUnit timeUnit) {
-        listeners.invokeListeners(flushSuccessAction, duration, timeUnit);
-    }
-
-    @Override
-    public void onFlushFailed(final long duration, final TimeUnit timeUnit, final Throwable throwable) {
-        listeners.invokeListeners(flushFailedAction, duration, timeUnit, throwable);
+    public void onFlushComplete(final long duration, final TimeUnit timeUnit) {
+        listeners.invokeListeners(flushCompleteAction, duration, timeUnit);
     }
 
     @Override
@@ -175,8 +174,8 @@ public final class ConnectionEventPublisher<T extends ConnectionEventListener> e
     }
 
     @Override
-    public void onWriteSuccess(final long duration, final TimeUnit timeUnit, final long bytesWritten) {
-        listeners.invokeListeners(writeSuccessAction, duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(final long duration, final TimeUnit timeUnit) {
+        listeners.invokeListeners(writeSuccessAction, duration, timeUnit);
     }
 
     @Override

@@ -20,16 +20,14 @@ package io.reactivex.netty.test.util;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
 
 public class MockConnectionEventListener extends ConnectionEventListener {
 
     public enum Event {
-        BytesRead, FlushStart, FlushSuccess, FlushFailed, WriteStart, WriteSuccess, WriteFailed, CloseStart,
+        BytesRead, BytesWritten, FlushStart, FlushSuccess, WriteStart, WriteSuccess, WriteFailed, CloseStart,
         CloseSuccess, CloseFailed, CustomEvent, CustomEventWithDuration, CustomEventWithDurationAndError,
         CustomEventWithError, Complete
     }
@@ -49,23 +47,21 @@ public class MockConnectionEventListener extends ConnectionEventListener {
     }
 
     @Override
+    public void onByteWritten(long bytesWritten) {
+        methodsCalled.add(Event.BytesWritten);
+        this.bytesWritten = bytesWritten;
+    }
+
+    @Override
     public void onFlushStart() {
         methodsCalled.add(Event.FlushStart);
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
         methodsCalled.add(Event.FlushSuccess);
         this.duration = duration;
         this.timeUnit = timeUnit;
-    }
-
-    @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        methodsCalled.add(Event.FlushFailed);
-        this.duration = duration;
-        this.timeUnit = timeUnit;
-        recievedError = throwable;
     }
 
     @Override
@@ -74,11 +70,10 @@ public class MockConnectionEventListener extends ConnectionEventListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
         methodsCalled.add(Event.WriteSuccess);
         this.duration = duration;
         this.timeUnit = timeUnit;
-        this.bytesWritten = bytesWritten;
     }
 
     @Override
@@ -145,8 +140,15 @@ public class MockConnectionEventListener extends ConnectionEventListener {
     }
 
     public void assertMethodsCalled(Event... events) {
-        assertThat("Unexpected methods called count. Methods called: " + methodsCalled, methodsCalled, hasSize(events.length));
-        assertThat("Unexpected methods called.", methodsCalled, contains(events));
+        if (methodsCalled.size() != events.length) {
+            throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled.size()
+                                     + ". Expected: " + events.length);
+        }
+
+        if (!methodsCalled.containsAll(Arrays.asList(events))) {
+            throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled
+                                     + ". Expected: " + Arrays.toString(events));
+        }
     }
 
     public List<Event> getMethodsCalled() {

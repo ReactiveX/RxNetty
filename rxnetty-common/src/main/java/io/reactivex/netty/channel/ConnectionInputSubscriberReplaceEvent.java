@@ -14,10 +14,20 @@
  * limitations under the License.
  *
  */
-dependencies {
-    compile project(':rxnetty-common')
-    compile "org.hamcrest:hamcrest-library:1.3"
-    compile "org.mockito:mockito-core:1.+"
-    compile 'junit:junit:4.12'
+package io.reactivex.netty.channel;
 
+/**
+ * This event is an indication to atomically replace existing connection input subscriber, if any, with another.
+ */
+public class ConnectionInputSubscriberReplaceEvent<R, W> {
+
+    private final ConnectionInputSubscriberEvent<R, W> newSubEvent;
+
+    public ConnectionInputSubscriberReplaceEvent(ConnectionInputSubscriberEvent<R, W> newSubEvent) {
+        this.newSubEvent = newSubEvent;
+    }
+
+    public ConnectionInputSubscriberEvent<R, W> getNewSubEvent() {
+        return newSubEvent;
+    }
 }

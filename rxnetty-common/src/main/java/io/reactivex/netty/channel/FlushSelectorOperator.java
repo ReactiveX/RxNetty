@@ -16,7 +16,6 @@
  */
 package io.reactivex.netty.channel;
 
-import io.netty.channel.Channel;
 import rx.Observable.Operator;
 import rx.Subscriber;
 import rx.functions.Func1;
@@ -24,11 +23,11 @@ import rx.functions.Func1;
 public class FlushSelectorOperator<T> implements Operator<T, T> {
 
     private final Func1<T, Boolean> flushSelector;
-    private final Channel channel;
+    private final ChannelOperations<?> channelOps;
 
-    public FlushSelectorOperator(Func1<T, Boolean> flushSelector, Channel channel) {
+    public FlushSelectorOperator(Func1<T, Boolean> flushSelector, ChannelOperations<?> channelOps) {
         this.flushSelector = flushSelector;
-        this.channel = channel;
+        this.channelOps = channelOps;
     }
 
     @Override
@@ -50,7 +49,7 @@ public class FlushSelectorOperator<T> implements Operator<T, T> {
                 subscriber.onNext(next);
                 /*Call the selector _after_ writing an element*/
                 if (flushSelector.call(next)) {
-                    channel.flush();
+                    channelOps.flush();
                 }
             }
         };

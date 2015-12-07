@@ -108,8 +108,8 @@ public class MockTcpServerEventListener extends TcpServerEventListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        connDelegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
+        connDelegate.onWriteSuccess(duration, timeUnit);
     }
 
     @Override
@@ -118,13 +118,8 @@ public class MockTcpServerEventListener extends TcpServerEventListener {
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        connDelegate.onFlushFailed(duration, timeUnit, throwable);
-    }
-
-    @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        connDelegate.onFlushSuccess(duration, timeUnit);
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
+        connDelegate.onFlushComplete(duration, timeUnit);
     }
 
     @Override
@@ -135,6 +130,11 @@ public class MockTcpServerEventListener extends TcpServerEventListener {
     @Override
     public void onByteRead(long bytesRead) {
         connDelegate.onByteRead(bytesRead);
+    }
+
+    @Override
+    public void onByteWritten(long bytesWritten) {
+        connDelegate.onByteWritten(bytesWritten);
     }
 
     @Override

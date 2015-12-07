@@ -36,9 +36,6 @@ import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
-import rx.Subscriber;
-import rx.functions.Action0;
-import rx.subscriptions.Subscriptions;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -128,13 +125,13 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
     }
 
     @Override
-    protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
-        if (connectionInputSubscriber.getChannel().isActive()) {
+    protected void onClosedBeforeReceiveComplete(Channel channel) {
+        if (channel.isActive()) {
             /*
              * If the close is triggerred by the user, the channel will be active.
              * If the response, isn't complete, then the connection can not be used.
              */
-            connectionInputSubscriber.getChannel().attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true);
+            channel.attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true);
         }
     }
 
@@ -188,16 +185,6 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
             eventsListener.onResponseReceiveComplete(Clock.onEndNanos(receiveStartTimeNanos), NANOSECONDS);
             eventsListener.onRequestProcessingComplete(Clock.onEndNanos(headerWriteStart), NANOSECONDS);
         }
-    }
-
-    @Override
-    protected void onNewContentSubscriber(final ConnectionInputSubscriber inputSubscriber, Subscriber<? super C> newSub) {
-        newSub.add(Subscriptions.create(new Action0() {
-            @Override
-            public void call() {
-                inputSubscriber.unsubscribe();
-            }
-        }));
     }
 
     private void onPooledConnectionRelease(ConnectionInputSubscriber connectionInputSubscriber) {

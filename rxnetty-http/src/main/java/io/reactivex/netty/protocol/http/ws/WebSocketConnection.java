@@ -19,10 +19,7 @@ package io.reactivex.netty.protocol.http.ws;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import rx.Observable;
-import rx.Observable.OnSubscribe;
-import rx.Subscriber;
 import rx.annotations.Beta;
 import rx.functions.Func1;
 
@@ -56,13 +53,8 @@ public final class WebSocketConnection {
      */
     @Beta
     public Observable<WebSocketFrame> getInput(boolean untilCloseFrame) {
-        Observable<WebSocketFrame> rawInput = Observable.create(new OnSubscribe<WebSocketFrame>() {
-            @Override
-            public void call(Subscriber<? super WebSocketFrame> subscriber) {
-                delegate.unsafeNettyChannel().pipeline()
-                        .fireUserEventTriggered(new HttpContentSubscriberEvent<>(subscriber));
-            }
-        });
+        Observable<WebSocketFrame> rawInput = delegate.getInput();
+
         if (untilCloseFrame) {
             return rawInput.takeUntil(new Func1<WebSocketFrame, Boolean>() {
                 @Override

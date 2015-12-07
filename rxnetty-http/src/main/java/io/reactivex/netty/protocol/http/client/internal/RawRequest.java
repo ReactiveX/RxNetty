@@ -16,16 +16,16 @@
  */
 package io.reactivex.netty.protocol.http.client.internal;
 
-import io.netty.channel.Channel;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
 import io.netty.handler.codec.http.cookie.Cookie;
+import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.FlushSelectorOperator;
 import rx.Observable;
 import rx.functions.Func1;
@@ -117,13 +117,13 @@ public final class RawRequest<I, O> {
 
     public RawRequest<I, O> setKeepAlive(boolean keepAlive) {
         HttpRequest headersCopy = _copyHeaders();
-        HttpHeaderUtil.setKeepAlive(headersCopy, keepAlive);
+        HttpUtil.setKeepAlive(headersCopy, keepAlive);
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setTransferEncodingChunked() {
         HttpRequest headersCopy = _copyHeaders();
-        HttpHeaderUtil.setTransferEncodingChunked(headersCopy, true);
+        HttpUtil.setTransferEncodingChunked(headersCopy, true);
         return create(headersCopy, content, hasTrailers, redirector);
     }
 
@@ -148,14 +148,14 @@ public final class RawRequest<I, O> {
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    public Observable asObservable(Channel channel) {
+    public Observable asObservable(Connection<?, ?> connection) {
         Observable toReturn = Observable.just(headers);
 
         if (null != content) {
             if (null == flushSelector) {
                 toReturn = toReturn.concatWith(content);
             } else {
-                toReturn = toReturn.concatWith(content.lift(new FlushSelectorOperator(flushSelector, channel)));
+                toReturn = toReturn.concatWith(content.lift(new FlushSelectorOperator(flushSelector, connection)));
             }
         }
 

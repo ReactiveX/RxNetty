@@ -505,7 +505,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
         @SuppressWarnings("unchecked")
         protected Observable<Void> writeRequest(Connection<HttpClientResponse<O>, ?> conn) {
-            return conn.write(rawRequest.asObservable(conn.unsafeNettyChannel()));
+            return conn.write(rawRequest.asObservable(conn));
         }
     }
 

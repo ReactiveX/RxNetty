@@ -20,7 +20,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpHeaderUtil;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.cookie.Cookie;
@@ -214,7 +214,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
     @Override
     public HttpServerResponse<C> setTransferEncodingChunked() {
         if (state.allowUpdate()) {
-            HttpHeaderUtil.setTransferEncodingChunked(state.headers, true);
+            HttpUtil.setTransferEncodingChunked(state.headers, true);
         }
         return this;
     }

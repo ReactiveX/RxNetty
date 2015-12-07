@@ -22,8 +22,10 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import io.reactivex.netty.protocol.http.ws.WebSocketConnection;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketResponse;
@@ -41,20 +43,23 @@ public final class WebSocketResponseImpl<T> extends WebSocketResponse<T> {
 
     private final HttpClientResponse<T> delegate;
     private final WebSocketConnection wsConnection;
+    private final Channel channel;
 
     public WebSocketResponseImpl(HttpClientResponse<T> delegate) {
         this.delegate = delegate;
         @SuppressWarnings("unchecked")
         Connection<WebSocketFrame, WebSocketFrame> cast =
                 (Connection<WebSocketFrame, WebSocketFrame>) delegate.unsafeConnection();
-        /*Do not pool connection once upgraded to WS. A closing handshake closes the channel*/
-        cast.unsafeNettyChannel().attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true);
+        channel = cast.unsafeNettyChannel();
         wsConnection = new WebSocketConnection(cast);
     }
 
     @Override
     public Observable<WebSocketConnection> getWebSocketConnection() {
         if (isUpgraded()) {
+            /*Do not pool connection once upgraded to WS. A closing handshake closes the channel*/
+            channel.attr(ClientConnectionToChannelBridge.DISCARD_CONNECTION).set(true);
+            channel.attr(AbstractHttpConnectionBridge.CONNECTION_UPGRADED).set(true);
             return Observable.just(wsConnection);
         } else {
             return Observable.error(new IllegalStateException("WebSocket upgrade rejected by the server."));
@@ -226,12 +231,12 @@ public final class WebSocketResponseImpl<T> extends WebSocketResponse<T> {
     }
 
     @Override
-    public Observable<ServerSentEvent> getContentAsServerSentEvents() {
+    public ContentSource<ServerSentEvent> getContentAsServerSentEvents() {
         return delegate.getContentAsServerSentEvents();
     }
 
     @Override
-    public Observable<T> getContent() {
+    public ContentSource<T> getContent() {
         return delegate.getContent();
     }
 

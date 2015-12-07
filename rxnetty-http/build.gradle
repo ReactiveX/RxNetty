@@ -17,6 +17,5 @@
 dependencies {
     compile project(':rxnetty-common')
     compile project(':rxnetty-tcp')
-    testCompile project(':rxnetty-test-utils')
     compile "io.netty:netty-codec-http:${netty_version}"
 }

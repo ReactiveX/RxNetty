@@ -18,8 +18,8 @@
 package io.reactivex.netty.spectator.tcp;
 
 import com.netflix.spectator.api.Counter;
-import com.netflix.spectator.api.Timer;
 import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventListener;
+import io.reactivex.netty.spectator.LatencyMetrics;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -34,20 +34,20 @@ public class TcpServerListener extends TcpServerEventListener {
     private final AtomicInteger liveConnections;
     private final AtomicInteger inflightConnections;
     private final Counter failedConnections;
-    private final Timer connectionProcessingTimes;
+    private final LatencyMetrics connectionProcessingTimes;
     private final AtomicInteger pendingConnectionClose;
     private final Counter failedConnectionClose;
-    private final Timer connectionCloseTimes;
+    private final LatencyMetrics connectionCloseTimes;
 
     private final AtomicInteger pendingWrites;
     private final AtomicInteger pendingFlushes;
 
     private final Counter bytesWritten;
-    private final Timer writeTimes;
+    private final LatencyMetrics writeTimes;
     private final Counter bytesRead;
     private final Counter failedWrites;
     private final Counter failedFlushes;
-    private final Timer flushTimes;
+    private final LatencyMetrics flushTimes;
 
     public TcpServerListener(String monitorId) {
         liveConnections = newGauge("liveConnections", monitorId, new AtomicInteger());
@@ -55,18 +55,18 @@ public class TcpServerListener extends TcpServerEventListener {
         pendingConnectionClose = newGauge("pendingConnectionClose", monitorId, new AtomicInteger());
         failedConnectionClose = newCounter("failedConnectionClose", monitorId);
         failedConnections = newCounter("failedConnections", monitorId);
-        connectionProcessingTimes = newTimer("connectionProcessingTimes", monitorId);
-        connectionCloseTimes = newTimer("connectionCloseTimes", monitorId);
+        connectionProcessingTimes = new LatencyMetrics("connectionProcessingTimes", monitorId);
+        connectionCloseTimes = new LatencyMetrics("connectionCloseTimes", monitorId);
 
         pendingWrites = newGauge("pendingWrites", monitorId, new AtomicInteger());
         pendingFlushes = newGauge("pendingFlushes", monitorId, new AtomicInteger());
 
         bytesWritten = newCounter("bytesWritten", monitorId);
-        writeTimes = newTimer("writeTimes", monitorId);
+        writeTimes = new LatencyMetrics("writeTimes", monitorId);
         bytesRead = newCounter("bytesRead", monitorId);
         failedWrites = newCounter("failedWrites", monitorId);
         failedFlushes = newCounter("failedFlushes", monitorId);
-        flushTimes = newTimer("flushTimes", monitorId);
+        flushTimes = new LatencyMetrics("flushTimes", monitorId);
     }
 
     @Override
@@ -117,13 +117,12 @@ public class TcpServerListener extends TcpServerEventListener {
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        pendingFlushes.decrementAndGet();
-        failedFlushes.increment();
+    public void onByteWritten(long bytesWritten) {
+        this.bytesWritten.increment(bytesWritten);
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
         pendingFlushes.decrementAndGet();
         flushTimes.record(duration, timeUnit);
     }
@@ -140,9 +139,8 @@ public class TcpServerListener extends TcpServerEventListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
         pendingWrites.decrementAndGet();
-        this.bytesWritten.increment(bytesWritten);
         writeTimes.record(duration, timeUnit);
     }
 
@@ -163,10 +161,6 @@ public class TcpServerListener extends TcpServerEventListener {
         return failedConnections.count();
     }
 
-    public Timer getConnectionProcessingTimes() {
-        return connectionProcessingTimes;
-    }
-
     public long getPendingWrites() {
         return pendingWrites.get();
     }
@@ -179,10 +173,6 @@ public class TcpServerListener extends TcpServerEventListener {
         return bytesWritten.count();
     }
 
-    public Timer getWriteTimes() {
-        return writeTimes;
-    }
-
     public long getBytesRead() {
         return bytesRead.count();
     }
@@ -193,9 +183,5 @@ public class TcpServerListener extends TcpServerEventListener {
 
     public long getFailedFlushes() {
         return failedFlushes.count();
-    }
-
-    public Timer getFlushTimes() {
-        return flushTimes;
     }
 }

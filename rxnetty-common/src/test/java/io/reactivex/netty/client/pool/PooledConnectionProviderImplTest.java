@@ -60,7 +60,7 @@ public class PooledConnectionProviderImplTest {
     @Rule
     public final PooledFactoryRule pooledFactoryRule = new PooledFactoryRule();
 
-    @Test(timeout = 60000)
+    @Test(timeout = 6000000)
     public void testConnect() throws Exception {
         pooledFactoryRule.getAConnection();
         pooledFactoryRule.assertNoIdleConnection();

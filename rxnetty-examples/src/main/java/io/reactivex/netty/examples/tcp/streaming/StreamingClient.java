@@ -18,6 +18,7 @@
 package io.reactivex.netty.examples.tcp.streaming;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -78,6 +79,7 @@ public final class StreamingClient extends AbstractClientExample {
 
         /*Create a new client for the server address*/
         TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
+                 .enableWireLogging(LogLevel.DEBUG)
                 /*Create a new connection request, each subscription creates a new connection*/
                  .createConnectionRequest()
                 /* Add a decoder that reads the input and splits it on new line, this makes the output predictable, as

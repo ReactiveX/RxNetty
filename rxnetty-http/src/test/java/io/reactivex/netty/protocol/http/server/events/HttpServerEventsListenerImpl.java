@@ -115,6 +115,11 @@ public class HttpServerEventsListenerImpl extends HttpServerEventsListener {
     }
 
     @Override
+    public void onByteWritten(long bytesWritten) {
+        tcpDelegate.onByteWritten(bytesWritten);
+    }
+
+    @Override
     public void onNewClientConnected() {
         tcpDelegate.onNewClientConnected();
     }
@@ -187,8 +192,8 @@ public class HttpServerEventsListenerImpl extends HttpServerEventsListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        tcpDelegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onWriteSuccess(duration, timeUnit);
     }
 
     @Override
@@ -197,13 +202,8 @@ public class HttpServerEventsListenerImpl extends HttpServerEventsListener {
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        tcpDelegate.onFlushFailed(duration, timeUnit, throwable);
-    }
-
-    @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        tcpDelegate.onFlushSuccess(duration, timeUnit);
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onFlushComplete(duration, timeUnit);
     }
 
     @Override

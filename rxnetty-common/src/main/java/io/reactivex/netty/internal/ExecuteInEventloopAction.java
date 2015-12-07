@@ -14,20 +14,26 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.protocol.http.internal;
 
-import io.reactivex.netty.protocol.http.TrailingHeaders;
-import rx.Subscriber;
+package io.reactivex.netty.internal;
 
-public class HttpTrailerSubscriberEvent {
+import io.netty.channel.Channel;
+import rx.functions.Action0;
 
-    private final Subscriber<? super TrailingHeaders> subscriber;
+public abstract class ExecuteInEventloopAction implements Action0, Runnable {
 
-    public HttpTrailerSubscriberEvent(Subscriber<? super TrailingHeaders> subscriber) {
-        this.subscriber = subscriber;
+    private final Channel channel;
+
+    protected ExecuteInEventloopAction(Channel channel) {
+        this.channel = channel;
     }
 
-    public Subscriber<? super TrailingHeaders> getSubscriber() {
-        return subscriber;
+    @Override
+    public void call() {
+        if (channel.eventLoop().inEventLoop()) {
+            run();
+        } else {
+            channel.eventLoop().execute(this);
+        }
     }
 }

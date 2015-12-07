@@ -24,28 +24,28 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
-import io.netty.handler.codec.http.HttpHeaderUtil;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpObject;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.LastHttpContent;
+import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
+import io.reactivex.netty.channel.ConnectionInputSubscriberReplaceEvent;
 import io.reactivex.netty.channel.SubscriberToChannelFutureBridge;
 import io.reactivex.netty.events.Clock;
-import io.reactivex.netty.protocol.http.TrailingHeaders;
+import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge.State.Stage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Producer;
 import rx.Subscriber;
 import rx.functions.Action0;
-import rx.observers.SafeSubscriber;
 import rx.subscriptions.Subscriptions;
 
 import java.nio.channels.ClosedChannelException;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
@@ -53,6 +53,9 @@ import static io.netty.handler.codec.http.HttpHeaderValues.*;
 public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractHttpConnectionBridge.class);
+
+    public static final AttributeKey<Boolean> CONNECTION_UPGRADED =
+            AttributeKey.valueOf("rxnetty_http_upgraded_connection");
 
     @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final IllegalStateException ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED =
@@ -64,35 +67,21 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     private static final IllegalStateException CONTENT_ARRIVED_WITH_NO_SUB =
             new IllegalStateException("HTTP Content received but no subscriber was registered.");
     @SuppressWarnings("ThrowableInstanceNeverThrown")
-    private static final IllegalStateException ONLY_ONE_TRAILER_INPUT_SUB_ALLOWED =
-            new IllegalStateException("Only one subscriber allowed for HTTP trailing headers.");
-    @SuppressWarnings("ThrowableInstanceNeverThrown")
-    private static final IllegalStateException LAZY_TRAILER_SUB =
-            new IllegalStateException("Channel is set to auto-read but the subscription was lazy.");
-    @SuppressWarnings("ThrowableInstanceNeverThrown")
-    private static final IllegalStateException TRAILER_ARRIVED_WITH_NO_SUB =
-            new IllegalStateException("HTTP trailing headers received but no subscriber was registered.");
-    @SuppressWarnings("ThrowableInstanceNeverThrown")
     private static final ClosedChannelException CLOSED_CHANNEL_EXCEPTION = new ClosedChannelException();
 
     static {
         ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
         LAZY_CONTENT_INPUT_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
         CONTENT_ARRIVED_WITH_NO_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
-        ONLY_ONE_TRAILER_INPUT_SUB_ALLOWED.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
-        LAZY_TRAILER_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
-        TRAILER_ARRIVED_WITH_NO_SUB.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
         CLOSED_CHANNEL_EXCEPTION.setStackTrace(EmptyArrays.EMPTY_STACK_TRACE);
     }
 
     protected ConnectionInputSubscriber connectionInputSubscriber;
     private final UnsafeEmptySubscriber<C> emptyContentSubscriber;
-    private final UnsafeEmptySubscriber<TrailingHeaders> emptyTrailerSubscriber;
     private long headerWriteStartTimeNanos;
 
     protected AbstractHttpConnectionBridge() {
         emptyContentSubscriber = new UnsafeEmptySubscriber<>("Error while waiting for HTTP content.");
-        emptyTrailerSubscriber = new UnsafeEmptySubscriber<>("Error while waiting for HTTP trailing headers.");
     }
 
     @Override
@@ -103,7 +92,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             /*Reset on every header write, when we support pipelining, this should be a queue.*/
             headerWriteStartTimeNanos = Clock.newStartTimeNanos();
             HttpMessage httpMsg = (HttpMessage) msg;
-            if (!HttpHeaderUtil.isContentLengthSet(httpMsg) && !HttpVersion.HTTP_1_0.equals(httpMsg.protocolVersion())) {
+            if (!HttpUtil.isContentLengthSet(httpMsg) && !HttpVersion.HTTP_1_0.equals(httpMsg.protocolVersion())) {
                 // If there is no content length we need to specify the transfer encoding as chunked as we always
                 // send data in multiple HttpContent.
                 // On the other hand, if someone wants to not have chunked encoding, adding content-length will work
@@ -133,56 +122,69 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
     public void userEventTriggered(final ChannelHandlerContext ctx, Object evt) throws Exception {
 
         Object eventToPropagateFurther = evt;
+        Boolean connUpgradedAttr = ctx.channel().attr(CONNECTION_UPGRADED).get();
+        boolean connUpgraded = null != connUpgradedAttr ? connUpgradedAttr : false;
 
         if (evt instanceof ConnectionInputSubscriberEvent) {
-            @SuppressWarnings({"unchecked", "rawtypes"})
+
+            @SuppressWarnings({ "unchecked", "rawtypes" })
             ConnectionInputSubscriberEvent orig = (ConnectionInputSubscriberEvent) evt;
-            /*Local copy to refer from the channel close listener. As the instance level copy can change*/
-            final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
 
-            connectionInputSubscriber = _connectionInputSubscriber;
+            if (!connUpgraded) {
+                /*Local copy to refer from the channel close listener. As the instance level copy can change*/
+                final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
 
-            final SubscriberToChannelFutureBridge l = new SubscriberToChannelFutureBridge() {
+                connectionInputSubscriber = _connectionInputSubscriber;
 
-                @Override
-                protected void doOnSuccess(ChannelFuture future) {
-                    onChannelClose(_connectionInputSubscriber);
+                final SubscriberToChannelFutureBridge l = new SubscriberToChannelFutureBridge() {
+
+                    @Override
+                    protected void doOnSuccess(ChannelFuture future) {
+                        onChannelClose(_connectionInputSubscriber);
+                    }
+
+                    @Override
+                    protected void doOnFailure(ChannelFuture future, Throwable cause) {
+                        onChannelClose(_connectionInputSubscriber);
+                    }
+                };
+
+                l.bridge(ctx.channel().closeFuture(), _connectionInputSubscriber);
+
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber,
+                                                                                             orig.getConnection());
+                eventToPropagateFurther = newEvent;
+            } else {
+                if (null != connectionInputSubscriber) {
+                    connectionInputSubscriber.state.stage = Stage.Upgraded;
                 }
-
-                @Override
-                protected void doOnFailure(ChannelFuture future, Throwable cause) {
-                    onChannelClose(_connectionInputSubscriber);
-                }
-            };
-
-            l.bridge(ctx.channel().closeFuture(), _connectionInputSubscriber);
-
-            @SuppressWarnings({"unchecked", "rawtypes"})
-            ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber,
-                                                                                         orig.getConnection());
-            eventToPropagateFurther = newEvent;
+                @SuppressWarnings({ "unchecked", "rawtypes" })
+                ConnectionInputSubscriberReplaceEvent replaceEvt = new ConnectionInputSubscriberReplaceEvent<>(orig);
+                eventToPropagateFurther = replaceEvt;
+            }
         } else if (evt instanceof HttpContentSubscriberEvent) {
             newHttpContentSubscriber(evt, connectionInputSubscriber);
-        } else if (evt instanceof HttpTrailerSubscriberEvent) {
-            newHttpTrailerEvent(evt, connectionInputSubscriber);
         }
 
         super.userEventTriggered(ctx, eventToPropagateFurther);
     }
 
     protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig) {
-        return new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection(), false);
+        ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection());
+        toReturn.state.headerSub.add(Subscriptions.create(toReturn));
+        return toReturn;
     }
 
     protected final void onChannelClose(ConnectionInputSubscriber connectionInputSubscriber) {
         /*
-         * If any of the subscribers(header, content, trailer) are still subscribed and the channel is closed, it is an
+         * If any of the subscribers(header or content) are still subscribed and the channel is closed, it is an
          * error. If they are unsubscribed, this will be a no-op.
          */
         connectionInputSubscriber.onError(CLOSED_CHANNEL_EXCEPTION);
     }
 
-    protected void onClosedBeforeReceiveComplete(ConnectionInputSubscriber connectionInputSubscriber) {
+    protected void onClosedBeforeReceiveComplete(Channel channel) {
         // No Op. Override to add behavior
     }
 
@@ -244,12 +246,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                     ReferenceCountUtil.release(content);
                 }
 
-                LastHttpContent lastHttpContent = (LastHttpContent) nextItem;
-                if (null != state.trailerSub && !lastHttpContent.trailingHeaders().isEmpty()) {
-                    final TrailingHeaders trailer = new TrailingHeaders(lastHttpContent);
-                    state.trailerSub.onNext(trailer);
-                }
-
                 connectionInputSubscriber.contentComplete();
                 onContentReceiveComplete(state.headerReceivedTimeNanos);
             } else {
@@ -264,43 +260,30 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         @SuppressWarnings("unchecked")
         HttpContentSubscriberEvent<C> contentSubscriberEvent = (HttpContentSubscriberEvent<C>) evt;
         Subscriber<? super C> newSub = contentSubscriberEvent.getSubscriber();
+        Throwable errorToRaise = null;
 
         if (null == inputSubscriber) {
-            newSub.onError(new IllegalStateException("Received an HTTP Content subscriber without HTTP message."));
+            errorToRaise = new NullPointerException("Null Connection input subscriber.");
         } else {
             final State state = inputSubscriber.state;
 
             if (state.raiseErrorOnInputSubscription()) {
-                newSub.onError(state.raiseErrorOnInputSubscription);
+                errorToRaise = state.raiseErrorOnInputSubscription;
             } else if (isValidToEmit(state.contentSub)) {
-                /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
+                /*Allow only one concurrent input subscriber but allow concatenated subscribers*/
                 if (!newSub.isUnsubscribed()) {
-                    newSub.onError(ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED);
+                    errorToRaise = ONLY_ONE_CONTENT_INPUT_SUB_ALLOWED;
                 }
-            } else {
+            } else if (state.stage == Stage.HeaderReceived) {
                 inputSubscriber.setupContentSubscriber(newSub);
                 onNewContentSubscriber(inputSubscriber, newSub);
+            } else {
+                errorToRaise = new IllegalStateException("Content subscription received without request start.");
             }
         }
-    }
 
-    private void newHttpTrailerEvent(final Object evt, final ConnectionInputSubscriber inputSubscriber) {
-        HttpTrailerSubscriberEvent contentSubscriberEvent = (HttpTrailerSubscriberEvent) evt;
-        Subscriber<? super TrailingHeaders> newSub = contentSubscriberEvent.getSubscriber();
-
-        if (null == inputSubscriber) {
-            newSub.onError(new IllegalStateException("Received an HTTP trailer subscriber without HTTP message."));
-        } else {
-            final State state = inputSubscriber.state;
-            if (state.raiseErrorOnTrailerSubscription()) {
-                newSub.onError(state.raiseErrorOnTrailerSubscription);
-            } else if (null == state.trailerSub) {
-                connectionInputSubscriber.setupTrailerSubscriber(newSub);
-            } else {
-                if (!newSub.isUnsubscribed()) {
-                    newSub.onError(ONLY_ONE_TRAILER_INPUT_SUB_ALLOWED);
-                }
-            }
+        if (null != errorToRaise && isValidToEmit(newSub)) {
+            newSub.onError(errorToRaise);
         }
     }
 
@@ -311,12 +294,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 // when a subscriber arrives.
                 state.raiseErrorOnInputSubscription = LAZY_CONTENT_INPUT_SUB;
                 state.contentSub = emptyContentSubscriber;
-            }
-            if (null == state.trailerSub) {
-                // If the channel is set to auto-read and there is no eager subscription then, we should raise errors
-                // when a subscriber arrives.
-                state.raiseErrorOnTrailerSubscription = LAZY_TRAILER_SUB;
-                state.trailerSub = emptyTrailerSubscriber;
             }
         }
     }
@@ -340,19 +317,18 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             /*Strictly in the order in which the transitions would happen*/
             Created,
             HeaderReceived,
-            ContentComplete
+            ContentComplete,
+            Upgraded
         }
 
         protected IllegalStateException raiseErrorOnInputSubscription;
-        protected IllegalStateException raiseErrorOnTrailerSubscription;
         @SuppressWarnings("rawtypes") private Subscriber headerSub;
         @SuppressWarnings("rawtypes") private Subscriber contentSub;
-        protected Subscriber<? super TrailingHeaders> trailerSub;
         private long headerReceivedTimeNanos;
 
         private volatile Stage stage = Stage.Created;
 
-        private void headerReceived() {
+        /*Visible for testing*/void headerReceived() {
             headerReceivedTimeNanos = Clock.newStartTimeNanos();
             stage = Stage.HeaderReceived;
         }
@@ -363,10 +339,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
         public boolean raiseErrorOnInputSubscription() {
             return null != raiseErrorOnInputSubscription;
-        }
-
-        public boolean raiseErrorOnTrailerSubscription() {
-            return null != raiseErrorOnTrailerSubscription;
         }
 
         public boolean startButNotCompleted() {
@@ -384,104 +356,19 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         /*Visible for testing*/Subscriber<?> getContentSub() {
             return contentSub;
         }
-
-        /*Visible for testing*/Subscriber<? super TrailingHeaders> getTrailerSub() {
-            return trailerSub;
-        }
-
-        /*Visible for testing*/long getHeaderReceivedTimeNanos() {
-            return headerReceivedTimeNanos;
-        }
-
-        /*Visible for testing*/Stage getStage() {
-            return stage;
-        }
-
-        /*Visible for testing*/IllegalStateException getRaiseErrorOnInputSubscription() {
-            return raiseErrorOnInputSubscription;
-        }
-
-        /*Visible for testing*/IllegalStateException getRaiseErrorOnTrailerSubscription() {
-            return raiseErrorOnTrailerSubscription;
-        }
     }
 
-    /**
-     * A subscriber that can be reused if and only if not wrapped in a {@link SafeSubscriber}.
-     */
-    protected static final class UnsafeEmptySubscriber<T> extends Subscriber<T> {
-
-        private final String msg;
-
-        protected UnsafeEmptySubscriber(String msg) {
-            this.msg = msg;
-        }
-
-        @Override
-        public void onCompleted() {
-        }
-
-        @Override
-        public void onError(Throwable e) {
-            logger.error(msg, e);
-        }
-
-        @Override
-        public void onNext(T o) {
-            ReferenceCountUtil.release(o);
-        }
-    }
-
-    /*Visible for testing*/static class TrailerProducer implements Producer {
-
-        private final Producer delegate;
-        @SuppressWarnings("unused")
-        private volatile int requestedUp; /*Updated and used via the updater*/
-        /*Updater for requested*/
-        private static final AtomicIntegerFieldUpdater<TrailerProducer>
-                REQUESTED_UP_UPDATER =
-                AtomicIntegerFieldUpdater.newUpdater(TrailerProducer.class, "requestedUp");
-
-        private TrailerProducer(Producer delegate) {
-            this.delegate = delegate;
-        }
-
-        @Override
-        public void request(long n) {
-            if (!REQUESTED_UP_UPDATER.compareAndSet(this, 0, 1)) {
-                /*
-                 * Since, the trailer will always be 1 for a http message, this just makes sure the trailer
-                 * subscriber never requests more than 1
-                 */
-                delegate.request(1);
-            }
-        }
-
-        /*Visible for testing*/ Producer getDelegateProducer() {
-            return delegate;
-        }
-    }
-
-    protected class ConnectionInputSubscriber extends Subscriber<Object> {
+    protected class ConnectionInputSubscriber extends Subscriber<Object> implements Action0, Runnable {
 
         private final Channel channel;
         private final State state;
         private Producer producer;
 
         @SuppressWarnings("rawtypes")
-        public ConnectionInputSubscriber(Subscriber subscriber, Connection connection,
-                                         final boolean unsubscribeOnHeadersUnsubscribe) {
+        private ConnectionInputSubscriber(Subscriber subscriber, Connection connection) {
             state = new State();
-            state.headerSub = subscriber;
-            state.headerSub.add(Subscriptions.create(new Action0() {
-                @Override
-                public void call() {
-                    if (unsubscribeOnHeadersUnsubscribe || !state.receiveStarted()) {
-                        unsubscribe(); // If the receive has not yet started, unsubscribe from input, which closes connection
-                    }
-                }
-            }));
             channel = connection.unsafeNettyChannel();
+            state.headerSub = subscriber;
         }
 
         @Override
@@ -500,7 +387,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             errorAllSubs(e);
 
             if (state.startButNotCompleted()) {
-                onClosedBeforeReceiveComplete(this);
+                onClosedBeforeReceiveComplete(channel);
             }
         }
 
@@ -539,9 +426,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             if (isValidToEmit(state.contentSub)) {
                 state.contentSub.onCompleted();
             }
-            if (isValidToEmit(state.trailerSub)) {
-                state.trailerSub.onCompleted();
-            }
         }
 
         private void errorAllSubs(Throwable throwable) {
@@ -550,9 +434,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             }
             if (isValidToEmit(state.contentSub)) {
                 state.contentSub.onError(throwable);
-            }
-            if (isValidToEmit(state.trailerSub)) {
-                state.trailerSub.onError(throwable);
             }
         }
 
@@ -582,14 +463,8 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             assert channel.eventLoop().inEventLoop();
 
             state.contentSub = newSub;
+            state.contentSub.add(Subscriptions.create(this));
             state.contentSub.setProducer(producer); /*Content demand matches upstream demand*/
-        }
-
-        private void setupTrailerSubscriber(Subscriber<? super TrailingHeaders> newSub) {
-            assert channel.eventLoop().inEventLoop();
-
-            state.trailerSub = newSub;
-            state.trailerSub.setProducer(new TrailerProducer(producer));
         }
 
         public void contentComplete() {
@@ -599,17 +474,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 state.contentSub.onCompleted();
             } else {
                 contentArrivedWhenSubscriberNotValid();
-            }
-
-            if (null == state.trailerSub) {
-                /*
-                 * Cases when auto-read is off and there is lazy subscription, due to mismatched request demands on the
-                 * subscriber, it may so happen that we get content without a subscriber, in such cases, we should raise
-                 * an error.
-                 */
-                state.raiseErrorOnTrailerSubscription = TRAILER_ARRIVED_WITH_NO_SUB;
-            } else {
-                state.trailerSub.onCompleted();
             }
         }
 
@@ -627,5 +491,31 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         /*Visible for testing*/State getState() {
             return state;
         }
+
+        @Override
+        public void run() {
+            if (state.contentSub != null) {
+                if (state.contentSub.isUnsubscribed()) {
+                    // Content sub exists and unsubscribed, so unsubscribe from input.
+                    unsubscribe();
+                } else if (state.headerSub.isUnsubscribed() && !state.receiveStarted()) {
+                    // Header sub unsubscribed before request started, unsubscribe from input.
+                    unsubscribe();
+                }
+            } else if (state.headerSub.isUnsubscribed() && !state.receiveStarted()) {
+                // Header sub unsubscribed before request started, unsubscribe from input.
+                unsubscribe();
+            }
+        }
+
+        @Override
+        public void call() {
+            if (channel.eventLoop().inEventLoop()) {
+                run();
+            } else {
+                channel.eventLoop().execute(ConnectionInputSubscriber.this);
+            }
+        }
+
     }
 }

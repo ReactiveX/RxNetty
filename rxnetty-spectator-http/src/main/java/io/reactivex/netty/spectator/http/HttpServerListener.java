@@ -18,8 +18,8 @@
 package io.reactivex.netty.spectator.http;
 
 import com.netflix.spectator.api.Counter;
-import com.netflix.spectator.api.Timer;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
+import io.reactivex.netty.spectator.LatencyMetrics;
 import io.reactivex.netty.spectator.tcp.TcpServerListener;
 
 import java.util.concurrent.TimeUnit;
@@ -35,21 +35,25 @@ public class HttpServerListener extends HttpServerEventsListener {
     private final AtomicInteger requestBacklog;
     private final AtomicInteger inflightRequests;
     private final Counter processedRequests;
+    private final ResponseCodesHolder responseCodesHolder;
     private final Counter failedRequests;
     private final Counter responseWriteFailed;
-    private final Timer responseWriteTimes;
-    private final Timer requestReadTimes;
+    private final LatencyMetrics responseWriteTimes;
+    private final LatencyMetrics requestReadTimes;
+    private final LatencyMetrics requestProcessingTimes;
 
     private final TcpServerListener tcpDelegate;
 
     public HttpServerListener(String monitorId) {
         requestBacklog = newGauge("requestBacklog", monitorId, new AtomicInteger());
         inflightRequests = newGauge("inflightRequests", monitorId, new AtomicInteger());
-        responseWriteTimes = newTimer("responseWriteTimes", monitorId);
-        requestReadTimes = newTimer("requestReadTimes", monitorId);
+        responseWriteTimes = new LatencyMetrics("responseWriteTimes", monitorId);
+        requestReadTimes = new LatencyMetrics("requestReadTimes", monitorId);
+        requestProcessingTimes = new LatencyMetrics("requestProcessingTimes", monitorId);
         processedRequests = newCounter("processedRequests", monitorId);
         failedRequests = newCounter("failedRequests", monitorId);
         responseWriteFailed = newCounter("responseWriteFailed", monitorId);
+        responseCodesHolder = new ResponseCodesHolder(monitorId);
         tcpDelegate = new TcpServerListener(monitorId);
     }
 
@@ -73,12 +77,24 @@ public class HttpServerListener extends HttpServerEventsListener {
         return responseWriteFailed.count();
     }
 
-    public Timer getResponseWriteTimes() {
-        return responseWriteTimes;
+    public long getResponse1xx() {
+        return responseCodesHolder.getResponse1xx();
     }
 
-    public Timer getRequestReadTimes() {
-        return requestReadTimes;
+    public long getResponse2xx() {
+        return responseCodesHolder.getResponse2xx();
+    }
+
+    public long getResponse3xx() {
+        return responseCodesHolder.getResponse3xx();
+    }
+
+    public long getResponse4xx() {
+        return responseCodesHolder.getResponse4xx();
+    }
+
+    public long getResponse5xx() {
+        return responseCodesHolder.getResponse5xx();
     }
 
     public static HttpServerListener newHttpListener(String monitorId) {
@@ -90,16 +106,19 @@ public class HttpServerListener extends HttpServerEventsListener {
         processedRequests.increment();
         inflightRequests.decrementAndGet();
         failedRequests.increment();
+        requestProcessingTimes.record(duration, timeUnit);
     }
 
     @Override
     public void onRequestHandlingSuccess(long duration, TimeUnit timeUnit) {
         inflightRequests.decrementAndGet();
         processedRequests.increment();
+        requestProcessingTimes.record(duration, timeUnit);
     }
 
     @Override
     public void onResponseWriteSuccess(long duration, TimeUnit timeUnit, int responseCode) {
+        responseCodesHolder.update(responseCode);
         responseWriteTimes.record(duration, timeUnit);
     }
 
@@ -167,13 +186,13 @@ public class HttpServerListener extends HttpServerEventsListener {
     }
 
     @Override
-    public void onFlushFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        tcpDelegate.onFlushFailed(duration, timeUnit, throwable);
+    public void onByteWritten(long bytesWritten) {
+        tcpDelegate.onByteWritten(bytesWritten);
     }
 
     @Override
-    public void onFlushSuccess(long duration, TimeUnit timeUnit) {
-        tcpDelegate.onFlushSuccess(duration, timeUnit);
+    public void onFlushComplete(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onFlushComplete(duration, timeUnit);
     }
 
     @Override
@@ -187,8 +206,8 @@ public class HttpServerListener extends HttpServerEventsListener {
     }
 
     @Override
-    public void onWriteSuccess(long duration, TimeUnit timeUnit, long bytesWritten) {
-        tcpDelegate.onWriteSuccess(duration, timeUnit, bytesWritten);
+    public void onWriteSuccess(long duration, TimeUnit timeUnit) {
+        tcpDelegate.onWriteSuccess(duration, timeUnit);
     }
 
     @Override
@@ -208,10 +227,6 @@ public class HttpServerListener extends HttpServerEventsListener {
         return tcpDelegate.getFailedConnections();
     }
 
-    public Timer getConnectionProcessingTimes() {
-        return tcpDelegate.getConnectionProcessingTimes();
-    }
-
     public long getPendingWrites() {
         return tcpDelegate.getPendingWrites();
     }
@@ -224,10 +239,6 @@ public class HttpServerListener extends HttpServerEventsListener {
         return tcpDelegate.getBytesWritten();
     }
 
-    public Timer getWriteTimes() {
-        return tcpDelegate.getWriteTimes();
-    }
-
     public long getBytesRead() {
         return tcpDelegate.getBytesRead();
     }
@@ -238,9 +249,5 @@ public class HttpServerListener extends HttpServerEventsListener {
 
     public long getFailedFlushes() {
         return tcpDelegate.getFailedFlushes();
-    }
-
-    public Timer getFlushTimes() {
-        return tcpDelegate.getFlushTimes();
     }
 }
