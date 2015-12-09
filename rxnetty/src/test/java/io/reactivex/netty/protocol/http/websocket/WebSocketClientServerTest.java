@@ -17,6 +17,8 @@ package io.reactivex.netty.protocol.http.websocket;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.UnpooledByteBufAllocator;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame;
@@ -25,13 +27,19 @@ import io.netty.handler.codec.http.websocketx.PongWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketVersion;
+import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
+import io.reactivex.netty.protocol.http.server.RequestHandler;
+import io.reactivex.netty.protocol.http.server.HttpServerRequest;
+import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.server.RxServer;
 import org.junit.Test;
+import rx.Notification;
 import rx.Observable;
+import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func1;
 
@@ -40,11 +48,14 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 /**
  * @author Tomasz Bak
@@ -137,6 +148,49 @@ public class WebSocketClientServerTest {
 
         assertTrue("Expected close on server", executor.getReceivedClientFrames().get(0) instanceof CloseWebSocketFrame);
         assertTrue("Expected close on server", executor.getReceivedServerFrames().get(0) instanceof CloseWebSocketFrame);
+    }
+
+    @Test
+    public void testHandshakeFailure() throws Exception {
+        final RxServer<HttpServerRequest<ByteBuf>, HttpServerResponse<ByteBuf>> server = RxNetty.createHttpServer(0, new RequestHandler<ByteBuf, ByteBuf>() {
+            @Override
+            public Observable<Void> handle(HttpServerRequest<ByteBuf> request, HttpServerResponse<ByteBuf> response) {
+                response.setStatus(HttpResponseStatus.BAD_REQUEST);
+                return Observable.empty();
+            }
+        });
+        server.start();
+
+        final LinkedBlockingQueue<Notification<Throwable>> q = new LinkedBlockingQueue<Notification<Throwable>>();
+        RxNetty.newWebSocketClientBuilder("localhost", server.getServerPort())
+            .withWebSocketVersion(WebSocketVersion.V13)
+            .enableWireLogging(LogLevel.ERROR)
+            .build()
+            .connect()
+            .timeout(3, TimeUnit.SECONDS)
+            .subscribe(new Subscriber<ObservableConnection<WebSocketFrame, WebSocketFrame>>() {
+                @SuppressWarnings("unchecked")
+                private void put(Notification<? extends Throwable> notif) {
+                    try {
+                        q.put((Notification<Throwable>) notif);
+                    } catch(InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+                public void onNext(ObservableConnection<WebSocketFrame, WebSocketFrame> con) {
+                    put(Notification.createOnNext(new IllegalStateException("Connection should not have succeeded")));
+                }
+                public void onCompleted() {
+                    put(Notification.<Throwable>createOnCompleted());
+                }
+                public void onError(Throwable cause) {
+                    put(Notification.createOnNext(cause));
+                }
+            });
+        final Notification<Throwable> n = q.poll(5, TimeUnit.SECONDS);
+        assertTrue("Expected error event", n.isOnNext());
+        assertEquals("Expected handshake exception", WebSocketHandshakeException.class, n.getValue().getClass());
+        server.shutdown();
     }
 
     private static ByteBuf toByteBuf(String text) {
