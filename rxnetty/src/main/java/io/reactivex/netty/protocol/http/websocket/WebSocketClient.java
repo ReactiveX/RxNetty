@@ -80,9 +80,7 @@ public class WebSocketClient<I extends WebSocketFrame, O extends WebSocketFrame>
                         handler.addHandshakeFinishedListener(new ChannelFutureListener() {
                             @Override
                             public void operationComplete(ChannelFuture future) throws Exception {
-                                if (future.isCancelled()) {
-                                    originalSubscriber.unsubscribe();
-                                } else if (future.isSuccess()) {
+                                if (future.isSuccess()) {
                                     originalSubscriber.onNext(connection);
                                     originalSubscriber.onCompleted();
                                 } else {
