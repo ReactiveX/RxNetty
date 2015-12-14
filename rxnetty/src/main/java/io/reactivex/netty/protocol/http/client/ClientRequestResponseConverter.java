@@ -90,9 +90,18 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
 
     public static final IOException CONN_CLOSE_BEFORE_RESPONSE = new IOException("Connection closed by peer before sending a response.");
 
+    private boolean autoReleaseBuffers;
+
     public ClientRequestResponseConverter(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
         this.eventsSubject = eventsSubject;
         responseState = new ResponseState();
+    }
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        Boolean autoRelease = ctx.channel().attr(ObservableConnection.AUTO_RELEASE_BUFFERS).get();
+        autoReleaseBuffers = null == autoRelease || autoRelease;
+        super.handlerAdded(ctx);
     }
 
     @Override
@@ -244,13 +253,15 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     }
 
     @SuppressWarnings("unchecked")
-    private static void invokeContentOnNext(Object nextObject, ResponseState stateToUse) {
+    private void invokeContentOnNext(Object nextObject, ResponseState stateToUse) {
         try {
             stateToUse.contentSubject.onNext(nextObject);
         } catch (ClassCastException e) {
             stateToUse.contentSubject.onError(e);
         } finally {
-            ReferenceCountUtil.release(nextObject);
+            if (autoReleaseBuffers) {
+                ReferenceCountUtil.release(nextObject);
+            }
         }
     }
 

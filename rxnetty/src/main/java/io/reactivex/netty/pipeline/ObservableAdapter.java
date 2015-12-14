@@ -19,6 +19,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.channel.NewRxConnectionEvent;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.client.ConnectionReuseEvent;
 import rx.Observer;
 
@@ -32,6 +33,15 @@ public class ObservableAdapter extends ChannelInboundHandlerAdapter {
     @SuppressWarnings("rawtypes")
     /*Nullable*/ private Observer bridgedObserver; /*This actually is an Rx Subject*/
 
+    private boolean autoReleaseBuffers;
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        Boolean autoRelease = ctx.channel().attr(ObservableConnection.AUTO_RELEASE_BUFFERS).get();
+        autoReleaseBuffers = null == autoRelease || autoRelease;
+        super.handlerAdded(ctx);
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
@@ -41,7 +51,9 @@ public class ObservableAdapter extends ChannelInboundHandlerAdapter {
             } catch (ClassCastException cce) {
                 bridgedObserver.onError(new RuntimeException("Mismatched message type.", cce));
             } finally {
-                ReferenceCountUtil.release(msg);
+                if (autoReleaseBuffers) {
+                    ReferenceCountUtil.release(msg);
+                }
             }
         }
     }

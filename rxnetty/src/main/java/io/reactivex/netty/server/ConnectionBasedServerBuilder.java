@@ -25,6 +25,7 @@ import io.netty.channel.epoll.EpollServerSocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnection;
 
 /**
  * @author Nitesh Kant
@@ -72,5 +73,11 @@ public abstract class ConnectionBasedServerBuilder<I, O, B extends ConnectionBas
         childChannelOption(ChannelOption.SO_KEEPALIVE, true);
         childChannelOption(ChannelOption.ALLOCATOR, PooledByteBufAllocator.DEFAULT);
         return super.defaultChannelOptions();
+    }
+
+    @Override
+    public B disableAutoReleaseBuffers() {
+        serverBootstrap.childAttr(ObservableConnection.AUTO_RELEASE_BUFFERS, false);
+        return returnBuilder();
     }
 }

@@ -35,6 +35,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.ReferenceCountUtil;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.protocol.http.UnicastContentSubject;
@@ -76,12 +77,20 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
     private final MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject;
     private final long requestContentSubscriptionTimeoutMs;
     private RequestState currentRequestState;
+    private boolean autoReleaseBuffers = true;
 
     public ServerRequestResponseConverter(MetricEventsSubject<ServerMetricsEvent<?>> eventsSubject,
                                           long requestContentSubscriptionTimeoutMs) {
         this.eventsSubject = eventsSubject;
         this.requestContentSubscriptionTimeoutMs = requestContentSubscriptionTimeoutMs;
         currentRequestState = new RequestState();
+    }
+
+    @Override
+    public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+        Boolean autoRelease = ctx.channel().attr(ObservableConnection.AUTO_RELEASE_BUFFERS).get();
+        autoReleaseBuffers = null == autoRelease || autoRelease;
+        super.handlerAdded(ctx);
     }
 
     @Override
@@ -188,13 +197,15 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static void invokeContentOnNext(Object nextObject, UnicastContentSubject contentSubject) {
+    private void invokeContentOnNext(Object nextObject, UnicastContentSubject contentSubject) {
         try {
             contentSubject.onNext(nextObject);
         } catch (ClassCastException e) {
             contentSubject.onError(e);
         } finally {
-            ReferenceCountUtil.release(nextObject);
+            if (autoReleaseBuffers) {
+                ReferenceCountUtil.release(nextObject);
+            }
         }
     }
 
