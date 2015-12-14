@@ -21,7 +21,7 @@ import io.netty.channel.ChannelInboundHandler;
 
 /**
  * An event to indicate to {@link AbstractConnectionToChannelBridge} that the channel is ready to emit a new
- * {@link io.reactivex.netty.channel.Connection} to the subscriber as published by {@link ConnectionSubscriberEvent}
+ * {@link io.reactivex.netty.channel.Connection} to the subscriber as published by {@link ChannelSubscriberEvent}
  *
  * <h2>Why do we need this?</h2>
  *

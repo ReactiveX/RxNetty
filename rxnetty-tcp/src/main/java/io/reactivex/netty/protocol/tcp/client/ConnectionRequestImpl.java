@@ -23,11 +23,10 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.HandlerNames;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.ClientState;
-import io.reactivex.netty.client.ConnectionObservable;
 import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.ConnectionRequest;
 import io.reactivex.netty.internal.InternalReadTimeoutHandler;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import io.reactivex.netty.ssl.SslCodec;
 import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func0;
@@ -38,20 +37,16 @@ import java.util.concurrent.TimeUnit;
 
 final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
 
-    private final ClientState<W, R> clientState;
+    private final TcpClient<W, R> client;
 
-    ConnectionRequestImpl(final ClientState<W, R> clientState) {
+    ConnectionRequestImpl(final ConnectionProvider<W, R> cp, final TcpClient<W, R> client) {
         super(new OnSubscribe<Connection<R, W>>() {
             @Override
-            public void call(Subscriber<? super Connection<R, W>> subscriber) {
-                final ConnectionProvider<W, R> cp = clientState.getConnectionProvider();
-                ConnectionObservable<R, W> nextConnection = cp.nextConnection();
-                nextConnection.subscribeForEvents(clientState.getEventPublisherFactory()
-                                                             .getGlobalClientEventPublisher());
-                nextConnection.unsafeSubscribe(subscriber);
+            public void call(final Subscriber<? super Connection<R, W>> subscriber) {
+                cp.newConnectionRequest().unsafeSubscribe(subscriber);
             }
         });
-        this.clientState = clientState;
+        this.client = client;
     }
 
     @Override
@@ -66,85 +61,81 @@ final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
 
     @Override
     public ConnectionRequest<W, R> enableWireLogging(LogLevel wireLogginLevel) {
-        return copy(clientState.enableWireLogging(wireLogginLevel));
+        return client.enableWireLogging(wireLogginLevel).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerFirst(name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerFirst(name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(EventExecutorGroup group, String name,
                                                                      Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerFirst(group, name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerFirst(group, name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerLast(name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerLast(name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                                     Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerLast(group, name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerLast(group, name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(String baseName, String name,
                                                                       Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerBefore(baseName, name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerBefore(baseName, name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
                                                                       String name, Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerBefore(group, baseName, name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerBefore(group, baseName, name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(String baseName, String name,
                                                                      Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerAfter(baseName, name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerAfter(baseName, name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
                                                                      String name, Func0<ChannelHandler> handlerFactory) {
-        return copy(clientState.<WW, RR>addChannelHandlerAfter(group, baseName, name, handlerFactory));
+        return client.<WW, RR>addChannelHandlerAfter(group, baseName, name, handlerFactory).createConnectionRequest();
     }
 
     @Override
     public <WW, RR> ConnectionRequest<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        return copy(clientState.<WW, RR>pipelineConfigurator(pipelineConfigurator));
+        return client.<WW, RR>pipelineConfigurator(pipelineConfigurator).createConnectionRequest();
     }
 
     @Override
     public ConnectionRequest<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
-        return copy(((TcpClientState<W, R>)clientState).secure(sslEngineFactory));
+        return client.secure(sslEngineFactory).createConnectionRequest();
     }
 
     @Override
     public ConnectionRequest<W, R> secure(SSLEngine sslEngine) {
-        return copy(((TcpClientState<W, R>)clientState).secure(sslEngine));
+        return client.secure(sslEngine).createConnectionRequest();
     }
 
     @Override
     public ConnectionRequest<W, R> secure(SslCodec sslCodec) {
-        return copy(((TcpClientState<W, R>)clientState).secure(sslCodec));
+        return client.secure(sslCodec).createConnectionRequest();
     }
 
     @Override
     public ConnectionRequest<W, R> unsafeSecure() {
-        return copy(((TcpClientState<W, R>)clientState).unsafeSecure());
+        return client.unsafeSecure().createConnectionRequest();
     }
 
-    /*Visible for testing*/ClientState<W, R> getClientState() {
-        return clientState;
-    }
-
-    private static <WW, RR> ConnectionRequestImpl<WW, RR> copy(ClientState<WW, RR> state) {
-        return new ConnectionRequestImpl<>(state);
+    public TcpClient<W, R> getClient() {
+        return client;
     }
 }

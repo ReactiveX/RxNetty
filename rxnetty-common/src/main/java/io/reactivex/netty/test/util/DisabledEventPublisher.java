@@ -17,14 +17,23 @@
 
 package io.reactivex.netty.test.util;
 
+import io.reactivex.netty.events.EventListener;
 import io.reactivex.netty.events.EventPublisher;
+import io.reactivex.netty.events.EventSource;
+import rx.Subscription;
+import rx.subscriptions.Subscriptions;
 
-public class DisabledEventPublisher implements EventPublisher {
+public class DisabledEventPublisher<T extends EventListener> implements EventPublisher, EventSource<T> {
 
     public static final DisabledEventPublisher DISABLED_EVENT_PUBLISHER = new DisabledEventPublisher();
 
     @Override
     public boolean publishingEnabled() {
         return false;
+    }
+
+    @Override
+    public Subscription subscribe(T listener) {
+        return Subscriptions.empty();
     }
 }

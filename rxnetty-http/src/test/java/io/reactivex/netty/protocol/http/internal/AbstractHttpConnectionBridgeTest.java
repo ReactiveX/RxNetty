@@ -380,7 +380,7 @@ public class AbstractHttpConnectionBridgeTest {
             headerSub = new ProducerAwareSubscriber<>();
 
             @SuppressWarnings({"rawtypes", "unchecked"})
-            ConnectionInputSubscriberEvent evt = new ConnectionInputSubscriberEvent(headerSub, connMock);
+            ConnectionInputSubscriberEvent evt = new ConnectionInputSubscriberEvent(headerSub);
 
             channel.pipeline().fireUserEventTriggered(evt);
 

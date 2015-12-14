@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,23 +26,27 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.ChannelProviderFactory;
+import io.reactivex.netty.client.ConnectionProviderFactory;
+import io.reactivex.netty.client.Host;
 import io.reactivex.netty.protocol.http.HttpHandlerNames;
+import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
+import io.reactivex.netty.protocol.http.client.internal.HttpChannelProviderFactory;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl;
 import io.reactivex.netty.protocol.http.client.internal.HttpClientToConnectionBridge;
-import io.reactivex.netty.protocol.http.client.internal.HttpEventPublisherFactory;
 import io.reactivex.netty.protocol.http.client.internal.Redirector;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.client.TcpClientImpl;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import io.reactivex.netty.ssl.SslCodec;
+import rx.Observable;
 import rx.Subscription;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
-import rx.subscriptions.CompositeSubscription;
 
 import javax.net.ssl.SSLEngine;
+import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import static io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl.*;
@@ -50,14 +54,14 @@ import static io.reactivex.netty.protocol.http.client.internal.HttpClientRequest
 public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     private final TcpClient<?, HttpClientResponse<O>> client;
-    private final HttpEventPublisherFactory eventPublisherFactory;
     private int maxRedirects;
+    private final HttpClientEventPublisher clientEventPublisher;
 
-    private HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client, HttpEventPublisherFactory factory,
-                           int maxRedirects) {
+    private HttpClientImpl(TcpClient<?, HttpClientResponse<O>> client, int maxRedirects,
+                           HttpClientEventPublisher clientEventPublisher) {
         this.client = client;
-        eventPublisherFactory = factory;
         this.maxRedirects = maxRedirects;
+        this.clientEventPublisher = clientEventPublisher;
     }
 
     @Override
@@ -141,7 +145,8 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory))
+        );
     }
 
     @Override
@@ -153,7 +158,8 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
 
     @Override
     public <II, OO> HttpClient<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
-        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory)));
+        return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory))
+        );
     }
 
     @Override
@@ -174,7 +180,8 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(group, baseName, name,
-                                                                                  handlerFactory)));
+                                                                                  handlerFactory))
+        );
     }
 
     @Override
@@ -188,12 +195,14 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(group, baseName, name,
-                                                                                 handlerFactory)));
+                                                                                 handlerFactory))
+        );
     }
 
     @Override
     public <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        return _copy(HttpClientImpl.<OO>castClient(client.pipelineConfigurator(pipelineConfigurator)));
+        return _copy(HttpClientImpl.<OO>castClient(client.pipelineConfigurator(pipelineConfigurator))
+        );
     }
 
     @Override
@@ -222,37 +231,40 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
-    public Subscription subscribe(HttpClientEventsListener listener) {
-        CompositeSubscription cs = new CompositeSubscription();
-        cs.add(eventPublisherFactory.getGlobalClientPublisher().subscribe(listener));
-        cs.add(client.subscribe(listener));
-        return cs;
+    public HttpClient<I, O> channelProvider(ChannelProviderFactory providerFactory) {
+        return _copy(client.channelProvider(providerFactory));
     }
 
-    public static HttpClient<ByteBuf, ByteBuf> create(final ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
+    @Override
+    public Subscription subscribe(HttpClientEventsListener listener) {
+        return clientEventPublisher.subscribe(listener);
+    }
 
-        HttpEventPublisherFactory httpEPF = new HttpEventPublisherFactory();
+    public static HttpClient<ByteBuf, ByteBuf> create(ConnectionProviderFactory<ByteBuf, ByteBuf> providerFactory,
+                                                      Observable<Host> hostStream) {
+        return _newClient(TcpClientImpl.create(providerFactory, hostStream));
+    }
 
-        TcpClient<ByteBuf, ByteBuf> tcpClient = TcpClientImpl.create(connectionProvider, httpEPF);
-        return new HttpClientImpl<>(
+    public static HttpClient<ByteBuf, ByteBuf> create(SocketAddress socketAddress) {
+        return _newClient(TcpClientImpl.<ByteBuf, ByteBuf>create(socketAddress));
+    }
+
+    private static HttpClient<ByteBuf, ByteBuf> _newClient(TcpClient<ByteBuf, ByteBuf> tcpClient) {
+
+        HttpClientEventPublisher clientEventPublisher = new HttpClientEventPublisher();
+
+        TcpClient<Object, HttpClientResponse<ByteBuf>> client =
                 tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
                     @Override
                     public void call(ChannelPipeline pipeline) {
                         pipeline.addLast(HttpHandlerNames.HttpClientCodec.getName(), new HttpClientCodec());
                         pipeline.addLast(new HttpClientToConnectionBridge<>());
                     }
-                }), httpEPF, NO_REDIRECTS);
-    }
+                }).channelProvider(new HttpChannelProviderFactory(clientEventPublisher));
 
-    public static HttpClient<ByteBuf, ByteBuf> unsafeCreate(final TcpClient<ByteBuf, ByteBuf> tcpClient,
-                                                            HttpEventPublisherFactory eventPublisherFactory) {
-        return new HttpClientImpl<>(
-                tcpClient.<Object, HttpClientResponse<ByteBuf>>pipelineConfigurator(new Action1<ChannelPipeline>() {
-                    @Override
-                    public void call(ChannelPipeline pipeline) {
-                        pipeline.addLast(new HttpClientToConnectionBridge<>());
-                    }
-                }), eventPublisherFactory, NO_REDIRECTS);
+        client.subscribe(clientEventPublisher);
+
+        return new HttpClientImpl<>(client, NO_REDIRECTS, clientEventPublisher);
     }
 
     @SuppressWarnings("unchecked")
@@ -261,6 +273,6 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     private <II, OO> HttpClientImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> newClient) {
-        return new HttpClientImpl<>(newClient, eventPublisherFactory.copy(), maxRedirects);
+        return new HttpClientImpl<>(newClient, maxRedirects, clientEventPublisher);
     }
 }

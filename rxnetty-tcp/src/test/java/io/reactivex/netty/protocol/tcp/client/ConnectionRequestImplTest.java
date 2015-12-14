@@ -21,6 +21,8 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.ConnectionRequest;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Answers;
@@ -37,143 +39,118 @@ import static org.mockito.Mockito.*;
 public class ConnectionRequestImplTest {
 
     @Mock(answer = Answers.RETURNS_MOCKS)
-    private TcpClientState<String, String> state;
-
-    @Test(timeout = 60000)
-    public void testReadTimeOut() throws Exception {
-
-    }
+    private TcpClient<String, String> client;
+    @Mock()
+    private ConnectionProvider<String, String> connectionProvider;
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerFirst() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>) req.<String, String>addChannelHandlerFirst("handler", factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerFirst("handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerFirst("handler", factory);
+        verify(client).addChannelHandlerFirst("handler", factory);
     }
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerFirstWithExecutor() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>) req.<String, String>addChannelHandlerFirst(group, "handler",
-                                                                                                   factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerFirst(group, "handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerFirst(group, "handler", factory);
+        verify(client).addChannelHandlerFirst(group, "handler", factory);
     }
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerLast() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>) req.<String, String>addChannelHandlerLast("handler", factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerLast("handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerLast("handler", factory);
+        verify(client).addChannelHandlerLast("handler", factory);
 
     }
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerLastWithExecutor() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>)req.<String, String>addChannelHandlerLast(group, "handler",
-                                                                                                 factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerLast(group, "handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerLast(group, "handler", factory);
+        verify(client).addChannelHandlerLast(group, "handler", factory);
     }
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerBefore() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>) req.<String, String>addChannelHandlerBefore("base", "handler",
-                                                                                               factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerBefore("base", "handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerBefore("base", "handler", factory);
+        verify(client).addChannelHandlerBefore("base", "handler", factory);
     }
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerBeforeWithExecutor() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>)req.<String, String>addChannelHandlerBefore(group, "base",
-                                                                                                   "handler", factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerBefore(group, "base", "handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerBefore(group, "base", "handler", factory);
+        verify(client).addChannelHandlerBefore(group, "base", "handler", factory);
 
     }
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerAfter() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>) req.<String, String>addChannelHandlerAfter("base", "handler",
-                                                                                                   factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerAfter("base", "handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerAfter("base", "handler", factory);
+        verify(client).addChannelHandlerAfter("base", "handler", factory);
     }
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerAfterWithExecutor() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>) req.<String, String>addChannelHandlerAfter(group, "base",
-                                                                                                   "handler", factory);
+        ConnectionRequest<String, String> newReq = req.addChannelHandlerAfter(group, "base", "handler", factory);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).addChannelHandlerAfter(group, "base", "handler", factory);
+        verify(client).addChannelHandlerAfter(group, "base", "handler", factory);
 
     }
 
     @Test(timeout = 60000)
     public void testPipelineConfigurator() throws Exception {
-        ConnectionRequestImpl<String, String> req = new ConnectionRequestImpl<>(state);
+        ConnectionRequest<String, String> req = new ConnectionRequestImpl<>(connectionProvider, client);
         Action1<ChannelPipeline> configurator = new Action1<ChannelPipeline>() {
             @Override
             public void call(ChannelPipeline pipeline) {
             }
         };
-        ConnectionRequestImpl<String, String> newReq =
-                (ConnectionRequestImpl<String, String>) req.<String, String>pipelineConfigurator(configurator);
+        ConnectionRequest<String, String> newReq = req.pipelineConfigurator(configurator);
 
-        assertDeepRequestCopy(req, newReq);
+        assertThat("Request was not copied.", newReq, is(not(req)));
 
-        verify(state).pipelineConfigurator(configurator);
-    }
-
-    private static void assertDeepRequestCopy(ConnectionRequestImpl<String, String> req,
-                                              ConnectionRequestImpl<String, String> newReq) {
-        assertThat("Client was not copied.", newReq, is(not(req)));
-        assertThat("Client state was not copied.", newReq.getClientState(),
-                   is(not(req.getClientState())));
+        verify(client).pipelineConfigurator(configurator);
     }
 
     private static Func0<ChannelHandler> newHandlerFactory() {

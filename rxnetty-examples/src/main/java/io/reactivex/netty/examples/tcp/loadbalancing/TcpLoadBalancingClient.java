@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,8 @@ package io.reactivex.netty.examples.tcp.loadbalancing;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.Host;
+import io.reactivex.netty.client.loadbalancer.LoadBalancerFactory;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -43,7 +45,7 @@ import java.nio.charset.Charset;
  * (alternating between the two available hosts for the requests)
  *
  * @see ConnectionProvider Low level abstraction to create varied load balancing schemes.
- * @see RoundRobinLoadBalancer An example of load balancer used by this example.
+ * @see TcpLoadBalancer An example of load balancer used by this example.
  */
 public final class TcpLoadBalancingClient extends AbstractClientExample {
 
@@ -51,11 +53,12 @@ public final class TcpLoadBalancingClient extends AbstractClientExample {
 
         /*Start two embedded servers and use there addresses as two hosts, add a unavailable server to demonstrate
         * failure detection.*/
-        final Observable<SocketAddress> hosts = Observable.just(startNewServer(), startNewServer(),
-                                                                new InetSocketAddress(0));
+        final Observable<Host> hosts = Observable.just(startNewServer(), startNewServer(),
+                                                       new InetSocketAddress(0))
+                                                 .map(Host::new);
 
         /*Create a new client using the load balancer over the hosts above.*/
-        TcpClient.<ByteBuf, ByteBuf>newClient(TcpLoadBalancer.create(hosts))
+        TcpClient.<ByteBuf, ByteBuf>newClient(LoadBalancerFactory.create(new TcpLoadBalancer<>()), hosts)
                  .enableWireLogging(LogLevel.DEBUG)
                 /*Create a new connection request, each subscription creates a new connection*/
                  .createConnectionRequest()

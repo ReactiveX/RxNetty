@@ -42,7 +42,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
  *
  * Lazy subscriptions are allowed on {@link Connection#getInput()} if and only if the channel is configured to
  * not read data automatically (i.e. {@link ChannelOption#AUTO_READ} is set to {@code false}). Otherwise,
- * if {@link Connection#getInput()} is subscribed lazily, the subscriber always recieves an error. The content
+ * if {@link Connection#getInput()} is subscribed lazily, the subscriber always receives an error. The content
  * in this case is disposed upon reading.
  *
  * @param <R> Type read from the connection held by this handler.
@@ -77,7 +77,7 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
     protected ConnectionEventListener eventListener;
     protected EventPublisher eventPublisher;
-    private Subscriber<? super Connection<R, W>> newConnectionSub;
+    private Subscriber<? super Channel> newChannelSub;
     private ReadProducer<R> readProducer;
     private boolean raiseErrorOnInputSubscription;
     private boolean connectionEmitted;
@@ -105,13 +105,6 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         this.eventPublisherAttributeKey = eventPublisherAttributeKey;
     }
 
-    protected AbstractConnectionToChannelBridge(String thisHandlerName, Subscriber<? super Connection<R, W>> connSub,
-                                                AttributeKey<ConnectionEventListener> eventListenerAttributeKey,
-                                                AttributeKey<EventPublisher> eventPublisherAttributeKey) {
-        this(thisHandlerName, eventListenerAttributeKey, eventPublisherAttributeKey);
-        newConnectionSub = connSub;
-    }
-
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         if (null == eventListener && null == eventPublisher) {
@@ -137,6 +130,15 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     }
 
     @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        if (!connectionEmitted && isValidToEmit(newChannelSub)) {
+            emitNewConnection(ctx.channel());
+            connectionEmitted = true;
+        }
+        super.channelInactive(ctx);
+    }
+
+    @Override
     public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
 
         if (isValidToEmitToReadSubscriber(readProducer)) {
@@ -151,29 +153,29 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
         if (evt instanceof EmitConnectionEvent) {
             if (!connectionEmitted) {
-                createNewConnection(ctx.channel());
+                emitNewConnection(ctx.channel());
                 connectionEmitted = true;
             }
         } else if (evt instanceof ConnectionCreationFailedEvent) {
-            if (isValidToEmit(newConnectionSub)) {
-                newConnectionSub.onError(((ConnectionCreationFailedEvent)evt).getThrowable());
+            if (isValidToEmit(newChannelSub)) {
+                newChannelSub.onError(((ConnectionCreationFailedEvent)evt).getThrowable());
             }
-        } else if (evt instanceof ConnectionSubscriberEvent) {
+        } else if (evt instanceof ChannelSubscriberEvent) {
             @SuppressWarnings("unchecked")
-            final ConnectionSubscriberEvent<R, W> connectionSubscriberEvent = (ConnectionSubscriberEvent<R, W>) evt;
+            final ChannelSubscriberEvent<R, W> channelSubscriberEvent = (ChannelSubscriberEvent<R, W>) evt;
 
-            newConnectionSubscriber(connectionSubscriberEvent);
+            newConnectionSubscriber(channelSubscriberEvent);
         } else if (evt instanceof ConnectionInputSubscriberEvent) {
             @SuppressWarnings("unchecked")
             ConnectionInputSubscriberEvent<R, W> event = (ConnectionInputSubscriberEvent<R, W>) evt;
 
-            newConnectionInputSubscriber(ctx.channel(), event.getSubscriber(), event.getConnection(), false);
+            newConnectionInputSubscriber(ctx.channel(), event.getSubscriber(), false);
         } else if (evt instanceof ConnectionInputSubscriberResetEvent) {
             resetConnectionInputSubscriber();
         } else if (evt instanceof ConnectionInputSubscriberReplaceEvent) {
             @SuppressWarnings("unchecked")
             ConnectionInputSubscriberReplaceEvent<R, W> event = (ConnectionInputSubscriberReplaceEvent<R, W>) evt;
-            replaceConnectionInputSubscriber(event);
+            replaceConnectionInputSubscriber(ctx.channel(), event);
         }
 
         super.userEventTriggered(ctx, evt);
@@ -205,8 +207,8 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        if (!connectionEmitted && isValidToEmit(newConnectionSub)) {
-            newConnectionSub.onError(cause);
+        if (!connectionEmitted && isValidToEmit(newChannelSub)) {
+            newChannelSub.onError(cause);
         } else if (isValidToEmitToReadSubscriber(readProducer)) {
             readProducer.sendOnError(cause);
         } else {
@@ -228,16 +230,16 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         return null != readProducer && null != readProducer.subscriber && !readProducer.subscriber.isUnsubscribed();
     }
 
-    protected void onNewReadSubscriber(Connection<R, W> connection, Subscriber<? super R> subscriber) {
+    protected void onNewReadSubscriber(Subscriber<? super R> subscriber) {
         // NOOP
     }
 
-    protected final void checkEagerSubscriptionIfConfigured(Connection<R, W> connection, Channel channel) {
+    protected final void checkEagerSubscriptionIfConfigured(Channel channel) {
         if (channel.config().isAutoRead() && null == readProducer) {
             // If the channel is set to auto-read and there is no eager subscription then, we should raise errors
             // when a subscriber arrives.
             raiseErrorOnInputSubscription = true;
-            final Subscriber<? super R> discardAll = ConnectionInputSubscriberEvent.discardAllInput(connection)
+            final Subscriber<? super R> discardAll = ConnectionInputSubscriberEvent.discardAllInput()
                                                                                    .getSubscriber();
             final ReadProducer<R> producer = new ReadProducer<>(discardAll, channel);
             discardAll.setProducer(producer);
@@ -245,17 +247,21 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
         }
     }
 
-    protected final Subscriber<? super Connection<R, W>> getNewConnectionSub() {
-        return newConnectionSub;
+    protected final Subscriber<? super Channel> getNewChannelSub() {
+        return newChannelSub;
     }
 
-    private void createNewConnection(Channel channel) {
-        if (isValidToEmit(newConnectionSub)) {
-            Connection<R, W> connection = ConnectionImpl.create(channel, eventListener, eventPublisher);
-            newConnectionSub.onNext(connection);
-            connectionEmitted = true;
-            checkEagerSubscriptionIfConfigured(connection, channel);
-            newConnectionSub.onCompleted();
+    private void emitNewConnection(Channel channel) {
+        if (isValidToEmit(newChannelSub)) {
+            try {
+                newChannelSub.onNext(channel);
+                connectionEmitted = true;
+                checkEagerSubscriptionIfConfigured(channel);
+                newChannelSub.onCompleted();
+            } catch (Exception e) {
+                logger.error("Error emitting a new connection. Closing this channel.", e);
+                channel.close();
+            }
         } else {
             channel.close(); // Closing the connection if not sent to a subscriber.
         }
@@ -271,39 +277,39 @@ public abstract class AbstractConnectionToChannelBridge<R, W> extends Backpressu
     }
 
     private void newConnectionInputSubscriber(final Channel channel, final Subscriber<? super R> subscriber,
-                                              final Connection<R, W> connection, boolean replace) {
+                                              boolean replace) {
         final Subscriber<? super R> connInputSub = null == readProducer ? null : readProducer.subscriber;
         if (isValidToEmit(connInputSub)) {
             if (!replace) {
                 /*Allow only once concurrent input subscriber but allow concatenated subscribers*/
                 subscriber.onError(ONLY_ONE_CONN_INPUT_SUB_ALLOWED);
             } else {
-                setNewReadProducer(channel, subscriber, connection);
+                setNewReadProducer(channel, subscriber);
                 connInputSub.onCompleted();
             }
         } else if (raiseErrorOnInputSubscription) {
             subscriber.onError(LAZY_CONN_INPUT_SUB);
         } else {
-            setNewReadProducer(channel, subscriber, connection);
+            setNewReadProducer(channel, subscriber);
         }
     }
 
-    private void setNewReadProducer(Channel channel, Subscriber<? super R> subscriber, Connection<R, W> connection) {
+    private void setNewReadProducer(Channel channel, Subscriber<? super R> subscriber) {
         final ReadProducer<R> producer = new ReadProducer<>(subscriber, channel);
         subscriber.setProducer(producer);
-        onNewReadSubscriber(connection, subscriber);
+        onNewReadSubscriber(subscriber);
         readProducer = producer;
     }
 
-    private void replaceConnectionInputSubscriber(ConnectionInputSubscriberReplaceEvent<R, W> event) {
+    private void replaceConnectionInputSubscriber(Channel channel, ConnectionInputSubscriberReplaceEvent<R, W> event) {
         ConnectionInputSubscriberEvent<R, W> newSubEvent = event.getNewSubEvent();
-        newConnectionInputSubscriber(newSubEvent.getConnection().unsafeNettyChannel(), newSubEvent.getSubscriber(),
-                                     newSubEvent.getConnection(), true);
+        newConnectionInputSubscriber(channel, newSubEvent.getSubscriber(),
+                                     true);
     }
 
-    private void newConnectionSubscriber(ConnectionSubscriberEvent<R, W> event) {
-        if (null == newConnectionSub) {
-            newConnectionSub = event.getSubscriber();
+    private void newConnectionSubscriber(ChannelSubscriberEvent<R, W> event) {
+        if (null == newChannelSub) {
+            newChannelSub = event.getSubscriber();
         } else {
             event.getSubscriber().onError(ONLY_ONE_CONN_SUB_ALLOWED);
         }

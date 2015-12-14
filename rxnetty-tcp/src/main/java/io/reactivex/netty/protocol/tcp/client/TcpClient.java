@@ -25,16 +25,21 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.ChannelProviderFactory;
+import io.reactivex.netty.client.ConnectionProviderFactory;
+import io.reactivex.netty.client.ConnectionRequest;
+import io.reactivex.netty.client.Host;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import io.reactivex.netty.ssl.SslCodec;
+import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManagerFactory;
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
@@ -289,6 +294,16 @@ public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListe
     public abstract TcpClient<W, R> unsafeSecure();
 
     /**
+     * Creates a new client instance, inheriting all configurations from this client and using the passed
+     * {@code providerFactory}.
+     *
+     * @param providerFactory Channel provider factory.
+     *
+     * @return A new {@link TcpClient} instance.
+     */
+    public abstract TcpClient<W, R> channelProvider(ChannelProviderFactory providerFactory);
+
+    /**
      * Creates a new TCP client instance with the passed address of the target server.
      *
      * @param host Hostname for the target server.
@@ -297,7 +312,7 @@ public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListe
      * @return A new {@code TcpClient} instance.
      */
     public static TcpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
-        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(host, port));
+        return newClient(new InetSocketAddress(host, port));
     }
 
     /**
@@ -308,17 +323,19 @@ public abstract class TcpClient<W, R> implements EventSource<TcpClientEventListe
      * @return A new {@code TcpClient} instance.
      */
     public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress serverAddress) {
-        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(serverAddress));
+        return TcpClientImpl.create(serverAddress);
     }
 
     /**
      * Creates a new TCP client instance using the supplied connection provider.
      *
-     * @param connectionProvider Connection provider for connection to be used by the newly created client.
+     * @param providerFactory {@link ConnectionProviderFactory} for the client.
+     * @param hostStream Stream of hosts for the client.
      *
      * @return A new {@code TcpClient} instance.
      */
-    public static TcpClient<ByteBuf, ByteBuf> newClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
-        return TcpClientImpl.create(connectionProvider);
+    public static TcpClient<ByteBuf, ByteBuf> newClient(ConnectionProviderFactory<ByteBuf, ByteBuf> providerFactory,
+                                                        Observable<Host> hostStream) {
+        return TcpClientImpl.create(providerFactory, hostStream);
     }
 }

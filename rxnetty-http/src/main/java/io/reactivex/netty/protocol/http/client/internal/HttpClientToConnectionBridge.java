@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -60,7 +60,7 @@ public class HttpClientToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
-        eventsListener = ctx.channel().attr(HttpEventPublisherFactory.HTTP_CLIENT_EVENT_LISTENER).get();
+        eventsListener = ctx.channel().attr(HttpChannelProvider.HTTP_CLIENT_EVENT_LISTENER).get();
         eventPublisher = ctx.channel().attr(EventAttributeKeys.EVENT_PUBLISHER).get();
         super.handlerAdded(ctx);
     }

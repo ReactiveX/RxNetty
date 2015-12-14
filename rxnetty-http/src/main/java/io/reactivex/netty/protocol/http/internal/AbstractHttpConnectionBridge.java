@@ -32,7 +32,6 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
-import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.channel.ConnectionInputSubscriberReplaceEvent;
 import io.reactivex.netty.channel.SubscriberToChannelFutureBridge;
@@ -132,7 +131,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
             if (!connUpgraded) {
                 /*Local copy to refer from the channel close listener. As the instance level copy can change*/
-                final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
+                @SuppressWarnings("unchecked")
+                final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig,
+                                                                                                          ctx.channel());
 
                 connectionInputSubscriber = _connectionInputSubscriber;
 
@@ -152,8 +153,8 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 l.bridge(ctx.channel().closeFuture(), _connectionInputSubscriber);
 
                 @SuppressWarnings({ "unchecked", "rawtypes" })
-                ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber,
-                                                                                             orig.getConnection());
+                ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber
+                );
                 eventToPropagateFurther = newEvent;
             } else {
                 if (null != connectionInputSubscriber) {
@@ -170,8 +171,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         super.userEventTriggered(ctx, eventToPropagateFurther);
     }
 
-    protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig) {
-        ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection());
+    protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig,
+                                                                     Channel channel) {
+        ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber(orig.getSubscriber(), channel);
         toReturn.state.headerSub.add(Subscriptions.create(toReturn));
         return toReturn;
     }
@@ -365,9 +367,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         private Producer producer;
 
         @SuppressWarnings("rawtypes")
-        private ConnectionInputSubscriber(Subscriber subscriber, Connection connection) {
+        private ConnectionInputSubscriber(Subscriber subscriber, Channel channel) {
             state = new State();
-            channel = connection.unsafeNettyChannel();
+            this.channel = channel;
             state.headerSub = subscriber;
         }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,18 +14,20 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.client.internal;
+package io.reactivex.netty.internal;
 
-import io.netty.channel.Channel;
-import io.reactivex.netty.client.events.ClientEventListener;
-import io.reactivex.netty.events.EventSource;
+import rx.Observable;
 import rx.functions.Func1;
 
-public interface EventPublisherFactory<T extends ClientEventListener>
-        extends Func1<Channel, EventSource<T>>, EventSource<T> {
+/**
+ * A function to be used in place of {@link Observable#cast(Class)} to support nested generics.
+ *
+ * @param <T> Target type.
+ */
+public class VoidToAnythingCast<T> implements Func1<Void, T> {
 
-    EventPublisherFactory<T> copy();
-
-    T getGlobalClientEventPublisher();
-
+    @Override
+    public T call(Void aVoid) {
+        return null;
+    }
 }

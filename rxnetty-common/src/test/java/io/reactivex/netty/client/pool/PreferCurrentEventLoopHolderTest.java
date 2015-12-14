@@ -22,6 +22,7 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.client.pool.PooledConnection.Owner;
 import io.reactivex.netty.client.pool.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
+import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.test.util.DisabledEventPublisher;
 import io.reactivex.netty.threads.PreferCurrentEventLoopGroup;
@@ -159,6 +160,7 @@ public class PreferCurrentEventLoopHolderTest {
                     channel = new EmbeddedChannel();
                     PreferCurrentEventLoopGroup eventLoopGroup = new PreferCurrentEventLoopGroup(channel.eventLoop());
                     eventPublisher = DisabledEventPublisher.DISABLED_EVENT_PUBLISHER;
+                    channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(eventPublisher);
                     holder = new PreferCurrentEventLoopHolder<>(eventLoopGroup,
                                                                 new IdleConnectionsHolderFactoryImpl());
                     poolConfig = new PoolConfig<>();
@@ -174,7 +176,7 @@ public class PreferCurrentEventLoopHolderTest {
         }
 
         public PooledConnection<String, String> addConnection() throws Exception {
-            Connection<String, String> connection = ConnectionImpl.create(channel, null, eventPublisher);
+            Connection<String, String> connection = ConnectionImpl.fromChannel(channel);
             PooledConnection<String, String> pooledConnection = PooledConnection.create(this,
                                                                                         poolConfig.getMaxIdleTimeMillis(),
                                                                                         connection);

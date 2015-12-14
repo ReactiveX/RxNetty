@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,8 +27,9 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.timeout.ReadTimeoutException;
-import io.reactivex.netty.client.ConnectionProvider;
-import io.reactivex.netty.client.pool.PooledConnectionProvider;
+import io.reactivex.netty.client.ConnectionProviderFactory;
+import io.reactivex.netty.client.Host;
+import io.reactivex.netty.client.pool.SingleHostPoolingProviderFactory;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.server.HttpServerRule;
@@ -177,9 +178,7 @@ public class HttpClientTest {
 
         startServerThatNeverReplies();
 
-        ConnectionProvider<ByteBuf, ByteBuf> connectionProvider = serverRule.newConnectionFactoryForClient();
-
-        HttpClientRequest<ByteBuf, ByteBuf> request = HttpClient.newClient(connectionProvider)
+        HttpClientRequest<ByteBuf, ByteBuf> request = HttpClient.newClient(serverRule.getServerAddress())
                                                                 .readTimeOut(1, TimeUnit.SECONDS)
                                                                 .createGet("/");
 
@@ -198,11 +197,11 @@ public class HttpClientTest {
 
         startServerThatNeverReplies();
 
-        ConnectionProvider<ByteBuf, ByteBuf> connectionProvider = serverRule.newConnectionFactoryForClient();
-
-        HttpClientRequest<ByteBuf, ByteBuf> request = HttpClient.newClient(connectionProvider)
-                                                                .readTimeOut(1, TimeUnit.SECONDS)
-                                                                .createGet("/");
+        HttpClientRequest<ByteBuf, ByteBuf> request =
+                HttpClient.newClient(SingleHostPoolingProviderFactory.<ByteBuf, ByteBuf>createUnbounded(),
+                                     Observable.just(new Host(serverRule.getServerAddress())))
+                          .readTimeOut(1, TimeUnit.SECONDS)
+                          .createGet("/");
 
         TestSubscriber<Void> testSubscriber = clientRule.sendRequestAndDiscardResponseContent(request);
 
@@ -214,7 +213,7 @@ public class HttpClientTest {
                    is(instanceOf(ReadTimeoutException.class)));
     }
 
-    //@Test(timeout = 60000)//TODO: Fix me
+    //@Test(timeout = 60000) // TODO: Fix me
     public void testReadTimeoutWithPoolReuse() throws Exception {
 
         serverRule.startServer(new RequestHandler<ByteBuf, ByteBuf>() {
@@ -237,9 +236,9 @@ public class HttpClientTest {
         });
 
         SocketAddress serverAddress = serverRule.getServerAddress();
-        ConnectionProvider<ByteBuf, ByteBuf>
-                connectionProvider = PooledConnectionProvider.createBounded(1, serverAddress);
-        HttpClient<ByteBuf, ByteBuf> client = HttpClient.newClient(connectionProvider);
+        ConnectionProviderFactory<ByteBuf, ByteBuf> cpf = SingleHostPoolingProviderFactory.createUnbounded();
+
+        HttpClient<ByteBuf, ByteBuf> client = HttpClient.newClient(cpf, Observable.just(new Host(serverAddress)));
 
         // Send a request that will create a connection to be reused later.
         HttpClientRequest<ByteBuf, ByteBuf> request = client.createGet("/");
@@ -259,7 +258,7 @@ public class HttpClientTest {
         HttpClientResponse<ByteBuf> resp = timeoutSub.getOnNextEvents().get(0);
         Channel channel2 = resp.unsafeNettyChannel();
 
-        //assertThat("Connection was not reused", channel2, is(channel1)); //TODO: Fix me
+        assertThat("Connection was not reused", channel2, is(channel1));
 
         TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
         resp.getContent().subscribe(contentSub);

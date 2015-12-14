@@ -33,7 +33,7 @@ import java.util.NoSuchElementException;
 
 /**
  * An implementation of {@link ChannelPipeline} which is detached from a channel and provides a
- * {@link #getChannelInitializer()} to be invoked when this pipeline handlers are to be added to an actual channel
+ * {@link #addToChannel(Channel)} method to be invoked when this pipeline handlers are to be added to an actual channel
  * pipeline.
  *
  * This must NOT be used on an actual channel, it does not support any channel operations. It only supports pipeline
@@ -68,25 +68,22 @@ public class DetachedChannelPipeline {
     }
 
     public ChannelInitializer<Channel> getChannelInitializer() {
-        return getChannelInitializer(new Action1<Channel>() {
-            @Override
-            public void call(Channel channel) {
-                // No Op...
-            }
-        });
-    }
-
-    public ChannelInitializer<Channel> getChannelInitializer(final Action1<Channel> channelInitializer) {
         return new ChannelInitializer<Channel>() {
             @Override
             protected void initChannel(Channel ch) throws Exception {
-                channelInitializer.call(ch);
                 final ChannelPipeline pipeline = ch.pipeline();
                 synchronized (holdersInOrder) {
                     unguardedCopyToPipeline(pipeline);
                 }
             }
         };
+    }
+
+    public void addToChannel(Channel channel) {
+        final ChannelPipeline pipeline = channel.pipeline();
+        synchronized (holdersInOrder) {
+            unguardedCopyToPipeline(pipeline);
+        }
     }
 
     public DetachedChannelPipeline copy() {

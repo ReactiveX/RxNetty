@@ -36,28 +36,19 @@ import rx.observers.Subscribers;
 public final class ConnectionInputSubscriberEvent<R, W> {
 
     private final Subscriber<? super R> subscriber;
-    private final Connection<R, W> connection;
 
-    public ConnectionInputSubscriberEvent(Subscriber<? super R> subscriber, final Connection<R, W> connection) {
+    public ConnectionInputSubscriberEvent(Subscriber<? super R> subscriber) {
         if (null == subscriber) {
             throw new NullPointerException("Subscriber can not be null");
         }
-        if (null == connection) {
-            throw new NullPointerException("Connection can not be null");
-        }
         this.subscriber = subscriber;
-        this.connection = connection;
     }
 
     public Subscriber<? super R> getSubscriber() {
         return subscriber;
     }
 
-    public Connection<R, W> getConnection() {
-        return connection;
-    }
-
-    public static <II, OO> ConnectionInputSubscriberEvent<II, OO> discardAllInput(Connection<II, OO> connection) {
+    public static <II, OO> ConnectionInputSubscriberEvent<II, OO> discardAllInput() {
         return new ConnectionInputSubscriberEvent<>(Subscribers.create(new Action1<II>() {
             @Override
             public void call(II msg) {
@@ -68,6 +59,6 @@ public final class ConnectionInputSubscriberEvent<R, W> {
             public void call(Throwable throwable) {
                 // Empty as we are discarding input anyways.
             }
-        }), connection);
+        }));
     }
 }

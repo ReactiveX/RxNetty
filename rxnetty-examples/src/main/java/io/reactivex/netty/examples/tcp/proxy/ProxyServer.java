@@ -19,8 +19,8 @@ package io.reactivex.netty.examples.tcp.proxy;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
+import io.reactivex.netty.client.ConnectionRequest;
 import io.reactivex.netty.examples.AbstractServerExample;
-import io.reactivex.netty.protocol.tcp.client.ConnectionRequest;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import rx.Observable;

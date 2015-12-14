@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,6 +20,7 @@ package io.reactivex.netty.protocol.http.client;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
@@ -116,7 +117,7 @@ public class HttpClientPoolTest {
         clientRule.assertIdleConnections(0); // Since, the channel is closed
     }
 
-    @Test(timeout = 60000)
+    @Test(/*timeout = 60000*/)
     public void testReuse() throws Exception {
         clientRule.assertIdleConnections(0);
 
@@ -144,7 +145,7 @@ public class HttpClientPoolTest {
                     PoolConfig<ByteBuf, ByteBuf> pConfig = new PoolConfig<>();
                     pConfig.idleConnectionsHolder(idleConnHolder);
 
-                    setupPooledConnectionFactroy(pConfig); // sets the client et al.
+                    setupPooledConnectionFactory(pConfig); // sets the client et al.
 
                     base.evaluate();
                 }
@@ -164,12 +165,18 @@ public class HttpClientPoolTest {
 
         protected Channel sendRequestAndGetChannel() {
             final HttpClientRequest<ByteBuf, ByteBuf> request1 = getHttpClient().createGet("/");
+
             TestSubscriber<HttpClientResponse<ByteBuf>> respSub = sendRequest(request1);
+
+            feedResponseHeaders(new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK),
+                                getLastCreatedChannelWithFeeder());
+
+            respSub.awaitTerminalEvent();
 
             assertIdleConnections(0); // No idle connections post connect
             assertRequestHeadersWritten(HttpMethod.GET, "/");
 
-            feedResponseAndComplete();
+            feedResponse(new DefaultLastHttpContent());
 
             final HttpClientResponse<ByteBuf> response = discardResponseContent(respSub);
 

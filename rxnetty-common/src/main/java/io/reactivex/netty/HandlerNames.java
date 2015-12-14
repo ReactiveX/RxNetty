@@ -21,6 +21,8 @@ package io.reactivex.netty;
  */
 public enum HandlerNames {
 
+    SslHandler("ssl-handler"),
+    SslConnectionEmissionHandler("ssl-connection-emitter"),
     WireLogging("wire-logging-handler"),
     PrimitiveConverter("primitive-converter"),
     ClientReadTimeoutHandler("client-read-timeout-handler"),

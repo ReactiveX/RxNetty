@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,20 +24,15 @@ import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.client.ConnectionFactory;
-import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.Host;
 import io.reactivex.netty.client.pool.PoolConfig;
-import io.reactivex.netty.client.pool.PooledConnectionProviderImpl;
-import io.reactivex.netty.protocol.http.client.internal.HttpEventPublisherFactory;
-import io.reactivex.netty.protocol.tcp.client.TcpClient;
-import io.reactivex.netty.test.util.EmbeddedChannelWithFeeder;
-import io.reactivex.netty.test.util.EmbeddedConnectionFactory;
-import io.reactivex.netty.test.util.EmbeddedConnectionProvider;
+import io.reactivex.netty.client.pool.SingleHostPoolingProviderFactory;
+import io.reactivex.netty.test.util.embedded.EmbeddedChannelProvider;
+import io.reactivex.netty.test.util.embedded.EmbeddedChannelWithFeeder;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -54,47 +49,28 @@ import static org.hamcrest.Matchers.*;
 
 public class HttpClientRule extends ExternalResource {
 
+    private EmbeddedChannelProvider channelProvider;
     private HttpClient<ByteBuf, ByteBuf> httpClient;
-    private EmbeddedConnectionProvider<ByteBuf, ByteBuf> connFactory;
-    private EmbeddedConnectionFactory<ByteBuf, ByteBuf> embeddedChannelBootstrap;
 
     @Override
     public Statement apply(final Statement base, Description description) {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                setup(ConnectionProvider
-                        .create(new Func1<ConnectionFactory<ByteBuf, ByteBuf>, ConnectionProvider<ByteBuf, ByteBuf>>() {
-                            @Override
-                            public ConnectionProvider<ByteBuf, ByteBuf> call(ConnectionFactory<ByteBuf, ByteBuf> cf) {
-                                connFactory = new EmbeddedConnectionProvider<>(cf, new HttpEventPublisherFactory());
-                                return connFactory;
-                            }
-                        }));
+                channelProvider = new EmbeddedChannelProvider();
+                httpClient = HttpClient.newClient(new InetSocketAddress(0))
+                                       .enableWireLogging(LogLevel.ERROR)
+                                       .channelProvider(channelProvider.asFactory());
                 base.evaluate();
             }
         };
     }
 
-    public void setupPooledConnectionFactroy(final PoolConfig<ByteBuf, ByteBuf> pConfig) {
-        ConnectionProvider<ByteBuf, ByteBuf> factory =
-                ConnectionProvider
-                        .create(new Func1<ConnectionFactory<ByteBuf, ByteBuf>, ConnectionProvider<ByteBuf, ByteBuf>>() {
-                            @Override
-                            public ConnectionProvider<ByteBuf, ByteBuf> call(ConnectionFactory<ByteBuf, ByteBuf> cf) {
-                                embeddedChannelBootstrap =
-                                        new EmbeddedConnectionFactory<>(cf, new HttpEventPublisherFactory());
-                                return new PooledConnectionProviderImpl<>(embeddedChannelBootstrap, pConfig,
-                                                                          new InetSocketAddress("127.0.0.1", 0));
-                            }
-                        });
-        TcpClient<ByteBuf, ByteBuf> tcpClient = TcpClient.newClient(factory).enableWireLogging(LogLevel.ERROR);
-        httpClient = HttpClientImpl.unsafeCreate(tcpClient, new HttpEventPublisherFactory());
-    }
-
-    private void setup(ConnectionProvider<ByteBuf, ByteBuf> rawFactory) {
-        TcpClient<ByteBuf, ByteBuf> tcpClient = TcpClient.newClient(rawFactory).enableWireLogging(LogLevel.ERROR);
-        httpClient = HttpClientImpl.unsafeCreate(tcpClient, new HttpEventPublisherFactory());
+    public void setupPooledConnectionFactory(final PoolConfig<ByteBuf, ByteBuf> pConfig) {
+        channelProvider = new EmbeddedChannelProvider();
+        httpClient = HttpClient.newClient(SingleHostPoolingProviderFactory.create(pConfig),
+                                          Observable.just(new Host(new InetSocketAddress(0))))
+                               .channelProvider(channelProvider.asFactory());
     }
 
     public HttpClient<ByteBuf, ByteBuf> getHttpClient() {
@@ -111,9 +87,9 @@ public class HttpClientRule extends ExternalResource {
     }
 
     public List<EmbeddedChannelWithFeeder> getCreatedChannels() {
-        return null == embeddedChannelBootstrap ? connFactory.getCreatedChannels()
-                : embeddedChannelBootstrap.getCreatedChannels();
+        return channelProvider.getCreatedChannels();
     }
+
     public TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(HttpClientRequest<ByteBuf, ByteBuf> request) {
         TestSubscriber<HttpClientResponse<ByteBuf>> testSubscriber = new TestSubscriber<>();
         request.subscribe(testSubscriber);
@@ -227,28 +203,50 @@ public class HttpClientRule extends ExternalResource {
 
     public void assertRequestHeadersWritten(HttpMethod method, String uri) {
 
-        Object outbound = getLastCreatedChannel().readOutbound();
+        boolean found = false;
+        Object outbound;
+        final String expectedFirstLineStart = method.name().toUpperCase() + " " + uri;
+        String data = null;
 
-        assertThat("Request not written.", outbound, is(notNullValue()));
+        while ((outbound = getLastCreatedChannel().readOutbound()) != null) {
+            if (outbound instanceof ByteBuf) {
+                ByteBuf bb = (ByteBuf) outbound;
+                data = bb.toString(Charset.defaultCharset());
+                if (data.startsWith(expectedFirstLineStart)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
 
-        if (outbound instanceof HttpRequest) {
-            HttpRequest request = (HttpRequest) outbound;
-            assertThat("Unexpected HTTP method for the written request.", request.method(), equalTo(method));
-            assertThat("Unexpected HTTP method for the written request.", request.uri(), equalTo(uri));
-        } else {
-            // Read next
-            assertRequestHeadersWritten(method, uri);
+        assertThat("Unexpected HTTP method & URI for the written request.", data,
+                   startsWith(expectedFirstLineStart));
+
+        if (!found) {
+            assertThat("Request not written.", outbound, is(notNullValue()));
         }
     }
 
     public void assertContentWritten(String contentStr) {
-        Object outbound = getLastCreatedChannel().readOutbound();
+        boolean found = false;
+        Object outbound;
+        String data = null;
 
-        assertThat("Content not written.", outbound, is(notNullValue()));
-        assertThat("Unxpected content.", outbound, is(instanceOf(ByteBuf.class)));
+        while ((outbound = getLastCreatedChannel().readOutbound()) != null) {
+            if (outbound instanceof ByteBuf) {
+                ByteBuf bb = (ByteBuf) outbound;
+                data = bb.toString(Charset.defaultCharset());
+                if (data.equalsIgnoreCase(contentStr)) {
+                    found = true;
+                    break;
+                }
+            }
+        }
 
-        ByteBuf content = (ByteBuf) outbound;
+        assertThat("Unexpected HTTP content.", data, equalToIgnoringCase(contentStr));
 
-        assertThat("Unxpected content.", content.toString(Charset.defaultCharset()), equalTo(contentStr));
+        if (!found) {
+            assertThat("Content not written.", outbound, is(notNullValue()));
+        }
     }
 }

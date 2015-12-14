@@ -55,7 +55,7 @@ public class UnexpectedConnectionHandlerErrorsTest {
         rule.server.start(new ConnectionHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(Connection<ByteBuf, ByteBuf> newConnection) {
-                return Observable.error(new IllegalStateException());
+                return Observable.error(new IllegalStateException("Deliberate Exception"));
             }
         });
 
@@ -67,7 +67,7 @@ public class UnexpectedConnectionHandlerErrorsTest {
         rule.server.start(new ConnectionHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(Connection<ByteBuf, ByteBuf> newConnection) {
-                return Observable.error(new IllegalStateException());
+                return Observable.error(new IllegalStateException("Deliberate Exception"));
             }
         });
 
@@ -93,7 +93,7 @@ public class UnexpectedConnectionHandlerErrorsTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    server = TcpServer.newServer(0);
+                    server = TcpServer.newServer(0).enableWireLogging(LogLevel.ERROR);
                     base.evaluate();
                 }
             };
@@ -110,7 +110,6 @@ public class UnexpectedConnectionHandlerErrorsTest {
 
             subscriber.awaitTerminalEvent();
             subscriber.assertNoErrors();
-
             assertThat("No connection available.", subscriber.getOnNextEvents(), hasSize(1));
 
             return subscriber.getOnNextEvents().get(0);

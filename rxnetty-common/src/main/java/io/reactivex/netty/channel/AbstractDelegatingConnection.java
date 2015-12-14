@@ -117,7 +117,7 @@ public abstract class AbstractDelegatingConnection<R, W, RR, WW> extends Connect
     }
 
     @Override
-    public abstract Observable<RR> getInput();
+    public abstract ContentSource<RR> getInput();
 
     @Override
     public Observable<Void> write(Observable<WW> msgs) {

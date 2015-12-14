@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.protocol.tcp.ssl;
+package io.reactivex.netty.ssl;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelPipeline;

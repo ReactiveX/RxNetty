@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,11 +14,13 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.test.util;
+package io.reactivex.netty.test.util.embedded;
 
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.test.util.DisabledEventPublisher;
+import io.reactivex.netty.test.util.InboundRequestFeeder;
 
 public class EmbeddedChannelWithFeeder {
 
@@ -27,7 +29,7 @@ public class EmbeddedChannelWithFeeder {
     private final EventSource<? extends ClientEventListener> tcpEventSource;
 
     public EmbeddedChannelWithFeeder(EmbeddedChannel channel, InboundRequestFeeder feeder) {
-        this(channel, feeder, new MockEventPublisherFactory());
+        this(channel, feeder, new DisabledEventPublisher<ClientEventListener>());
     }
 
     public EmbeddedChannelWithFeeder(EmbeddedChannel channel, InboundRequestFeeder feeder,

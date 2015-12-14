@@ -21,7 +21,6 @@ import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.channel.AbstractDelegatingConnection;
 import io.reactivex.netty.channel.Connection;
 import rx.annotations.Beta;
-import rx.functions.Func1;
 
 /**
  * A utility to create an interceptor chain to be used with a {@link TcpServer} to modify behavior of connections
@@ -51,8 +50,7 @@ import rx.functions.Func1;
  * other interceptors can exist between the start and end. <p>
  *
  * A chain can be created by using the various {@code start*()} methods available in this class, eg:
- * {@link #start(Interceptor)}, {@link #startWithTransform(TransformingInterceptor)},
- * {@link #startWithReadTransform(TransformingInterceptor)}, {@link #startWithWriteTransform(TransformingInterceptor)}.<p>
+ * {@link #start(Interceptor)}, {@link #startRaw(Interceptor)}.<p>
  *
  * After starting a chain, any number of other interceptors can be added by using the various {@code next*()} methods
  * available in this class, eg: {@link #next(Interceptor)}, {@link #nextWithTransform(TransformingInterceptor)},
@@ -129,8 +127,8 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
     public TcpServerInterceptorChain<R, W, RR, WW> next(final Interceptor<RR, WW> next) {
         return new TcpServerInterceptorChain<>(new TransformingInterceptor<R, W, RR, WW>() {
             @Override
-            public ConnectionHandler<R, W> call(ConnectionHandler<RR, WW> handler) {
-                return interceptor.call(next.call(handler));
+            public ConnectionHandler<R, W> intercept(ConnectionHandler<RR, WW> handler) {
+                return interceptor.intercept(next.intercept(handler));
             }
         });
     }
@@ -147,8 +145,8 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
     public <RRR> TcpServerInterceptorChain<R, W, RRR, WW> nextWithReadTransform(final TransformingInterceptor<RR, WW, RRR, WW> next) {
         return new TcpServerInterceptorChain<>(new TransformingInterceptor<R, W, RRR, WW>() {
             @Override
-            public ConnectionHandler<R, W> call(ConnectionHandler<RRR, WW> handler) {
-                return interceptor.call(next.call(handler));
+            public ConnectionHandler<R, W> intercept(ConnectionHandler<RRR, WW> handler) {
+                return interceptor.intercept(next.intercept(handler));
             }
         });
     }
@@ -165,8 +163,8 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
     public <WWW> TcpServerInterceptorChain<R, W, RR, WWW> nextWithWriteTransform(final TransformingInterceptor<RR, WW, RR, WWW> next) {
         return new TcpServerInterceptorChain<>(new TransformingInterceptor<R, W, RR, WWW>() {
             @Override
-            public ConnectionHandler<R, W> call(ConnectionHandler<RR, WWW> handler) {
-                return interceptor.call(next.call(handler));
+            public ConnectionHandler<R, W> intercept(ConnectionHandler<RR, WWW> handler) {
+                return interceptor.intercept(next.intercept(handler));
             }
         });
     }
@@ -183,8 +181,8 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
     public <RRR, WWW> TcpServerInterceptorChain<R, W, RRR, WWW> nextWithTransform(final TransformingInterceptor<RR, WW, RRR, WWW> next) {
         return new TcpServerInterceptorChain<>(new TransformingInterceptor<R, W, RRR, WWW>() {
             @Override
-            public ConnectionHandler<R, W> call(ConnectionHandler<RRR, WWW> handler) {
-                return interceptor.call(next.call(handler));
+            public ConnectionHandler<R, W> intercept(ConnectionHandler<RRR, WWW> handler) {
+                return interceptor.intercept(next.intercept(handler));
             }
         });
     }
@@ -199,7 +197,7 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
      * directly using the passed {@code handler}
      */
     public ConnectionHandler<R, W> end(ConnectionHandler<RR, WW> handler) {
-        return interceptor.call(handler);
+        return interceptor.intercept(handler);
     }
 
     /**
@@ -219,8 +217,8 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
     public static <R, W> TcpServerInterceptorChain<R, W, R, W> start(final Interceptor<R, W> start) {
         return new TcpServerInterceptorChain<>(new TransformingInterceptor<R, W, R, W>() {
             @Override
-            public ConnectionHandler<R, W> call(ConnectionHandler<R, W> handler) {
-                return start.call(handler);
+            public ConnectionHandler<R, W> intercept(ConnectionHandler<R, W> handler) {
+                return start.intercept(handler);
             }
         });
     }
@@ -237,75 +235,10 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
     public static TcpServerInterceptorChain<ByteBuf, ByteBuf, ByteBuf, ByteBuf> startRaw(final Interceptor<ByteBuf, ByteBuf> start) {
         return new TcpServerInterceptorChain<>(new TransformingInterceptor<ByteBuf, ByteBuf, ByteBuf, ByteBuf>() {
             @Override
-            public ConnectionHandler<ByteBuf, ByteBuf> call(ConnectionHandler<ByteBuf, ByteBuf> handler) {
-                return start.call(handler);
+            public ConnectionHandler<ByteBuf, ByteBuf> intercept(ConnectionHandler<ByteBuf, ByteBuf> handler) {
+                return start.intercept(handler);
             }
         });
-    }
-
-    /**
-     * One of the methods to start creating the interceptor chain for converting the type of objects read from the
-     * connections processed by the associated {@link TcpServer}. For converting the type of objects written, use
-     * {@link #startWithWriteTransform(TransformingInterceptor)} and for converting both read and write types, use
-     * {@link #startWithTransform(TransformingInterceptor)}
-     *
-     * @param start The starting interceptor for this chain.
-     *
-     * @param <R> The type of objects read from a connection to {@link TcpServer} before applying this interceptor
-     * chain.
-     * @param <W> The type of objects written to a connection to {@link TcpServer} with which this interceptor chain
-     * will be used.
-     * @param <RR> The type of objects read from a connection to {@link TcpServer} after applying this interceptor
-     * chain.
-     *
-     * @return A new interceptor chain.
-     */
-    public static <R, W, RR> TcpServerInterceptorChain<R, W, RR, W> startWithReadTransform(TransformingInterceptor<R, W, RR, W> start) {
-        return new TcpServerInterceptorChain<>(start);
-    }
-
-    /**
-     * One of the methods to start creating the interceptor chain for converting the type of objects written to the
-     * connections processed by the associated {@link TcpServer}. For converting the type of objects read, use
-     * {@link #startWithReadTransform(TransformingInterceptor)} and for converting both read and write types, use
-     * {@link #startWithTransform(TransformingInterceptor)}
-     *
-     * @param start The starting interceptor for this chain.
-     *
-     * @param <R> The type of objects read from a connection to {@link TcpServer} with which this interceptor chain
-     * will be used.
-     * @param <W> The type of objects written to a connection to {@link TcpServer} before applying this interceptor
-     * chain.
-     * @param <WW> The type of objects written to a connection to {@link TcpServer} after applying this interceptor
-     * chain.
-     *
-     * @return A new interceptor chain.
-     */
-    public static <R, W, WW> TcpServerInterceptorChain<R, W, R, WW> startWithWriteTransform(TransformingInterceptor<R, W, R, WW> start) {
-        return new TcpServerInterceptorChain<>(start);
-    }
-
-    /**
-     * One of the methods to start creating the interceptor chain for converting the type of objects read and written
-     * from/to the connections processed by the associated {@link TcpServer}. For converting the type of objects read,
-     * use {@link #startWithReadTransform(TransformingInterceptor)} and for converting type of objects written, use
-     * {@link #startWithWriteTransform(TransformingInterceptor)}
-     *
-     * @param start The starting interceptor for this chain.
-     *
-     * @param <R> The type of objects read from a connection to {@link TcpServer} before applying this interceptor
-     * chain.
-     * @param <W> The type of objects written to a connection to {@link TcpServer} with which this interceptor chain
-     * will be used.
-     * @param <RR> The type of objects read from a connection to {@link TcpServer} after applying this interceptor
-     * chain.
-     * @param <WW> The type of objects written to a connection to {@link TcpServer} after applying this interceptor
-     * chain.
-     *
-     * @return A new interceptor chain.
-     */
-    public static <R, W, RR, WW> TcpServerInterceptorChain<R, W, RR, WW> startWithTransform(TransformingInterceptor<R, W, RR, WW> start) {
-        return new TcpServerInterceptorChain<>(start);
     }
 
     /**
@@ -314,7 +247,9 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
      * @param <R> Type of objects read from the connection handled by this interceptor.
      * @param <W> Type of objects written to the connection handled by this interceptor.
      */
-    public interface Interceptor<R, W> extends Func1<ConnectionHandler<R, W>, ConnectionHandler<R, W>> {
+    public interface Interceptor<R, W> {
+
+        ConnectionHandler<R, W> intercept(ConnectionHandler<R, W> handler);
 
     }
 
@@ -326,8 +261,9 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
      * @param <RR> Type of objects read from the connection after applying this interceptor.
      * @param <WW> Type of objects written to the connection after applying this interceptor.
      */
-    public interface TransformingInterceptor<R, W, RR, WW>
-            extends Func1<ConnectionHandler<RR, WW>, ConnectionHandler<R, W>> {
+    public interface TransformingInterceptor<R, W, RR, WW> {
+
+        ConnectionHandler<R, W> intercept(ConnectionHandler<RR, WW> handler);
 
     }
 }

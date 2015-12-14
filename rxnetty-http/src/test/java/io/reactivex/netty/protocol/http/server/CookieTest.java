@@ -30,7 +30,8 @@ import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
-import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.events.EventAttributeKeys;
+import io.reactivex.netty.test.util.DisabledEventPublisher;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -64,8 +65,8 @@ public class CookieTest {
     public void testSetCookie() throws Exception {
         DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
         EmbeddedChannel channel = new EmbeddedChannel();
-        TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
-        Connection<ByteBuf, ByteBuf> connection = ConnectionImpl.create(channel, eventPublisher, eventPublisher);
+        channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(DisabledEventPublisher.DISABLED_EVENT_PUBLISHER);
+        Connection<ByteBuf, ByteBuf> connection = ConnectionImpl.fromChannel(channel);
         HttpServerResponse<ByteBuf> response = HttpServerResponseImpl.create(null, connection, nettyResponse);
         String cookieName = "name";
         String cookieValue = "value";

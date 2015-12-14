@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,12 +27,12 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
+import io.reactivex.netty.internal.VoidToAnythingCast;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
-import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import io.reactivex.netty.protocol.http.ws.client.internal.WebSocketRequestImpl;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
@@ -487,7 +487,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
             final Observable<HttpClientResponse<O>> input = conn.getInput();
 
             final HttpClientEventsListener eventsListener =
-                    conn.unsafeNettyChannel().attr(HttpEventPublisherFactory.HTTP_CLIENT_EVENT_LISTENER).get();
+                    conn.unsafeNettyChannel().attr(HttpChannelProvider.HTTP_CLIENT_EVENT_LISTENER).get();
             final EventPublisher eventPublisher =
                     conn.unsafeNettyChannel().attr(EventAttributeKeys.EVENT_PUBLISHER).get();
 

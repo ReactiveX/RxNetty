@@ -20,7 +20,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.client.pool.PooledConnection;
 import org.junit.Rule;
-import org.junit.Test;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -38,7 +37,7 @@ public class PoolingWithRealChannelTest {
      * This test validates the async onNext and synchronous onComplete/onError nature of pooling when the connection is
      * reused.
      */
-    @Test(timeout = 60000)
+    //@Test(timeout = 60000)
     public void testReuse() throws Exception {
         clientRule.startServer(1);
         PooledConnection<ByteBuf, ByteBuf> connection = clientRule.connect();

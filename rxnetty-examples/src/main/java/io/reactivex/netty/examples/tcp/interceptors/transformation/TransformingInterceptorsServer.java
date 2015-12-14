@@ -22,6 +22,7 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.reactivex.netty.channel.AbstractDelegatingConnection;
 import io.reactivex.netty.channel.AbstractDelegatingConnection.Transformer;
+import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.examples.tcp.interceptors.simple.InterceptingServer;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
@@ -92,8 +93,9 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
         return in -> newConnection ->
                 in.handle(new AbstractDelegatingConnection<ByteBuf, ByteBuf, String, ByteBuf>(newConnection) {
                     @Override
-                    public Observable<String> getInput() {
-                        return newConnection.getInput().map(bb -> bb.toString(Charset.defaultCharset()));
+                    public ContentSource<String> getInput() {
+                        return newConnection.getInput()
+                                            .transform(o -> o.map(bb -> bb.toString(Charset.defaultCharset())));
                     }
                 });
     }
@@ -103,7 +105,7 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
                 in.handle(new AbstractDelegatingConnection<String, ByteBuf, String, String>(newConnection,
                                                                                             transformStringToBytes()) {
                     @Override
-                    public Observable<String> getInput() {
+                    public ContentSource<String> getInput() {
                         return newConnection.getInput();
                     }
                 });
@@ -114,8 +116,9 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
                 in.handle(new AbstractDelegatingConnection<String, String, Integer, Integer>(newConnection,
                                                                                             transformIntegerToString()) {
                     @Override
-                    public Observable<Integer> getInput() {
-                        return newConnection.getInput().map(String::trim).map(Integer::parseInt);
+                    public ContentSource<Integer> getInput() {
+                        return newConnection.getInput()
+                                            .transform(o -> o.map(String::trim).map(Integer::parseInt));
                     }
                 });
     }

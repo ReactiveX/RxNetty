@@ -28,10 +28,13 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.ChannelProviderFactory;
+import io.reactivex.netty.client.ConnectionProviderFactory;
+import io.reactivex.netty.client.Host;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import io.reactivex.netty.ssl.SslCodec;
+import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
@@ -404,6 +407,16 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
     public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
 
     /**
+     * Creates a new client instance, inheriting all configurations from this client and using the passed
+     * {@code providerFactory}.
+     *
+     * @param providerFactory Channel provider factory.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> channelProvider(ChannelProviderFactory providerFactory);
+
+    /**
      * Creates a new HTTP client instance with the passed host and port for the target server.
      *
      * @param host Hostname for the target server.
@@ -412,7 +425,7 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      * @return A new {@code HttpClient} instance.
      */
     public static HttpClient<ByteBuf, ByteBuf> newClient(String host, int port) {
-        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(new InetSocketAddress(host, port)));
+        return newClient(new InetSocketAddress(host, port));
     }
 
     /**
@@ -423,17 +436,19 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      * @return A new {@code HttpClient} instance.
      */
     public static HttpClient<ByteBuf, ByteBuf> newClient(SocketAddress serverAddress) {
-        return newClient(ConnectionProvider.<ByteBuf, ByteBuf>forHost(serverAddress));
+        return HttpClientImpl.create(serverAddress);
     }
 
     /**
      * Creates a new HTTP client instance using the supplied connection provider.
      *
-     * @param connectionProvider Connection provider for connection to be used by the newly created client.
+     * @param providerFactory {@link ConnectionProviderFactory} for the client.
+     * @param hostStream Stream of hosts for the client.
      *
      * @return A new {@code HttpClient} instance.
      */
-    public static HttpClient<ByteBuf, ByteBuf> newClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
-        return HttpClientImpl.create(connectionProvider);
+    public static HttpClient<ByteBuf, ByteBuf> newClient(ConnectionProviderFactory<ByteBuf, ByteBuf> providerFactory,
+                                                         Observable<Host> hostStream) {
+        return HttpClientImpl.create(providerFactory, hostStream);
     }
 }

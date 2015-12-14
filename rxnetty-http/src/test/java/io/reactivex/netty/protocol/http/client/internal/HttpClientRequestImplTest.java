@@ -37,11 +37,11 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.events.EventAttributeKeys;
-import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.test.util.DisabledEventPublisher;
 import io.reactivex.netty.test.util.FlushSelector;
 import io.reactivex.netty.test.util.TcpConnectionRequestMock;
 import org.junit.Rule;
@@ -860,7 +860,7 @@ public class HttpClientRequestImplTest {
                     channel.attr(EventAttributeKeys.CLIENT_EVENT_LISTENER).set(eventPublisher);
                     channel.attr(EventAttributeKeys.CONNECTION_EVENT_LISTENER).set(eventPublisher);
 
-                    connMock = ConnectionImpl.create(channel, eventPublisher, eventPublisher);
+                    connMock = ConnectionImpl.fromChannel(channel);
 
                     @SuppressWarnings("unchecked")
                     final
@@ -1035,13 +1035,8 @@ public class HttpClientRequestImplTest {
                 }
             };
 
-            ConnectionImpl<Object, Object> conn =
-                    ConnectionImpl.create(channel, null, new EventPublisher() {
-                        @Override
-                        public boolean publishingEnabled() {
-                            return false;
-                        }
-                    });
+            channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(DisabledEventPublisher.DISABLED_EVENT_PUBLISHER);
+            ConnectionImpl<Object, Object> conn = ConnectionImpl.fromChannel(channel);
 
             Observable<?> reqAsO = rawReq.asObservable(conn);
 

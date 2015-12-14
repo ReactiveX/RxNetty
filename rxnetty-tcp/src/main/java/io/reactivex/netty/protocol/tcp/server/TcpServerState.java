@@ -28,9 +28,9 @@ import io.netty.handler.ssl.util.SelfSignedCertificate;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventPublisher;
-import io.reactivex.netty.protocol.tcp.ssl.DefaultSslCodec;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
 import io.reactivex.netty.server.ServerState;
+import io.reactivex.netty.ssl.DefaultSslCodec;
+import io.reactivex.netty.ssl.SslCodec;
 import rx.exceptions.Exceptions;
 import rx.functions.Func1;
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.EventExecutorGroup;
 import rx.Observable;
@@ -43,6 +44,8 @@ import rx.functions.Func1;
  * @param <W> Type of object that is written to this connection.
  */
 public abstract class Connection<R, W> implements ChannelOperations<W> {
+
+    public static final AttributeKey<Connection> CONNECTION_ATTRIBUTE_KEY = AttributeKey.valueOf("rx-netty-conn-attr");
 
     private final Channel nettyChannel;
 
@@ -74,7 +77,7 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
         return new ContentSource<>(nettyChannel, new Func1<Subscriber<? super R>, Object>() {
             @Override
             public Object call(Subscriber<? super R> subscriber) {
-                return new ConnectionInputSubscriberEvent<>(subscriber, Connection.this);
+                return new ConnectionInputSubscriberEvent<>(subscriber);
             }
         });
     }
@@ -278,11 +281,13 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
      * constructed completely. IOW, "this" escapes from the constructor if the listener is added in the constructor.
      */
     protected void connectCloseToChannelClose() {
-        nettyChannel.closeFuture().addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(ChannelFuture future) throws Exception {
-                close(false); // Close this connection when the channel is closed.
-            }
-        });
+        nettyChannel.closeFuture()
+                    .addListener(new ChannelFutureListener() {
+                        @Override
+                        public void operationComplete(ChannelFuture future) throws Exception {
+                            close(false); // Close this connection when the channel is closed.
+                        }
+                    });
+        nettyChannel.attr(CONNECTION_ATTRIBUTE_KEY).set(this);
     }
 }

@@ -16,13 +16,10 @@
  */
 package io.reactivex.netty.client.pool;
 
-import io.reactivex.netty.client.ConnectionFactory;
-import io.reactivex.netty.client.ConnectionObservable;
 import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.ConnectionProviderFactory;
+import io.reactivex.netty.client.HostConnector;
 import io.reactivex.netty.client.pool.PooledConnection.Owner;
-import rx.functions.Func1;
-
-import java.net.SocketAddress;
 
 /**
  * An implementation of {@link PooledConnectionProvider} that pools connections.
@@ -30,54 +27,37 @@ import java.net.SocketAddress;
  * Following are the key parameters:
  *
  * <ul>
- <li>{@link PoolLimitDeterminationStrategy}: A stratgey to determine whether a new physical connection should be
+ <li>{@link PoolLimitDeterminationStrategy}: A strategy to determine whether a new physical connection should be
  created as part of the user request.</li>
  <li>{@link PoolConfig#getIdleConnectionsCleanupTimer()}: The schedule for cleaning up idle connections in the pool.</li>
  <li>{@link PoolConfig#getMaxIdleTimeMillis()}: Maximum time a connection can be idle in this pool.</li>
  </ul>
+ *
+ * <h2>Usage</h2>
+ *
+ * <h4>Complementing a {@link ConnectionProviderFactory}</h4>
+ *
+ * For employing better host selection strategies, this provider can be used to complement the default
+ * {@link ConnectionProvider} provided by a {@link HostConnector}.
+ *
+ * <h4>Standalone</h4>
+ *
+ * For clients that do not use a pool of hosts can use {@link SingleHostPoolingProviderFactory} that will only ever pick
+ * a single host but will pool connections.
  */
-public abstract class PooledConnectionProvider<W, R> extends ConnectionProvider<W, R> implements Owner<R, W> {
+public abstract class PooledConnectionProvider<W, R> implements ConnectionProvider<W, R> , Owner<R, W> {
 
-    protected PooledConnectionProvider(ConnectionFactory<W, R> connectionFactory) {
-        super(connectionFactory);
-    }
-
-    @Override
-    public abstract ConnectionObservable<R, W> nextConnection();
-
-    public static <W, R> PooledConnectionProvider<W, R> createUnbounded(ConnectionFactory<W, R> bootstrap,
-                                                                        SocketAddress remoteAddress) {
-        return new PooledConnectionProviderImpl<>(bootstrap, new PoolConfig<W, R>(), remoteAddress);
+    public static <W, R> PooledConnectionProvider<W, R> createUnbounded(final HostConnector<W, R> delegate) {
+        return create(new PoolConfig<W, R>(), delegate);
     }
 
     public static <W, R> PooledConnectionProvider<W, R> createBounded(int maxConnections,
-                                                                      ConnectionFactory<W, R> bootstrap,
-                                                                      SocketAddress remoteAddress) {
-        return new PooledConnectionProviderImpl<>(bootstrap, new PoolConfig<W, R>().maxConnections(maxConnections),
-                                                  remoteAddress);
+                                                                      final HostConnector<W, R> delegate) {
+        return create(new PoolConfig<W, R>().maxConnections(maxConnections), delegate);
     }
 
-    public static <W, R> ConnectionProvider<W, R> createUnbounded(final SocketAddress remoteAddress) {
-        return create(new PoolConfig<W, R>(), remoteAddress);
-    }
-
-    public static <W, R> ConnectionProvider<W, R> createBounded(int maxConnections, SocketAddress remoteAddress) {
-        return create(new PoolConfig<W, R>().maxConnections(maxConnections), remoteAddress);
-    }
-
-    public static <W, R> PooledConnectionProvider<W, R> create(PoolConfig<W, R> config,
-                                                               ConnectionFactory<W, R> bootstrap,
-                                                               SocketAddress remoteAddress) {
-        return new PooledConnectionProviderImpl<>(bootstrap, config, remoteAddress);
-    }
-
-    public static <W, R> ConnectionProvider<W, R> create(final PoolConfig<W, R> config,
-                                                         final SocketAddress remoteAddress) {
-        return ConnectionProvider.create(new Func1<ConnectionFactory<W, R>, ConnectionProvider<W, R>>() {
-            @Override
-            public ConnectionProvider<W, R> call(ConnectionFactory<W, R> cf) {
-                return new PooledConnectionProviderImpl<>(cf, config, remoteAddress);
-            }
-        });
+    public static <W, R> PooledConnectionProvider<W, R> create(final PoolConfig<W, R> config,
+                                                               final HostConnector<W, R> delegate) {
+        return new PooledConnectionProviderImpl<>(config, delegate);
     }
 }

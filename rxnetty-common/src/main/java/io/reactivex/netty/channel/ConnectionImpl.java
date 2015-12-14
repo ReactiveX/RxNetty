@@ -22,6 +22,7 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
+import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
 import rx.Observable;
 import rx.functions.Action1;
@@ -132,9 +133,21 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
         return delegate.closeListener();
     }
 
-    public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, ConnectionEventListener eventListener,
-                                                     EventPublisher eventPublisher) {
-        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventListener, eventPublisher);
+    public static <R, W> ConnectionImpl<R, W> fromChannel(Channel nettyChannel) {
+        EventPublisher ep = nettyChannel.attr(EventAttributeKeys.EVENT_PUBLISHER).get();
+        if (null == ep) {
+            throw new IllegalArgumentException("No event publisher set in the channel.");
+        }
+
+        ConnectionEventListener l = null;
+        if (ep.publishingEnabled()) {
+            l = nettyChannel.attr(EventAttributeKeys.CONNECTION_EVENT_LISTENER).get();
+            if (null == l) {
+                throw new IllegalArgumentException("No event listener set in the channel.");
+            }
+        }
+
+        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, l, ep);
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.test.util;
+package io.reactivex.netty.test.util.embedded;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;

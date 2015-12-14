@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.protocol.tcp.ssl;
+package io.reactivex.netty.ssl;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
@@ -27,7 +27,6 @@ import io.reactivex.netty.channel.EmitConnectionEvent;
 import rx.functions.Action1;
 
 import static io.reactivex.netty.HandlerNames.*;
-import static io.reactivex.netty.protocol.tcp.TcpHandlerNames.*;
 
 /**
  * A codec to use when enabling SSL/TLS on <a href="http://en.wikipedia.org/wiki/Transport_Layer_Security">SSL

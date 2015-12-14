@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.reactivex.netty.client.pool.PoolConfig;
-import io.reactivex.netty.test.util.EmbeddedChannelWithFeeder;
+import io.reactivex.netty.test.util.embedded.EmbeddedChannelWithFeeder;
 import org.junit.Rule;
 import org.junit.Test;
 import rx.observers.TestSubscriber;
@@ -147,7 +147,7 @@ public class HttpRedirectTest {
     public void testRedirectWithConnPool() throws Throwable {
         PoolConfig<ByteBuf, ByteBuf> pConfig = new PoolConfig<ByteBuf, ByteBuf>().maxConnections(10);
 
-        clientRule.setupPooledConnectionFactroy(pConfig); // sets the client et al.
+        clientRule.setupPooledConnectionFactory(pConfig); // sets the client et al.
 
         HttpClient<ByteBuf, ByteBuf> client = clientRule.getHttpClient().followRedirects(1);
 

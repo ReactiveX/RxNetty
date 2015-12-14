@@ -14,20 +14,13 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.protocol.http.internal;
+
+package io.reactivex.netty.client;
 
 import rx.Observable;
-import rx.functions.Func1;
 
-/**
- * A function to be used in place of {@link Observable#cast(Class)} to support nested generics.
- *
- * @param <T> Target type.
- */
-public class VoidToAnythingCast<T> implements Func1<Void, T> {
+public interface ConnectionProviderFactory<W, R> {
 
-    @Override
-    public T call(Void aVoid) {
-        return null;
-    }
+    ConnectionProvider<W, R> newProvider(Observable<HostConnector<W, R>> hosts);
+
 }

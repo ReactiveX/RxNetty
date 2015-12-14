@@ -14,7 +14,7 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.protocol.tcp.client;
+package io.reactivex.netty.client;
 
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
@@ -24,7 +24,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import io.reactivex.netty.ssl.SslCodec;
 import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
@@ -35,7 +35,7 @@ import javax.net.ssl.TrustManagerFactory;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A TCP connection request created via {@link TcpClient#createConnectionRequest()}.
+ * A connection request that is used to create connections for different protocols.
  *
  * <h2>Mutations</h2>
  *

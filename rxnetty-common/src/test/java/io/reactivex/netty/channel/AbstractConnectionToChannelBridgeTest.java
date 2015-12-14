@@ -57,7 +57,7 @@ public class AbstractConnectionToChannelBridgeTest {
 
         connectionHandlerRule.activateConnectionAndAssert(subscriber);
 
-        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
+        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber();
 
         subscriber.assertTerminalEvent();
         assertThat("Unexpected first notification kind.", inputSubscriber.getOnErrorEvents(), hasSize(1));
@@ -84,7 +84,7 @@ public class AbstractConnectionToChannelBridgeTest {
         connectionHandlerRule.channel.config().setAutoRead(false);
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(false); //lazy input sub.
         connectionHandlerRule.activateConnectionAndAssert(subscriber);
-        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
+        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber();
 
         inputSubscriber.assertNoErrors();
         assertThat("Unexpected on next events after channel active.", inputSubscriber.getOnNextEvents(),
@@ -122,7 +122,7 @@ public class AbstractConnectionToChannelBridgeTest {
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
         connectionHandlerRule.activateConnectionAndAssert(subscriber); // one subscription
 
-        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
+        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber();
 
         inputSubscriber.assertTerminalEvent();
 
@@ -137,7 +137,7 @@ public class AbstractConnectionToChannelBridgeTest {
         ConnectionSubscriber subscriber = connectionHandlerRule.enableConnectionSubscriberAndAssert(true);
         connectionHandlerRule.activateConnectionAndAssert(subscriber); // one subscription
 
-        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
+        ConnectionInputSubscriber inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber();
         inputSubscriber.assertTerminalEvent();
         assertThat("Unexpected on next events for second subscriber.", inputSubscriber.getOnNextEvents(), hasSize(0));
 
@@ -145,7 +145,7 @@ public class AbstractConnectionToChannelBridgeTest {
                                                          new ConnectionInputSubscriberResetEvent() {
                                                          });
 
-        inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber(subscriber);
+        inputSubscriber = connectionHandlerRule.enableConnectionInputSubscriber();
         assertThat("Unexpected on next count for input subscriber post reset.", inputSubscriber.getOnNextEvents(),
                    hasSize(0));
         assertThat("Unexpected on error count for input subscriber post reset.", inputSubscriber.getOnErrorEvents(),
@@ -217,7 +217,7 @@ public class AbstractConnectionToChannelBridgeTest {
 
         public ConnectionSubscriber enableConnectionSubscriberAndAssert(boolean eagerSubToInput) throws Exception {
             ConnectionSubscriber toReturn = new ConnectionSubscriber(eagerSubToInput, this);
-            handler.userEventTriggered(ctx, new ConnectionSubscriberEvent<>(toReturn));
+            handler.userEventTriggered(ctx, new ChannelSubscriberEvent<>(toReturn));
             assertThat("Unexpected on next notifications count before channel active.", toReturn.getOnNextEvents(),
                        hasSize(0));
             assertThat("Unexpected on error notifications count before channel active.", toReturn.getOnErrorEvents(),
@@ -226,11 +226,10 @@ public class AbstractConnectionToChannelBridgeTest {
             return toReturn;
         }
 
-        public ConnectionInputSubscriber enableConnectionInputSubscriber(ConnectionSubscriber subscriber)
+        public ConnectionInputSubscriber enableConnectionInputSubscriber()
                 throws Exception {
             ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber();
-            Connection<String, String> connection = subscriber.getOnNextEvents().get(0);
-            handler.userEventTriggered(ctx, new ConnectionInputSubscriberEvent<>(toReturn, connection));
+            handler.userEventTriggered(ctx, new ConnectionInputSubscriberEvent<>(toReturn));
             return toReturn;
         }
 
@@ -241,7 +240,7 @@ public class AbstractConnectionToChannelBridgeTest {
             subscriber.assertNoErrors();
 
             assertThat("No connections received.", subscriber.getOnNextEvents(), is(not(empty())));
-            assertThat("Unexpected channel in new connection.", subscriber.getOnNextEvents().get(0).unsafeNettyChannel(),
+            assertThat("Unexpected channel in new connection.", subscriber.getOnNextEvents().get(0),
                        is(channel));
 
         }
@@ -262,7 +261,7 @@ public class AbstractConnectionToChannelBridgeTest {
         }
     }
 
-    public static class ConnectionSubscriber extends TestSubscriber<Connection<String, String>> {
+    public static class ConnectionSubscriber extends TestSubscriber<Channel> {
 
         private final boolean subscribeToInput;
         private final ConnectionHandlerRule rule;
@@ -274,11 +273,11 @@ public class AbstractConnectionToChannelBridgeTest {
         }
 
         @Override
-        public void onNext(Connection<String, String> connection) {
-            super.onNext(connection);
+        public void onNext(Channel channel) {
+            super.onNext(channel);
             try {
                 if (subscribeToInput) {
-                    inputSubscriber = rule.enableConnectionInputSubscriber(this);
+                    inputSubscriber = rule.enableConnectionInputSubscriber();
                 }
             } catch (Exception e) {
                 onError(e);
