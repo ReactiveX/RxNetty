@@ -254,7 +254,8 @@ public class WebSocketClientServerTest {
                     if (clientFrames == null) {
                         return sendBatchOfFrames(connection, serverFrames);
                     }
-                    return connection.getInput().flatMap(new Func1<WebSocketFrame, Observable<Void>>() {
+                    return connection.getInput().delay(1, TimeUnit.MILLISECONDS)
+                                     .flatMap(new Func1<WebSocketFrame, Observable<Void>>() {
                         @Override
                         public Observable<Void> call(WebSocketFrame frame) {
                             frame.retain();
