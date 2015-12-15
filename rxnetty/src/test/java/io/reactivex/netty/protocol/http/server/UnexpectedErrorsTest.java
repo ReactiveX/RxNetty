@@ -27,7 +27,6 @@ import io.reactivex.netty.server.ErrorHandler;
 import io.reactivex.netty.server.RxServer;
 import org.junit.After;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import rx.Observable;
 
@@ -40,7 +39,6 @@ import static org.junit.Assert.assertTrue;
 /**
  * @author Nitesh Kant
  */
-@Ignore("fails on travis")
 public class UnexpectedErrorsTest {
 
     public int port;

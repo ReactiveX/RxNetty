@@ -39,7 +39,6 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Test;
 import rx.Observable;
 import rx.functions.Action0;
@@ -60,7 +59,6 @@ import static io.reactivex.netty.contexts.ThreadLocalRequestCorrelator.getCurren
 /**
  * @author Nitesh Kant
  */
-@Ignore("These tests fail on travis due to race conditions")
 public class ContextPropagationTest {
 
     public static final String CTX_3_FOUND_HEADER = "CTX_3_FOUND";
