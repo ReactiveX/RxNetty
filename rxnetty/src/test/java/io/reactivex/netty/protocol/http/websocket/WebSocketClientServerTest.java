@@ -32,11 +32,9 @@ import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
 import io.reactivex.netty.channel.ObservableConnection;
-import io.reactivex.netty.protocol.http.server.RequestHandler;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.server.RxServer;
-import org.junit.Ignore;
 import org.junit.Test;
 import rx.Notification;
 import rx.Observable;
@@ -116,7 +114,6 @@ public class WebSocketClientServerTest {
     }
 
     @Test
-    @Ignore
     public void testMessageAggregationOnClient() throws Exception {
         TestSequenceExecutor executor = new TestSequenceExecutor()
                 .withMessageAggregation(true)
