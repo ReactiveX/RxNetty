@@ -32,4 +32,10 @@ configure(subprojects) {
 
     testCompile 'junit:junit-dep:4.10'
   }
+
+  test {
+    testLogging {
+      showStandardStreams = true
+    }
+  }
 }
