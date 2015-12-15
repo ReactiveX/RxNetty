@@ -461,6 +461,33 @@ public class HttpClientTest {
         });
     }
 
+    @Test(timeout = 60000)
+    public void testDisableAutoRelease() throws Exception {
+        HttpClient<ByteBuf, ByteBuf> client = RxNetty.<ByteBuf, ByteBuf>newHttpClientBuilder("localhost", port)
+                .disableAutoReleaseBuffers()
+                .enableWireLogging(LogLevel.ERROR).build();
+        Observable<HttpClientResponse<ByteBuf>> response = client.submit(HttpClientRequest.createGet("test/singleEntity"));
+        final List<ByteBuf> result = new ArrayList<ByteBuf>();
+        response.flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
+            @Override
+            public Observable<ByteBuf> call(HttpClientResponse<ByteBuf> response) {
+                return response.getContent();
+            }
+        }).toBlocking().forEach(new Action1<ByteBuf>() {
+
+            @Override
+            public void call(ByteBuf t1) {
+                result.add(t1);
+            }
+        });
+
+        assertEquals("Response not found.", 1, result.size());
+        assertEquals("Hello world", result.get(0).toString(Charset.defaultCharset()));
+
+        assertEquals("Byte buf auto-released", 1, result.get(0).refCnt());
+        result.get(0).release();
+    }
+
     private static void readResponseContent(Observable<HttpClientResponse<ServerSentEvent>> response,
                                             final List<String> result) {
         response.flatMap(

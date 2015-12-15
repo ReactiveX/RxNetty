@@ -26,6 +26,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ConnectionHandler;
+import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsListenerFactory;
 import io.reactivex.netty.pipeline.PipelineConfigurator;
@@ -135,6 +136,11 @@ public abstract class AbstractServerBuilder<I, O, T extends AbstractBootstrap<T,
      */
     public B withEventExecutorGroup(EventExecutorGroup eventExecutorGroup) {
         this.eventExecutorGroup = eventExecutorGroup;
+        return returnBuilder();
+    }
+
+    public B disableAutoReleaseBuffers() {
+        serverBootstrap.attr(ObservableConnection.AUTO_RELEASE_BUFFERS, false);
         return returnBuilder();
     }
 

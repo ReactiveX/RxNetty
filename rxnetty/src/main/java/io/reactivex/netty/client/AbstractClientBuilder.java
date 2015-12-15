@@ -214,6 +214,11 @@ public abstract class AbstractClientBuilder<I, O, B extends AbstractClientBuilde
         return returnBuilder();
     }
 
+    public B disableAutoReleaseBuffers() {
+        bootstrap.attr(ObservableConnection.AUTO_RELEASE_BUFFERS, false);
+        return returnBuilder();
+    }
+
     public Bootstrap getBootstrap() {
         return bootstrap;
     }

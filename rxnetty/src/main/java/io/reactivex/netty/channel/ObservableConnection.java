@@ -20,6 +20,7 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.util.AttributeKey;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsSubject;
 import io.reactivex.netty.pipeline.ReadTimeoutPipelineConfigurator;
@@ -37,6 +38,8 @@ import rx.subjects.Subject;
  * @param <O> The type of objects that are written to this connection.
  */
 public class ObservableConnection<I, O> extends DefaultChannelWriter<O> {
+
+    public static AttributeKey<Boolean> AUTO_RELEASE_BUFFERS = AttributeKey.valueOf("rxnetty_auto_release_buffers");
 
     private Subject<I, I> inputSubject;
     @SuppressWarnings("rawtypes")private final MetricEventsSubject eventsSubject;
