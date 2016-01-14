@@ -31,6 +31,7 @@ import rx.Observable;
 import rx.functions.Func1;
 
 import java.util.Date;
+import java.util.Map;
 import java.util.Map.Entry;
 
 public final class RawRequest<I, O> {
@@ -55,13 +56,21 @@ public final class RawRequest<I, O> {
     public RawRequest<I, O> addHeader(CharSequence name, Object value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().add(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
+    }
+
+    public RawRequest<I, O> addHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers) {
+        HttpRequest headersCopy = _copyHeaders();
+        for (Entry<? extends CharSequence, ? extends Iterable<Object>> header : headers.entrySet()) {
+            headersCopy.headers().add(header.getKey(), header.getValue());
+        }
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().add(name, values);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> addCookie(Cookie cookie) {
@@ -72,7 +81,7 @@ public final class RawRequest<I, O> {
     public RawRequest<I, O> addDateHeader(CharSequence name, Date value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().add(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
@@ -80,25 +89,25 @@ public final class RawRequest<I, O> {
         for (Date value : values) {
             headersCopy.headers().add(name, value);
         }
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setDateHeader(CharSequence name, Date value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().set(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setHeader(CharSequence name, Object value) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().set(name, value);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().set(name, values);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
@@ -112,39 +121,39 @@ public final class RawRequest<I, O> {
                 addNow = true;
             }
         }
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setKeepAlive(boolean keepAlive) {
         HttpRequest headersCopy = _copyHeaders();
         HttpUtil.setKeepAlive(headersCopy, keepAlive);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setTransferEncodingChunked() {
         HttpRequest headersCopy = _copyHeaders();
         HttpUtil.setTransferEncodingChunked(headersCopy, true);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> removeHeader(CharSequence name) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().remove(name);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setMethod(HttpMethod method) {
         HttpRequest headersCopy = _copyHeaders(headers.uri(), method);
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> setUri(String uri) {
         HttpRequest headersCopy = _copyHeaders(uri, headers.method());
-        return create(headersCopy, content, hasTrailers, redirector);
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
     public RawRequest<I, O> followRedirect(Redirector<I, O> redirectHandler) {
-        return create(headers, content, hasTrailers, redirectHandler);
+        return new RawRequest<>(headers, content, flushSelector, hasTrailers, redirectHandler);
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
@@ -166,7 +175,7 @@ public final class RawRequest<I, O> {
         return toReturn;
     }
 
-    private HttpRequest _copyHeaders() {
+    public HttpRequest _copyHeaders() {
         return _copyHeaders(headers.uri(), headers.method());
     }
 
