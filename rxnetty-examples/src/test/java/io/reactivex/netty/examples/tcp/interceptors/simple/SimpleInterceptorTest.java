@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ public class SimpleInterceptorTest {
 
         InterceptingClient.main(null);
 
-        assertThat("Unexpected number of messages echoed", output, hasSize(2));
-        assertThat("Unexpected number of messages echoed", output, contains("Hello", "echo => Hello World!"));
+        assertThat("Unexpected number of messages echoed", output, hasSize(1));
+        assertThat("Unexpected number of messages echoed", output, contains("echo => Hello World!"));
     }
 }

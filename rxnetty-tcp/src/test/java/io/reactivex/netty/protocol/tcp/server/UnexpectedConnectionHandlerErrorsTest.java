@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -104,8 +104,8 @@ public class UnexpectedConnectionHandlerErrorsTest {
 
             TcpClient.newClient("127.0.0.1", server.getServerPort())
                      .channelOption(ChannelOption.AUTO_READ, true) /*Else nothing is read from the channel even close*/
-                     .createConnectionRequest()
                      .enableWireLogging(LogLevel.ERROR)
+                     .createConnectionRequest()
                      .subscribe(subscriber);
 
             subscriber.awaitTerminalEvent();

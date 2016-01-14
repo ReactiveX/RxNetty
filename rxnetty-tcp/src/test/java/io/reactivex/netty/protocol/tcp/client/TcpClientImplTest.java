@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,16 +42,6 @@ public class TcpClientImplTest {
 
     @Mock(answer = Answers.RETURNS_MOCKS)
     private ClientState<String, String> state;
-
-    @Test(timeout = 60000)
-    public void testCreateConnectionRequest() throws Exception {
-        TcpClient<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
-        ConnectionRequestImpl<String, String> req =
-                (ConnectionRequestImpl<String, String>) client.createConnectionRequest();
-
-        assertThat("Request not having the same state as client.", req.getClient(),
-                   is(sameInstance(client)));
-    }
 
     @Test(timeout = 60000)
     public void testChannelOption() throws Exception {

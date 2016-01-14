@@ -14,21 +14,22 @@
  * limitations under the License.
  *
  */
+
 package io.reactivex.netty.protocol.tcp.client;
 
-import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.client.ConnectionRequest;
-import rx.Subscriber;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 
-final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
+public abstract class InterceptingTcpClient<W, R> implements EventSource<TcpClientEventListener> {
 
-    ConnectionRequestImpl(final ConnectionProvider<W, R> cp) {
-        super(new OnSubscribe<Connection<R, W>>() {
-            @Override
-            public void call(final Subscriber<? super Connection<R, W>> subscriber) {
-                cp.newConnectionRequest().unsafeSubscribe(subscriber);
-            }
-        });
-    }
+    /**
+     * Creates a new {@link ConnectionRequest} which should be subscribed to actually connect to the target server.
+     *
+     * @return A new {@link ConnectionRequest} which either can be subscribed directly or altered in various ways
+     * before subscription.
+     */
+    public abstract ConnectionRequest<W, R> createConnectionRequest();
+
+    public abstract TcpClientInterceptorChain<W, R> intercept();
 }

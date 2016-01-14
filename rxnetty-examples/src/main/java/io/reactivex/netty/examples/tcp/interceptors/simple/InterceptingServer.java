@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ import rx.Observable;
 import java.nio.charset.Charset;
 
 /**
- * A TCP echo server that echoes all input it receives on any connection, after prepending the input with a fixed
- * string. <p>
+ * A TCP echo server that follows a simple text based, new line delimited message protocol.
+ * The server sends a "Hello" as the first message and then the echo of what it receives from the client. <p>
  *
  * This example demonstrates the usage of simple server side interceptors which does not do any data transformations.
  * For interceptors requiring data transformation see {@link TransformingInterceptorsServer}
@@ -64,12 +64,10 @@ public final class InterceptingServer extends AbstractServerExample {
     }
 
     /**
-     * Logs every new connection.
-     *
-     * @return Interceptor for logging new connections.
+     * Sends a hello on accepting a new connection.
      */
     private static Interceptor<ByteBuf, ByteBuf> sendHello() {
-        return in -> newConnection -> newConnection.writeString(Observable.just("Hello"))
+        return in -> newConnection -> newConnection.writeString(Observable.just("Hello\n"))
                                                    .concatWith(in.handle(newConnection));
     }
 
@@ -80,6 +78,6 @@ public final class InterceptingServer extends AbstractServerExample {
      */
     private static ConnectionHandler<ByteBuf, ByteBuf> echoHandler() {
         return conn -> conn.writeStringAndFlushOnEach(
-                conn.getInput().map(msg -> "echo => " + msg.toString(Charset.defaultCharset())));
+                conn.getInput().map(msg -> "echo => " + msg.toString(Charset.defaultCharset()) + "\n"));
     }
 }

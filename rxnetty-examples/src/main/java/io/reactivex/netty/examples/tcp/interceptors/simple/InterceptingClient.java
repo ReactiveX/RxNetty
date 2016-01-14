@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,16 +18,48 @@
 package io.reactivex.netty.examples.tcp.interceptors.simple;
 
 import io.netty.buffer.ByteBuf;
+import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.channel.ContentSource;
+import io.reactivex.netty.channel.SimpleAbstractDelegatingConnection;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import io.reactivex.netty.util.StringLineDecoder;
 import rx.Observable;
 
 import java.net.SocketAddress;
-import java.nio.charset.Charset;
 
 /**
- * A client to test {@link InterceptingServer}. This client is provided here only for completeness of the example,
- * otherwise, it is mostly the same as {@link io.reactivex.netty.examples.tcp.echo.EchoClient}.
+ * A client for {@link InterceptingServer}, which follows a simple text based, new line delimited message protocol.
+ * The client expects a "Hello" as the first message and then the echo of what it sends to the server. This client,
+ * sends a "Hello World" to the server and expects an echo.
+ *
+ * There are three ways of running this example:
+ *
+ * <h2>Default</h2>
+ *
+ * The default way is to just run this class with no arguments, which will start a server ({@link InterceptingServer})
+ * on an ephemeral port, send a "Hello World!" message to the server and print the response.
+ *
+ * <h2>After starting {@link InterceptingServer}</h2>
+ *
+ * If you want to see how {@link InterceptingServer} work, you can run {@link InterceptingServer} by yourself and then
+ * pass the port on which the server started to this class as a program argument:
+ *
+ <PRE>
+ java io.reactivex.netty.examples.tcp.interceptors.simple.InterceptingClient [server port]
+ </PRE>
+ *
+ * <h2>Existing TCP server</h2>
+ *
+ * You can also use this client to connect to an already running TCP server (different than
+ * {@link InterceptingServer}) by passing the port and host of the existing server similar to the case above:
+ *
+ <PRE>
+ java io.reactivex.netty.examples.tcp.interceptors.simple.InterceptingClient [server port] [server host]
+ </PRE>
+ * If the server host is omitted from the above, it defaults to "127.0.0.1"
+ *
+ * In all the above usages, this client will print the response received from the server.
  *
  * @see InterceptingServer Default server for this client.
  */
@@ -45,27 +77,32 @@ public final class InterceptingClient extends AbstractClientExample {
          */
         SocketAddress serverAddress = getServerAddress(InterceptingServer.class, args);
 
-        /*Create a new client for the server address*/
-        TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
-                /*Create a new connection request, each subscription creates a new connection*/
+        TcpClient.newClient(serverAddress)
+                 .<ByteBuf, String>addChannelHandlerLast("string-line-decoder", StringLineDecoder::new)
+                 .intercept()
+                 .next(provider -> () -> provider.newConnectionRequest()
+                                                 .map(HelloTruncatingConnection::new))
+                 .finish()
                  .createConnectionRequest()
-                /*Upon successful connection, write "Hello World" and listen to input*/
-                 .flatMap(connection ->
-                                  /*Write the message*/
-                                  connection.writeString(Observable.just("Hello World!"))
-                                          /*Since, write returns a Void stream, cast it to ByteBuf to be able to merge
-                                          with the input*/
-                                          .cast(ByteBuf.class)
-                                          /*Upon successful completion of the write, subscribe to the connection input*/
-                                          .concatWith(connection.getInput())
+                 .flatMap(connection -> connection.writeString(Observable.just("Hello World!"))
+                                                  .cast(String.class)
+                                                  .mergeWith(connection.getInput())
                  )
-                /*Server sends an initial hello and then echoes*/
-                 .take(2)
-                /*Convert each ByteBuf to a string*/
-                 .map(bb -> bb.toString(Charset.defaultCharset()))
-                /*Block till the response comes to avoid JVM exit.*/
+                 .take(1)
                  .toBlocking()
-                /*Print each content chunk*/
                  .forEach(logger::info);
+    }
+
+    private static class HelloTruncatingConnection extends SimpleAbstractDelegatingConnection<String, ByteBuf> {
+
+        public HelloTruncatingConnection(Connection<String, ByteBuf> c) {
+            super(c);
+        }
+
+        @Override
+        public ContentSource<String> getInput() {
+            return getDelegate().getInput()
+                                .transform(source -> source.skip(1));
+        }
     }
 }

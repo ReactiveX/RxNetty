@@ -14,21 +14,18 @@
  * limitations under the License.
  *
  */
+
 package io.reactivex.netty.protocol.tcp.client;
 
-import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.ConnectionProvider;
-import io.reactivex.netty.client.ConnectionRequest;
-import rx.Subscriber;
+public interface TcpClientInterceptorChain<W, R> {
 
-final class ConnectionRequestImpl<W, R> extends ConnectionRequest<W, R> {
+    TcpClientInterceptorChain<W, R> next(Interceptor<W, R> interceptor);
 
-    ConnectionRequestImpl(final ConnectionProvider<W, R> cp) {
-        super(new OnSubscribe<Connection<R, W>>() {
-            @Override
-            public void call(final Subscriber<? super Connection<R, W>> subscriber) {
-                cp.newConnectionRequest().unsafeSubscribe(subscriber);
-            }
-        });
-    }
+    <RR> TcpClientInterceptorChain<W, RR> nextWithReadTransform(TransformingInterceptor<W, R, W, RR> interceptor);
+
+    <WW> TcpClientInterceptorChain<WW, R> nextWithWriteTransform(TransformingInterceptor<W, R, WW, R> interceptor);
+
+    <WW, RR> TcpClientInterceptorChain<WW, RR> nextWithTransform(TransformingInterceptor<W, R, WW, RR> interceptor);
+
+    InterceptingTcpClient<W, R> finish();
 }

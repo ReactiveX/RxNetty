@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -218,7 +218,7 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
     }
 
     @SuppressWarnings("unchecked")
-    private <RR, WW> Connection<RR, WW> cast() {
+    protected  <RR, WW> Connection<RR, WW> cast() {
         return (Connection<RR, WW>) this;
     }
 }

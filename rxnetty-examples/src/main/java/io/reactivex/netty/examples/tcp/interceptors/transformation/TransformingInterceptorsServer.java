@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,16 +30,17 @@ import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import io.reactivex.netty.protocol.tcp.server.TcpServerInterceptorChain;
 import io.reactivex.netty.protocol.tcp.server.TcpServerInterceptorChain.Interceptor;
 import io.reactivex.netty.protocol.tcp.server.TcpServerInterceptorChain.TransformingInterceptor;
+import io.reactivex.netty.util.StringLineDecoder;
 import rx.Observable;
 
-import java.nio.charset.Charset;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * A TCP echo server that echoes all input it receives on any connection, after prepending the input with a fixed
- * string. <p>
+ * A TCP echo server that follows a simple text based, new line delimited message protocol.
+ * The server sends a "Hello" as the first message and then expects a stream of integers to be sent by the client.
+ * For every integer received, it sends the next two integers in a single message separated by a space.<p>
  *
  * This example demonstrates the usage of server side interceptors which do data transformations.
  * For interceptors requiring no data transformation see {@link InterceptingServer}
@@ -53,16 +54,15 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
 
     public static void main(final String[] args) {
 
-        TcpServer<ByteBuf, ByteBuf> server;
+        TcpServer<String, ByteBuf> server;
 
         /*Starts a new TCP server on an ephemeral port.*/
         server = TcpServer.newServer(0)
-                          /*Starts the server with a connection handler.*/
-                .start(TcpServerInterceptorChain.startRaw(sendHello())
-                                                .nextWithReadTransform(readStrings())
-                                                .nextWithWriteTransform(writeStrings())
-                                                .nextWithTransform(readAndWriteInts())
-                                                .end(numberIncrementingHandler()));
+                          .<String, ByteBuf>addChannelHandlerLast("string-line-decoder", StringLineDecoder::new)
+                          .start(TcpServerInterceptorChain.start(sendHello())
+                                                          .nextWithWriteTransform(writeStrings())
+                                                          .nextWithTransform(readAndWriteInts())
+                                                          .end(numberIncrementingHandler()));
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
         if (shouldWaitForShutdown(args)) {
@@ -75,29 +75,11 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
     }
 
     /**
-     * Logs every new connection.
-     *
-     * @return Interceptor for logging new connections.
+     * Sends a hello on accepting a new connection.
      */
-    private static Interceptor<ByteBuf, ByteBuf> sendHello() {
-        return in -> newConnection -> newConnection.writeString(Observable.just("Hello"))
+    private static Interceptor<String, ByteBuf> sendHello() {
+        return in -> newConnection -> newConnection.writeString(Observable.just("Hello\n"))
                                                    .concatWith(in.handle(newConnection));
-    }
-
-    /**
-     * Converts read bytes to string.
-     *
-     * @return Interceptor for logging new connections.
-     */
-    private static TransformingInterceptor<ByteBuf, ByteBuf, String, ByteBuf> readStrings() {
-        return in -> newConnection ->
-                in.handle(new AbstractDelegatingConnection<ByteBuf, ByteBuf, String, ByteBuf>(newConnection) {
-                    @Override
-                    public ContentSource<String> getInput() {
-                        return newConnection.getInput()
-                                            .transform(o -> o.map(bb -> bb.toString(Charset.defaultCharset())));
-                    }
-                });
     }
 
     private static TransformingInterceptor<String, ByteBuf, String, String> writeStrings() {
@@ -118,7 +100,9 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
                     @Override
                     public ContentSource<Integer> getInput() {
                         return newConnection.getInput()
-                                            .transform(o -> o.map(String::trim).map(Integer::parseInt));
+                                            .transform(o -> o.map(String::trim)
+                                                             .filter(s -> !s.isEmpty())
+                                                             .map(Integer::parseInt));
                     }
                 });
     }
@@ -146,7 +130,7 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
         return new Transformer<Integer, String>() {
             @Override
             public List<String> transform(Integer toTransform, ByteBufAllocator allocator) {
-                return Arrays.asList(String.valueOf(toTransform), String.valueOf(++toTransform));
+                return Arrays.asList(String.valueOf(toTransform), " ", String.valueOf(++toTransform), "\n");
             }
         };
     }

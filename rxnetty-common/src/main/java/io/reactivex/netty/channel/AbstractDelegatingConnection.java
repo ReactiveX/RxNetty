@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -229,54 +229,72 @@ public abstract class AbstractDelegatingConnection<R, W, RR, WW> extends Connect
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerAfter(String baseName, String name,
                                                                   ChannelHandler handler) {
-        return delegate.addChannelHandlerAfter(baseName, name, handler);
+        delegate.addChannelHandlerAfter(baseName, name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerAfter(EventExecutorGroup group,
                                                                   String baseName, String name,
                                                                   ChannelHandler handler) {
-        return delegate.addChannelHandlerAfter(group, baseName, name, handler);
+        delegate.addChannelHandlerAfter(group, baseName, name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerBefore(String baseName, String name,
                                                                    ChannelHandler handler) {
-        return delegate.addChannelHandlerBefore(baseName, name, handler);
+        delegate.addChannelHandlerBefore(baseName, name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerBefore(EventExecutorGroup group,
                                                                    String baseName, String name,
                                                                    ChannelHandler handler) {
-        return delegate.addChannelHandlerBefore(group, baseName, name, handler);
+        delegate.addChannelHandlerBefore(group, baseName, name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerFirst(EventExecutorGroup group,
                                                                   String name, ChannelHandler handler) {
-        return delegate.addChannelHandlerFirst(group, name, handler);
+        delegate.addChannelHandlerFirst(group, name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerFirst(String name, ChannelHandler handler) {
-        return delegate.addChannelHandlerFirst(name, handler);
+        delegate.addChannelHandlerFirst(name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerLast(EventExecutorGroup group,
                                                                String name, ChannelHandler handler) {
-        return delegate.addChannelHandlerLast(group, name, handler);
+        delegate.addChannelHandlerLast(group, name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> addChannelHandlerLast(String name, ChannelHandler handler) {
-        return delegate.addChannelHandlerLast(name, handler);
+        delegate.addChannelHandlerLast(name, handler);
+        return cast();
     }
 
     @Override
     public <RRR, WWW> Connection<RRR, WWW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        return delegate.pipelineConfigurator(pipelineConfigurator);
+        delegate.pipelineConfigurator(pipelineConfigurator);
+        return cast();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <RRR, WWW> AbstractDelegatingConnection<RR, WW, RRR, WWW> cast() {
+        return (AbstractDelegatingConnection<RR, WW, RRR, WWW>)this;
+    }
+
+    protected Connection<R, WW> getDelegate() {
+        return delegate;
     }
 
     private static void addOrReplaceEncoder(String handlerName, ChannelPipeline pipeline,

@@ -64,11 +64,14 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     private final ClientState<W, R> state;
     private final TcpClientEventPublisher eventPublisher;
+    private final InterceptingTcpClient<W, R> interceptingTcpClient;
     private ConnectionRequestImpl<W, R> requestSetLazily;
 
-    private TcpClientImpl(ClientState<W, R> state, TcpClientEventPublisher eventPublisher) {
+    private TcpClientImpl(ClientState<W, R> state, TcpClientEventPublisher eventPublisher,
+                          InterceptingTcpClient<W, R> interceptingTcpClient) {
         this.state = state;
         this.eventPublisher = eventPublisher;
+        this.interceptingTcpClient = interceptingTcpClient;
     }
 
     @Override
@@ -174,7 +177,12 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
     @Override
     public Subscription subscribe(TcpClientEventListener listener) {
-        return eventPublisher.subscribe(listener);
+        return interceptingTcpClient.subscribe(listener);
+    }
+
+    @Override
+    public TcpClientInterceptorChain<W, R> intercept() {
+        return interceptingTcpClient.intercept();
     }
 
     /*Visible for testing*/ ClientState<W, R> getClientState() {
@@ -198,24 +206,25 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
         return _create(state, eventPublisher);
     }
 
-    private static <WW, RR> TcpClientImpl<WW, RR> copy(final ClientState<WW, RR> state,
+    private static <W, R> TcpClientImpl<W, R> copy(final ClientState<W, R> state,
                                                        TcpClientEventPublisher eventPublisher) {
         return _create(state, eventPublisher);
     }
 
-    /*Visible for testing*/ static <WW, RR> TcpClientImpl<WW, RR> _create(ClientState<WW, RR> state,
+    /*Visible for testing*/ static <W, R> TcpClientImpl<W, R> _create(ClientState<W, R> state,
                                                                           TcpClientEventPublisher eventPublisher) {
         DetachedChannelPipeline channelPipeline = state.unsafeDetachedPipeline();
         state = state.channelProviderFactory(new TcpChannelProviderFactory(channelPipeline,
                                                                            state.getChannelProviderFactory()));
 
-        HostConnectorFactory<WW, RR> hostConnectorFactory = new HostConnectorFactory<>(state, eventPublisher);
+        HostConnectorFactory<W, R> hostConnectorFactory = new HostConnectorFactory<>(state, eventPublisher);
 
-        ConnectionProvider<WW, RR> cp = state.getFactory()
+        ConnectionProvider<W, R> cp = state.getFactory()
                                              .newProvider(state.getHostStream().map(hostConnectorFactory));
 
-        TcpClientImpl<WW, RR> client = new TcpClientImpl<>(state, eventPublisher);
-        client.requestSetLazily = new ConnectionRequestImpl<>(cp, client);
+        InterceptingTcpClient<W, R> interceptingTcpClient = new InterceptingTcpClientImpl<>(cp, eventPublisher);
+        TcpClientImpl<W, R> client = new TcpClientImpl<>(state, eventPublisher, interceptingTcpClient);
+        client.requestSetLazily = new ConnectionRequestImpl<>(cp);
         return client;
     }
 
