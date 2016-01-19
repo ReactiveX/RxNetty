@@ -104,6 +104,14 @@ public final class RawRequest<I, O> {
         return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
     }
 
+    public RawRequest<I, O> setHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers) {
+        HttpRequest headersCopy = _copyHeaders();
+        for (Entry<? extends CharSequence, ? extends Iterable<Object>> header : headers.entrySet()) {
+            headersCopy.headers().set(header.getKey(), header.getValue());
+        }
+        return new RawRequest<>(headersCopy, content, flushSelector, hasTrailers, redirector);
+    }
+
     public RawRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
         HttpRequest headersCopy = _copyHeaders();
         headersCopy.headers().set(name, values);

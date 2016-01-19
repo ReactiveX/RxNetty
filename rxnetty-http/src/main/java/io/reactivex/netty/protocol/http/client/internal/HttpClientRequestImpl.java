@@ -33,7 +33,6 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
 import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
-import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import io.reactivex.netty.protocol.http.ws.client.internal.WebSocketRequestImpl;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
@@ -252,6 +251,11 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
+    public HttpClientRequestImpl<I, O> setHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers) {
+        return new HttpClientRequestImpl<>(rawRequest.setHeaders(headers), client);
+    }
+
+    @Override
     public HttpClientRequestImpl<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
         return new HttpClientRequestImpl<>(rawRequest.setDateHeader(name, values), client);
     }
@@ -341,7 +345,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public WebSocketRequest<O> requestWebSocketUpgrade() {
+    public WebSocketRequestImpl<O> requestWebSocketUpgrade() {
         return WebSocketRequestImpl.createNew(this);
     }
 

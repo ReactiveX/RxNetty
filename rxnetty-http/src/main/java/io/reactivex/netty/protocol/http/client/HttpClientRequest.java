@@ -408,6 +408,15 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
     public abstract HttpClientRequest<I, O> setHeader(CharSequence name, Object value);
 
     /**
+     * Overwrites the current values, if any, of the passed headers for this request.
+     *
+     * @param headers Map of the headers.
+     *
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
+     */
+    public abstract HttpClientRequest<I, O> setHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers);
+
+    /**
      * Overwrites the current value, if any, of the passed header to the passed date values for this request. The date
      * is formatted using netty's {@link HttpHeaders#addDateHeader(HttpMessage, CharSequence, Date)} which formats the
      * date as per the <a href="http://www.w3.org/Protocols/rfc2616/rfc2616-sec3.html#sec3.3.1">HTTP specifications</a>
