@@ -15,6 +15,8 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
+import java.util.concurrent.TimeUnit;
+
 import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.client.ClientMetricsEvent;
 import io.reactivex.netty.metrics.MetricEventsSubject;
@@ -30,9 +32,18 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 class ClientRequiredConfigurator<I, O> implements PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> {
 
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    private final long responseSubscriptionTimeout;
+    private final TimeUnit responseSubscriptionTimeoutUnit;
 
     public ClientRequiredConfigurator(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this(eventsSubject, 0, TimeUnit.MILLISECONDS);
+    }
+
+    public ClientRequiredConfigurator(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject,
+        long responseSubscriptionTimeout, TimeUnit responseSubscriptionTimeoutUnit) {
         this.eventsSubject = eventsSubject;
+        this.responseSubscriptionTimeout = responseSubscriptionTimeout;
+        this.responseSubscriptionTimeoutUnit = responseSubscriptionTimeoutUnit;
     }
 
     @Override
@@ -40,7 +51,8 @@ class ClientRequiredConfigurator<I, O> implements PipelineConfigurator<HttpClien
         ClientRequestResponseConverter converter = pipeline.get(ClientRequestResponseConverter.class);
         if (null == converter) {
             pipeline.addLast(HttpClientPipelineConfigurator.REQUEST_RESPONSE_CONVERTER_HANDLER_NAME,
-                             new ClientRequestResponseConverter(eventsSubject));
+                             new ClientRequestResponseConverter(eventsSubject, responseSubscriptionTimeout,
+                                 responseSubscriptionTimeoutUnit));
         }
     }
 }
