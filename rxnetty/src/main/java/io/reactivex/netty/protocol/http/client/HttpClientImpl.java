@@ -16,6 +16,8 @@
 
 package io.reactivex.netty.protocol.http.client;
 
+import java.util.concurrent.TimeUnit;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
@@ -107,9 +109,16 @@ public class HttpClientImpl<I, O> extends RxClientImpl<HttpClientRequest<I>, Htt
     protected PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> adaptPipelineConfigurator(
             PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> pipelineConfigurator,
             ClientConfig clientConfig, MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        long responseSubscriptionTimeoutMs = 0;
+        if (clientConfig instanceof HttpClientConfig) {
+            HttpClientConfig httpClientConfig = (HttpClientConfig) clientConfig;
+            responseSubscriptionTimeoutMs = httpClientConfig.getResponseSubscriptionTimeoutMs();
+        }
         PipelineConfigurator<HttpClientResponse<O>, HttpClientRequest<I>> configurator =
                 new PipelineConfiguratorComposite<HttpClientResponse<O>, HttpClientRequest<I>>(pipelineConfigurator,
-                                                     new ClientRequiredConfigurator<I, O>(eventsSubject));
+                                                     new ClientRequiredConfigurator<I, O>(
+                                                         eventsSubject, responseSubscriptionTimeoutMs,
+                                                         TimeUnit.MILLISECONDS));
         return super.adaptPipelineConfigurator(configurator, clientConfig, eventsSubject);
     }
 
