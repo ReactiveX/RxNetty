@@ -183,11 +183,11 @@ public final class RawRequest<I, O> {
         return toReturn;
     }
 
-    public HttpRequest _copyHeaders() {
+    private HttpRequest _copyHeaders() {
         return _copyHeaders(headers.uri(), headers.method());
     }
 
-    public HttpRequest _copyHeaders(String uri, HttpMethod method) {
+    private HttpRequest _copyHeaders(String uri, HttpMethod method) {
         final HttpRequest newHeaders = new DefaultHttpRequest(headers.protocolVersion(), method, uri);
         // TODO: May be we can optimize this by not copying
         for (Entry<String, String> header : headers.headers()) {
