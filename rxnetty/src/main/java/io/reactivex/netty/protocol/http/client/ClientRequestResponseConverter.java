@@ -17,6 +17,9 @@
 
 package io.reactivex.netty.protocol.http.client;
 
+import java.io.IOException;
+import java.util.concurrent.TimeUnit;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufHolder;
 import io.netty.channel.ChannelDuplexHandler;
@@ -49,8 +52,6 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
 import rx.functions.Action0;
-
-import java.io.IOException;
 
 /**
  * A channel handler for {@link HttpClient} to convert netty's http request/response objects to {@link HttpClient}'s
@@ -85,6 +86,8 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     public static final AttributeKey<Long> KEEP_ALIVE_TIMEOUT_MILLIS_ATTR = AttributeKey.valueOf("rxnetty_http_conn_keep_alive_timeout_millis");
     public static final AttributeKey<Boolean> DISCARD_CONNECTION = AttributeKey.valueOf("rxnetty_http_discard_connection");
     private final MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject;
+    private final long subscriptionTimeout;
+    private final TimeUnit subscriptionTimeoutUnit;
 
     private ResponseState responseState; /*State associated with this handler. Since a handler instance is ALWAYS invoked by the same thread, this need not be thread-safe*/
 
@@ -93,7 +96,13 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
     private boolean autoReleaseBuffers;
 
     public ClientRequestResponseConverter(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject) {
+        this(eventsSubject, 0, TimeUnit.MILLISECONDS);
+    }
+
+    public ClientRequestResponseConverter(MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject, long subscriptionTimeout, TimeUnit subscriptionTimeoutUnit) {
         this.eventsSubject = eventsSubject;
+        this.subscriptionTimeout = subscriptionTimeout;
+        this.subscriptionTimeoutUnit = subscriptionTimeoutUnit;
         responseState = new ResponseState();
     }
 
@@ -346,7 +355,7 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
         private long responseReceiveStartTimeMillis; // Reset every time we receive a header.
 
         private ResponseState() {
-            contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(new Action0() {
+            Action0 onUnsubscribe = new Action0() {
                 @Override
                 public void call() {
                     if (ResponseStateProcessingStage.Finished != stage && null != connection) {
@@ -359,7 +368,13 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                         connection.close();
                     }
                 }
-            });// Timeout handling is done dynamically by the client.
+            };
+
+            if (subscriptionTimeout > 0) {
+                contentSubject = UnicastContentSubject.create(subscriptionTimeout, subscriptionTimeoutUnit, onUnsubscribe);
+            } else {
+                contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(onUnsubscribe);
+            }
         }
 
         private void sendOnError(Throwable error) {
