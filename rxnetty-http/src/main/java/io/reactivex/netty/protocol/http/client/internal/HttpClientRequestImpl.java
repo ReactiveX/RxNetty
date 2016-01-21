@@ -73,33 +73,33 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequestImpl<I, O> writeContent(Observable<I> contentSource) {
+    public Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(rawObservable, false);
     }
 
     @Override
-    public HttpClientRequestImpl<I, O> writeContentAndFlushOnEach(Observable<I> contentSource) {
+    public Observable<HttpClientResponse<O>> writeContentAndFlushOnEach(Observable<I> contentSource) {
         return writeContent(contentSource, flushOnEachSelector);
     }
 
     @Override
-    public HttpClientRequestImpl<I, O> writeStringContent(Observable<String> contentSource) {
+    public Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(rawObservable, false);
     }
 
     @Override
-    public HttpClientRequestImpl<I, O> writeBytesContent(Observable<byte[]> contentSource) {
+    public Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(rawObservable, false);
     }
 
     @Override
-    public HttpClientRequestImpl<I, O> writeContent(Observable<I> contentSource,
+    public Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
                                                           Func1<I, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
@@ -107,7 +107,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequestImpl<I, O> writeStringContent(Observable<String> contentSource,
+    public Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
                                                                 Func1<String, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
@@ -115,7 +115,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequestImpl<I, O> writeBytesContent(Observable<byte[]> contentSource,
+    public Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
                                                                Func1<byte[], Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
@@ -123,61 +123,58 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public <T extends TrailingHeaders> HttpClientRequestImpl<I, O> writeContent(Observable<I> contentSource,
-                                                                              final Func0<T> trailerFactory,
-                                                                              final Func2<T, I, T> trailerMutator) {
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
+                                                                                      final Func0<T> trailerFactory,
+                                                                                      final Func2<T, I, T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
     }
 
     @Override
-    public <T extends TrailingHeaders> HttpClientRequestImpl<I, O> writeStringContent(Observable<String> contentSource,
-                                                                                    Func0<T> trailerFactory,
-                                                                                    Func2<T, String, T> trailerMutator) {
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
+                                                                                            Func0<T> trailerFactory,
+                                                                                            Func2<T, String, T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
     }
 
     @Override
-    public <T extends TrailingHeaders> HttpClientRequestImpl<I, O> writeBytesContent(Observable<byte[]> contentSource,
-                                                                                   Func0<T> trailerFactory,
-                                                                                   Func2<T, byte[], T> trailerMutator) {
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
+                                                                                           Func0<T> trailerFactory,
+                                                                                           Func2<T, byte[], T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
     }
 
     @Override
-    public <T extends TrailingHeaders> HttpClientRequestImpl<I, O> writeContent(Observable<I> contentSource,
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
                                                                                       Func0<T> trailerFactory,
                                                                                       Func2<T, I, T> trailerMutator,
                                                                                       Func1<I, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
-                                true);
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector, true);
     }
 
     @Override
-    public <T extends TrailingHeaders> HttpClientRequestImpl<I, O> writeStringContent(
-            Observable<String> contentSource, Func0<T> trailerFactory, Func2<T, String, T> trailerMutator,
-            Func1<String, Boolean> flushSelector) {
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(
+        Observable<String> contentSource, Func0<T> trailerFactory, Func2<T, String, T> trailerMutator,
+        Func1<String, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
-                                true);
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector, true);
     }
 
     @Override
-    public <T extends TrailingHeaders> HttpClientRequestImpl<I, O> writeBytesContent(
-            Observable<byte[]> contentSource, Func0<T> trailerFactory, Func2<T, byte[], T> trailerMutator,
-            Func1<byte[], Boolean> flushSelector) {
+    public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(
+        Observable<byte[]> contentSource, Func0<T> trailerFactory, Func2<T, byte[], T> trailerMutator,
+        Func1<byte[], Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
-                                true);
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector, true);
     }
 
     @Override
