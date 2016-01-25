@@ -31,5 +31,11 @@ public abstract class InterceptingTcpClient<W, R> implements EventSource<TcpClie
      */
     public abstract ConnectionRequest<W, R> createConnectionRequest();
 
+    /**
+     * Starts the process of adding interceptors to this client. Interceptors help in achieving various usecases of
+     * instrumenting and transforming connections.
+     *
+     * @return A new interceptor chain to add the various interceptors.
+     */
     public abstract TcpClientInterceptorChain<W, R> intercept();
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -37,7 +37,7 @@ import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.protocol.http.ws.WebSocketConnection;
-import io.reactivex.netty.protocol.http.ws.internal.WsSecUtils;
+import io.reactivex.netty.protocol.http.ws.internal.WsUtils;
 import io.reactivex.netty.protocol.http.ws.server.V7to13Handshaker.State;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
@@ -162,8 +162,8 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
 
     private static void updateHandshakeHeaders(State state, String acceptGuid, HttpServerResponse<?> upgradeResponse) {
         String acceptSeed = state.getSecWSkey() + acceptGuid;
-        byte[] sha1 = WsSecUtils.sha1(acceptSeed.getBytes(CharsetUtil.US_ASCII));
-        String accept = WsSecUtils.base64(sha1);
+        byte[] sha1 = WsUtils.sha1(acceptSeed.getBytes(CharsetUtil.US_ASCII));
+        String accept = WsUtils.base64(sha1);
 
         upgradeResponse.addHeader(SEC_WEBSOCKET_ACCEPT, accept);
         upgradeResponse.setStatus(HttpResponseStatus.SWITCHING_PROTOCOLS);

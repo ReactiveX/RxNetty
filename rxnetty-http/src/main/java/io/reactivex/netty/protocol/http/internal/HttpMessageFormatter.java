@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,7 +29,7 @@ public final class HttpMessageFormatter {
     }
 
     public static String formatRequest(HttpVersion version,HttpMethod method, String uri,
-                                        Iterator<Entry<String, String>> headers) {
+                                        Iterator<Entry<CharSequence, CharSequence>> headers) {
         StringBuilder builder = new StringBuilder();
         builder.append(method)
                .append(' ')
@@ -44,7 +44,7 @@ public final class HttpMessageFormatter {
     }
 
     public static String formatResponse(HttpVersion version, HttpResponseStatus status,
-                                        Iterator<Entry<String, String>> headers) {
+                                        Iterator<Entry<CharSequence, CharSequence>> headers) {
         StringBuilder builder = new StringBuilder();
         builder.append(version.text())
                .append(' ')
@@ -58,9 +58,9 @@ public final class HttpMessageFormatter {
         return builder.toString();
     }
 
-    private static void printHeaders(Iterator<Entry<String, String>> headers, StringBuilder builder) {
+    private static void printHeaders(Iterator<Entry<CharSequence, CharSequence>> headers, StringBuilder builder) {
         while (headers.hasNext()) {
-            Entry<String, String> next = headers.next();
+            Entry<CharSequence, CharSequence> next = headers.next();
             builder.append(next.getKey())
                    .append(": ")
                    .append(next.getValue())

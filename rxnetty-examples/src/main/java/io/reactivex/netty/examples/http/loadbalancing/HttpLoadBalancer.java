@@ -42,6 +42,10 @@ public class HttpLoadBalancer<W, R> extends AbstractLoadBalancer<W, R> {
 
     private static final Logger logger = LoggerFactory.getLogger(HttpLoadBalancer.class);
 
+    public HttpLoadBalancer() {
+        super();
+    }
+
     @Override
     protected ClientEventListener newListener() {
         return new ClientEventListenerImpl();

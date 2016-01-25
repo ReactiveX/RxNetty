@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@ import io.netty.handler.codec.http.cookie.Cookie;
 import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import rx.Observable;
+import rx.Observable.Transformer;
 import rx.Subscriber;
 
 import java.util.Date;
@@ -123,7 +124,7 @@ public abstract class HttpServerRequest<T> {
      *
      * @return An iterator over the header entries
      */
-    public abstract Iterator<Entry<String, String>> headerIterator();
+    public abstract Iterator<Entry<CharSequence, CharSequence>> headerIterator();
 
     /**
      * Returns the value of a header with the specified name.  If there are more than one values for the specified name,
@@ -415,6 +416,17 @@ public abstract class HttpServerRequest<T> {
      * @return {@code true} if upgrade to websocket is requested.
      */
     public abstract boolean isWebSocketUpgradeRequested();
+
+    /**
+     * Creates a new {@code HttpServerRequest} instance modifying the content type using the passed {@code transformer}.
+     *
+     * @param transformer Transformer to transform the content stream.
+     *
+     * @param <X> New type of the content.
+     *
+     * @return A new instance of {@link HttpServerRequest} with the transformed content stream.
+     */
+    public abstract <X> HttpServerRequest<X> transformContent(Transformer<T, X> transformer);
 
     /**
      * Package private method to get the decoder result from netty.

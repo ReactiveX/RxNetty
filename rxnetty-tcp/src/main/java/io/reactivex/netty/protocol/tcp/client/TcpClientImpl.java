@@ -207,12 +207,12 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     private static <W, R> TcpClientImpl<W, R> copy(final ClientState<W, R> state,
-                                                       TcpClientEventPublisher eventPublisher) {
+                                                   TcpClientEventPublisher eventPublisher) {
         return _create(state, eventPublisher);
     }
 
     /*Visible for testing*/ static <W, R> TcpClientImpl<W, R> _create(ClientState<W, R> state,
-                                                                          TcpClientEventPublisher eventPublisher) {
+                                                                      TcpClientEventPublisher eventPublisher) {
         DetachedChannelPipeline channelPipeline = state.unsafeDetachedPipeline();
         state = state.channelProviderFactory(new TcpChannelProviderFactory(channelPipeline,
                                                                            state.getChannelProviderFactory()));

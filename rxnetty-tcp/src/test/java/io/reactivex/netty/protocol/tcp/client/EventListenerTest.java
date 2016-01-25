@@ -49,7 +49,7 @@ public class EventListenerTest {
     @Test(timeout = 60000)
     public void testEventListenerPostCopy() throws Exception {
         TcpClient<ByteBuf, ByteBuf> client = TcpClient.newClient(rule.serverAddress)
-                                                      .enableWireLogging(LogLevel.DEBUG);
+                                                      .enableWireLogging(LogLevel.ERROR);
 
         assertListenerCalled(client);
     }

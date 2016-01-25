@@ -25,6 +25,7 @@ import io.reactivex.netty.channel.events.ConnectionEventListener;
 import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
 import rx.Observable;
+import rx.Observable.Transformer;
 import rx.functions.Action1;
 import rx.functions.Func1;
 
@@ -43,6 +44,11 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
 
     private ConnectionImpl(Channel nettyChannel, ChannelOperations<W> delegate) {
         super(nettyChannel);
+        this.delegate = delegate;
+    }
+
+    private ConnectionImpl(ConnectionImpl<?, ?> toCopy, ContentSource<R> contentSource, ChannelOperations<W> delegate) {
+        super(toCopy, contentSource);
         this.delegate = delegate;
     }
 
@@ -215,6 +221,16 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
     public <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         pipelineConfigurator.call(getResettableChannelPipeline().markIfNotYetMarked());
         return cast();
+    }
+
+    @Override
+    public <RR> Connection<RR, W> transformRead(Transformer<R, RR> transformer) {
+        return new ConnectionImpl<>(this, getInput().transform(transformer), delegate);
+    }
+
+    @Override
+    public <WW> Connection<R, WW> transformWrite(AllocatingTransformer<WW, W> transformer) {
+        return new ConnectionImpl<>(this, getInput(), delegate.transformWrite(transformer));
     }
 
     @SuppressWarnings("unchecked")

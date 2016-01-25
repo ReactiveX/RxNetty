@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,6 +27,13 @@ import io.reactivex.netty.client.ConnectionProvider;
  */
 public interface Interceptor<W, R> {
 
+    /**
+     * Intercepts and optionally changes the passed {@code ConnectionProvider}.
+     *
+     * @param provider Provider to intercept.
+     *
+     * @return Provider to use after this transformation.
+     */
     ConnectionProvider<W, R> intercept(ConnectionProvider<W, R> provider);
 
 }

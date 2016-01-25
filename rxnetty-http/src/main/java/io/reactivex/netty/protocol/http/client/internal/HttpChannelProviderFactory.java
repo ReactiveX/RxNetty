@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,17 +28,28 @@ import io.reactivex.netty.protocol.http.client.events.HttpClientEventPublisher;
 public class HttpChannelProviderFactory implements ChannelProviderFactory {
 
     private final HttpClientEventPublisher clientEventPublisher;
+    private final ChannelProviderFactory delegate;
 
     public HttpChannelProviderFactory(HttpClientEventPublisher clientEventPublisher) {
+        this(clientEventPublisher, null);
+    }
+
+    public HttpChannelProviderFactory(HttpClientEventPublisher clientEventPublisher, ChannelProviderFactory delegate) {
         this.clientEventPublisher = clientEventPublisher;
+        this.delegate = delegate instanceof HttpChannelProviderFactory
+                                ? ((HttpChannelProviderFactory) delegate).delegate : delegate;
     }
 
     @Override
     public ChannelProvider newProvider(Host host, EventSource<? super ClientEventListener> eventSource,
                                        EventPublisher publisher, ClientEventListener clientPublisher) {
         final HttpClientEventPublisher hostPublisher = new HttpClientEventPublisher();
+        ChannelProvider delegate = null;
+        if (null != this.delegate) {
+            delegate = this.delegate.newProvider(host, eventSource, publisher, clientPublisher);
+        }
         hostPublisher.subscribe(clientEventPublisher);
         eventSource.subscribe(hostPublisher);
-        return new HttpChannelProvider(hostPublisher);
+        return new HttpChannelProvider(hostPublisher, delegate);
     }
 }

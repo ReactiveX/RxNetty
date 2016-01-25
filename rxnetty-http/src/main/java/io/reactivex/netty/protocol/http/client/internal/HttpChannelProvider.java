@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,13 +31,18 @@ public class HttpChannelProvider implements ChannelProvider {
             AttributeKey.valueOf("rxnetty_http_client_event_listener");
 
     private HttpClientEventPublisher hostEventPublisher;
+    private ChannelProvider delegate;
 
-    public HttpChannelProvider(HttpClientEventPublisher hostEventPublisher) {
+    public HttpChannelProvider(HttpClientEventPublisher hostEventPublisher, ChannelProvider delegate) {
         this.hostEventPublisher = hostEventPublisher;
+        this.delegate = delegate;
     }
 
     @Override
     public Observable<Channel> newChannel(Observable<Channel> input) {
+        if (null != delegate) {
+            input = delegate.newChannel(input);
+        }
         return input.map(new Func1<Channel, Channel>() {
                            @Override
                            public Channel call(Channel channel) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 package io.reactivex.netty.protocol.tcp.server;
 
 import io.netty.buffer.ByteBuf;
-import io.reactivex.netty.channel.AbstractDelegatingConnection;
 import io.reactivex.netty.channel.Connection;
 import rx.annotations.Beta;
 
@@ -104,8 +103,6 @@ import rx.annotations.Beta;
  * used.
  * @param <RR> The type of objects read from a connection to {@link TcpServer} after applying this interceptor chain.
  * @param <WW> The type of objects written to a connection to {@link TcpServer} after applying this interceptor chain.
- *
- * @see AbstractDelegatingConnection
  */
 @Beta
 public final class TcpServerInterceptorChain<R, W, RR, WW> {
@@ -249,6 +246,13 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
      */
     public interface Interceptor<R, W> {
 
+        /**
+         * Intercepts and optionally changes the passed {@code ConnectionHandler}.
+         *
+         * @param handler Handler to intercept.
+         *
+         * @return Handler to use after this transformation.
+         */
         ConnectionHandler<R, W> intercept(ConnectionHandler<R, W> handler);
 
     }
@@ -263,6 +267,13 @@ public final class TcpServerInterceptorChain<R, W, RR, WW> {
      */
     public interface TransformingInterceptor<R, W, RR, WW> {
 
+        /**
+         * Intercepts and changes the passed {@code ConnectionHandler}.
+         *
+         * @param handler Handler to intercept.
+         *
+         * @return Handler to use after this transformation.
+         */
         ConnectionHandler<R, W> intercept(ConnectionHandler<RR, WW> handler);
 
     }

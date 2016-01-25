@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,7 +27,7 @@ import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.HandlerNames;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
-import io.reactivex.netty.channel.PrimitiveConversionHandler;
+import io.reactivex.netty.channel.WriteTransformer;
 import rx.functions.Action1;
 import rx.functions.Func0;
 
@@ -53,10 +53,10 @@ public abstract class ServerState<R, W> {
         bootstrap.group(parent, child);
         bootstrap.channel(channelClass);
         detachedPipeline = new DetachedChannelPipeline();
-        detachedPipeline.addLast(HandlerNames.PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
+        detachedPipeline.addLast(HandlerNames.WriteTransformer.getName(), new Func0<ChannelHandler>() {
             @Override
             public ChannelHandler call() {
-                return PrimitiveConversionHandler.INSTANCE; /*Sharable handler*/
+                return new WriteTransformer();
             }
         });
         bootstrap.childHandler(detachedPipeline.getChannelInitializer());

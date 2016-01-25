@@ -18,9 +18,6 @@
 package io.reactivex.netty.examples.tcp.interceptors.simple;
 
 import io.netty.buffer.ByteBuf;
-import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.channel.ContentSource;
-import io.reactivex.netty.channel.SimpleAbstractDelegatingConnection;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.util.StringLineDecoder;
@@ -81,7 +78,7 @@ public final class InterceptingClient extends AbstractClientExample {
                  .<ByteBuf, String>addChannelHandlerLast("string-line-decoder", StringLineDecoder::new)
                  .intercept()
                  .next(provider -> () -> provider.newConnectionRequest()
-                                                 .map(HelloTruncatingConnection::new))
+                                                 .map(c -> c.transformRead(o -> o.skip(1))))
                  .finish()
                  .createConnectionRequest()
                  .flatMap(connection -> connection.writeString(Observable.just("Hello World!"))
@@ -91,18 +88,5 @@ public final class InterceptingClient extends AbstractClientExample {
                  .take(1)
                  .toBlocking()
                  .forEach(logger::info);
-    }
-
-    private static class HelloTruncatingConnection extends SimpleAbstractDelegatingConnection<String, ByteBuf> {
-
-        public HelloTruncatingConnection(Connection<String, ByteBuf> c) {
-            super(c);
-        }
-
-        @Override
-        public ContentSource<String> getInput() {
-            return getDelegate().getInput()
-                                .transform(source -> source.skip(1));
-        }
     }
 }

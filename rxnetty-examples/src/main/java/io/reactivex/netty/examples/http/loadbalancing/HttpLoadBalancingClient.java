@@ -55,28 +55,19 @@ public final class HttpLoadBalancingClient extends AbstractClientExample {
     public static void main(String[] args) {
 
         /*Start 3 embedded servers, two healthy and one unhealthy to demo failure detection*/
-        final Observable<Host> hosts = Observable.just(startNewServer(OK)/*, startNewServer(OK),
-                                                       startNewServer(SERVICE_UNAVAILABLE)*/)
+        final Observable<Host> hosts = Observable.just(startNewServer(OK), startNewServer(OK),
+                                                       startNewServer(SERVICE_UNAVAILABLE))
                                                  .map(Host::new);
 
-        /*Create a new client using the load balancer over the hosts above.*/
         HttpClient.newClient(LoadBalancerFactory.create(new HttpLoadBalancer<>()), hosts)
                 .enableWireLogging(LogLevel.DEBUG)
-                /*Creates a GET request with URI "/hello"*/
                 .createGet("/hello")
-                /*Prints the response headers*/
                 .doOnNext(resp -> logger.info(resp.toString()))
-                /*Since, we are only interested in the content, now, convert the stream to the content stream*/
                 .flatMap((HttpClientResponse<ByteBuf> resp) ->
-                                 resp.getContent()
-                                     /*Convert ByteBuf to string for each content chunk*/
-                                         .map(bb -> bb.toString(Charset.defaultCharset()))
+                                 resp.getContent().map(bb -> bb.toString(Charset.defaultCharset()))
                 )
-                /*Repeat the request five times to demonstrate load balancing on different requests*/
-                //.repeat(5)
-                /*Block till the response comes to avoid JVM exit.*/
+                .repeat(5)
                 .toBlocking()
-                /*Print each content chunk*/
                 .forEach(logger::info);
     }
 

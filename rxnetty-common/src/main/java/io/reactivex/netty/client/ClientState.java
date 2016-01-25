@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.HandlerNames;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
-import io.reactivex.netty.channel.PrimitiveConversionHandler;
+import io.reactivex.netty.channel.WriteTransformer;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.events.EventSource;
@@ -224,10 +224,10 @@ public class ClientState<W, R> {
 
     private static DetachedChannelPipeline newChannelPipeline(TailHandlerFactory thf) {
         return new DetachedChannelPipeline(thf)
-                .addLast(HandlerNames.PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
+                .addLast(HandlerNames.WriteTransformer.getName(), new Func0<ChannelHandler>() {
                     @Override
                     public ChannelHandler call() {
-                        return PrimitiveConversionHandler.INSTANCE;
+                        return new WriteTransformer();
                     }
                 });
     }

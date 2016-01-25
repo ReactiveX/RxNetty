@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -124,7 +124,6 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
                             new Func1<Throwable, Observable<? extends Void>>() {
                                 @Override
                                 public Observable<? extends Void> call(Throwable throwable) {
-
                                     if (throwable instanceof ClosedChannelException) {
                                         return Observable.empty();
                                     } else {

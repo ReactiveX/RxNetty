@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,10 +22,12 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.channel.AllocatingTransformer;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
 import io.reactivex.netty.events.EventPublisher;
 import rx.Observable;
+import rx.Observable.Transformer;
 import rx.functions.Action1;
 import rx.functions.Func1;
 
@@ -173,6 +175,16 @@ final class UnusableConnection<R, W> extends Connection<R, W> {
     @Override
     public <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         return cast();
+    }
+
+    @Override
+    public <RR> Connection<RR, W> transformRead(Transformer<R, RR> transformer) {
+        throw new IllegalStateException("Connection is not usable.");
+    }
+
+    @Override
+    public <WW> Connection<R, WW> transformWrite(AllocatingTransformer<WW, W> transformer) {
+        throw new IllegalStateException("Connection is not usable.");
     }
 
     @SuppressWarnings("unchecked")

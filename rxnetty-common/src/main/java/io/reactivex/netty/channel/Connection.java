@@ -26,6 +26,7 @@ import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.concurrent.EventExecutorGroup;
 import rx.Observable;
+import rx.Observable.Transformer;
 import rx.Subscriber;
 import rx.functions.Action1;
 import rx.functions.Func1;
@@ -48,7 +49,7 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
     public static final AttributeKey<Connection> CONNECTION_ATTRIBUTE_KEY = AttributeKey.valueOf("rx-netty-conn-attr");
 
     private final Channel nettyChannel;
-
+    private final ContentSource<R> contentSource;
     protected final MarkAwarePipeline markAwarePipeline;
 
     protected Connection(final Channel nettyChannel) {
@@ -57,11 +58,24 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
         }
         this.nettyChannel = nettyChannel;
         markAwarePipeline = new MarkAwarePipeline(nettyChannel.pipeline());
+        contentSource = new ContentSource<>(nettyChannel, new Func1<Subscriber<? super R>, Object>() {
+            @Override
+            public Object call(Subscriber<? super R> subscriber) {
+                return new ConnectionInputSubscriberEvent<>(subscriber);
+            }
+        });
     }
 
     protected Connection(Connection<R, W> toCopy) {
         nettyChannel = toCopy.nettyChannel;
         markAwarePipeline = toCopy.markAwarePipeline;
+        contentSource = toCopy.contentSource;
+    }
+
+    protected Connection(Connection<?, ?> toCopy, ContentSource<R> contentSource) {
+        nettyChannel = toCopy.nettyChannel;
+        markAwarePipeline = toCopy.markAwarePipeline;
+        this.contentSource = contentSource;
     }
 
     /**
@@ -74,12 +88,7 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
      * @return The stream of data that is read from the connection.
      */
     public ContentSource<R> getInput() {
-        return new ContentSource<>(nettyChannel, new Func1<Subscriber<? super R>, Object>() {
-            @Override
-            public Object call(Subscriber<? super R> subscriber) {
-                return new ConnectionInputSubscriberEvent<>(subscriber);
-            }
-        });
+        return contentSource;
     }
 
     /**
@@ -243,6 +252,29 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
      * @return {@code this}.
      */
     public abstract <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator);
+
+    /**
+     * Transforms this connection's input stream using the passed {@code transformer} to create a new
+     * {@code Connection} instance.
+     *
+     * @param transformer Transformer to transform the input stream.
+     *
+     * @param <RR> New type of the input stream.
+     *
+     * @return A new connection instance with the transformed read stream.
+     */
+    public abstract <RR> Connection<RR, W> transformRead(Transformer<R, RR> transformer);
+
+    /**
+     * Transforms this connection to enable writing a different object type.
+     *
+     * @param transformer Transformer to transform objects written to the channel.
+     *
+     * @param <WW> New object types to be written to the connection.
+     *
+     * @return A new connection instance with the new write type.
+     */
+    public abstract <WW> Connection<R, WW> transformWrite(AllocatingTransformer<WW, W> transformer);
 
     /**
      * Returns the {@link MarkAwarePipeline} for this connection, changes to which can be reverted at any point in time.

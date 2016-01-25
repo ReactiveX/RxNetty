@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,8 +22,6 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
@@ -31,8 +29,6 @@ import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.client.ChannelProviderFactory;
 import io.reactivex.netty.client.ConnectionProviderFactory;
 import io.reactivex.netty.client.Host;
-import io.reactivex.netty.events.EventSource;
-import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.ssl.SslCodec;
 import rx.Observable;
 import rx.functions.Action1;
@@ -56,109 +52,7 @@ import java.util.concurrent.TimeUnit;
  * @param <I> The type of the content of request.
  * @param <O> The type of the content of response.
  */
-public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsListener> {
-
-    /**
-     * Creates a GET request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createGet(String uri);
-
-    /**
-     * Creates a POST request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createPost(String uri);
-
-    /**
-     * Creates a PUT request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createPut(String uri);
-
-    /**
-     * Creates a DELETE request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createDelete(String uri);
-
-    /**
-     * Creates a HEAD request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createHead(String uri);
-
-    /**
-     * Creates an OPTIONS request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createOptions(String uri);
-
-    /**
-     * Creates a PATCH request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createPatch(String uri);
-
-    /**
-     * Creates a TRACE request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createTrace(String uri);
-
-    /**
-     * Creates a CONNECT request for the passed URI.
-     *
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createConnect(String uri);
-
-    /**
-     * Creates a request for the passed HTTP method and URI.
-     *
-     * @param method Http Method.
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createRequest(HttpMethod method, String uri);
-
-    /**
-     * Creates a request for the passed HTTP version, method and URI.
-     *
-     * @param version HTTP version
-     * @param method Http Method.
-     * @param uri The URI for the request. The URI should be absolute and should not contain the scheme, host and port.
-     *
-     * @return New {@link HttpClientRequest}.
-     */
-    public abstract HttpClientRequest<I, O> createRequest(HttpVersion version, HttpMethod method, String uri);
+public abstract class HttpClient<I, O> extends InterceptingHttpClient<I,O> {
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and adding the passed read timeout
@@ -170,26 +64,6 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
      * @return A new {@link HttpClient} instance.
      */
     public abstract HttpClient<I, O> readTimeOut(int timeOut, TimeUnit timeUnit);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and following the passed number of
-     * max HTTP redirects.
-     *
-     * @param maxRedirects Maximum number of redirects to follow for any request.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> followRedirects(int maxRedirects);
-
-    /**
-     * Creates a new client instances, inheriting all configurations from this client and enabling/disabling redirects
-     * for all requests created by the newly created client instance.
-     *
-     * @param follow {@code true} to follow redirects. {@code false} to disable any redirects.
-     *
-     * @return A new {@link HttpClient} instance.
-     */
-    public abstract HttpClient<I, O> followRedirects(boolean follow);
 
     /**
      * Creates a new client instances, inheriting all configurations from this client and adding a
@@ -451,4 +325,24 @@ public abstract class HttpClient<I, O> implements EventSource<HttpClientEventsLi
                                                          Observable<Host> hostStream) {
         return HttpClientImpl.create(providerFactory, hostStream);
     }
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and following the passed number of
+     * max HTTP redirects.
+     *
+     * @param maxRedirects Maximum number of redirects to follow for any request.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> followRedirects(int maxRedirects);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and enabling/disabling redirects
+     * for all requests created by the newly created client instance.
+     *
+     * @param follow {@code true} to follow redirects. {@code false} to disable any redirects.
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> followRedirects(boolean follow);
 }

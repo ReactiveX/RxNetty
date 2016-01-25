@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.http.sse;
@@ -46,7 +47,7 @@ public class ServerSentEventsTest extends ExamplesEnvironment {
         expectedHeader.headers().add(CONTENT_TYPE, "text/event-stream");
         String expectedHeaderString = HttpMessageFormatter.formatResponse(expectedHeader.protocolVersion(),
                                                                           expectedHeader.status(),
-                                                                          expectedHeader.headers().iterator());
+                                                                          expectedHeader.headers().iteratorCharSequence());
 
         String[] expectedContent = new String[10];
         for (int i = 0; i < 10; i++) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,19 +23,24 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.handler.codec.http.HttpContent;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
 import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseDecoder;
+import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.websocketx.WebSocket13FrameDecoder;
 import io.netty.handler.codec.http.websocketx.WebSocket13FrameEncoder;
 import io.netty.handler.codec.http.websocketx.WebSocketClientHandshaker13;
 import io.netty.handler.codec.http.websocketx.WebSocketHandshakeException;
 import io.netty.util.CharsetUtil;
-import io.reactivex.netty.protocol.http.ws.internal.WsSecUtils;
+import io.reactivex.netty.protocol.http.ws.internal.WsUtils;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.UPGRADE;
+import static io.netty.handler.codec.http.HttpHeaderValues.*;
 import static io.reactivex.netty.protocol.http.HttpHandlerNames.*;
 
 /**
@@ -61,12 +66,12 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
                  * step on each other.
                  */
                 // Get 16 bit nonce and base 64 encode it
-                byte[] nonce = WsSecUtils.randomBytes(16);
-                String key = WsSecUtils.base64(nonce);
+                byte[] nonce = WsUtils.randomBytes(16);
+                String key = WsUtils.base64(nonce);
                 request.headers().set(SEC_WEBSOCKET_KEY, key);
                 String acceptSeed = key + WebSocketClientHandshaker13.MAGIC_GUID;
-                byte[] sha1 = WsSecUtils.sha1(acceptSeed.getBytes(CharsetUtil.US_ASCII));
-                expectedChallengeResponseString = WsSecUtils.base64(sha1);
+                byte[] sha1 = WsUtils.sha1(acceptSeed.getBytes(CharsetUtil.US_ASCII));
+                expectedChallengeResponseString = WsUtils.base64(sha1);
                 String hostHeader = request.headers().get(HOST);
                 if (null != hostHeader) {
                     request.headers().set(SEC_WEBSOCKET_ORIGIN, "http://" + hostHeader);
@@ -95,7 +100,7 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof HttpResponse) {
+        if (isUpgradeResponse(msg)) {
             final HttpResponse response = (HttpResponse) msg;
             /*Other verifications are done by WebSocketResponse itself.*/
             String accept = response.headers().get(SEC_WEBSOCKET_ACCEPT);
@@ -131,5 +136,17 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
         }
 
         super.channelRead(ctx, msg);
+    }
+
+    private boolean isUpgradeResponse(Object msg) {
+        if (msg instanceof HttpResponse) {
+            HttpResponse response = (HttpResponse) msg;
+            HttpHeaders headers = response.headers();
+            return response.status().equals(HttpResponseStatus.SWITCHING_PROTOCOLS)
+                   && headers.contains(CONNECTION, HttpHeaderValues.UPGRADE, true)
+                   && headers.contains(HttpHeaderNames.UPGRADE, WEBSOCKET, true)
+                   && headers.contains(SEC_WEBSOCKET_ACCEPT);
+        }
+        return false;
     }
 }

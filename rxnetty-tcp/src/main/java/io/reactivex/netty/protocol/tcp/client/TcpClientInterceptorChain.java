@@ -17,15 +17,66 @@
 
 package io.reactivex.netty.protocol.tcp.client;
 
+/**
+ * Interceptor chain for {@link TcpClient}, obtained via {@link TcpClient#intercept()}. <p>
+ *
+ * Multiple interceptors can be added to this chain by using the various {@code next*()} methods available, before
+ * calling {@link #finish()} that returns a new {@link TcpClient} which inherits all the configuration from the parent
+ * client (from which this chain was created) and adds these interceptors.
+ *
+ * <h2>Order of execution</h2>
+ *
+ * Interceptors are executed in the order in which they are added.
+ *
+ * @param <W> The type of objects written to the client created by this chain.
+ * @param <R> The type of objects read from the client created by this chain.
+ */
 public interface TcpClientInterceptorChain<W, R> {
 
+    /**
+     * Adds a simple interceptor that does not change the type of objects read/written to a connection.
+     *
+     * @param interceptor Interceptor to add.
+     *
+     * @return {@code this}
+     */
     TcpClientInterceptorChain<W, R> next(Interceptor<W, R> interceptor);
 
+    /**
+     * Adds an interceptor that changes the type of objects read from the connections created by the client provided by
+     * this chain.
+     *
+     * @param interceptor Interceptor to add.
+     *
+     * @return A new chain instance.
+     */
     <RR> TcpClientInterceptorChain<W, RR> nextWithReadTransform(TransformingInterceptor<W, R, W, RR> interceptor);
 
+    /**
+     * Adds an interceptor that changes the type of objects written to the connections created by the client provided by
+     * this chain.
+     *
+     * @param interceptor Interceptor to add.
+     *
+     * @return A new chain instance.
+     */
     <WW> TcpClientInterceptorChain<WW, R> nextWithWriteTransform(TransformingInterceptor<W, R, WW, R> interceptor);
 
+    /**
+     * Adds an interceptor that changes the type of objects read and written to the connections created by the client
+     * provided by this chain.
+     *
+     * @param interceptor Interceptor to add.
+     *
+     * @return A new chain instance.
+     */
     <WW, RR> TcpClientInterceptorChain<WW, RR> nextWithTransform(TransformingInterceptor<W, R, WW, RR> interceptor);
 
+    /**
+     * Finish the addition of interceptors and create a new client instance.
+     *
+     * @return New client instance which inherits all the configuration from the parent client
+     * (from which this chain was created) and adds these interceptors.
+     */
     InterceptingTcpClient<W, R> finish();
 }

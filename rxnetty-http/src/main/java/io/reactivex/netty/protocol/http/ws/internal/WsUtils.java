@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@ import java.security.NoSuchAlgorithmException;
 /**
  * This is a copy of relevant methods from WebSocketUtil in netty as that class is not public.
  */
-public final class WsSecUtils {
+public final class WsUtils {
 
-    private WsSecUtils() {
+    private WsUtils() {
     }
 
     /**

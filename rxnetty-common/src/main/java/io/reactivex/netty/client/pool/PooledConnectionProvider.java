@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -45,7 +45,7 @@ import io.reactivex.netty.client.pool.PooledConnection.Owner;
  * For clients that do not use a pool of hosts can use {@link SingleHostPoolingProviderFactory} that will only ever pick
  * a single host but will pool connections.
  */
-public abstract class PooledConnectionProvider<W, R> implements ConnectionProvider<W, R> , Owner<R, W> {
+public abstract class PooledConnectionProvider<W, R> implements ConnectionProvider<W, R> , Owner {
 
     public static <W, R> PooledConnectionProvider<W, R> createUnbounded(final HostConnector<W, R> delegate) {
         return create(new PoolConfig<W, R>(), delegate);

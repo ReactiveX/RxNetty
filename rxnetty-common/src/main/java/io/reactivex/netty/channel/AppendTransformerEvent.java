@@ -18,18 +18,23 @@
 package io.reactivex.netty.channel;
 
 /**
- * An extension to {@link AbstractDelegatingConnection} that does not transform read/write types.
+ * An event to register a custom transformer of data written on a channel.
  *
- * @param <R> Type of objects read from this connection.
- * @param <W> Type of objects written to this connection.
+ * @param <T> Source type for the transformer.
+ * @param <TT> Target type for the transformer.
  */
-public abstract class SimpleAbstractDelegatingConnection<R, W> extends AbstractDelegatingConnection<R, W, R, W> {
+public final class AppendTransformerEvent<T, TT> {
 
-    protected SimpleAbstractDelegatingConnection(Connection<R, W> delegate) {
-        super(delegate);
+    private final AllocatingTransformer<T, TT> transformer;
+
+    public AppendTransformerEvent(AllocatingTransformer<T, TT> transformer) {
+        if (null == transformer) {
+            throw new NullPointerException("Transformer can not be null.");
+        }
+        this.transformer = transformer;
     }
 
-    protected SimpleAbstractDelegatingConnection(Connection<R, W> delegate, Transformer<W, W> transformer) {
-        super(delegate, transformer);
+    public AllocatingTransformer<T, TT> getTransformer() {
+        return transformer;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.examples.AbstractServerExample;
 import io.reactivex.netty.protocol.http.server.HttpServer;
-import io.reactivex.netty.spectator.http.HttpServerListener;
 
 import static rx.Observable.*;
 
@@ -36,15 +35,11 @@ public final class HelloWorldServer extends AbstractServerExample {
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.ERROR);
-        server.subscribe(new HttpServerListener(""));
-                           /*Starts the server with a request handler.*/
-                           server.start((req, resp) ->
-                                          /*Write a single content chunk as string "Hello World!"*/
-                                          resp.writeString(just("Hello World!"))
-                           );
+                           .enableWireLogging(LogLevel.DEBUG)
+                           .start((req, resp) ->
+                             resp.writeString(just("Hello World!"))
+        );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
         if (shouldWaitForShutdown(args)) {

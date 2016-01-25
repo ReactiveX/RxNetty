@@ -57,32 +57,19 @@ public final class TcpLoadBalancingClient extends AbstractClientExample {
                                                        new InetSocketAddress(0))
                                                  .map(Host::new);
 
-        /*Create a new client using the load balancer over the hosts above.*/
         TcpClient.<ByteBuf, ByteBuf>newClient(LoadBalancerFactory.create(new TcpLoadBalancer<>()), hosts)
                  .enableWireLogging(LogLevel.DEBUG)
-                /*Create a new connection request, each subscription creates a new connection*/
                  .createConnectionRequest()
-                /*Log which host is being used, to show load balancing b/w hosts*/
                  .doOnNext(conn -> logger.info("Using host: " + conn.unsafeNettyChannel().remoteAddress()))
-                /*Convert the stream from a connection to the input, post writing the "Hello World!" message*/
                  .flatMap(connection ->
-                                  /*Write the message*/
                                   connection.writeString(Observable.just("Hello World!"))
-                                          /*Since, write returns a Void stream, cast it to ByteBuf to be able to merge
-                                          with the input*/
                                             .cast(ByteBuf.class)
-                                          /*Upon successful completion of the write, subscribe to the connection input*/
                                             .concatWith(connection.getInput())
                  )
-                /*Since, we only wrote a single message, we expect a single echo message back*/
                  .take(1)
-                /*Convert each ByteBuf to a string*/
                  .map(bb -> bb.toString(Charset.defaultCharset()))
-                /*Repeat the connect-write-read sequence five times to demonstrate load balancing on different requests*/
                  .repeat(5)
-                /*Block till the response comes to avoid JVM exit.*/
                  .toBlocking()
-                /*Print each content chunk*/
                  .forEach(logger::info);
     }
 

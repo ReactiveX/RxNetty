@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -236,6 +236,18 @@ public interface ChannelOperations<W> {
      * write.
      */
     Observable<Void> writeFileRegionAndFlushOnEach(Observable<FileRegion> msgs);
+
+    /**
+     * Modifies the underneath channel to enable writing new type of objects that will be transformed using the passed
+     * {@code transformer}
+     *
+     * @param transformer Transformer to transform objects written to the channel.
+     *
+     * @param <WW> The target type of the transformer.
+     *
+     * @return A new instance of {@code ChannelOperations} that accepts the transformed type to write.
+     */
+    <WW> ChannelOperations<WW> transformWrite(AllocatingTransformer<WW, W> transformer);
 
     /**
      * Flushes any pending writes on this connection by calling {@link Channel#flush()}. This can be used for

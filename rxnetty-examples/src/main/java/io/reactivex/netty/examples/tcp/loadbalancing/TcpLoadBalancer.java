@@ -17,6 +17,7 @@
 package io.reactivex.netty.examples.tcp.loadbalancing;
 
 import io.reactivex.netty.client.events.ClientEventListener;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
 
 import java.util.concurrent.TimeUnit;
 
@@ -32,6 +33,10 @@ import java.util.concurrent.TimeUnit;
  */
 public class TcpLoadBalancer<W, R> extends AbstractLoadBalancer<W, R> {
 
+    public TcpLoadBalancer() {
+        super();
+    }
+
     @Override
     protected ClientEventListener newListener() {
 
@@ -43,7 +48,7 @@ public class TcpLoadBalancer<W, R> extends AbstractLoadBalancer<W, R> {
         return ((ClientEventListenerImpl)eventListener).weight;
     }
 
-    private static class ClientEventListenerImpl extends ClientEventListener {
+    private static class ClientEventListenerImpl extends TcpClientEventListener {
 
         private volatile long weight = Long.MAX_VALUE;
 

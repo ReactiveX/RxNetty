@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@ import io.reactivex.netty.channel.ContentSource;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import rx.Observable;
+import rx.Observable.Transformer;
 import rx.Subscriber;
 
 import java.text.ParseException;
@@ -98,7 +99,7 @@ public abstract class HttpClientResponse<T> {
      *
      * @return An iterator over the header entries
      */
-    public abstract Iterator<Entry<String, String>> headerIterator();
+    public abstract Iterator<Entry<CharSequence, CharSequence>> headerIterator();
 
     /**
      * Returns the value of a header with the specified name.  If there are more than one values for the specified name,
@@ -381,6 +382,13 @@ public abstract class HttpClientResponse<T> {
      * error/complete when the content errors/completes and unsubscription from here will unsubscribe from the content.
      */
     public abstract Observable<Void> discardContent();
+
+    /**
+     * Transforms the type of objects read from the content of this response, using the supplied {@code transformer}.
+     *
+     * @return A new instance of {@code HttpClientResponse} with transformed content.
+     */
+    public abstract <TT> HttpClientResponse<TT> transformContent(Transformer<T, TT> transformer);
 
     /**
      * Returns the underlying channel on which this response was received.

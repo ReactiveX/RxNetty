@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -132,27 +132,29 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
     }
 
     @Override
-    public Observable<Void> release(final PooledConnection<R, W> connection) {
+    public Observable<Void> release(final PooledConnection<?, ?> connection) {
+        @SuppressWarnings("unchecked")
+        final PooledConnection<R, W> c = (PooledConnection<R, W>) connection;
         return Observable.create(new OnSubscribe<Void>() {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
-                if (null == connection) {
+                if (null == c) {
                     subscriber.onCompleted();
                 } else {
                     /**
                      * Executing the release on the eventloop to avoid race-conditions between code cleaning up
                      * connection in the pipeline and the connecting being released to the pool.
                      */
-                    connection.unsafeNettyChannel()
-                              .eventLoop()
-                              .submit(new ReleaseTask(connection, subscriber));
+                    c.unsafeNettyChannel()
+                     .eventLoop()
+                     .submit(new ReleaseTask(c, subscriber));
                 }
             }
         });
     }
 
     @Override
-    public Observable<Void> discard(final PooledConnection<R, W> connection) {
+    public Observable<Void> discard(final PooledConnection<?, ?> connection) {
         return connection.discard().doOnSubscribe(new Action0() {
             @Override
             public void call() {

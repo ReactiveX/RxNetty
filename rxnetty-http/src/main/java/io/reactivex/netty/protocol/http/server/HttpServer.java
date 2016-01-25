@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -41,8 +41,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * An HTTP server.
  *
- * @param <I> The type of objects received as content from a request in this server.
- * @param <O> The type of objects written as content from a response in this server.
+ * @param <I> The type of objects received as content from a request to this server.
+ * @param <O> The type of objects written as content from a response from this server.
  */
 public abstract class HttpServer<I, O> implements EventSource<HttpServerEventsListener> {
 

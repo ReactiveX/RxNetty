@@ -19,14 +19,13 @@ package io.reactivex.netty.examples.tcp.interceptors.transformation;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
-import io.reactivex.netty.channel.AbstractDelegatingConnection;
+import io.reactivex.netty.channel.AllocatingTransformer;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.channel.ContentSource;
-import io.reactivex.netty.channel.SimpleAbstractDelegatingConnection;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.util.StringLineDecoder;
 import rx.Observable;
+import rx.functions.Func1;
 
 import java.net.SocketAddress;
 import java.util.Collections;
@@ -86,12 +85,9 @@ public final class InterceptingClient extends AbstractClientExample {
         TcpClient.newClient(serverAddress)
                 .<ByteBuf, String>addChannelHandlerLast("string-line-decoder", StringLineDecoder::new)
                 .intercept()
-                .next(provider -> () -> provider.newConnectionRequest()
-                                                .map(HelloTruncatingConnection::new))
-                .nextWithReadTransform(provider -> () -> provider.newConnectionRequest()
-                                                                 .map(ReadIntegerConnection::new))
-                .nextWithWriteTransform(provider -> () -> provider.newConnectionRequest()
-                                                                  .map(WriteIntegerConnection::new))
+                .next(provider -> () -> provider.newConnectionRequest().map(skipHello()))
+                .nextWithReadTransform(provider -> () -> provider.newConnectionRequest().map(readIntegers()))
+                .nextWithWriteTransform(provider -> () -> provider.newConnectionRequest().map(writeIntegers()))
                 .finish()
                 .createConnectionRequest()
                 .flatMap(connection -> connection.write(Observable.just(1))
@@ -104,50 +100,22 @@ public final class InterceptingClient extends AbstractClientExample {
                 .forEach(logger::info);
     }
 
-    private static class HelloTruncatingConnection extends SimpleAbstractDelegatingConnection<String, ByteBuf> {
-
-        public HelloTruncatingConnection(Connection<String, ByteBuf> c) {
-            super(c);
-        }
-
-        @Override
-        public ContentSource<String> getInput() {
-            return getDelegate().getInput()
-                                .transform(source -> source.skip(1));
-        }
+    private static Func1<Connection<String, ByteBuf>, Connection<String, ByteBuf>> skipHello() {
+        return c -> c.transformRead(o -> o.skip(1));
     }
 
-    private static class ReadIntegerConnection extends AbstractDelegatingConnection<String, ByteBuf, Integer, ByteBuf> {
-
-        public ReadIntegerConnection(Connection<String, ByteBuf> c) {
-            super(c);
-        }
-
-        @Override
-        public ContentSource<Integer> getInput() {
-            return getDelegate().getInput()
-                                .transform(source -> source.filter(s1 -> !s1.isEmpty())
-                                                           .flatMap(s -> Observable.from(s.split(" "))
-                                                                                   .map(Integer::parseInt)));
-        }
+    private static Func1<Connection<String, ByteBuf>, Connection<Integer, ByteBuf>> readIntegers() {
+        return c -> c.transformRead(o -> o.filter(s1 -> !s1.isEmpty())
+                                          .flatMap(s -> Observable.from(s.split(" ")).map(Integer::parseInt)));
     }
 
-    private static class WriteIntegerConnection
-            extends AbstractDelegatingConnection<Integer, ByteBuf, Integer, Integer> {
-
-        public WriteIntegerConnection(Connection<Integer, ByteBuf> c) {
-            super(c, new Transformer<Integer, ByteBuf>() {
-                @Override
-                public List<ByteBuf> transform(Integer toTransform, ByteBufAllocator allocator) {
-                    ByteBuf b = allocator.buffer().writeInt(toTransform).writeChar('\n');
-                    return Collections.singletonList(b);
-                }
-            });
-        }
-
-        @Override
-        public ContentSource<Integer> getInput() {
-            return getDelegate().getInput();
-        }
+    private static Func1<? super Connection<Integer, ByteBuf>, Connection<Integer, Integer>> writeIntegers() {
+        return c -> c.transformWrite(new AllocatingTransformer<Integer, ByteBuf>() {
+            @Override
+            public List<ByteBuf> transform(Integer toTransform, ByteBufAllocator allocator) {
+                ByteBuf b = allocator.buffer().writeBytes((toTransform.toString() + "\n").getBytes());
+                return Collections.singletonList(b);
+            }
+        });
     }
 }

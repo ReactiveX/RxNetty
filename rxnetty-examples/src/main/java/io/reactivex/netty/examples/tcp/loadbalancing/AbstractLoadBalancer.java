@@ -23,37 +23,47 @@ import io.reactivex.netty.client.HostConnector;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.client.loadbalancer.HostHolder;
 import io.reactivex.netty.client.loadbalancer.LoadBalancingStrategy;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
+import rx.functions.Func1;
 
 import java.net.SocketException;
 import java.util.List;
-import java.util.Random;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class AbstractLoadBalancer<W, R> implements LoadBalancingStrategy<W, R> {
 
-    private static final Logger logger = LoggerFactory.getLogger(AbstractLoadBalancer.class);
+    private final Func1<Integer, Integer> nextIndexFinder;
+
+    protected AbstractLoadBalancer(Func1<Integer, Integer> nextIndexFinder) {
+        this.nextIndexFinder = nextIndexFinder;
+    }
+
+    protected AbstractLoadBalancer() {
+        this(new Func1<Integer, Integer>() {
+            private final AtomicInteger nextIndex = new AtomicInteger();
+
+            @Override
+            public Integer call(Integer maxValue) {
+                return nextIndex.incrementAndGet() % maxValue;
+            }
+        });
+    }
 
     @Override
     public ConnectionProvider<W, R> newStrategy(final List<HostHolder<W, R>> hosts) {
 
         final int size = hosts.size();
-        final Random r1 = new Random();
-        final Random r2 = new Random();
 
         return () -> Observable.create((OnSubscribe<Connection<R, W>>) subscriber -> {
 
             ConnectionProvider<W, R> hostToUse;
 
-            HostHolder<W, R> host1 = hosts.get(r1.nextInt(size));
-            HostHolder<W, R> host2 = hosts.get(r2.nextInt(size));
+            HostHolder<W, R> host1 = hosts.get(nextIndexFinder.call(size));
+            HostHolder<W, R> host2 = hosts.get(nextIndexFinder.call(size));
 
             long weight1 = getWeight(host1.getEventListener());
             long weight2 = getWeight(host2.getEventListener());
-
-            //logger.error("Weight 1 => " + weight1 + ", weight 2 => " + weight2);
 
             if (weight1 >= weight2) {
                 hostToUse = host1.getConnector().getConnectionProvider();
