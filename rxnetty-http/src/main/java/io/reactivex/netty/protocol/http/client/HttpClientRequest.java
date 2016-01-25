@@ -33,6 +33,7 @@ import rx.functions.Func2;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -322,6 +323,15 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
     public abstract HttpClientRequest<I, O> addHeader(CharSequence name, Object value);
 
     /**
+     * Adds the HTTP headers from the passed {@code headers} to this request.
+     *
+     * @param headers Map of the headers.
+     *
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
+     */
+    public abstract HttpClientRequest<I, O> addHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers);
+
+    /**
      * Adds the passed {@code cookie} to this request.
      *
      * @param cookie Cookie to add.
@@ -392,6 +402,15 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
      */
     public abstract HttpClientRequest<I, O> setHeader(CharSequence name, Object value);
+
+    /**
+     * Overwrites the current values, if any, of the passed headers for this request.
+     *
+     * @param headers Map of the headers.
+     *
+     * @return A new instance of the {@link HttpClientRequest} sharing all existing state from this request.
+     */
+    public abstract HttpClientRequest<I, O> setHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers);
 
     /**
      * Overwrites the current value, if any, of the passed header to the passed date values for this request. The date
