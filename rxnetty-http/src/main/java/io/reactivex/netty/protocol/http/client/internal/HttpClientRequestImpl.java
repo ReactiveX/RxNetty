@@ -33,7 +33,6 @@ import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
 import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
-import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import io.reactivex.netty.protocol.http.ws.client.internal.WebSocketRequestImpl;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
@@ -46,6 +45,7 @@ import rx.functions.Func2;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -124,8 +124,8 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     @Override
     public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeContent(Observable<I> contentSource,
-                                                                              final Func0<T> trailerFactory,
-                                                                              final Func2<T, I, T> trailerMutator) {
+                                                                                      final Func0<T> trailerFactory,
+                                                                                      final Func2<T, I, T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
@@ -133,8 +133,8 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     @Override
     public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(Observable<String> contentSource,
-                                                                                    Func0<T> trailerFactory,
-                                                                                    Func2<T, String, T> trailerMutator) {
+                                                                                            Func0<T> trailerFactory,
+                                                                                            Func2<T, String, T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
@@ -142,8 +142,8 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
 
     @Override
     public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(Observable<byte[]> contentSource,
-                                                                                   Func0<T> trailerFactory,
-                                                                                   Func2<T, byte[], T> trailerMutator) {
+                                                                                           Func0<T> trailerFactory,
+                                                                                           Func2<T, byte[], T> trailerMutator) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
         return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), true);
@@ -156,37 +156,34 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
                                                                                       Func1<I, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
-                                true);
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector, true);
     }
 
     @Override
     public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeStringContent(
-            Observable<String> contentSource, Func0<T> trailerFactory, Func2<T, String, T> trailerMutator,
-            Func1<String, Boolean> flushSelector) {
+        Observable<String> contentSource, Func0<T> trailerFactory, Func2<T, String, T> trailerMutator,
+        Func1<String, Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
-                                true);
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector, true);
     }
 
     @Override
     public <T extends TrailingHeaders> Observable<HttpClientResponse<O>> writeBytesContent(
-            Observable<byte[]> contentSource, Func0<T> trailerFactory, Func2<T, byte[], T> trailerMutator,
-            Func1<byte[], Boolean> flushSelector) {
+        Observable<byte[]> contentSource, Func0<T> trailerFactory, Func2<T, byte[], T> trailerMutator,
+        Func1<byte[], Boolean> flushSelector) {
         @SuppressWarnings("rawtypes")
         Observable rawObservable = contentSource;
-        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector,
-                                true);
+        return _writeContentRaw(OperatorTrailer.liftFrom(rawObservable, trailerFactory, trailerMutator), flushSelector, true);
     }
 
     @Override
-    public HttpClientRequest<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
+    public HttpClientRequestImpl<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
         return _copy(client.readTimeOut(timeOut, timeUnit));
     }
 
     @Override
-    public HttpClientRequest<I, O> followRedirects(int maxRedirects) {
+    public HttpClientRequestImpl<I, O> followRedirects(int maxRedirects) {
         final Redirector<I, O> redirector = new Redirector<>(maxRedirects, client);
         final RawRequest<I, O> newRawRequest = rawRequest.followRedirect(redirector);
 
@@ -196,113 +193,123 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequest<I, O> followRedirects(boolean follow) {
+    public HttpClientRequestImpl<I, O> followRedirects(boolean follow) {
         return follow ? followRedirects(Redirector.DEFAULT_MAX_REDIRECTS) : followRedirects(NO_REDIRECTS);
     }
 
     @Override
-    public HttpClientRequest<I, O> setMethod(HttpMethod method) {
+    public HttpClientRequestImpl<I, O> setMethod(HttpMethod method) {
         return new HttpClientRequestImpl<>(rawRequest.setMethod(method), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> setUri(String newUri) {
+    public HttpClientRequestImpl<I, O> setUri(String newUri) {
         return new HttpClientRequestImpl<>(rawRequest.setUri(newUri), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> addHeader(CharSequence name, Object value) {
+    public HttpClientRequestImpl<I, O> addHeader(CharSequence name, Object value) {
         return new HttpClientRequestImpl<>(rawRequest.addHeader(name, value), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> addCookie(Cookie cookie) {
+    public HttpClientRequestImpl<I, O> addHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers) {
+        return new HttpClientRequestImpl<>(rawRequest.addHeaders(headers), client);
+    }
+
+    @Override
+    public HttpClientRequestImpl<I, O> addCookie(Cookie cookie) {
         return new HttpClientRequestImpl<>(rawRequest.addCookie(cookie), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> addDateHeader(CharSequence name, Date value) {
+    public HttpClientRequestImpl<I, O> addDateHeader(CharSequence name, Date value) {
         return new HttpClientRequestImpl<>(rawRequest.addDateHeader(name, value), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
+    public HttpClientRequestImpl<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
         return new HttpClientRequestImpl<>(rawRequest.addDateHeader(name, values), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
+    public HttpClientRequestImpl<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
         return new HttpClientRequestImpl<>(rawRequest.addHeaderValues(name, values), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> setDateHeader(CharSequence name, Date value) {
+    public HttpClientRequestImpl<I, O> setDateHeader(CharSequence name, Date value) {
         return new HttpClientRequestImpl<>(rawRequest.setDateHeader(name, value), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> setHeader(CharSequence name, Object value) {
+    public HttpClientRequestImpl<I, O> setHeader(CharSequence name, Object value) {
         return new HttpClientRequestImpl<>(rawRequest.setHeader(name, value), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
+    public HttpClientRequestImpl<I, O> setHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers) {
+        return new HttpClientRequestImpl<>(rawRequest.setHeaders(headers), client);
+    }
+
+    @Override
+    public HttpClientRequestImpl<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
         return new HttpClientRequestImpl<>(rawRequest.setDateHeader(name, values), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
+    public HttpClientRequestImpl<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
         return new HttpClientRequestImpl<>(rawRequest.setHeaderValues(name, values), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> removeHeader(CharSequence name) {
+    public HttpClientRequestImpl<I, O> removeHeader(CharSequence name) {
         return new HttpClientRequestImpl<>(rawRequest.removeHeader(name), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> setKeepAlive(boolean keepAlive) {
+    public HttpClientRequestImpl<I, O> setKeepAlive(boolean keepAlive) {
         return new HttpClientRequestImpl<>(rawRequest.setKeepAlive(keepAlive), client);
     }
 
     @Override
-    public HttpClientRequest<I, O> setTransferEncodingChunked() {
+    public HttpClientRequestImpl<I, O> setTransferEncodingChunked() {
         return new HttpClientRequestImpl<>(rawRequest.setTransferEncodingChunked(), client);
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerFirst(String name,
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerFirst(String name,
                                                                      Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
                                                                      Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerFirst(group, name,
                                                                                         handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                                     Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerLast(group, name,
                                                                                        handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(String baseName, String name,
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerBefore(String baseName, String name,
                                                                       Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerBefore(baseName, name,
                                                                                          handlerFactory)));    }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
                                                                       String name,
                                                                       Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerBefore(group, baseName, name,
@@ -310,14 +317,14 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerAfter(String baseName, String name,
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerAfter(String baseName, String name,
                                                                      Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerAfter(baseName, name,
                                                                                         handlerFactory)));
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
+    public <II, OO> HttpClientRequestImpl<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
                                                                      String name,
                                                                      Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.addChannelHandlerAfter(group, baseName, name,
@@ -325,17 +332,17 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public <II, OO> HttpClientRequest<II, OO> pipelineConfigurator(Action1<ChannelPipeline> configurator) {
+    public <II, OO> HttpClientRequestImpl<II, OO> pipelineConfigurator(Action1<ChannelPipeline> configurator) {
         return _copy(HttpClientRequestImpl.<OO>castClient(client.pipelineConfigurator(configurator)));
     }
 
     @Override
-    public HttpClientRequest<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
+    public HttpClientRequestImpl<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
         return _copy(client.enableWireLogging(wireLoggingLevel));
     }
 
     @Override
-    public WebSocketRequest<O> requestWebSocketUpgrade() {
+    public WebSocketRequestImpl<O> requestWebSocketUpgrade() {
         return WebSocketRequestImpl.createNew(this);
     }
 
@@ -384,7 +391,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         return rawRequest.getHeaders().uri();
     }
 
-    public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
+    public static <I, O> HttpClientRequestImpl<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
                                                         final TcpClient<?, HttpClientResponse<O>> client,
                                                         int maxRedirects) {
@@ -402,13 +409,13 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         return new HttpClientRequestImpl<>(rawRequest, client);
     }
 
-    public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
+    public static <I, O> HttpClientRequestImpl<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
                                                         final TcpClient<?, HttpClientResponse<O>> client) {
         return create(version, httpMethod, uri, client, NO_REDIRECTS);
     }
 
-    public static <I, O> HttpClientRequest<I, O> create(final RawRequest<I, O> rawRequest,
+    public static <I, O> HttpClientRequestImpl<I, O> create(final RawRequest<I, O> rawRequest,
                                                         final TcpClient<?, HttpClientResponse<O>> client) {
         return new HttpClientRequestImpl<>(rawRequest, client);
     }
@@ -419,19 +426,17 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @SuppressWarnings("unchecked")
-    private <II, OO> HttpClientRequest<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> c) {
+    private <II, OO> HttpClientRequestImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> c) {
         return new HttpClientRequestImpl<>((RawRequest<II, OO>) rawRequest, c);
     }
 
-    @SuppressWarnings("rawtypes")
-    private Observable<HttpClientResponse<O>> _writeContentRaw(Observable rawContent, boolean hasTrailers) {
+    private HttpClientRequestImpl<I, O> _writeContentRaw(Observable rawContent, boolean hasTrailers) {
         final RawRequest<I, O> r = RawRequest.create(rawRequest.getHeaders(), rawContent, hasTrailers,
                                                rawRequest.getRedirector());
         return new HttpClientRequestImpl<>(r, client);
     }
 
-    @SuppressWarnings("rawtypes")
-    private Observable<HttpClientResponse<O>> _writeContentRaw(Observable rawContent,
+    private HttpClientRequestImpl<I, O> _writeContentRaw(Observable rawContent,
                                                                Func1<?, Boolean> flushSelector, boolean hasTrailers) {
         final RawRequest<I, O> r = RawRequest
                 .create(rawRequest.getHeaders(), rawContent, flushSelector, hasTrailers,

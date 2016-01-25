@@ -69,14 +69,14 @@ public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
     }
 
     @Override
-    public WebSocketRequest<O> requestSubProtocols(String... subProtocols) {
+    public WebSocketRequestImpl<O> requestSubProtocols(String... subProtocols) {
         return new WebSocketRequestImpl<>(httpRequest.setHeader(SEC_WEBSOCKET_PROTOCOL,
                                                                 expectedSubProtocol(subProtocols)), subProtocols,
                                           version);
     }
 
     @Override
-    public WebSocketRequest<O> version(int version) {
+    public WebSocketRequestImpl<O> version(int version) {
         WebSocketVersion webSocketVersion;
 
         switch (version) {
@@ -97,7 +97,7 @@ public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
                                           subProtocolsRequested, webSocketVersion);
     }
 
-    public static <O> WebSocketRequest<O> createNew(final HttpClientRequestImpl<?, O> httpRequest) {
+    public static <O> WebSocketRequestImpl<O> createNew(final HttpClientRequestImpl<?, O> httpRequest) {
         /*This makes a copy of the request so that we can safely make modifications to the underlying headers.*/
         @SuppressWarnings("unchecked")
         final HttpClientRequestImpl<?, O> upgradeRequest =
