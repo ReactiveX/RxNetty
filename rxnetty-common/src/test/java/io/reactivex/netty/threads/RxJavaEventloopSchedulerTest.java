@@ -68,6 +68,7 @@ public class RxJavaEventloopSchedulerTest {
         RxJavaEventloopScheduler scheduler = new RxJavaEventloopScheduler(new NioEventLoopGroup());
 
         final EventloopWorker worker = (EventloopWorker) scheduler.createWorker();
+        final EventloopWorker worker2 = (EventloopWorker) scheduler.createWorker();
 
         assertThat("New worker already has subscriptions.", worker.hasScheduledSubscriptions(), is(false));
 
@@ -78,7 +79,7 @@ public class RxJavaEventloopSchedulerTest {
             @Override
             public void call() {
                 isScheduledBeforeExecute.set(worker.hasScheduledSubscriptions());
-                worker.schedule(new Action0() {
+                worker2.schedule(new Action0() {
                     @Override
                     public void call() {
                         executed.countDown();
@@ -100,6 +101,7 @@ public class RxJavaEventloopSchedulerTest {
         RxJavaEventloopScheduler scheduler = new RxJavaEventloopScheduler(new NioEventLoopGroup());
 
         final EventloopWorker worker = (EventloopWorker) scheduler.createWorker();
+        final EventloopWorker worker2 = (EventloopWorker) scheduler.createWorker();
 
         assertThat("New worker already has subscriptions.", worker.hasDelayScheduledSubscriptions(), is(false));
 
@@ -110,7 +112,7 @@ public class RxJavaEventloopSchedulerTest {
             @Override
             public void call() {
                 isScheduledBeforeExecute.set(worker.hasDelayScheduledSubscriptions());
-                worker.schedule(new Action0() {
+                worker2.schedule(new Action0() {
                     @Override
                     public void call() {
                         executed.countDown();
