@@ -31,7 +31,6 @@ import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
 import io.reactivex.netty.protocol.http.internal.OperatorTrailer;
-import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import io.reactivex.netty.protocol.http.ws.client.internal.WebSocketRequestImpl;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import rx.Observable;
@@ -45,6 +44,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -185,12 +185,12 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequest<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
+    public HttpClientRequestImpl<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
         return _copy(client.readTimeOut(timeOut, timeUnit));
     }
 
     @Override
-    public HttpClientRequest<I, O> followRedirects(int maxRedirects) {
+    public HttpClientRequestImpl<I, O> followRedirects(int maxRedirects) {
         final Redirector<I, O> redirector = new Redirector<>(maxRedirects, client);
         HttpClientRequestImpl<I, O> toReturn = _copy(client, rawRequest.followRedirect(redirector));
         redirector.setOriginalRequest(toReturn.rawRequest);
@@ -198,82 +198,92 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public HttpClientRequest<I, O> followRedirects(boolean follow) {
+    public HttpClientRequestImpl<I, O> followRedirects(boolean follow) {
         return follow ? followRedirects(Redirector.DEFAULT_MAX_REDIRECTS) : followRedirects(NO_REDIRECTS);
     }
 
     @Override
-    public HttpClientRequest<I, O> setMethod(HttpMethod method) {
+    public HttpClientRequestImpl<I, O> setMethod(HttpMethod method) {
         return _copy(client, rawRequest.setMethod(method));
     }
 
     @Override
-    public HttpClientRequest<I, O> setUri(String newUri) {
+    public HttpClientRequestImpl<I, O> setUri(String newUri) {
         return _copy(client, rawRequest.setUri(newUri));
     }
 
     @Override
-    public HttpClientRequest<I, O> addHeader(CharSequence name, Object value) {
+    public HttpClientRequestImpl<I, O> addHeader(CharSequence name, Object value) {
         return _copy(client, rawRequest.addHeader(name, value));
     }
 
     @Override
-    public HttpClientRequest<I, O> addCookie(Cookie cookie) {
+    public HttpClientRequest<I, O> addHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers) {
+        return _copy(client, rawRequest.addHeaders(headers));
+    }
+
+    @Override
+    public HttpClientRequestImpl<I, O> addCookie(Cookie cookie) {
         return _copy(client, rawRequest.addCookie(cookie));
     }
 
     @Override
-    public HttpClientRequest<I, O> addDateHeader(CharSequence name, Date value) {
+    public HttpClientRequestImpl<I, O> addDateHeader(CharSequence name, Date value) {
         return _copy(client, rawRequest.addDateHeader(name, value));
     }
 
     @Override
-    public HttpClientRequest<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
+    public HttpClientRequestImpl<I, O> addDateHeader(CharSequence name, Iterable<Date> values) {
         return _copy(client, rawRequest.addDateHeader(name, values));
     }
 
     @Override
-    public HttpClientRequest<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
+    public HttpClientRequestImpl<I, O> addHeaderValues(CharSequence name, Iterable<Object> values) {
         return _copy(client, rawRequest.addHeaderValues(name, values));
     }
 
     @Override
-    public HttpClientRequest<I, O> setDateHeader(CharSequence name, Date value) {
+    public HttpClientRequestImpl<I, O> setDateHeader(CharSequence name, Date value) {
         return _copy(client, rawRequest.setDateHeader(name, value));
     }
 
     @Override
-    public HttpClientRequest<I, O> setHeader(CharSequence name, Object value) {
+    public HttpClientRequestImpl<I, O> setHeader(CharSequence name, Object value) {
         return _copy(client, rawRequest.setHeader(name, value));
     }
 
     @Override
-    public HttpClientRequest<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
+    public HttpClientRequest<I, O> setHeaders(Map<? extends CharSequence, ? extends Iterable<Object>> headers) {
+        return _copy(client, rawRequest.setHeaders(headers));
+    }
+
+    @Override
+    public HttpClientRequestImpl<I, O> setDateHeader(CharSequence name, Iterable<Date> values) {
         return _copy(client, rawRequest.setDateHeader(name, values));
     }
 
     @Override
-    public HttpClientRequest<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
+    public HttpClientRequestImpl<I, O> setHeaderValues(CharSequence name, Iterable<Object> values) {
         return _copy(client, rawRequest.setHeaderValues(name, values));
     }
 
     @Override
-    public HttpClientRequest<I, O> removeHeader(CharSequence name) {
+    public HttpClientRequestImpl<I, O> removeHeader(CharSequence name) {
         return _copy(client, rawRequest.removeHeader(name));
     }
 
     @Override
-    public HttpClientRequest<I, O> setKeepAlive(boolean keepAlive) {
+    public HttpClientRequestImpl<I, O> setKeepAlive(boolean keepAlive) {
         return _copy(client, rawRequest.setKeepAlive(keepAlive));
     }
 
     @Override
-    public HttpClientRequest<I, O> setTransferEncodingChunked() {
+    public HttpClientRequestImpl<I, O> setTransferEncodingChunked() {
         return _copy(client, rawRequest.setTransferEncodingChunked());
     }
 
     @Override
-    public <II> HttpClientRequest<II, O> transformContent(AllocatingTransformer<II, I> transformer) {
+    public <II> HttpClientRequestImpl<II, O> transformContent(AllocatingTransformer<II, I> transformer) {
         final List<AppendTransformerEvent> newTransformers = new ArrayList<>(immutableTransformers);
         @SuppressWarnings("unchecked")
         AppendTransformerEvent e = new AppendTransformerEvent(transformer);
@@ -284,7 +294,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public <OO> HttpClientRequest<I, OO> transformResponseContent(Transformer<O, OO> transformer) {
+    public <OO> HttpClientRequestImpl<I, OO> transformResponseContent(Transformer<O, OO> transformer) {
         final List<Transformer> newTransformers = new ArrayList<>(immutableResponseTransformers);
         newTransformers.add(transformer);
         @SuppressWarnings("unchecked")
@@ -296,7 +306,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @Override
-    public WebSocketRequest<O> requestWebSocketUpgrade() {
+    public WebSocketRequestImpl<O> requestWebSocketUpgrade() {
         return WebSocketRequestImpl.createNew(this);
     }
 
@@ -345,7 +355,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         return rawRequest.getHeaders().uri();
     }
 
-    public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
+    public static <I, O> HttpClientRequestImpl<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
                                                         final TcpClient<?, HttpClientResponse<O>> client,
                                                         int maxRedirects) {
@@ -363,13 +373,13 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
         return create(rawRequest, client);
     }
 
-    public static <I, O> HttpClientRequest<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
+    public static <I, O> HttpClientRequestImpl<I, O> create(final HttpVersion version, final HttpMethod httpMethod,
                                                         final String uri,
                                                         final TcpClient<?, HttpClientResponse<O>> client) {
         return create(version, httpMethod, uri, client, NO_REDIRECTS);
     }
 
-    public static <I, O> HttpClientRequest<I, O> create(final RawRequest<I, O> rawRequest,
+    public static <I, O> HttpClientRequestImpl<I, O> create(final RawRequest<I, O> rawRequest,
                                                         final TcpClient<?, HttpClientResponse<O>> client) {
         return new HttpClientRequestImpl<>(rawRequest, client, Collections.<AppendTransformerEvent>emptyList(),
                                            Collections.<Transformer>emptyList());
@@ -380,7 +390,7 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     @SuppressWarnings("unchecked")
-    private <II, OO> HttpClientRequest<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> c) {
+    private <II, OO> HttpClientRequestImpl<II, OO> _copy(TcpClient<?, HttpClientResponse<OO>> c) {
         return _copy(c, (RawRequest<II, OO>)rawRequest);
     }
 

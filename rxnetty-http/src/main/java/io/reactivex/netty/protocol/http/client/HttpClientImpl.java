@@ -135,60 +135,60 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
-    public HttpClient<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
+    public HttpClientImpl<I, O> readTimeOut(int timeOut, TimeUnit timeUnit) {
         return _copy(client.readTimeOut(timeOut, timeUnit), maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> followRedirects(int maxRedirects) {
+    public HttpClientImpl<I, O> followRedirects(int maxRedirects) {
         return _copy(client, maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> followRedirects(boolean follow) {
+    public HttpClientImpl<I, O> followRedirects(boolean follow) {
         return _copy(client, follow ? Redirector.DEFAULT_MAX_REDIRECTS : NO_REDIRECTS);
     }
 
     @Override
-    public <T> HttpClient<I, O> channelOption(ChannelOption<T> option, T value) {
+    public <T> HttpClientImpl<I, O> channelOption(ChannelOption<T> option, T value) {
         return _copy(client.channelOption(option, value), maxRedirects);
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerFirst(String name, Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(name, handlerFactory)),
                      maxRedirects);
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerFirst(group, name, handlerFactory)),
                      maxRedirects);
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(name, handlerFactory)),
                      maxRedirects);
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
                                                              Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerLast(group, name, handlerFactory)),
                      maxRedirects);
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(String baseName, String name,
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerBefore(String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(baseName, name, handlerFactory)),
                      maxRedirects);
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
                                                                Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerBefore(group, baseName, name,
                                                                                   handlerFactory)),
@@ -196,14 +196,14 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(String baseName, String name,
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerAfter(String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(baseName, name, handlerFactory)),
                      maxRedirects);
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
+    public <II, OO> HttpClientImpl<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
                                                               Func0<ChannelHandler> handlerFactory) {
         return _copy(HttpClientImpl.<OO>castClient(client.addChannelHandlerAfter(group, baseName, name,
                                                                                  handlerFactory)),
@@ -211,38 +211,38 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
-    public <II, OO> HttpClient<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+    public <II, OO> HttpClientImpl<II, OO> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
         return _copy(HttpClientImpl.<OO>castClient(client.pipelineConfigurator(pipelineConfigurator)),
                      maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+    public HttpClientImpl<I, O> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
         return _copy(client.secure(sslEngineFactory), maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> secure(SSLEngine sslEngine) {
+    public HttpClientImpl<I, O> secure(SSLEngine sslEngine) {
         return _copy(client.secure(sslEngine), maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> secure(SslCodec sslCodec) {
+    public HttpClientImpl<I, O> secure(SslCodec sslCodec) {
         return _copy(client.secure(sslCodec), maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> unsafeSecure() {
+    public HttpClientImpl<I, O> unsafeSecure() {
         return _copy(client.unsafeSecure(), maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
+    public HttpClientImpl<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
         return _copy(client.enableWireLogging(wireLoggingLevel), maxRedirects);
     }
 
     @Override
-    public HttpClient<I, O> channelProvider(ChannelProviderFactory providerFactory) {
+    public HttpClientImpl<I, O> channelProvider(ChannelProviderFactory providerFactory) {
         return _copy(client.channelProvider(new HttpChannelProviderFactory(clientEventPublisher, providerFactory)),
                      maxRedirects);
     }
