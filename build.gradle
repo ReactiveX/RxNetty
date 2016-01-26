@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -31,7 +31,7 @@ configure(subprojects) {
     targetCompatibility = JavaVersion.VERSION_1_7
 
     dependencies {
-        compile "io.reactivex:rxjava:1.0.15"
+        compile "io.reactivex:rxjava:1.1.0"
 
         compile 'org.openjdk.jmh:jmh-generator-annprocess:1.11.2'
         compile 'org.openjdk.jmh:jmh-core:1.11.2'

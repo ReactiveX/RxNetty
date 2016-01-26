@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,6 +140,12 @@ public class DefaultChannelOperations<W> implements ChannelOperations<W> {
     @Override
     public Observable<Void> writeFileRegionAndFlushOnEach(Observable<FileRegion> msgs) {
         return writeFileRegion(msgs, FLUSH_ON_EACH_FILE_REGION);
+    }
+
+    @Override
+    public <WW> ChannelOperations<WW> transformWrite(AllocatingTransformer<WW, W> transformer) {
+        nettyChannel.pipeline().fireUserEventTriggered(new AppendTransformerEvent<>(transformer));
+        return new DefaultChannelOperations<>(nettyChannel, eventListener, eventPublisher);
     }
 
     @Override

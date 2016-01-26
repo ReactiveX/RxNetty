@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,9 +17,12 @@
 package io.reactivex.netty.client.pool;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
 import io.netty.util.AttributeKey;
+import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.channel.AllocatingTransformer;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge.ConnectionReuseEvent;
@@ -27,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
 import rx.Observable.OnSubscribe;
+import rx.Observable.Transformer;
 import rx.Subscriber;
 import rx.functions.Action0;
 import rx.functions.Action1;
@@ -48,7 +52,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     public static final AttributeKey<Long> DYNAMIC_CONN_KEEP_ALIVE_TIMEOUT_MS =
             AttributeKey.valueOf("rxnetty_conn_keep_alive_timeout_millis");
 
-    private final Owner<R, W> owner;
+    private final Owner owner;
     private final Connection<R, W> unpooledDelegate;
 
     private volatile long lastReturnToPoolTimeMillis;
@@ -56,7 +60,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
     private volatile long maxIdleTimeMillis;
     private final Observable<Void> releaseObservable;
 
-    private PooledConnection(Owner<R, W> owner, long maxIdleTimeMillis, Connection<R, W> unpooledDelegate) {
+    private PooledConnection(Owner owner, long maxIdleTimeMillis, Connection<R, W> unpooledDelegate) {
         super(unpooledDelegate);
         if (null == owner) {
             throw new IllegalArgumentException("Pooled connection owner can not be null");
@@ -93,6 +97,16 @@ public class PooledConnection<R, W> extends Connection<R, W> {
                 }
             }
         }).onErrorResumeNext(discard());
+    }
+
+    private PooledConnection(PooledConnection<?, ?> toCopy, Connection<R, W> unpooledDelegate) {
+        super(unpooledDelegate);
+        this.owner = toCopy.owner;
+        this.unpooledDelegate = unpooledDelegate;
+        this.lastReturnToPoolTimeMillis = toCopy.lastReturnToPoolTimeMillis;
+        this.releasedAtLeastOnce = toCopy.releasedAtLeastOnce;
+        this.maxIdleTimeMillis = toCopy.maxIdleTimeMillis;
+        this.releaseObservable = toCopy.releaseObservable;
     }
 
     @Override
@@ -197,6 +211,71 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         return unpooledDelegate.closeListener();
     }
 
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(String baseName, String name,
+                                                              ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerAfter(baseName, name, handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(EventExecutorGroup group,
+                                                              String baseName, String name,
+                                                              ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerAfter(group, baseName, name,
+                                                                                            handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(String baseName, String name,
+                                                               ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerBefore(baseName, name, handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(EventExecutorGroup group,
+                                                               String baseName, String name,
+                                                               ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerBefore(group, baseName, name,
+                                                                                       handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(EventExecutorGroup group,
+                                                              String name, ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerFirst(group, name, handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(String name, ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerFirst(name, handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(EventExecutorGroup group,
+                                                             String name, ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerLast(group, name, handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(String name, ChannelHandler handler) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>addChannelHandlerLast(name, handler));
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+        return new PooledConnection<>(this, unpooledDelegate.<RR, WW>pipelineConfigurator(pipelineConfigurator));
+    }
+
+    @Override
+    public <RR> Connection<RR, W> transformRead(Transformer<R, RR> transformer) {
+        return new PooledConnection<>(this, unpooledDelegate.transformRead(transformer));
+    }
+
+    @Override
+    public <WW> Connection<R, WW> transformWrite(AllocatingTransformer<WW, W> transformer) {
+        return new PooledConnection<>(this, unpooledDelegate.transformWrite(transformer));
+    }
+
     /**
      * Discards this connection, to be called when this connection will never be used again.
      *
@@ -236,7 +315,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
         unsafeNettyChannel().pipeline().fireUserEventTriggered(new ConnectionReuseEvent<>(connectionSubscriber, this));
     }
 
-    public static <R, W> PooledConnection<R, W> create(Owner<R, W> owner, long maxIdleTimeMillis,
+    public static <R, W> PooledConnection<R, W> create(Owner owner, long maxIdleTimeMillis,
                                                        Connection<R, W> unpooledDelegate) {
         final PooledConnection<R, W> toReturn = new PooledConnection<>(owner, maxIdleTimeMillis, unpooledDelegate
         );
@@ -266,7 +345,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
      * A contract for the owner of the {@link PooledConnection} to which any instance of {@link PooledConnection} must
      * be returned after use.
      */
-    public interface Owner<R, W> {
+    public interface Owner {
 
         /**
          * Releases the passed connection back to the owner, for reuse.
@@ -276,7 +355,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
          * @return {@link Observable} representing result of the release. Every subscription to this, releases the
          * connection.
          */
-        Observable<Void> release(PooledConnection<R, W> connection);
+        Observable<Void> release(PooledConnection<?, ?> connection);
 
         /**
          * Discards the passed connection from the pool. This is usually called due to an external event like closing of
@@ -288,7 +367,7 @@ public class PooledConnection<R, W> extends Connection<R, W> {
          * @return {@link Observable} indicating the result of the discard (which usually results in a close()).
          * Every subscription to this {@link Observable} will discard the connection.
          */
-        Observable<Void> discard(PooledConnection<R, W> connection);
+        Observable<Void> discard(PooledConnection<?, ?> connection);
 
     }
 }

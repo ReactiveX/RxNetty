@@ -17,7 +17,6 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
-import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
@@ -98,10 +97,6 @@ public class HttpServerRule extends ExternalResource {
         assertThat("Unexpected content items.", subscriber.getOnNextEvents(), hasSize(1));
         assertThat("Unexpected content.", subscriber.getOnNextEvents().get(0).toString(Charset.defaultCharset()),
                    equalTo(WELCOME_SERVER_MSG));
-    }
-
-    public <W, R> ConnectionProvider<W, R> newConnectionFactoryForClient() {
-        return ConnectionProvider.forHost(getServerAddress());
     }
 
     public SocketAddress getServerAddress() {

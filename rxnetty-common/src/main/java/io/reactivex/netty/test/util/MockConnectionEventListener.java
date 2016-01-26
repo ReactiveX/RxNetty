@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,9 +140,9 @@ public class MockConnectionEventListener extends ConnectionEventListener {
     }
 
     public void assertMethodsCalled(Event... events) {
-        if (methodsCalled.size() != events.length) {
-            throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled.size()
-                                     + ". Expected: " + events.length);
+        if (methodsCalled.size() < events.length) {
+            throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled
+                                     + ". Expected: " + Arrays.toString(events));
         }
 
         if (!methodsCalled.containsAll(Arrays.asList(events))) {

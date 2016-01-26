@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,7 @@ import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.HandlerNames;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
-import io.reactivex.netty.test.util.MockEventPublisherFactory;
+import io.reactivex.netty.test.util.embedded.EmbeddedConnectionProvider;
 import io.reactivex.netty.util.LoggingHandlerFactory;
 import org.junit.Rule;
 import org.junit.Test;
@@ -32,10 +32,9 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import org.mockito.Matchers;
 import org.mockito.Mockito;
+import rx.Observable;
 import rx.functions.Action1;
 import rx.functions.Func0;
-
-import java.net.InetSocketAddress;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -274,8 +273,8 @@ public class ClientStateTest {
                 @Override
                 public void evaluate() throws Throwable {
                     mockPipeline = Mockito.mock(DetachedChannelPipeline.class, Mockito.RETURNS_MOCKS);
-                    clientState = ClientState.create(mockPipeline, new MockEventPublisherFactory(),
-                                                     ConnectionProvider.<String, String>forHost(new InetSocketAddress(0)))
+                    EmbeddedConnectionProvider<String, String> ecp = new EmbeddedConnectionProvider<>();
+                    clientState = ClientState.create(mockPipeline, ecp.asFactory(), Observable.<Host>empty())
                                              .enableWireLogging(LogLevel.ERROR);
                     base.evaluate();
                 }

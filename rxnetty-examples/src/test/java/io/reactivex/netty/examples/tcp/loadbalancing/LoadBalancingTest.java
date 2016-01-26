@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -12,14 +12,13 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
  */
 
 package io.reactivex.netty.examples.tcp.loadbalancing;
 
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
@@ -46,7 +45,7 @@ public class LoadBalancingTest {
             if (null == existingCount) {
                 hostsVsCount.put(hostUsed, 1);
             } else {
-                hostsVsCount.put(hostUsed, existingCount.intValue() + 1);
+                hostsVsCount.put(hostUsed, existingCount + 1);
             }
             assertThat("Unexpected content.", hostUsed, startsWith("Using host:"));
             assertThat("Unexpected content.", output.poll(), equalTo("Hello World!"));

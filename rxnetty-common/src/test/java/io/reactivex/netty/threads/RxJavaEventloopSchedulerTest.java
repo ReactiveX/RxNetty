@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,23 +68,30 @@ public class RxJavaEventloopSchedulerTest {
         RxJavaEventloopScheduler scheduler = new RxJavaEventloopScheduler(new NioEventLoopGroup());
 
         final EventloopWorker worker = (EventloopWorker) scheduler.createWorker();
+        final EventloopWorker worker2 = (EventloopWorker) scheduler.createWorker();
 
         assertThat("New worker already has subscriptions.", worker.hasScheduledSubscriptions(), is(false));
 
         final AtomicBoolean isScheduledBeforeExecute = new AtomicBoolean();
         final CountDownLatch executed = new CountDownLatch(1);
 
-        worker.schedule(new Action0() {
+        Subscription subscription = worker.schedule(new Action0() {
             @Override
             public void call() {
                 isScheduledBeforeExecute.set(worker.hasScheduledSubscriptions());
-                executed.countDown();
+                worker2.schedule(new Action0() {
+                    @Override
+                    public void call() {
+                        executed.countDown();
+                    }
+                });
             }
         });
 
         executed.await();
 
         assertThat("No scheduled subscriptions on executing the action.", isScheduledBeforeExecute.get(), is(true));
+        assertThat("Action not unsubscribed.", subscription.isUnsubscribed(), is(true));
 
         assertThat("Subscription not removed post execution.", worker.hasScheduledSubscriptions(), is(false));
     }
@@ -94,23 +101,30 @@ public class RxJavaEventloopSchedulerTest {
         RxJavaEventloopScheduler scheduler = new RxJavaEventloopScheduler(new NioEventLoopGroup());
 
         final EventloopWorker worker = (EventloopWorker) scheduler.createWorker();
+        final EventloopWorker worker2 = (EventloopWorker) scheduler.createWorker();
 
         assertThat("New worker already has subscriptions.", worker.hasDelayScheduledSubscriptions(), is(false));
 
         final AtomicBoolean isScheduledBeforeExecute = new AtomicBoolean();
         final CountDownLatch executed = new CountDownLatch(1);
 
-        worker.schedule(new Action0() {
+        Subscription subscription = worker.schedule(new Action0() {
             @Override
             public void call() {
                 isScheduledBeforeExecute.set(worker.hasDelayScheduledSubscriptions());
-                executed.countDown();
+                worker2.schedule(new Action0() {
+                    @Override
+                    public void call() {
+                        executed.countDown();
+                    }
+                });
             }
         }, 1, TimeUnit.MILLISECONDS);
 
         executed.await();
 
         assertThat("No scheduled subscriptions on executing the action.", isScheduledBeforeExecute.get(), is(true));
+        assertThat("Action not unsubscribed.", subscription.isUnsubscribed(), is(true));
 
         assertThat("Subscription not removed post execution.", worker.hasDelayScheduledSubscriptions(), is(false));
     }

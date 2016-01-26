@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,6 @@
  */
 package io.reactivex.netty.protocol.http.ws.client.internal;
 
-import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpRequest;
@@ -27,14 +26,11 @@ import io.reactivex.netty.protocol.http.client.internal.HttpClientRequestImpl;
 import io.reactivex.netty.protocol.http.client.internal.RawRequest;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketResponse;
-import io.reactivex.netty.protocol.http.ws.client.Ws7To13UpgradeHandler;
 import rx.Subscriber;
-import rx.functions.Func0;
 import rx.functions.Func1;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 import static io.netty.handler.codec.http.HttpHeaderValues.*;
-import static io.reactivex.netty.protocol.http.HttpHandlerNames.*;
 
 public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
 
@@ -101,14 +97,7 @@ public final class WebSocketRequestImpl<O> extends WebSocketRequest<O> {
         /*This makes a copy of the request so that we can safely make modifications to the underlying headers.*/
         @SuppressWarnings("unchecked")
         final HttpClientRequestImpl<?, O> upgradeRequest =
-                (HttpClientRequestImpl<?, O>) httpRequest.addChannelHandlerLast(WsClientUpgradeHandler.getName(),
-                                                                                new Func0<ChannelHandler>() {
-                                                                                    @Override
-                                                                                    public ChannelHandler call() {
-                                                                                        return new Ws7To13UpgradeHandler();
-                                                                                    }
-                                                                                })
-                                                         .addHeader(HttpHeaderNames.UPGRADE, WEBSOCKET);
+                (HttpClientRequestImpl<?, O>) httpRequest.addHeader(HttpHeaderNames.UPGRADE, WEBSOCKET);
         RawRequest<?, O> rawRequest = upgradeRequest.unsafeRawRequest();
         HttpRequest headers = rawRequest.getHeaders();
         headers.headers().add(CONNECTION, HttpHeaderValues.UPGRADE);

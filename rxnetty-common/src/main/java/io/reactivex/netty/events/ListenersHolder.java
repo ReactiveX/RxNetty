@@ -17,12 +17,9 @@
 package io.reactivex.netty.events;
 
 import io.reactivex.netty.RxNetty;
-import io.reactivex.netty.client.ConnectionObservable;
-import io.reactivex.netty.client.events.ClientEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscription;
-import rx.annotations.Beta;
 import rx.exceptions.Exceptions;
 import rx.functions.Action0;
 import rx.functions.Action1;
@@ -323,14 +320,6 @@ public final class ListenersHolder<T extends EventListener> implements EventSour
     public void subscribeAllTo(EventSource<T> lazySource) {
         for (ListenerHolder<T> listener : listeners) {
             listener.subscription.add(lazySource.subscribe(listener.delegate));
-        }
-    }
-
-    @Beta
-    public void subscribeAllTo(ConnectionObservable<?, ?> connectionObservable) {
-        for (ListenerHolder<T> listener : listeners) {
-            listener.subscription
-                    .add(connectionObservable.subscribeForEvents((ClientEventListener) listener.delegate));
         }
     }
 

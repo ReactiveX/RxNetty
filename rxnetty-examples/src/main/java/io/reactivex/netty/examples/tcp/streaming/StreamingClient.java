@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -80,11 +80,11 @@ public final class StreamingClient extends AbstractClientExample {
         /*Create a new client for the server address*/
         TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
                  .enableWireLogging(LogLevel.DEBUG)
-                /*Create a new connection request, each subscription creates a new connection*/
-                 .createConnectionRequest()
                 /* Add a decoder that reads the input and splits it on new line, this makes the output predictable, as
                  * opposed to reading raw bytes*/
-                 .<ByteBuf, String>addChannelHandlerLast("string-decoder", StringLineDecoder::new)
+                .<ByteBuf, String>addChannelHandlerLast("string-decoder", StringLineDecoder::new)
+                /*Create a new connection request, each subscription creates a new connection*/
+                 .createConnectionRequest()
                 /*on successful connection, start reading the input*/
                  .flatMap(Connection::getInput)
                 /*Take 10 strings*/

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,10 +17,16 @@
 package io.reactivex.netty.channel;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.channel.FileRegion;
+import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
+import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
 import rx.Observable;
+import rx.Observable.Transformer;
+import rx.functions.Action1;
 import rx.functions.Func1;
 
 /**
@@ -38,6 +44,11 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
 
     private ConnectionImpl(Channel nettyChannel, ChannelOperations<W> delegate) {
         super(nettyChannel);
+        this.delegate = delegate;
+    }
+
+    private ConnectionImpl(ConnectionImpl<?, ?> toCopy, ContentSource<R> contentSource, ChannelOperations<W> delegate) {
+        super(toCopy, contentSource);
         this.delegate = delegate;
     }
 
@@ -128,9 +139,21 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
         return delegate.closeListener();
     }
 
-    public static <R, W> ConnectionImpl<R, W> create(Channel nettyChannel, ConnectionEventListener eventListener,
-                                                     EventPublisher eventPublisher) {
-        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, eventListener, eventPublisher);
+    public static <R, W> ConnectionImpl<R, W> fromChannel(Channel nettyChannel) {
+        EventPublisher ep = nettyChannel.attr(EventAttributeKeys.EVENT_PUBLISHER).get();
+        if (null == ep) {
+            throw new IllegalArgumentException("No event publisher set in the channel.");
+        }
+
+        ConnectionEventListener l = null;
+        if (ep.publishingEnabled()) {
+            l = nettyChannel.attr(EventAttributeKeys.CONNECTION_EVENT_LISTENER).get();
+            if (null == l) {
+                throw new IllegalArgumentException("No event listener set in the channel.");
+            }
+        }
+
+        final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, l, ep);
         toReturn.connectCloseToChannelClose();
         return toReturn;
     }
@@ -140,5 +163,78 @@ public final class ConnectionImpl<R, W> extends Connection<R, W> {
         final ConnectionImpl<R, W> toReturn = new ConnectionImpl<>(nettyChannel, delegate);
         toReturn.connectCloseToChannelClose();
         return toReturn;
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addFirst(name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerFirst(EventExecutorGroup group, String name,
+                                                              ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addFirst(group, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addLast(name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerLast(EventExecutorGroup group, String name,
+                                                             ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addLast(group, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(String baseName, String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addBefore(baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
+                                                               ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addBefore(group, baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(String baseName, String name, ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addAfter(baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
+                                                              ChannelHandler handler) {
+        getResettableChannelPipeline().markIfNotYetMarked().addAfter(group, baseName, name, handler);
+        return cast();
+    }
+
+    @Override
+    public <RR, WW> Connection<RR, WW> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
+        pipelineConfigurator.call(getResettableChannelPipeline().markIfNotYetMarked());
+        return cast();
+    }
+
+    @Override
+    public <RR> Connection<RR, W> transformRead(Transformer<R, RR> transformer) {
+        return new ConnectionImpl<>(this, getInput().transform(transformer), delegate);
+    }
+
+    @Override
+    public <WW> Connection<R, WW> transformWrite(AllocatingTransformer<WW, W> transformer) {
+        return new ConnectionImpl<>(this, getInput(), delegate.transformWrite(transformer));
+    }
+
+    @SuppressWarnings("unchecked")
+    protected  <RR, WW> Connection<RR, WW> cast() {
+        return (Connection<RR, WW>) this;
     }
 }

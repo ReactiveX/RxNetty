@@ -21,7 +21,7 @@ import io.netty.channel.ChannelInboundHandler;
 
 /**
  * An event to indicate to {@link AbstractConnectionToChannelBridge} that the subscriber as published by
- * {@link ConnectionSubscriberEvent} should be informed of a connection creation failure, instead of a new connection.
+ * {@link ChannelSubscriberEvent} should be informed of a connection creation failure, instead of a new connection.
  *
  * <h2>Why do we need this?</h2>
  *

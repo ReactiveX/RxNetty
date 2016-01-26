@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.Host;
+import io.reactivex.netty.client.loadbalancer.LoadBalancerFactory;
 import io.reactivex.netty.examples.AbstractClientExample;
-import io.reactivex.netty.examples.tcp.loadbalancing.RoundRobinLoadBalancer;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -47,34 +48,26 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
  * (alternating between the two available hosts for the requests)
  *
  * @see ConnectionProvider Low level abstraction to create varied load balancing schemes.
- * @see RoundRobinLoadBalancer An example of load balancer used by this example.
+ * @see HttpLoadBalancer An example of load balancer used by this example.
  */
 public final class HttpLoadBalancingClient extends AbstractClientExample {
 
     public static void main(String[] args) {
 
         /*Start 3 embedded servers, two healthy and one unhealthy to demo failure detection*/
-        final Observable<SocketAddress> hosts = Observable.just(startNewServer(OK), startNewServer(OK),
-                                                                startNewServer(SERVICE_UNAVAILABLE));
+        final Observable<Host> hosts = Observable.just(startNewServer(OK), startNewServer(OK),
+                                                       startNewServer(SERVICE_UNAVAILABLE))
+                                                 .map(Host::new);
 
-        /*Create a new client using the load balancer over the hosts above.*/
-        HttpClient.newClient(HttpLoadBalancer.create(hosts))
+        HttpClient.newClient(LoadBalancerFactory.create(new HttpLoadBalancer<>()), hosts)
                 .enableWireLogging(LogLevel.DEBUG)
-                /*Creates a GET request with URI "/hello"*/
                 .createGet("/hello")
-                /*Prints the response headers*/
                 .doOnNext(resp -> logger.info(resp.toString()))
-                /*Since, we are only interested in the content, now, convert the stream to the content stream*/
                 .flatMap((HttpClientResponse<ByteBuf> resp) ->
-                                 resp.getContent()
-                                     /*Convert ByteBuf to string for each content chunk*/
-                                         .map(bb -> bb.toString(Charset.defaultCharset()))
+                                 resp.getContent().map(bb -> bb.toString(Charset.defaultCharset()))
                 )
-                /*Repeat the request five times to demonstrate load balancing on different requests*/
                 .repeat(5)
-                /*Block till the response comes to avoid JVM exit.*/
                 .toBlocking()
-                /*Print each content chunk*/
                 .forEach(logger::info);
     }
 

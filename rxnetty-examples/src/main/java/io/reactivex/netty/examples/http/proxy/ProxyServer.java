@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -68,9 +68,9 @@ public final class ProxyServer extends AbstractServerExample {
                                               targetClient.createRequest(serverReq.getHttpMethod(), serverReq.getUri());
 
                                       /*Copy all server request headers to the client request*/
-                                      Iterator<Entry<String, String>> serverReqHeaders = serverReq.headerIterator();
+                                      Iterator<Entry<CharSequence, CharSequence>> serverReqHeaders = serverReq.headerIterator();
                                       while (serverReqHeaders.hasNext()) {
-                                          Entry<String, String> next = serverReqHeaders.next();
+                                          Entry<CharSequence, CharSequence> next = serverReqHeaders.next();
                                           /*Since, the client request is copied for each mutation, use the latest instance*/
                                           clientReq = clientReq.setHeader(next.getKey(), next.getValue());
                                       }
@@ -81,12 +81,12 @@ public final class ProxyServer extends AbstractServerExample {
                                               .flatMap(clientResp -> {
 
                                                           /*Iterator for the client response headers.*/
-                                                  Iterator<Entry<String, String>> clientRespHeaders =
+                                                  Iterator<Entry<CharSequence, CharSequence>> clientRespHeaders =
                                                           clientResp.headerIterator();
 
                                                           /*Copy all client response headers to the server response.*/
                                                   while (clientRespHeaders.hasNext()) {
-                                                      Entry<String, String> next = clientRespHeaders.next();
+                                                      Entry<CharSequence, CharSequence> next = clientRespHeaders.next();
                                                       serverResp.setHeader(next.getKey(), next.getValue());
                                                   }
 

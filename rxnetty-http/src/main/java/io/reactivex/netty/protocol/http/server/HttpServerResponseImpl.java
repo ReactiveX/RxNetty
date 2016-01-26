@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,17 +17,13 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpHeaderNames;
-import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.ServerCookieEncoder;
-import io.netty.handler.logging.LogLevel;
-import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.HandlerNames;
+import io.reactivex.netty.channel.AllocatingTransformer;
 import io.reactivex.netty.channel.ChannelOperations;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.MarkAwarePipeline;
@@ -37,11 +33,9 @@ import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import io.reactivex.netty.protocol.http.sse.server.ServerSentEventEncoder;
 import io.reactivex.netty.protocol.http.ws.server.WebSocketHandler;
 import io.reactivex.netty.protocol.http.ws.server.WebSocketHandshaker;
-import io.reactivex.netty.util.LoggingHandlerFactory;
 import rx.Observable;
 import rx.Subscriber;
 import rx.functions.Action0;
-import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
@@ -233,72 +227,17 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
 
     @Override
     public HttpServerResponse<ServerSentEvent> transformToServerSentEvents() {
-        return addChannelHandlerAfter(HttpHandlerNames.HttpServerEncoder.getName(),
-                                      HttpHandlerNames.SseServerCodec.getName(),
-                                      new ServerSentEventEncoder());
-    }
-
-    @Override
-    public HttpServerResponse<C> enableWireLogging(LogLevel wireLogginLevel) {
-        return addChannelHandlerFirst(HandlerNames.WireLogging.getName(), LoggingHandlerFactory.get(wireLogginLevel));
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerFirst(String name, ChannelHandler handler) {
-        markAwarePipeline().addFirst(name, handler);
+        markAwarePipeline().addAfter(HttpHandlerNames.HttpServerEncoder.getName(),
+                                            HttpHandlerNames.SseServerCodec.getName(),
+                                            new ServerSentEventEncoder());
         return _cast();
     }
 
     @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerFirst(EventExecutorGroup group, String name,
-                                                              ChannelHandler handler) {
-        markAwarePipeline().addFirst(group, name, handler);
-        return _cast();
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerLast(String name, ChannelHandler handler) {
-        markAwarePipeline().addLast(name, handler);
-        return _cast();
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                             ChannelHandler handler) {
-        markAwarePipeline().addLast(group, name, handler);
-        return _cast();
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerBefore(String baseName, String name, ChannelHandler handler) {
-        markAwarePipeline().addBefore(baseName, name, handler);
-        return _cast();
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerBefore(EventExecutorGroup group, String baseName, String name,
-                                                               ChannelHandler handler) {
-        markAwarePipeline().addBefore(group, baseName, name, handler);
-        return _cast();
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerAfter(String baseName, String name, ChannelHandler handler) {
-        markAwarePipeline().addAfter(baseName, name, handler);
-        return _cast();
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> addChannelHandlerAfter(EventExecutorGroup group, String baseName, String name,
-                                                              ChannelHandler handler) {
-        markAwarePipeline().addAfter(group, baseName, name, handler);
-        return _cast();
-    }
-
-    @Override
-    public <CC> HttpServerResponse<CC> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        pipelineConfigurator.call(markAwarePipeline());
-        return _cast();
+    public <CC> HttpServerResponse<CC> transformContent(AllocatingTransformer<CC, C> transformer) {
+        @SuppressWarnings("unchecked")
+        Connection transformedC = state.connection.transformWrite(transformer);
+        return new HttpServerResponseImpl<>(new State<CC>(state, transformedC));
     }
 
     @Override
@@ -313,7 +252,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
         return Observable.defer(new Func0<Observable<Void>>() {
             @Override
             public Observable<Void> call() {
-                return (state.allowUpdate()? write(Observable.<C>empty()) : Observable.<Void>empty())
+                return (state.allowUpdate() ? write(Observable.<C>empty()) : Observable.<Void>empty())
                         .doOnSubscribe(new Action0() {
                             @Override
                             public void call() {
@@ -447,127 +386,47 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
         @SuppressWarnings("rawtypes")
         private final Connection connection;
         private final HttpServerRequest<?> request;
-        private boolean headersSent; /*Class is not thread safe*/
+        /*This links the headers sent dynamic state from one response to a child response
+        (created via a mutation method). If it is a simple boolean, then a copy of state will just lead to a copy by
+        value and not reference.*/
+        private final HeaderSentStateHolder sentStateHolder;
 
-        private State(HttpResponse headers, @SuppressWarnings("rawtypes") Connection connection,
-                      HttpServerRequest<?> request) {
+        private State(HttpResponse headers, @SuppressWarnings("rawtypes") Connection connection, HttpServerRequest<?> request) {
             this.headers = headers;
             this.connection = connection;
             this.request = request;
+            this.sentStateHolder = new HeaderSentStateHolder();
+        }
+
+        public State(State<?> state, Connection connection) {
+            this.headers = state.headers;
+            this.request = state.request;
+            this.sentStateHolder = state.sentStateHolder;
+            this.connection = connection;
         }
 
         private boolean allowUpdate() {
-            return !headersSent;
+            return !sentStateHolder.headersSent;
         }
 
         public ResponseContentWriter<T> sendHeaders() {
             if (allowUpdate()) {
-                headersSent = true;
+                sentStateHolder.headersSent = true;
                 return new ContentWriterImpl<>(connection, headers);
             }
 
             return new FailedContentWriter<>();
         }
+
     }
 
-    private static class FailedContentWriter<C> extends ResponseContentWriter<C> {
+    private static final class HeaderSentStateHolder implements Func0 {
 
-        private FailedContentWriter() {
-            super(new OnSubscribe<Void>() {
-                @Override
-                public void call(Subscriber<? super Void> subscriber) {
-                    subscriber.onError(new IllegalStateException("HTTP headers are already sent."));
-                }
-            });
-        }
+        private boolean headersSent = false;
 
         @Override
-        public ResponseContentWriter<C> write(Observable<C> msgs) {
-            return this;
-        }
-
-        @Override
-        public <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource,
-                                                                  Func0<T> trailerFactory,
-                                                                  Func2<T, C, T> trailerMutator) {
-            return this;
-        }
-
-        @Override
-        public <T extends TrailingHeaders> Observable<Void> write(Observable<C> contentSource, Func0<T> trailerFactory,
-                                                                  Func2<T, C, T> trailerMutator,
-                                                                  Func1<C, Boolean> flushSelector) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> write(Observable<C> msgs, Func1<C, Boolean> flushSelector) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> writeAndFlushOnEach(Observable<C> msgs) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> writeString(Observable<String> msgs) {
-            return this;
-        }
-
-        @Override
-        public <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
-                                                                        Func0<T> trailerFactory,
-                                                                        Func2<T, String, T> trailerMutator) {
-            return this;
-        }
-
-        @Override
-        public <T extends TrailingHeaders> Observable<Void> writeString(Observable<String> contentSource,
-                                                                        Func0<T> trailerFactory,
-                                                                        Func2<T, String, T> trailerMutator,
-                                                                        Func1<String, Boolean> flushSelector) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> writeString(Observable<String> msgs, Func1<String, Boolean> flushSelector) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> writeStringAndFlushOnEach(Observable<String> msgs) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs) {
-            return this;
-        }
-
-        @Override
-        public <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
-                                                                       Func0<T> trailerFactory,
-                                                                       Func2<T, byte[], T> trailerMutator) {
-            return this;
-        }
-
-        @Override
-        public <T extends TrailingHeaders> Observable<Void> writeBytes(Observable<byte[]> contentSource,
-                                                                       Func0<T> trailerFactory,
-                                                                       Func2<T, byte[], T> trailerMutator,
-                                                                       Func1<byte[], Boolean> flushSelector) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> writeBytes(Observable<byte[]> msgs, Func1<byte[], Boolean> flushSelector) {
-            return this;
-        }
-
-        @Override
-        public ResponseContentWriter<C> writeBytesAndFlushOnEach(Observable<byte[]> msgs) {
-            return this;
+        public Object call() {
+            return headersSent;
         }
     }
 }

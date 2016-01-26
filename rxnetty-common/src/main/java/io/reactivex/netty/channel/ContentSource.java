@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -42,6 +42,15 @@ import rx.functions.Func1;
  */
 public final class ContentSource<T> extends Observable<T> {
 
+    private ContentSource(final Observable<T> source) {
+        super(new OnSubscribe<T>() {
+            @Override
+            public void call(Subscriber<? super T> subscriber) {
+                source.unsafeSubscribe(subscriber);
+            }
+        });
+    }
+
     public ContentSource(final Channel channel, final Func1<Subscriber<? super T>, Object> subscriptionEventFactory) {
         super(new OnSubscribe<T>() {
             @Override
@@ -79,5 +88,9 @@ public final class ContentSource<T> extends Observable<T> {
      */
     public DisposableContentSource<T> replayable() {
         return DisposableContentSource.createNew(this);
+    }
+
+    public <R> ContentSource<R> transform(Transformer<T, R> transformer) {
+        return new ContentSource<>(transformer.call(this));
     }
 }

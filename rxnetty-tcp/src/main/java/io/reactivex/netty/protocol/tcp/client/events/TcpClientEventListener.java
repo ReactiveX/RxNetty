@@ -16,11 +16,12 @@
  */
 package io.reactivex.netty.protocol.tcp.client.events;
 
+import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 
 /**
  * A listener for all events published by {@link TcpClient}
  */
-public abstract class TcpClientEventListener extends io.reactivex.netty.client.events.ClientEventListener {
+public abstract class TcpClientEventListener extends ClientEventListener {
 
 }

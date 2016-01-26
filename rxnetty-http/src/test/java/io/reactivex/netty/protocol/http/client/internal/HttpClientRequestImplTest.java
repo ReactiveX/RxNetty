@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,7 +23,6 @@ import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.embedded.EmbeddedChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequest;
@@ -37,11 +36,11 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.events.EventAttributeKeys;
-import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
+import io.reactivex.netty.test.util.DisabledEventPublisher;
 import io.reactivex.netty.test.util.FlushSelector;
 import io.reactivex.netty.test.util.TcpConnectionRequestMock;
 import org.junit.Rule;
@@ -452,194 +451,6 @@ public class HttpClientRequestImplTest {
     }
 
     @Test(timeout = 60000)
-    public void testAddChannelHandlerFirst() throws Exception {
-        String handlerName = "handler1";
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerFirst(handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerFirst(handlerName, handlerFactory);
-    }
-
-    @Test(timeout = 60000)
-    public void testAddChannelHandlerFirstWithGroup() throws Exception {
-        String handlerName = "handler1";
-        EventExecutorGroup group = new NioEventLoopGroup();
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerFirst(group, handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerFirst(group, handlerName, handlerFactory);
-    }
-
-    @Test(timeout = 60000)
-    public void testAddChannelHandlerLastWithGroup() throws Exception {
-        String handlerName = "handler1";
-        EventExecutorGroup group = new NioEventLoopGroup();
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerLast(group, handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerLast(group, handlerName, handlerFactory);
-    }
-
-    @Test(timeout = 60000)
-    public void testAddChannelHandlerLast() throws Exception {
-        String handlerName = "handler1";
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerLast(handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerLast(handlerName, handlerFactory);
-    }
-
-    @Test(timeout = 60000)
-    public void testAddChannelHandlerBefore() throws Exception {
-        String baseName = "base";
-        String handlerName = "handler1";
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerBefore(baseName, handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerBefore(baseName, handlerName, handlerFactory);
-    }
-
-    @Test(timeout = 60000)
-    public void testAddChannelHandlerBeforeWithGroup() throws Exception {
-        String baseName = "base";
-        String handlerName = "handler1";
-        EventExecutorGroup group = new NioEventLoopGroup();
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerBefore(group, baseName, handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerBefore(group, baseName, handlerName, handlerFactory);
-    }
-    @Test(timeout = 60000)
-    public void testAddChannelHandlerAfter() throws Exception {
-        String baseName = "base";
-        String handlerName = "handler1";
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerAfter(baseName, handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerAfter(baseName, handlerName, handlerFactory);
-    }
-
-    @Test(timeout = 60000)
-    public void testAddChannelHandlerAfterWithGroup() throws Exception {
-        String baseName = "base";
-        String handlerName = "handler1";
-        EventExecutorGroup group = new NioEventLoopGroup();
-        Func0<ChannelHandler> handlerFactory = new Func0<ChannelHandler>() {
-            @Override
-            public ChannelHandler call() {
-                return new ChannelDuplexHandler();
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>addChannelHandlerAfter(group, baseName, handlerName, handlerFactory);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).addChannelHandlerAfter(group, baseName, handlerName, handlerFactory);
-    }
-
-    @Test(timeout = 60000)
-    public void testPipelineConfigurator() throws Exception {
-        Action1<ChannelPipeline> configurator = new Action1<ChannelPipeline>() {
-            @Override
-            public void call(ChannelPipeline pipeline) {
-            }
-        };
-
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>pipelineConfigurator(configurator);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).pipelineConfigurator(configurator);
-
-    }
-
-    @Test(timeout = 60000)
-    public void testEnableWireLogging() throws Exception {
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule
-                        .request.<Object, ByteBuf>enableWireLogging(LogLevel.DEBUG);
-
-        assertThat("Request not copied.", newReq, not(equalTo(requestRule.request)));
-
-        Mockito.verify(requestRule.clientMock).enableWireLogging(LogLevel.DEBUG);
-    }
-
-    @Test(timeout = 60000)
     public void testContainsHeader() throws Exception {
         final String headerName = "Foo";
         final String headerVal = "bar";
@@ -740,16 +551,16 @@ public class HttpClientRequestImplTest {
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal1);
 
-        Iterator<Entry<String, String>> headerIter = newReq.headerIterator();
-        List<Entry<String, String>> allHeaders = new ArrayList<>();
+        Iterator<Entry<CharSequence, CharSequence>> headerIter = newReq.headerIterator();
+        List<Entry<CharSequence, CharSequence>> allHeaders = new ArrayList<>();
         while (headerIter.hasNext()) {
-            Entry<String, String> next = headerIter.next();
+            Entry<CharSequence, CharSequence> next = headerIter.next();
             allHeaders.add(next);
         }
 
         assertThat("Added header not retrievable.", allHeaders, hasSize(1));
-        assertThat("Unexpected header name.", allHeaders.get(0).getKey(), equalTo(headerName));
-        assertThat("Unexpected header value.", allHeaders.get(0).getValue(), equalTo(headerVal1));
+        assertThat("Unexpected header name.", allHeaders.get(0).getKey(), equalTo((CharSequence)headerName));
+        assertThat("Unexpected header value.", allHeaders.get(0).getValue(), equalTo((CharSequence)headerVal1));
     }
 
     @Test(timeout = 60000)
@@ -860,7 +671,7 @@ public class HttpClientRequestImplTest {
                     channel.attr(EventAttributeKeys.CLIENT_EVENT_LISTENER).set(eventPublisher);
                     channel.attr(EventAttributeKeys.CONNECTION_EVENT_LISTENER).set(eventPublisher);
 
-                    connMock = ConnectionImpl.create(channel, eventPublisher, eventPublisher);
+                    connMock = ConnectionImpl.fromChannel(channel);
 
                     @SuppressWarnings("unchecked")
                     final
@@ -1035,13 +846,8 @@ public class HttpClientRequestImplTest {
                 }
             };
 
-            ConnectionImpl<Object, Object> conn =
-                    ConnectionImpl.create(channel, null, new EventPublisher() {
-                        @Override
-                        public boolean publishingEnabled() {
-                            return false;
-                        }
-                    });
+            channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(DisabledEventPublisher.DISABLED_EVENT_PUBLISHER);
+            ConnectionImpl<Object, Object> conn = ConnectionImpl.fromChannel(channel);
 
             Observable<?> reqAsO = rawReq.asObservable(conn);
 

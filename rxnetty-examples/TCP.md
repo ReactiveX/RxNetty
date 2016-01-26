@@ -29,5 +29,15 @@ demonstrates how to write failure detection logic to detect unhealthy hosts. Thi
 [Load Balancing Client](src/main/java/io/reactivex/netty/examples/tcp/loadbalancing/TcpLoadBalancingClient.java)
 and a [Load Balancer](src/main/java/io/reactivex/netty/examples/tcp/loadbalancing/TcpLoadBalancer.java)
 
+- __Simple interceptor__: A simple interceptor for TCP server to demonstrate sending an initial hello message before
+the actual connection handling starts. This example constitutes of an 
+[Intercepting Server](src/main/java/io/reactivex/netty/examples/tcp/interceptors/simple/InterceptingServer.java)
+and an [Intercepting Client](src/main/java/io/reactivex/netty/examples/tcp/interceptors/simple/InterceptingClient.java)
+
+- __Interceptors with transformation__: An interceptor for TCP server to demonstrate transformation of input and output
+on a connection. This example constitutes of an 
+[Intercepting Server](src/main/java/io/reactivex/netty/examples/tcp/interceptors/simple/InterceptingServer.java)
+and an [Intercepting Client](src/main/java/io/reactivex/netty/examples/tcp/interceptors/simple/InterceptingClient.java)
+
 
 

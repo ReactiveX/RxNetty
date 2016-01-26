@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,22 +16,10 @@
  */
 package io.reactivex.netty.test.util;
 
-import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelPipeline;
-import io.netty.handler.logging.LogLevel;
-import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.protocol.tcp.client.ConnectionRequest;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import io.reactivex.netty.client.ConnectionRequest;
 import rx.Observable;
 import rx.Subscriber;
-import rx.functions.Action1;
-import rx.functions.Func0;
-import rx.functions.Func1;
-
-import javax.net.ssl.SSLEngine;
-import java.util.concurrent.TimeUnit;
 
 public class TcpConnectionRequestMock<W, R> extends ConnectionRequest<W, R> {
 
@@ -42,89 +30,5 @@ public class TcpConnectionRequestMock<W, R> extends ConnectionRequest<W, R> {
                 connections.unsafeSubscribe(subscriber);
             }
         });
-    }
-
-    @Override
-    public ConnectionRequest<W, R> readTimeOut(int timeOut, TimeUnit timeUnit) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ConnectionRequest<W, R> enableWireLogging(LogLevel wireLogginLevel) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(String name,
-                                                                     Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerFirst(EventExecutorGroup group, String name,
-                                                                     Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerLast(String name, Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                                    Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(String baseName, String name,
-                                                                      Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerBefore(EventExecutorGroup group, String baseName,
-                                                                      String name,
-                                                                      Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(String baseName, String name,
-                                                                     Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
-                                                                     String name,
-                                                                     Func0<ChannelHandler> handlerFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public <WW, RR> ConnectionRequest<WW, RR> pipelineConfigurator(Action1<ChannelPipeline> pipelineConfigurator) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ConnectionRequest<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ConnectionRequest<W, R> secure(SSLEngine sslEngine) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ConnectionRequest<W, R> secure(SslCodec sslCodec) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public ConnectionRequest<W, R> unsafeSecure() {
-        throw new UnsupportedOperationException();
     }
 }

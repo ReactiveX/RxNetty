@@ -19,6 +19,9 @@ package io.reactivex.netty.protocol.tcp.client;
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.client.ConnectionProvider;
+import io.reactivex.netty.client.ConnectionProviderFactory;
+import io.reactivex.netty.client.Host;
+import io.reactivex.netty.client.HostConnector;
 import io.reactivex.netty.client.pool.PooledConnection;
 import io.reactivex.netty.client.pool.PooledConnectionProvider;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
@@ -57,14 +60,12 @@ public class TcpClientRule extends ExternalResource {
                 return newConnection.writeAndFlushOnEach(newConnection.getInput());
             }
         });
-        InetSocketAddress serverAddr = new InetSocketAddress("127.0.0.1", server.getServerPort());
-        createClient(PooledConnectionProvider.<ByteBuf, ByteBuf>createBounded(maxConnections, serverAddr));
+        createClient(maxConnections);
     }
 
     public void startServer(ConnectionHandler<ByteBuf, ByteBuf> handler, int maxConnections) {
         server.start(handler);
-        InetSocketAddress serverAddr = new InetSocketAddress("127.0.0.1", server.getServerPort());
-        createClient(PooledConnectionProvider.<ByteBuf, ByteBuf>createBounded(maxConnections, serverAddr));
+        createClient(maxConnections);
     }
 
     public PooledConnection<ByteBuf, ByteBuf> connect() {
@@ -81,8 +82,16 @@ public class TcpClientRule extends ExternalResource {
         return  (PooledConnection<ByteBuf, ByteBuf>) cSub.getOnNextEvents().get(0);
     }
 
-    protected void createClient(ConnectionProvider<ByteBuf, ByteBuf> connectionProvider) {
-        client = TcpClient.newClient(connectionProvider);
+    private void createClient(final int maxConnections) {
+        InetSocketAddress serverAddr = new InetSocketAddress("127.0.0.1", server.getServerPort());
+        ConnectionProviderFactory<ByteBuf, ByteBuf> cpf = new ConnectionProviderFactory<ByteBuf, ByteBuf>() {
+            @Override
+            public ConnectionProvider<ByteBuf, ByteBuf> newProvider(final Observable<HostConnector<ByteBuf, ByteBuf>> hosts) {
+                final HostConnector<ByteBuf, ByteBuf> connector = hosts.take(1).toBlocking().first();
+                return PooledConnectionProvider.createBounded(maxConnections, connector);
+            }
+        };
+        client = TcpClient.newClient(cpf, Observable.just(new Host(serverAddr)));
     }
 
     public TcpServer<ByteBuf, ByteBuf> getServer() {

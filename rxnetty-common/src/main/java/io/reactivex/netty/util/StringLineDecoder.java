@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,72 +18,25 @@ package io.reactivex.netty.util;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.handler.codec.ReplayingDecoder;
+import io.netty.handler.codec.ByteToMessageDecoder;
 
 import java.util.List;
 
 /**
- * A decoder that breaks an incoming {@link ByteBuf} into a list of strings delimited by a new line as specified by
- * {@link #isLineDelimiter(char)}
+ * A decoder that breaks an incoming {@link ByteBuf}s into a list of strings delimited by a new line.
  */
-public class StringLineDecoder extends ReplayingDecoder<StringLineDecoder.State> {
+public class StringLineDecoder extends ByteToMessageDecoder {
 
-    public enum State {
-        NEW_LINE,
-        END_OF_LINE
-    }
+    private final LineReader lineReader = new LineReader();
 
-    public StringLineDecoder() {
-        super(State.NEW_LINE);
+    @Override
+    protected void handlerRemoved0(ChannelHandlerContext ctx) throws Exception {
+        lineReader.dispose();
+        super.handlerRemoved0(ctx);
     }
 
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
-        switch (state()) {
-        case NEW_LINE:
-            String line = readFullLine(in);
-
-            // Immediately checkpoint the progress so that replaying decoder
-            // will not start over from the beginning of the line when buffer overflows
-            checkpoint();
-
-            out.add(line);
-            break;
-        case END_OF_LINE:
-            skipLineDelimiters(in);
-            break;
-        }
-    }
-
-    private String readFullLine(ByteBuf in) {
-        StringBuilder line = new StringBuilder();
-
-        for (;;) {
-            char c = (char) in.readByte();
-            if (isLineDelimiter(c)) {
-                checkpoint(State.END_OF_LINE);
-                return line.toString();
-            }
-
-            line.append(c);
-        }
-    }
-
-    private void skipLineDelimiters(ByteBuf in) {
-        for (;;) {
-            char c = (char) in.readByte();
-            if (isLineDelimiter(c)) {
-                continue;
-            }
-
-            // Leave the reader index at the first letter of the next line, if any
-            in.readerIndex(in.readerIndex() - 1);
-            checkpoint(State.NEW_LINE);
-            break;
-        }
-    }
-
-    public static boolean isLineDelimiter(char c) {
-        return c == '\r' || c == '\n';
+        lineReader.decode(in, out, ctx.alloc());
     }
 }

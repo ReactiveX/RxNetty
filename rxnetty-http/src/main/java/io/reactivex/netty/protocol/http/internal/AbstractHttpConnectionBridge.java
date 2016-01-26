@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -32,10 +32,13 @@ import io.netty.handler.codec.http.LastHttpContent;
 import io.netty.util.AttributeKey;
 import io.netty.util.ReferenceCountUtil;
 import io.netty.util.internal.EmptyArrays;
-import io.reactivex.netty.channel.Connection;
+import io.netty.util.internal.RecyclableArrayList;
+import io.reactivex.netty.channel.AppendTransformerEvent;
 import io.reactivex.netty.channel.ConnectionInputSubscriberEvent;
 import io.reactivex.netty.channel.ConnectionInputSubscriberReplaceEvent;
 import io.reactivex.netty.channel.SubscriberToChannelFutureBridge;
+import io.reactivex.netty.channel.WriteTransformations;
+import io.reactivex.netty.client.ClientConnectionToChannelBridge.ConnectionReuseEvent;
 import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge.State.Stage;
 import org.slf4j.Logger;
@@ -78,16 +81,18 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
     protected ConnectionInputSubscriber connectionInputSubscriber;
     private final UnsafeEmptySubscriber<C> emptyContentSubscriber;
+    private final WriteTransformations transformations;
     private long headerWriteStartTimeNanos;
 
     protected AbstractHttpConnectionBridge() {
         emptyContentSubscriber = new UnsafeEmptySubscriber<>("Error while waiting for HTTP content.");
+        transformations = new WriteTransformations();
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        Object msgToWrite = msg;
 
+        boolean skipNextHandlers = false;
         if (isOutboundHeader(msg)) {
             /*Reset on every header write, when we support pipelining, this should be a queue.*/
             headerWriteStartTimeNanos = Clock.newStartTimeNanos();
@@ -102,15 +107,38 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
             beforeOutboundHeaderWrite(httpMsg, promise, headerWriteStartTimeNanos);
 
-        } else if (msg instanceof String) {
-            msgToWrite = ctx.alloc().buffer().writeBytes(((String) msg).getBytes());
-        } else if (msg instanceof byte[]) {
-            msgToWrite = ctx.alloc().buffer().writeBytes((byte[]) msg);
         } else if (msg instanceof LastHttpContent) {
             onOutboundLastContentWrite((LastHttpContent) msg, promise, headerWriteStartTimeNanos);
+        } else if (transformations.acceptMessage(msg)) {
+            RecyclableArrayList out = RecyclableArrayList.newInstance();
+            try {
+                transformations.transform(msg, ctx.alloc(), out);
+            } finally {
+                final int sizeMinusOne = out.size() - 1;
+                if (sizeMinusOne == 0) {
+                    ctx.write(out.get(0), promise);
+                } else if (sizeMinusOne > 0) {
+                    ChannelPromise voidPromise = ctx.voidPromise();
+                    boolean isVoidPromise = promise == voidPromise;
+                    for (int i = 0; i < sizeMinusOne; i ++) {
+                        ChannelPromise p;
+                        if (isVoidPromise) {
+                            p = voidPromise;
+                        } else {
+                            p = ctx.newPromise();
+                        }
+                        ctx.write(out.get(i), p);
+                    }
+                    ctx.write(out.get(sizeMinusOne), promise);
+                }
+                out.recycle();
+                skipNextHandlers = true;
+            }
         }
 
-        super.write(ctx, msgToWrite, promise);
+        if (!skipNextHandlers) {
+            super.write(ctx, msg, promise);
+        }
     }
 
     protected abstract void beforeOutboundHeaderWrite(HttpMessage httpMsg, ChannelPromise promise, long startTimeNanos);
@@ -132,7 +160,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
 
             if (!connUpgraded) {
                 /*Local copy to refer from the channel close listener. As the instance level copy can change*/
-                final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig);
+                @SuppressWarnings("unchecked")
+                final ConnectionInputSubscriber _connectionInputSubscriber = newConnectionInputSubscriber(orig,
+                                                                                                          ctx.channel());
 
                 connectionInputSubscriber = _connectionInputSubscriber;
 
@@ -152,8 +182,8 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                 l.bridge(ctx.channel().closeFuture(), _connectionInputSubscriber);
 
                 @SuppressWarnings({ "unchecked", "rawtypes" })
-                ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber,
-                                                                                             orig.getConnection());
+                ConnectionInputSubscriberEvent newEvent = new ConnectionInputSubscriberEvent(_connectionInputSubscriber
+                );
                 eventToPropagateFurther = newEvent;
             } else {
                 if (null != connectionInputSubscriber) {
@@ -165,13 +195,18 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             }
         } else if (evt instanceof HttpContentSubscriberEvent) {
             newHttpContentSubscriber(evt, connectionInputSubscriber);
+        } else if (evt instanceof AppendTransformerEvent) {
+            transformations.appendTransformer(((AppendTransformerEvent)evt).getTransformer());
+        } else if (evt instanceof ConnectionReuseEvent) {
+            transformations.resetTransformations();
         }
 
         super.userEventTriggered(ctx, eventToPropagateFurther);
     }
 
-    protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig) {
-        ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber(orig.getSubscriber(), orig.getConnection());
+    protected ConnectionInputSubscriber newConnectionInputSubscriber(ConnectionInputSubscriberEvent<?, ?> orig,
+                                                                     Channel channel) {
+        ConnectionInputSubscriber toReturn = new ConnectionInputSubscriber(orig.getSubscriber(), channel);
         toReturn.state.headerSub.add(Subscriptions.create(toReturn));
         return toReturn;
     }
@@ -365,9 +400,9 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
         private Producer producer;
 
         @SuppressWarnings("rawtypes")
-        private ConnectionInputSubscriber(Subscriber subscriber, Connection connection) {
+        private ConnectionInputSubscriber(Subscriber subscriber, Channel channel) {
             state = new State();
-            channel = connection.unsafeNettyChannel();
+            this.channel = channel;
             state.headerSub = subscriber;
         }
 

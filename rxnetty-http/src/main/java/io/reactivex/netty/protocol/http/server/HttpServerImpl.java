@@ -30,7 +30,7 @@ import io.reactivex.netty.protocol.http.server.events.HttpServerEventPublisher;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
 import io.reactivex.netty.protocol.http.ws.server.Ws7To13UpgradeHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
-import io.reactivex.netty.protocol.tcp.ssl.SslCodec;
+import io.reactivex.netty.ssl.SslCodec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscription;

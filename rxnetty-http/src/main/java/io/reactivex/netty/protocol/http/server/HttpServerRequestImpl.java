@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import io.reactivex.netty.protocol.http.CookiesHolder;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import io.reactivex.netty.protocol.http.ws.server.WebSocketHandshaker;
 import rx.Observable;
+import rx.Observable.Transformer;
 import rx.Subscriber;
 import rx.functions.Func1;
 
@@ -42,18 +43,33 @@ import java.util.Set;
 
 import static io.netty.handler.codec.http.HttpHeaderNames.*;
 
-public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
+class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     private final Channel nettyChannel;
     private final HttpRequest nettyRequest;
     private final CookiesHolder cookiesHolder;
     private final UriInfoHolder uriInfoHolder;
+    private final ContentSource<T> contentSource;
 
-    public HttpServerRequestImpl(HttpRequest nettyRequest, Channel nettyChannel) {
+    HttpServerRequestImpl(HttpRequest nettyRequest, Channel nettyChannel) {
         this.nettyRequest = nettyRequest;
         this.nettyChannel = nettyChannel;
         uriInfoHolder = new UriInfoHolder(this.nettyRequest.uri());
         cookiesHolder = CookiesHolder.newServerRequestHolder(nettyRequest.headers());
+        contentSource = new ContentSource<>(nettyChannel, new Func1<Subscriber<? super T>, Object>() {
+            @Override
+            public Object call(Subscriber<? super T> subscriber) {
+                return new HttpContentSubscriberEvent<>(subscriber);
+            }
+        });
+    }
+
+    private HttpServerRequestImpl(HttpRequest nettyRequest, Channel nettyChannel, ContentSource<T> contentSource) {
+        this.nettyRequest = nettyRequest;
+        this.nettyChannel = nettyChannel;
+        uriInfoHolder = new UriInfoHolder(this.nettyRequest.uri());
+        cookiesHolder = CookiesHolder.newServerRequestHolder(nettyRequest.headers());
+        this.contentSource = contentSource;
     }
 
     @Override
@@ -102,8 +118,8 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
     }
 
     @Override
-    public Iterator<Entry<String, String>> headerIterator() {
-        return nettyRequest.headers().iterator();
+    public Iterator<Entry<CharSequence, CharSequence>> headerIterator() {
+        return nettyRequest.headers().iteratorCharSequence();
     }
 
     @Override
@@ -255,13 +271,7 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
 
     @Override
     public ContentSource<T> getContent() {
-
-        return new ContentSource<T>(nettyChannel, new Func1<Subscriber<? super T>, Object>() {
-            @Override
-            public Object call(Subscriber<? super T> subscriber) {
-                return new HttpContentSubscriberEvent<>(subscriber);
-            }
-        });
+        return contentSource;
     }
 
     @Override
@@ -283,6 +293,11 @@ public class HttpServerRequestImpl<T> extends HttpServerRequest<T> {
     @Override
     public boolean isWebSocketUpgradeRequested() {
         return WebSocketHandshaker.isUpgradeRequested(this);
+    }
+
+    @Override
+    public <X> HttpServerRequest<X> transformContent(Transformer<T, X> transformer) {
+        return new HttpServerRequestImpl<>(nettyRequest, nettyChannel, contentSource.transform(transformer));
     }
 
     @Override

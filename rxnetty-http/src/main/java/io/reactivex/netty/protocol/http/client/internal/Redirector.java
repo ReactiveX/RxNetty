@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,10 @@ package io.reactivex.netty.protocol.http.client.internal;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpResponseStatus;
+import io.reactivex.netty.internal.VoidToAnythingCast;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.HttpRedirectException;
-import io.reactivex.netty.protocol.http.internal.VoidToAnythingCast;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

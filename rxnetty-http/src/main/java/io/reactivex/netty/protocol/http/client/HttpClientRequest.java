@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,21 +16,16 @@
  */
 package io.reactivex.netty.protocol.http.client;
 
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMessage;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
-import io.netty.handler.logging.LogLevel;
-import io.netty.handler.logging.LoggingHandler;
-import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.channel.AllocatingTransformer;
 import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketRequest;
 import rx.Observable;
 import rx.annotations.Experimental;
-import rx.functions.Action1;
 import rx.functions.Func0;
 import rx.functions.Func1;
 import rx.functions.Func2;
@@ -470,162 +465,27 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
     public abstract HttpClientRequest<I, O> setTransferEncodingChunked();
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added at the first position of the pipeline as specified by {@link
-     * ChannelPipeline#addFirst(String, ChannelHandler)}
-     * <p/>
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
-     * more convenient.</em>
+     * Creates a new {@code HttpClientRequest} instance modifying the content type using the passed {@code transformer}.
      *
-     * @param name Name of the handler.
-     * @param handlerFactory Factory to create handler instance to add.
+     * @param transformer Transformer to transform the content stream.
      *
-     * @return A new {@link HttpClient} instance.
+     * @param <II> New type of the content.
+     *
+     * @return A new instance of {@link HttpClientRequest} with the transformed content stream.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerFirst(String name,
-                                                                              Func0<ChannelHandler> handlerFactory);
+    public abstract <II> HttpClientRequest<II, O> transformContent(AllocatingTransformer<II, I> transformer);
 
     /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added at the first position of the pipeline as specified by {@link
-     * ChannelPipeline#addFirst(EventExecutorGroup, String, ChannelHandler)}
-     * <p/>
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
-     * more convenient.</em>
+     * Creates a new {@code HttpClientRequest} instance modifying the content type of the response using the
+     * passed {@code transformer}.
      *
-     * @param group the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
-     * @param name the name of the handler to append
-     * @param handlerFactory Factory to create handler instance to add.
+     * @param transformer Transformer to transform the content stream.
      *
-     * @return A new {@link HttpClientRequest} instance.
+     * @param <OO> New type of the content.
+     *
+     * @return A new instance of {@link HttpClientRequest} with the transformed response content stream.
      */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerFirst(EventExecutorGroup group, String name,
-                                                                              Func0<ChannelHandler> handlerFactory);
-
-    /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added at the last position of the pipeline as specified by {@link
-     * ChannelPipeline#addLast(String, ChannelHandler)}
-     * <p/>
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
-     * more convenient.</em>
-     *
-     * @param name Name of the handler.
-     * @param handlerFactory Factory to create handler instance to add.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerLast(String name,
-                                                                             Func0<ChannelHandler> handlerFactory);
-
-    /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added at the last position of the pipeline as specified by {@link
-     * ChannelPipeline#addLast(EventExecutorGroup, String, ChannelHandler)}
-     * <p/>
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
-     * more convenient.</em>
-     *
-     * @param group the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
-     * @param name the name of the handler to append
-     * @param handlerFactory Factory to create handler instance to add.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerLast(EventExecutorGroup group, String name,
-                                                                             Func0<ChannelHandler> handlerFactory);
-
-    /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
-     * specified by {@link ChannelPipeline#addBefore(String, String, ChannelHandler)}
-     * <p/>
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
-     * more convenient.</em>
-     *
-     * @param baseName the name of the existing handler
-     * @param name Name of the handler.
-     * @param handlerFactory Factory to create handler instance to add.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(String baseName, String name,
-                                                                               Func0<ChannelHandler> handlerFactory);
-
-    /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added before an existing handler with the passed {@code baseName} in the pipeline as
-     * specified by {@link ChannelPipeline#addBefore(EventExecutorGroup, String, String, ChannelHandler)}
-     * <p/>
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
-     * more convenient.</em>
-     *
-     * @param group the {@link EventExecutorGroup} which will be used to execute the {@link ChannelHandler} methods
-     * @param baseName the name of the existing handler
-     * @param name the name of the handler to append
-     * @param handlerFactory Factory to create handler instance to add.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerBefore(EventExecutorGroup group,
-                                                                               String baseName,
-                                                                               String name,
-                                                                               Func0<ChannelHandler> handlerFactory);
-
-    /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
-     * specified by {@link ChannelPipeline#addAfter(String, String, ChannelHandler)}
-     *
-     * @param baseName the name of the existing handler
-     * @param name Name of the handler.
-     * @param handlerFactory Factory to create handler instance to add.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerAfter(String baseName, String name,
-                                                                              Func0<ChannelHandler> handlerFactory);
-
-    /**
-     * Adds a {@link ChannelHandler} to {@link ChannelPipeline} for all connections created by this request. The
-     * specified handler is added after an existing handler with the passed {@code baseName} in the pipeline as
-     * specified by {@link ChannelPipeline#addAfter(EventExecutorGroup, String, String, ChannelHandler)}
-     * <p/>
-     * <em>For better flexibility of pipeline modification, the method {@link #pipelineConfigurator(Action1)} will be
-     * more convenient.</em>
-     *
-     * @param group the {@link io.netty.util.concurrent.EventExecutorGroup} which will be used to execute the {@link
-     * io.netty.channel.ChannelHandler} methods
-     * @param baseName the name of the existing handler
-     * @param name the name of the handler to append
-     * @param handlerFactory Factory to create handler instance to add.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract <II, OO> HttpClientRequest<II, OO> addChannelHandlerAfter(EventExecutorGroup group, String baseName,
-                                                                              String name,
-                                                                              Func0<ChannelHandler> handlerFactory);
-
-    /**
-     * Creates a new request instance, inheriting all configurations from this request and using the passed action to
-     * configure all the connections created by the newly created request instance.
-     *
-     * @param configurator Action to configure {@link ChannelPipeline}.
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract <II, OO> HttpClientRequest<II, OO> pipelineConfigurator(Action1<ChannelPipeline> configurator);
-
-    /**
-     * Creates a new request instance, inheriting all configurations from this request and enabling wire logging at the
-     * passed level for the newly created request instance.
-     *
-     * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
-     *                        logging is enabled at this level for {@link LoggingHandler}
-     *
-     * @return A new {@link HttpClientRequest} instance.
-     */
-    public abstract HttpClientRequest<I, O> enableWireLogging(LogLevel wireLoggingLevel);
+    public abstract <OO> HttpClientRequest<I, OO> transformResponseContent(Transformer<O, OO> transformer);
 
     /**
      * Creates a new {@link WebSocketRequest}, inheriting all configurations from this request, that will request an
@@ -681,7 +541,7 @@ public abstract class HttpClientRequest<I, O> extends Observable<HttpClientRespo
      *
      * @return An iterator over the header entries
      */
-    public abstract Iterator<Entry<String, String>> headerIterator();
+    public abstract Iterator<Entry<CharSequence, CharSequence>> headerIterator();
 
     /**
      * Returns a new {@link Set} that contains the names of all headers in this request.  Note that modifying the

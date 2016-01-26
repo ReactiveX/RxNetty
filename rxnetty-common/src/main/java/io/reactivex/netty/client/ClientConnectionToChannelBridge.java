@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -24,10 +24,10 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.channel.AbstractConnectionToChannelBridge;
+import io.reactivex.netty.channel.ChannelSubscriberEvent;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionCreationFailedEvent;
 import io.reactivex.netty.channel.ConnectionInputSubscriberResetEvent;
-import io.reactivex.netty.channel.ConnectionSubscriberEvent;
 import io.reactivex.netty.channel.EmitConnectionEvent;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.client.pool.PooledConnection;
@@ -38,7 +38,6 @@ import io.reactivex.netty.internal.ExecuteInEventloopAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscriber;
-import rx.functions.Action0;
 import rx.observers.SafeSubscriber;
 import rx.subscriptions.Subscriptions;
 
@@ -56,7 +55,7 @@ import static java.util.concurrent.TimeUnit.*;
  * A typical reuse should have the following events:
  *
  <PRE>
-    ConnectionSubscriberEvent => ConnectionInputSubscriberEvent => ConnectionReuseEvent =>
+    ChannelSubscriberEvent => ConnectionInputSubscriberEvent => ConnectionReuseEvent =>
     ConnectionInputSubscriberEvent => ConnectionReuseEvent => ConnectionInputSubscriberEvent
  </PRE>
  *
@@ -81,11 +80,6 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         this.isSecure = isSecure;
     }
 
-    private ClientConnectionToChannelBridge(Subscriber<? super Connection<R, W>> connSub, boolean isSecure) {
-        super(HANDLER_NAME, connSub, EventAttributeKeys.CONNECTION_EVENT_LISTENER, EventAttributeKeys.EVENT_PUBLISHER);
-        this.isSecure = isSecure;
-    }
-
     @Override
     public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
         channel = ctx.channel();
@@ -104,7 +98,6 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             return;
         }
 
-
         super.handlerAdded(ctx);
     }
 
@@ -121,14 +114,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
 
         super.userEventTriggered(ctx, evt); // Super handles ConnectionInputSubscriberResetEvent to reset the subscriber.
 
-        if (evt instanceof ClientConnectionSubscriberEvent) {
-            @SuppressWarnings("unchecked")
-            final ClientConnectionSubscriberEvent<R, W> event = (ClientConnectionSubscriberEvent<R, W>) evt;
-
-            if (event.getSubscriber() == getNewConnectionSub()) { // If this subscriber wasn't a duplicate
-                connectSubscriberToFuture(event.getSubscriber(), event.getConnectFuture());
-            }
-        } else if (evt instanceof ConnectionReuseEvent) {
+        if (evt instanceof ConnectionReuseEvent) {
             @SuppressWarnings("unchecked")
             ConnectionReuseEvent<R, W> event = (ConnectionReuseEvent<R, W>) evt;
 
@@ -167,30 +153,8 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         super.connect(ctx, remoteAddress, localAddress, promise);
     }
 
-    private void connectSubscriberToFuture(final Subscriber<? super Connection<R, W>> subscriber,
-                                           final ChannelFuture channelFuture) {
-        // Set the subscription action to cancel the future on unsubscribe.
-        subscriber.add(Subscriptions.create(new Action0() {
-            @Override
-            public void call() {
-                if (null != channelFuture && !channelFuture.isDone()) {
-                    channelFuture.cancel(false);
-                }
-            }
-        }));
-        // Send an error to subscriber if connect fails.
-        channelFuture.addListener(new ChannelFutureListener() {
-            @Override
-            public void operationComplete(final ChannelFuture future) throws Exception {
-                if (!future.isSuccess()) {
-                    subscriber.onError(future.cause());
-                }
-            }
-        });
-    }
-
     @Override
-    protected void onNewReadSubscriber(final Connection<R, W> connection, Subscriber<? super R> subscriber) {
+    protected void onNewReadSubscriber(Subscriber<? super R> subscriber) {
         // Unsubscribe from the input closes the connection as there can only be one subscriber to the
         // input and, if nothing is read, it means, nobody is using the connection.
         // For fire-and-forget usecases, one should explicitly ignore content on the connection which
@@ -200,7 +164,10 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             @Override
             public void run() {
                 if (!connectionInputSubscriberExists(channel)) {
-                    connection.closeNow();
+                    Connection connection = channel.attr(Connection.CONNECTION_ATTRIBUTE_KEY).get();
+                    if (null != connection) {
+                        connection.closeNow();
+                    }
                 }
             }
         }));
@@ -210,7 +177,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         Subscriber<? super PooledConnection<R, W>> subscriber = event.getSubscriber();
         if (isValidToEmit(subscriber)) {
             subscriber.onNext(event.getPooledConnection());
-            checkEagerSubscriptionIfConfigured(event.getPooledConnection(), channel);
+            checkEagerSubscriptionIfConfigured(channel);
         } else {
             event.getPooledConnection().close(false); // If pooled connection not sent to the subscriber, release to the pool.
         }
@@ -230,44 +197,9 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
         return toAdd;
     }
 
-    public static <R, W> ClientConnectionToChannelBridge<R, W> addToPipeline(Subscriber<? super Connection<R, W>> sub,
-                                                                             ChannelPipeline pipeline,
-                                                                             boolean isSecure) {
-        ClientConnectionToChannelBridge<R, W> toAdd = new ClientConnectionToChannelBridge<>(sub, isSecure);
-        pipeline.addLast(HANDLER_NAME, toAdd);
-        return toAdd;
-    }
-
-    /**
-     * An event to communicate the subscriber of a new connection created by {@link AbstractConnectionToChannelBridge}.
-     *
-     * <h2>Connection reuse</h2>
-     *
-     * For cases, where the {@link Connection} is pooled, reuse should be indicated explicitly via
-     * {@link ConnectionInputSubscriberResetEvent}. There can be multiple {@link ConnectionInputSubscriberResetEvent}s
-     * sent to the same channel and hence the same instance of {@link AbstractConnectionToChannelBridge}.
-     *
-     * @param <I> Type read from the connection held by the event.
-     * @param <O> Type written to the connection held by the event.
-     */
-    public static class ClientConnectionSubscriberEvent<I, O> extends ConnectionSubscriberEvent<I, O> {
-
-        private final ChannelFuture connectFuture;
-
-        public ClientConnectionSubscriberEvent(ChannelFuture connectFuture,
-                                               Subscriber<? super Connection<I, O>> subscriber) {
-            super(subscriber);
-            this.connectFuture = connectFuture;
-        }
-
-        public ChannelFuture getConnectFuture() {
-            return connectFuture;
-        }
-    }
-
     /**
      * An event to indicate channel/{@link Connection} reuse. This event should be used for clients that pool
-     * connections. For every reuse of a connection (connection creation still uses {@link ConnectionSubscriberEvent})
+     * connections. For every reuse of a connection (connection creation still uses {@link ChannelSubscriberEvent})
      * the corresponding subscriber must be sent via this event.
      *
      * Every instance of this event resets the older subscriber attached to the connection and connection input. This

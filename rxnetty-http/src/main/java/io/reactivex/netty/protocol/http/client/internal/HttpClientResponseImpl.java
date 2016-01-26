@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -38,6 +38,7 @@ import io.reactivex.netty.protocol.http.sse.client.ServerSentEventDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
+import rx.Observable.Transformer;
 import rx.Subscriber;
 import rx.functions.Func1;
 
@@ -63,6 +64,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     private final HttpResponse nettyResponse;
     private final Connection<?, ?> connection;
     private final CookiesHolder cookiesHolder;
+    private final ContentSource<T> contentSource;
 
     private HttpClientResponseImpl(HttpResponse nettyResponse) {
         this(nettyResponse, UnusableConnection.create());
@@ -72,6 +74,14 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
         this.nettyResponse = nettyResponse;
         this.connection = connection;
         cookiesHolder = CookiesHolder.newClientResponseHolder(nettyResponse.headers());
+        contentSource = new ContentSource<>(unsafeNettyChannel(), new ContentSourceSubscriptionFactory<T>());
+    }
+
+    private HttpClientResponseImpl(HttpClientResponseImpl<?> toCopy, ContentSource<T> newSource) {
+        this.nettyResponse = toCopy.nettyResponse;
+        this.connection = toCopy.connection;
+        cookiesHolder = toCopy.cookiesHolder;
+        contentSource = newSource;
     }
 
     @Override
@@ -100,8 +110,8 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     }
 
     @Override
-    public Iterator<Entry<String, String>> headerIterator() {
-        return nettyResponse.headers().iterator();
+    public Iterator<Entry<CharSequence, CharSequence>> headerIterator() {
+        return nettyResponse.headers().iteratorCharSequence();
     }
 
     @Override
@@ -252,7 +262,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
                 pipeline.addAfter(decoderCtx.name(), HttpHandlerNames.SseClientCodec.getName(),
                                   new ServerSentEventDecoder());
             }
-            return _contentObservable();
+            return new ContentSource<>(unsafeNettyChannel(), new ContentSourceSubscriptionFactory<ServerSentEvent>());
         }
 
         return new ContentSource<>(new IllegalStateException("Response is not a server sent event response."));
@@ -260,17 +270,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public ContentSource<T> getContent() {
-        return _contentObservable();
-    }
-
-    protected <X> ContentSource<X> _contentObservable() {
-
-        return new ContentSource<>(unsafeNettyChannel(), new Func1<Subscriber<? super X>, Object>() {
-            @Override
-            public Object call(Subscriber<? super X> subscriber) {
-                return new HttpContentSubscriberEvent<>(subscriber);
-            }
-        });
+        return contentSource;
     }
 
     @Override
@@ -282,6 +282,11 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
                 return null;
             }
         }).ignoreElements();
+    }
+
+    @Override
+    public <TT> HttpClientResponse<TT> transformContent(Transformer<T, TT> transformer) {
+        return new HttpClientResponseImpl<>(this, contentSource.transform(transformer));
     }
 
     @Override
@@ -338,5 +343,12 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     public static <C> HttpClientResponse<C> newInstance(HttpResponse nettyResponse, Connection<?, ?> connection) {
         return new HttpClientResponseImpl<>(nettyResponse, connection);
+    }
+
+    private static class ContentSourceSubscriptionFactory<T> implements Func1<Subscriber<? super T>, Object> {
+        @Override
+        public Object call(Subscriber<? super T> subscriber) {
+            return new HttpContentSubscriberEvent<>(subscriber);
+        }
     }
 }

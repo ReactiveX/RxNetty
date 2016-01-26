@@ -21,8 +21,6 @@ package io.reactivex.netty.protocol.tcp;
  */
 public enum TcpHandlerNames {
 
-    SslHandler("ssl-handler"),
-    SslConnectionEmissionHandler("ssl-connection-emitter"),
     ClientReadTimeoutHandler("client-read-timeout-handler"),
     ;
 

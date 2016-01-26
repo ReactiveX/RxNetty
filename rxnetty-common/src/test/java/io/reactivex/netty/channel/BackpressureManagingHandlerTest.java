@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -360,7 +360,7 @@ public class BackpressureManagingHandlerTest {
                     String bpName = "backpressure-manager";
                     channel.pipeline().addFirst(bpName,
                                                 handler = new MockBackpressureManagingHandler(bpName));
-                    channel.pipeline().addBefore(bpName, "primitive-converter", PrimitiveConversionHandler.INSTANCE);
+                    channel.pipeline().addBefore(bpName, "primitive-converter", new WriteTransformer());
                     channel.pipeline().addFirst(inboundRequestFeeder);
                     channel.config().setAutoRead(false);
                     base.evaluate();

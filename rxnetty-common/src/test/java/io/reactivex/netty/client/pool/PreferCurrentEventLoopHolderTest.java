@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.client.pool.PooledConnection.Owner;
 import io.reactivex.netty.client.pool.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
+import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.test.util.DisabledEventPublisher;
 import io.reactivex.netty.threads.PreferCurrentEventLoopGroup;
@@ -140,13 +141,13 @@ public class PreferCurrentEventLoopHolderTest {
         assertThat("Connection not removed.", connection, is(nullValue()));
     }
 
-    public static class PreferCurrentELHolderRule extends ExternalResource implements Owner<String, String> {
+    public static class PreferCurrentELHolderRule extends ExternalResource implements Owner {
 
         private PreferCurrentEventLoopHolder<String, String> holder;
         private EventPublisher eventPublisher;
         private PoolConfig<String, String> poolConfig;
-        private ConcurrentLinkedQueue<PooledConnection<String, String>> discarded;
-        private ConcurrentLinkedQueue<PooledConnection<String, String>> released;
+        private ConcurrentLinkedQueue<PooledConnection<?, ?>> discarded;
+        private ConcurrentLinkedQueue<PooledConnection<?, ?>> released;
         private ExecutorService eventLoopThread;
         private EmbeddedChannel channel;
 
@@ -159,6 +160,7 @@ public class PreferCurrentEventLoopHolderTest {
                     channel = new EmbeddedChannel();
                     PreferCurrentEventLoopGroup eventLoopGroup = new PreferCurrentEventLoopGroup(channel.eventLoop());
                     eventPublisher = DisabledEventPublisher.DISABLED_EVENT_PUBLISHER;
+                    channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(eventPublisher);
                     holder = new PreferCurrentEventLoopHolder<>(eventLoopGroup,
                                                                 new IdleConnectionsHolderFactoryImpl());
                     poolConfig = new PoolConfig<>();
@@ -174,7 +176,7 @@ public class PreferCurrentEventLoopHolderTest {
         }
 
         public PooledConnection<String, String> addConnection() throws Exception {
-            Connection<String, String> connection = ConnectionImpl.create(channel, null, eventPublisher);
+            Connection<String, String> connection = ConnectionImpl.fromChannel(channel);
             PooledConnection<String, String> pooledConnection = PooledConnection.create(this,
                                                                                         poolConfig.getMaxIdleTimeMillis(),
                                                                                         connection);
@@ -186,13 +188,13 @@ public class PreferCurrentEventLoopHolderTest {
         }
 
         @Override
-        public Observable<Void> release(PooledConnection<String, String> connection) {
+        public Observable<Void> release(PooledConnection<?, ?> connection) {
             released.add(connection);
             return Observable.empty();
         }
 
         @Override
-        public Observable<Void> discard(PooledConnection<String, String> connection) {
+        public Observable<Void> discard(PooledConnection<?, ?> connection) {
             discarded.add(connection);
             return Observable.empty();
         }

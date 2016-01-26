@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,13 +16,16 @@
  */
 package io.reactivex.netty.protocol.tcp.server;
 
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.reactivex.netty.channel.AbstractConnectionToChannelBridge;
+import io.reactivex.netty.channel.ChannelSubscriberEvent;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.channel.ConnectionSubscriberEvent;
+import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.channel.EmitConnectionEvent;
 import io.reactivex.netty.events.Clock;
+import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +52,7 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
     private final ConnectionHandler<R, W> connectionHandler;
     private final TcpServerEventPublisher eventPublisher;
     private final boolean isSecure;
-    private final ConnectionSubscriberEvent<R, W> connectionSubscriberEvent;
+    private final ChannelSubscriberEvent<R, W> channelSubscriberEvent;
 
     private TcpServerConnectionToChannelBridge(ConnectionHandler<R, W> connectionHandler,
                                                TcpServerEventPublisher eventPublisher, boolean isSecure) {
@@ -57,12 +60,12 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
         this.connectionHandler = connectionHandler;
         this.eventPublisher = eventPublisher;
         this.isSecure = isSecure;
-        connectionSubscriberEvent = new ConnectionSubscriberEvent<>(new NewConnectionSubscriber());
+        channelSubscriberEvent = new ChannelSubscriberEvent<>(new NewChannelSubscriber());
     }
 
     @Override
     public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        userEventTriggered(ctx, connectionSubscriberEvent);
+        userEventTriggered(ctx, channelSubscriberEvent);
         if (!isSecure) {/*When secure, the event is triggered post SSL handshake via the SslCodec*/
             userEventTriggered(ctx, EmitConnectionEvent.INSTANCE);
         }
@@ -79,7 +82,7 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
         return toAdd;
     }
 
-    private final class NewConnectionSubscriber extends Subscriber<Connection<R, W>> {
+    private final class NewChannelSubscriber extends Subscriber<Channel> {
 
         @Override
         public void onCompleted() {
@@ -92,7 +95,11 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
         }
 
         @Override
-        public void onNext(final Connection<R, W> connection) {
+        public void onNext(final Channel channel) {
+            channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(eventPublisher);
+            channel.attr(EventAttributeKeys.CONNECTION_EVENT_LISTENER).set(eventPublisher);
+
+            final Connection<R, W> connection = ConnectionImpl.fromChannel(channel);
             final long startTimeNanos = eventPublisher.publishingEnabled() ? Clock.newStartTimeNanos() : -1;
             if (eventPublisher.publishingEnabled()) {
                 eventPublisher.onNewClientConnected();
@@ -108,6 +115,7 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
             }
 
             if (null == handledObservable) {
+                logger.error("Connection handler returned null.");
                 handledObservable = Observable.empty();
             }
 
@@ -116,7 +124,6 @@ public class TcpServerConnectionToChannelBridge<R, W> extends AbstractConnection
                             new Func1<Throwable, Observable<? extends Void>>() {
                                 @Override
                                 public Observable<? extends Void> call(Throwable throwable) {
-
                                     if (throwable instanceof ClosedChannelException) {
                                         return Observable.empty();
                                     } else {

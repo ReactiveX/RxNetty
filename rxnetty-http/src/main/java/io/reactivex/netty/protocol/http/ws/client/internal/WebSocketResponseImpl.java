@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -30,6 +30,7 @@ import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
 import io.reactivex.netty.protocol.http.ws.WebSocketConnection;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketResponse;
 import rx.Observable;
+import rx.Observable.Transformer;
 
 import java.text.ParseException;
 import java.util.Date;
@@ -92,7 +93,7 @@ public final class WebSocketResponseImpl<T> extends WebSocketResponse<T> {
     }
 
     @Override
-    public Iterator<Entry<String, String>> headerIterator() {
+    public Iterator<Entry<CharSequence, CharSequence>> headerIterator() {
         return delegate.headerIterator();
     }
 
@@ -243,6 +244,11 @@ public final class WebSocketResponseImpl<T> extends WebSocketResponse<T> {
     @Override
     public Observable<Void> discardContent() {
         return delegate.discardContent();
+    }
+
+    @Override
+    public <TT> HttpClientResponse<TT> transformContent(Transformer<T, TT> transformer) {
+        return delegate.transformContent(transformer);
     }
 
     @Override

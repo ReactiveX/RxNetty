@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -25,12 +25,9 @@ import io.netty.channel.ChannelOption;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
-import io.reactivex.netty.client.events.ClientEventListener;
-import io.reactivex.netty.events.ListenersHolder;
-import io.reactivex.netty.protocol.tcp.client.TcpClientState;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
-import io.reactivex.netty.test.util.MockEventPublisherFactory;
+import io.reactivex.netty.test.util.embedded.EmbeddedConnectionProvider;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -95,9 +92,8 @@ public class ClientStateTest {
                                                   return newConnection.writeString(Observable.just("Hello"));
                                               }
                                           });
-                    InetSocketAddress address = new InetSocketAddress("localhost", mockServer.getServerPort());
-                    clientState = TcpClientState.create(mockPipeline, new MockEventPublisherFactory(),
-                                                        ConnectionProvider.<String, String>forHost(address))
+                    EmbeddedConnectionProvider<String, String> ecp = new EmbeddedConnectionProvider<>();
+                    clientState = ClientState.create(mockPipeline, ecp.asFactory(), Observable.<Host>empty())
                                              .enableWireLogging(LogLevel.ERROR);
                     base.evaluate();
                 }
@@ -111,7 +107,7 @@ public class ClientStateTest {
         public Channel connect(final ClientState<String, String> state) throws InterruptedException {
             TestSubscriber<Channel> subscriber = new TestSubscriber<>();
 
-            final ChannelFuture connect = state.newBootstrap(new ListenersHolder<ClientEventListener>())
+            final ChannelFuture connect = state.newBootstrap()
                                                .connect(new InetSocketAddress("127.0.0.1", mockServer.getServerPort()));
 
             Observable.create(new OnSubscribe<Channel>() {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,8 @@ import io.netty.channel.ChannelPipeline;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
+import io.reactivex.netty.client.ClientState;
+import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Answers;
@@ -31,29 +33,20 @@ import org.mockito.runners.MockitoJUnitRunner;
 import rx.functions.Action1;
 import rx.functions.Func0;
 
+import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
-import static org.junit.Assert.*;
 import static org.mockito.Mockito.*;
 
 @RunWith(MockitoJUnitRunner.class)
 public class TcpClientImplTest {
 
     @Mock(answer = Answers.RETURNS_MOCKS)
-    private TcpClientState<String, String> state;
-
-    @Test(timeout = 60000)
-    public void testCreateConnectionRequest() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
-        ConnectionRequestImpl<String, String> req =
-                (ConnectionRequestImpl<String, String>) client.createConnectionRequest();
-
-        assertThat("Request not having the same state as client.", req.getClientState(),
-                   is(sameInstance(client.getClientState())));
-    }
+    private ClientState<String, String> state;
 
     @Test(timeout = 60000)
     public void testChannelOption() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         TcpClientImpl<String, String> newClient =
                 (TcpClientImpl<String, String>) client.channelOption(ChannelOption.AUTO_READ, true);
 
@@ -64,7 +57,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerFirst() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         TcpClientImpl<String, String> newClient =
                 (TcpClientImpl<String, String>) client.<String, String>addChannelHandlerFirst("handler", factory);
@@ -76,7 +70,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerFirstWithExecutor() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
         TcpClientImpl<String, String> newClient =
@@ -89,7 +84,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerLast() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         TcpClientImpl<String, String> newClient =
                 (TcpClientImpl<String, String>) client.<String, String>addChannelHandlerLast("handler", factory);
@@ -102,7 +98,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerLastWithExecutor() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
         TcpClientImpl<String, String> newClient =
@@ -115,7 +112,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerBefore() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         TcpClientImpl<String, String> newClient =
                 (TcpClientImpl<String, String>) client.<String, String>addChannelHandlerBefore("base", "handler",
@@ -128,7 +126,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerBeforeWithExecutor() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
         TcpClientImpl<String, String> newClient =
@@ -143,7 +142,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerAfter() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         TcpClientImpl<String, String> newClient =
                 (TcpClientImpl<String, String>) client.<String, String>addChannelHandlerAfter("base", "handler",
@@ -156,7 +156,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testAddChannelHandlerAfterWithExecutor() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Func0<ChannelHandler> factory = newHandlerFactory();
         EventExecutorGroup group = new NioEventLoopGroup();
         TcpClientImpl<String, String> newClient =
@@ -171,7 +172,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testPipelineConfigurator() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         Action1<ChannelPipeline> configurator = new Action1<ChannelPipeline>() {
             @Override
             public void call(ChannelPipeline pipeline) {
@@ -187,7 +189,8 @@ public class TcpClientImplTest {
 
     @Test(timeout = 60000)
     public void testEnableWireLogging() throws Exception {
-        TcpClientImpl<String, String> client = new TcpClientImpl<>(state);
+        TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
+        ClientState<String, String> state = client.getClientState();
         TcpClientImpl<String, String> newClient =
                 (TcpClientImpl<String, String>) client.enableWireLogging(LogLevel.DEBUG);
 

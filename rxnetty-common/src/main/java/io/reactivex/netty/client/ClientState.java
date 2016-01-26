@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Netflix, Inc.
+ * Copyright 2016 Netflix, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,31 +17,37 @@
 package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.epoll.EpollSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.HandlerNames;
-import io.reactivex.netty.channel.Connection;
+import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
-import io.reactivex.netty.channel.PrimitiveConversionHandler;
-import io.reactivex.netty.client.ClientConnectionToChannelBridge.ClientConnectionSubscriberEvent;
-import io.reactivex.netty.client.ConnectionObservable.OnSubcribeFunc;
+import io.reactivex.netty.channel.WriteTransformer;
 import io.reactivex.netty.client.events.ClientEventListener;
-import io.reactivex.netty.client.internal.EventPublisherFactory;
+import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.events.EventSource;
-import io.reactivex.netty.events.ListenersHolder;
+import io.reactivex.netty.ssl.DefaultSslCodec;
+import io.reactivex.netty.ssl.SslCodec;
 import io.reactivex.netty.util.LoggingHandlerFactory;
-import rx.Subscriber;
-import rx.Subscription;
+import rx.Observable;
+import rx.exceptions.Exceptions;
 import rx.functions.Action1;
 import rx.functions.Func0;
+import rx.functions.Func1;
 
-import java.net.SocketAddress;
+import javax.net.ssl.SSLEngine;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -53,41 +59,79 @@ import java.util.Map.Entry;
  * @param <W> The type of objects written to the client owning this state.
  * @param <R> The type of objects read from the client owning this state.
  */
-public class ClientState<W, R> extends ConnectionFactory<W, R> {
+public class ClientState<W, R> {
 
-    protected final ConnectionProvider<W, R> rawConnectionProvider;
-    protected volatile ConnectionProvider<W, R> realizedConnectionProvider; /*Realized once when started*/
-    protected final EventPublisherFactory<? extends ClientEventListener> eventPublisherFactory;
-    protected final DetachedChannelPipeline detachedPipeline;
-    protected final Map<ChannelOption<?>, Object> options;
-    protected final boolean isSecure;
+    private final Observable<Host> hostStream;
+    private final ConnectionProviderFactory<W, R> factory;
+    private final DetachedChannelPipeline detachedPipeline;
+    private final Map<ChannelOption<?>, Object> options;
+    private final boolean isSecure;
+    private final EventLoopGroup eventLoopGroup;
+    private final Class<? extends Channel> channelClass;
+    private final ChannelProviderFactory channelProviderFactory;
 
-    protected ClientState(EventPublisherFactory<? extends ClientEventListener> eventPublisherFactory,
-                          DetachedChannelPipeline detachedPipeline,
-                          ConnectionProvider<W, R> rawConnectionProvider) {
-        this.rawConnectionProvider = rawConnectionProvider;
+    protected ClientState(Observable<Host> hostStream, ConnectionProviderFactory<W, R> factory,
+                          DetachedChannelPipeline detachedPipeline, EventLoopGroup eventLoopGroup,
+                          Class<? extends Channel> channelClass) {
+        this.eventLoopGroup = eventLoopGroup;
+        this.channelClass = channelClass;
         options = new LinkedHashMap<>(); /// Same as netty bootstrap, order matters.
-        this.eventPublisherFactory = eventPublisherFactory;
+        this.hostStream = hostStream;
+        this.factory = factory;
         this.detachedPipeline = detachedPipeline;
         isSecure = false;
+        channelProviderFactory = new ChannelProviderFactory() {
+            @Override
+            public ChannelProvider newProvider(Host host, EventSource<? super ClientEventListener> eventSource,
+                                               EventPublisher publisher, ClientEventListener clientPublisher) {
+                return new ChannelProvider() {
+                    @Override
+                    public Observable<Channel> newChannel(Observable<Channel> input) {
+                        return input;
+                    }
+                };
+            }
+        };
     }
 
     protected ClientState(ClientState<W, R> toCopy, ChannelOption<?> option, Object value) {
         options = new LinkedHashMap<>(toCopy.options); // Since, we are adding an option, copy it.
         options.put(option, value);
-        rawConnectionProvider = toCopy.rawConnectionProvider;
         detachedPipeline = toCopy.detachedPipeline;
-        eventPublisherFactory = toCopy.eventPublisherFactory;
+        hostStream = toCopy.hostStream;
+        factory = toCopy.factory;
+        eventLoopGroup = toCopy.eventLoopGroup;
+        channelClass = toCopy.channelClass;
         isSecure = toCopy.isSecure;
+        channelProviderFactory = toCopy.channelProviderFactory;
     }
 
     protected ClientState(ClientState<?, ?> toCopy, DetachedChannelPipeline newPipeline, boolean secure) {
         final ClientState<W, R> toCopyCast = toCopy.cast();
         options = toCopy.options;
-        rawConnectionProvider = toCopyCast.rawConnectionProvider;
-        eventPublisherFactory = toCopyCast.eventPublisherFactory.copy();
+        hostStream = toCopy.hostStream;
+        factory = toCopyCast.factory;
+        eventLoopGroup = toCopy.eventLoopGroup;
+        channelClass = toCopy.channelClass;
         detachedPipeline = newPipeline;
         isSecure = secure;
+        channelProviderFactory = toCopyCast.channelProviderFactory;
+    }
+
+    protected ClientState(ClientState<?, ?> toCopy, ChannelProviderFactory newFactory) {
+        final ClientState<W, R> toCopyCast = toCopy.cast();
+        options = toCopy.options;
+        hostStream = toCopy.hostStream;
+        factory = toCopyCast.factory;
+        eventLoopGroup = toCopy.eventLoopGroup;
+        channelClass = toCopy.channelClass;
+        detachedPipeline = toCopy.detachedPipeline;
+        channelProviderFactory = newFactory;
+        isSecure = toCopy.isSecure;
+    }
+
+    protected ClientState(ClientState<?, ?> toCopy, SslCodec sslCodec) {
+        this(toCopy, toCopy.detachedPipeline.copy(new TailHandlerFactory(true)).configure(sslCodec), true);
     }
 
     public <T> ClientState<W, R> channelOption(ChannelOption<T> option, T value) {
@@ -159,69 +203,38 @@ public class ClientState<W, R> extends ConnectionFactory<W, R> {
                                       LoggingHandlerFactory.getFactory(wireLoggingLevel));
     }
 
-    public ConnectionProvider<W, R> getConnectionProvider() {
-        return realizedConnectionProvider;
-    }
-
-    public static <WW, RR> ClientState<WW, RR> create(ConnectionProvider<WW, RR> connectionProvider,
-                                                      EventPublisherFactory<ClientEventListener> epf) {
-        return create(newChannelPipeline(new TailHandlerFactory(false)), epf, connectionProvider);
-    }
-
-    protected static DetachedChannelPipeline newChannelPipeline(TailHandlerFactory thf) {
-        return new DetachedChannelPipeline(thf)
-                .addLast(HandlerNames.PrimitiveConverter.getName(), new Func0<ChannelHandler>() {
-                    @Override
-                    public ChannelHandler call() {
-                        return PrimitiveConversionHandler.INSTANCE;
-                    }
-                });
+    public static <WW, RR> ClientState<WW, RR> create(ConnectionProviderFactory<WW, RR> factory,
+                                                      Observable<Host> hostStream) {
+        return create(newChannelPipeline(new TailHandlerFactory(false)), factory, hostStream);
     }
 
     public static <WW, RR> ClientState<WW, RR> create(DetachedChannelPipeline detachedPipeline,
-                                                      EventPublisherFactory<ClientEventListener> epf,
-                                                      ConnectionProvider<WW, RR> connectionProvider) {
-        ClientState<WW, RR> toReturn = new ClientState<>(epf, detachedPipeline, connectionProvider);
-        toReturn.realizeState();
-        return toReturn;
+                                                      ConnectionProviderFactory<WW, RR> factory,
+                                                      Observable<Host> hostStream) {
+        return create(detachedPipeline, factory, hostStream, defaultEventloopGroup(), defaultSocketChannelClass());
     }
 
-    @Override
-    public ConnectionObservable<R, W> newConnection(final SocketAddress hostAddress) {
+    public static <WW, RR> ClientState<WW, RR> create(DetachedChannelPipeline detachedPipeline,
+                                                      ConnectionProviderFactory<WW, RR> factory,
+                                                      Observable<Host> hostStream,
+                                                      EventLoopGroup eventLoopGroup,
+                                                      Class<? extends Channel> channelClass) {
+        return new ClientState<>(hostStream, factory, detachedPipeline, eventLoopGroup, channelClass);
+    }
 
-        return ConnectionObservable.createNew(new OnSubcribeFunc<R, W>() {
-
-            private final ListenersHolder<ClientEventListener> listeners = new ListenersHolder<>();
-
-            @Override
-            public void call(final Subscriber<? super Connection<R, W>> subscriber) {
-
-                //TODO: Optimize this by not creating a new bootstrap every time.
-                final Bootstrap nettyBootstrap = newBootstrap(listeners);
-
-                final ChannelFuture connectFuture = nettyBootstrap.connect(hostAddress);
-
-                connectFuture.addListener(new ChannelFutureListener() {
+    private static DetachedChannelPipeline newChannelPipeline(TailHandlerFactory thf) {
+        return new DetachedChannelPipeline(thf)
+                .addLast(HandlerNames.WriteTransformer.getName(), new Func0<ChannelHandler>() {
                     @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        connectFuture.channel()
-                                     .pipeline()
-                                     .fireUserEventTriggered(new ClientConnectionSubscriberEvent<>(connectFuture,
-                                                                                                   subscriber));
+                    public ChannelHandler call() {
+                        return new WriteTransformer();
                     }
                 });
-            }
-
-            @Override
-            public Subscription subscribeForEvents(ClientEventListener eventListener) {
-                return listeners.subscribe(eventListener);
-            }
-        });
     }
 
-    /*Visible for testing*/ Bootstrap newBootstrap(ListenersHolder<ClientEventListener> listeners) {
-        final Bootstrap nettyBootstrap = new Bootstrap().group(rawConnectionProvider.getEventLoopGroup())
-                                                        .channel(rawConnectionProvider.getChannelClass())
+    public Bootstrap newBootstrap() {
+        final Bootstrap nettyBootstrap = new Bootstrap().group(eventLoopGroup)
+                                                        .channel(channelClass)
                                                         .option(ChannelOption.AUTO_READ, false);// by default do not read content unless asked.
 
         for (Entry<ChannelOption<?>, Object> optionEntry : options.entrySet()) {
@@ -231,12 +244,13 @@ public class ClientState<W, R> extends ConnectionFactory<W, R> {
             nettyBootstrap.option(key, optionEntry.getValue());
         }
 
-        nettyBootstrap.handler(detachedPipeline.getChannelInitializer(new ChannelInitializer(listeners)));
+        nettyBootstrap.handler(new ChannelInitializer<Channel>() {
+            @Override
+            protected void initChannel(Channel ch) throws Exception {
+                // No op, pipeline is set using ChannelProvider.
+            }
+        });
         return nettyBootstrap;
-    }
-
-    public EventPublisherFactory<? extends ClientEventListener> getEventPublisherFactory() {
-        return eventPublisherFactory;
     }
 
     public DetachedChannelPipeline unsafeDetachedPipeline() {
@@ -247,40 +261,58 @@ public class ClientState<W, R> extends ConnectionFactory<W, R> {
         return options;
     }
 
-    protected <WW, RR> ClientState<WW, RR> copyStateInstance() {
-        return new ClientState<>(this, detachedPipeline.copy(new TailHandlerFactory(isSecure)), isSecure);
+    public ClientState<W, R> channelProviderFactory(ChannelProviderFactory factory) {
+        return new ClientState<>(this, factory);
     }
 
-    protected void realizeState() {
-        realizedConnectionProvider = rawConnectionProvider.realize(this);
+    public ClientState<W, R> secure(Func1<ByteBufAllocator, SSLEngine> sslEngineFactory) {
+        return secure(new DefaultSslCodec(sslEngineFactory));
+    }
+
+    public ClientState<W, R> secure(SSLEngine sslEngine) {
+        return secure(new DefaultSslCodec(sslEngine));
+    }
+
+    public ClientState<W, R> secure(SslCodec sslCodec) {
+        return new ClientState<>(this, sslCodec);
+    }
+
+    public ClientState<W, R> unsafeSecure() {
+        return secure(new DefaultSslCodec(new Func1<ByteBufAllocator, SSLEngine>() {
+            @Override
+            public SSLEngine call(ByteBufAllocator allocator) {
+                try {
+                    return SslContextBuilder.forClient()
+                                            .trustManager(InsecureTrustManagerFactory.INSTANCE)
+                                            .build()
+                                            .newEngine(allocator);
+                } catch (Exception e) {
+                    throw Exceptions.propagate(e);
+                }
+            }
+        }));
     }
 
     private <WW, RR> ClientState<WW, RR> copy() {
-        ClientState<WW, RR> copy = copyStateInstance();
-        copy.realizeState();
-        return copy;
+        TailHandlerFactory newTail = new TailHandlerFactory(isSecure);
+        return new ClientState<>(this, detachedPipeline.copy(newTail), isSecure);
+    }
+
+    public ConnectionProviderFactory<W, R> getFactory() {
+        return factory;
+    }
+
+    public Observable<Host> getHostStream() {
+        return hostStream;
+    }
+
+    public ChannelProviderFactory getChannelProviderFactory() {
+        return channelProviderFactory;
     }
 
     @SuppressWarnings("unchecked")
     private <WW, RR> ClientState<WW, RR> cast() {
         return (ClientState<WW, RR>) this;
-    }
-
-    private class ChannelInitializer implements Action1<Channel> {
-
-        private final ListenersHolder<ClientEventListener> listeners;
-
-        public ChannelInitializer(ListenersHolder<ClientEventListener> listeners) {
-            this.listeners = listeners;
-        }
-
-        @Override
-        public void call(Channel channel) {
-            @SuppressWarnings("unchecked")
-            EventSource<ClientEventListener> perChannelSource =
-                    (EventSource<ClientEventListener>) eventPublisherFactory.call(channel);
-            listeners.subscribeAllTo(perChannelSource);
-        }
     }
 
     protected static class TailHandlerFactory implements Action1<ChannelPipeline> {
@@ -295,5 +327,13 @@ public class ClientState<W, R> extends ConnectionFactory<W, R> {
         public void call(ChannelPipeline pipeline) {
             ClientConnectionToChannelBridge.addToPipeline(pipeline, isSecure);
         }
+    }
+
+    protected static EventLoopGroup defaultEventloopGroup() {
+        return RxNetty.getRxEventLoopProvider().globalClientEventLoop(true);
+    }
+
+    protected static Class<? extends AbstractChannel> defaultSocketChannelClass() {
+        return RxNetty.isUsingNativeTransport() ? EpollSocketChannel.class : NioSocketChannel.class;
     }
 }
