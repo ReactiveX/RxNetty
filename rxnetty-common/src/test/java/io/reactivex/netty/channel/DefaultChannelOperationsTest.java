@@ -21,15 +21,16 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.test.util.FlushSelector;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
-import org.mockito.Mockito;
 import rx.Observable;
 import rx.functions.Action1;
 import rx.observers.TestSubscriber;
@@ -43,6 +44,9 @@ import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
 public class DefaultChannelOperationsTest {
+
+    @Rule
+    public TemporaryFolder folder = new TemporaryFolder();
 
     @Rule
     public final ChannelOpRule channelOpRule = new ChannelOpRule();
@@ -133,34 +137,34 @@ public class DefaultChannelOperationsTest {
 
     @Test(timeout = 60000)
     public void testWriteFileRegion() throws Exception {
-        FileRegion mock = Mockito.mock(FileRegion.class);
+        FileRegion msg = new DefaultFileRegion(folder.newFile("msg.txt"), 0, 0);
 
-        Observable<Void> writeO = channelOpRule.channelOperations.writeFileRegion(Observable.just(mock));
+        Observable<Void> writeO = channelOpRule.channelOperations.writeFileRegion(Observable.just(msg));
 
-        _testWrite(writeO, mock);
+        _testWrite(writeO, msg);
     }
 
     @Test(timeout = 60000)
     public void testWriteFileRegionWithFlushSelector() throws Exception {
-        FileRegion mock1 = Mockito.mock(FileRegion.class);
-        FileRegion mock2 = Mockito.mock(FileRegion.class);
+        FileRegion msg1 = new DefaultFileRegion(folder.newFile("msg1.txt"), 0, 0);
+        FileRegion msg2 = new DefaultFileRegion(folder.newFile("msg2.txt"), 0, 0);
 
-        Observable<Void> writeO = channelOpRule.channelOperations.writeFileRegion(Observable.just(mock1, mock2),
+        Observable<Void> writeO = channelOpRule.channelOperations.writeFileRegion(Observable.just(msg1, msg2),
                                                                                   new FlushSelector<FileRegion>(1));
 
-        _testWithFlushSelector(writeO, mock1, mock2);
+        _testWithFlushSelector(writeO, msg1, msg2);
 
     }
 
     @Test(timeout = 60000)
     public void testWriteFileRegionAndFlushOnEach() throws Exception {
-        FileRegion mock1 = Mockito.mock(FileRegion.class);
-        FileRegion mock2 = Mockito.mock(FileRegion.class);
+        FileRegion msg1 = new DefaultFileRegion(folder.newFile("msg1.txt"), 0, 0);
+        FileRegion msg2 = new DefaultFileRegion(folder.newFile("msg2.txt"), 0, 0);
 
         Observable<Void> writeO = channelOpRule.channelOperations
-                .writeFileRegionAndFlushOnEach(Observable.just(mock1, mock2));
+                .writeFileRegionAndFlushOnEach(Observable.just(msg1, msg2));
 
-        _testWithFlushSelector(writeO, mock1, mock2);
+        _testWithFlushSelector(writeO, msg1, msg2);
     }
 
     @Test(timeout = 60000)

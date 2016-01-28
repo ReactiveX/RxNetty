@@ -14,6 +14,10 @@
  * limitations under the License.
  *
  */
+plugins {
+    id "com.github.hauner.jarTest" version "1.0"
+}
+
 dependencies {
     compile "io.netty:netty-handler:${netty_version}"
     compile "io.netty:netty-transport-native-epoll:${netty_version}"

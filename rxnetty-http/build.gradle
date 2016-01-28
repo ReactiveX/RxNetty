@@ -18,4 +18,6 @@ dependencies {
     compile project(':rxnetty-common')
     compile project(':rxnetty-tcp')
     compile "io.netty:netty-codec-http:${netty_version}"
+
+    testCompile project(path: ':rxnetty-common', configuration: 'testArchives')
 }

@@ -16,4 +16,6 @@
  */
 dependencies {
     compile project(':rxnetty-common')
+
+    testCompile project(path: ':rxnetty-common', configuration: 'testArchives')
 }
