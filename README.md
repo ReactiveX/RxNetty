@@ -34,7 +34,7 @@ repositories {
 ```
 ##### For HTTP
 ```groovy
-compile 'io.reactivex:rxnetty-http:0.5.0-SNAPSHOT'
+compile 'io.reactivex:rxnetty-http:0.5.2-SNAPSHOT'
 ```
 ###### Unintentional release artifacts
 
