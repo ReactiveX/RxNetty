@@ -418,7 +418,6 @@ public final class HttpClientRequestImpl<I, O> extends HttpClientRequest<I, O> {
     }
 
     private static class OnSubscribeFuncImpl<I, O> implements OnSubscribe<HttpClientResponse<O>> {
-
         @SuppressWarnings("rawtypes")
         private final Observable source;
         private final TcpClient<?, HttpClientResponse<O>> client;
