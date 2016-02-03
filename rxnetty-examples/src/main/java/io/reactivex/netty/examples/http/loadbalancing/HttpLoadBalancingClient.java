@@ -26,6 +26,7 @@ import io.reactivex.netty.client.loadbalancer.LoadBalancerFactory;
 import io.reactivex.netty.examples.AbstractClientExample;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import io.reactivex.netty.protocol.http.client.loadbalancer.EWMABasedP2CStrategy;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
 
@@ -59,7 +60,7 @@ public final class HttpLoadBalancingClient extends AbstractClientExample {
                                                        startNewServer(SERVICE_UNAVAILABLE))
                                                  .map(Host::new);
 
-        HttpClient.newClient(LoadBalancerFactory.create(new HttpLoadBalancer<>()), hosts)
+        HttpClient.newClient(LoadBalancerFactory.create(new EWMABasedP2CStrategy<>()), hosts)
                 .enableWireLogging(LogLevel.DEBUG)
                 .createGet("/hello")
                 .doOnNext(resp -> logger.info(resp.toString()))
