@@ -41,6 +41,7 @@ import java.util.List;
 
 public class AbstractP2CStrategyTest {
 
+    public static final int UNUSABLE_HOST_WEIGHT = -1;
     @Rule
     public final StrategyRule rule = new StrategyRule();
 
@@ -59,7 +60,7 @@ public class AbstractP2CStrategyTest {
 
     @Test
     public void testSingleUnusableHost() {
-        ConnectionProvider<ByteBuf, ByteBuf> cp = rule.strategy.newStrategy(rule.newHostStream(0));
+        ConnectionProvider<ByteBuf, ByteBuf> cp = rule.strategy.newStrategy(rule.newHostStream(UNUSABLE_HOST_WEIGHT));
         TestSubscriber<Connection<ByteBuf, ByteBuf>> sub = new TestSubscriber<>();
         cp.newConnectionRequest().subscribe(sub);
 
@@ -73,7 +74,8 @@ public class AbstractP2CStrategyTest {
 
     @Test
     public void testMultipleUnusableHost() {
-        ConnectionProvider<ByteBuf, ByteBuf> cp = rule.strategy.newStrategy(rule.newHostStream(0, 0));
+        ConnectionProvider<ByteBuf, ByteBuf> cp = rule.strategy.newStrategy(rule.newHostStream(UNUSABLE_HOST_WEIGHT,
+                                                                                               UNUSABLE_HOST_WEIGHT));
         TestSubscriber<Connection<ByteBuf, ByteBuf>> sub = new TestSubscriber<>();
         cp.newConnectionRequest().subscribe(sub);
 
@@ -87,7 +89,7 @@ public class AbstractP2CStrategyTest {
 
     @Test
     public void testUsableAndUnusable() {
-        ConnectionProvider<ByteBuf, ByteBuf> cp = rule.strategy.newStrategy(rule.newHostStream(10, 0));
+        ConnectionProvider<ByteBuf, ByteBuf> cp = rule.strategy.newStrategy(rule.newHostStream(10, UNUSABLE_HOST_WEIGHT));
         TestSubscriber<Connection<ByteBuf, ByteBuf>> sub = new TestSubscriber<>();
         cp.newConnectionRequest().subscribe(sub);
 
