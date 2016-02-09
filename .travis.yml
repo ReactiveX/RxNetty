@@ -1,6 +1,8 @@
 language: java
 jdk:
 - oraclejdk8
+sudo: false
+script: gradle/buildViaTravis.sh
 env:
   global:
   - secure: JjyE1E+adlM+CitIVpwb9HewJDjY3ZVjDgu8eYcTY+wXRNAvpcNH3gtUUClisXLZ3X4Kd8f875XH7/vUuOtJqMvQDQfUWPbCinE5GDzoRl2S5ZHoRA0H584bqilO7CXjjGMfTBlbw8A5auZ6Vf+n4zTZxgJNvDtple6WRoz/hzg=
