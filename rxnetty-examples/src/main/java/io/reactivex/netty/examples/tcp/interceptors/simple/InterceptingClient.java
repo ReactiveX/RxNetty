@@ -18,9 +18,10 @@
 package io.reactivex.netty.examples.tcp.interceptors.simple;
 
 import io.netty.buffer.ByteBuf;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.util.StringLineDecoder;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -60,9 +61,12 @@ import java.net.SocketAddress;
  *
  * @see InterceptingServer Default server for this client.
  */
-public final class InterceptingClient extends AbstractClientExample {
+public final class InterceptingClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(InterceptingClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -72,7 +76,7 @@ public final class InterceptingClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(InterceptingServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(InterceptingServer.class, args);
 
         TcpClient.newClient(serverAddress)
                  .<ByteBuf, String>addChannelHandlerLast("string-line-decoder", StringLineDecoder::new)

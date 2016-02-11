@@ -22,9 +22,10 @@ import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.client.Host;
 import io.reactivex.netty.client.loadbalancer.LoadBalancerFactory;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.net.InetSocketAddress;
@@ -47,9 +48,12 @@ import java.nio.charset.Charset;
  * @see ConnectionProvider Low level abstraction to create varied load balancing schemes.
  * @see TcpLoadBalancer An example of load balancer used by this example.
  */
-public final class TcpLoadBalancingClient extends AbstractClientExample {
+public final class TcpLoadBalancingClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(TcpLoadBalancingClient.class);
+        Logger logger = env.getLogger();
 
         /*Start two embedded servers and use there addresses as two hosts, add a unavailable server to demonstrate
         * failure detection.*/

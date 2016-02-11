@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.http.streaming;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
 
@@ -28,34 +28,31 @@ import java.util.concurrent.TimeUnit;
 /**
  * An HTTP server that sends an infinite HTTP chunked response emitting a number every second.
  */
-public final class StreamingServer extends AbstractServerExample {
+public final class StreamingServer {
 
     public static void main(final String[] args) {
 
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(StreamingServer.class);
+
         HttpServer<ByteBuf, ByteBuf> server;
 
-        /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
                            .enableWireLogging(LogLevel.DEBUG)
-                            /*Starts the server with a request handler.*/
                            .start((req, resp) ->
-                                          /*Write a message every 10 milliseconds*/
                                           resp.writeStringAndFlushOnEach(
                                                   Observable.interval(10, TimeUnit.MILLISECONDS)
-                                                          /*If the channel is backed up with data, drop the numbers*/
-                                                          .onBackpressureDrop()
-                                                          /*Convert the number to a string.*/
-                                                          .map(aLong -> "Interval =>" + aLong)
+                                                            .onBackpressureDrop()
+                                                            .map(aLong -> "Interval =>" + aLong)
                                           )
                            );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

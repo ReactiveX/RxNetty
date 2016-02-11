@@ -17,11 +17,10 @@
 
 package io.reactivex.netty.examples.http.secure;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.slf4j.Logger;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -57,9 +56,12 @@ import java.nio.charset.Charset;
  *
  * @see SecureHelloWorldServer Default server for this client.
  */
-public class SecureHelloWorldClient extends AbstractClientExample {
+public class SecureHelloWorldClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(SecureHelloWorldClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -69,26 +71,17 @@ public class SecureHelloWorldClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(SecureHelloWorldServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(SecureHelloWorldServer.class, args);
 
-        /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
-                .enableWireLogging(LogLevel.DEBUG)
-                /*Enable HTTPS for demo purpose only, for real apps, use secure() methods instead.*/
-                .unsafeSecure()
-                  /*Creates a GET request with URI "/hello"*/
-                .createGet("/hello")
-                  /*Prints the response headers*/
-                .doOnNext(resp -> logger.info(resp.toString()))
-                  /*Since, we are only interested in the content, now, convert the stream to the content stream*/
-                .flatMap((HttpClientResponse<ByteBuf> resp) ->
-                                 resp.getContent()
-                                     /*Convert ByteBuf to string for each content chunk*/
-                                         .map(bb -> bb.toString(Charset.defaultCharset()))
-                )
-                  /*Block till the response comes to avoid JVM exit.*/
-                .toBlocking()
-                  /*Print each content chunk*/
-                .forEach(logger::info);
+                  .enableWireLogging(LogLevel.DEBUG)
+                  .unsafeSecure()
+                  .createGet("/hello")
+                  .doOnNext(resp -> logger.info(resp.toString()))
+                  .flatMap(resp -> resp.getContent()
+                                       .map(bb -> bb.toString(Charset.defaultCharset()))
+                  )
+                  .toBlocking()
+                  .forEach(logger::info);
     }
 }

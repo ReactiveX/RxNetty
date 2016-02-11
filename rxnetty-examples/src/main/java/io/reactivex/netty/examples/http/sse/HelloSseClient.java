@@ -18,9 +18,10 @@
 package io.reactivex.netty.examples.http.sse;
 
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.slf4j.Logger;
 
 import java.net.SocketAddress;
 
@@ -61,9 +62,12 @@ import java.net.SocketAddress;
  *
  * @see HelloSseServer Default server for this client.
  */
-public final class HelloSseClient extends AbstractClientExample {
+public final class HelloSseClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(HelloSseClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -73,26 +77,16 @@ public final class HelloSseClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(HelloSseServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(HelloSseServer.class, args);
 
         /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
-                .enableWireLogging(LogLevel.DEBUG)
-                  /*Creates a GET request with URI "/sse"*/
-                .createGet("/sse")
-                  /*Prints the response headers*/
-                .doOnNext(resp -> logger.info(resp.toString()))
-                  /*
-                   * Since, we are only interested in the content, take the content as a SSE stream. This converts the
-                   * content to an SSE stream if the content type is of type text/event-stream, else it generates an
-                   * error.
-                   */
-                .flatMap(HttpClientResponse::getContentAsServerSentEvents)
-                /*Since, the server sends an infinite stream, take only 10 items*/
-                .take(10)
-                /*Block till the response comes to avoid JVM exit.*/
-                .toBlocking()
-                /*Print each content chunk*/
-                .forEach(sse -> logger.info(sse.toString()));
+                  .enableWireLogging(LogLevel.DEBUG)
+                  .createGet("/sse")
+                  .doOnNext(resp -> logger.info(resp.toString()))
+                  .flatMap(HttpClientResponse::getContentAsServerSentEvents)
+                  .take(10)
+                  .toBlocking()
+                  .forEach(sse -> logger.info(sse.toString()));
     }
 }

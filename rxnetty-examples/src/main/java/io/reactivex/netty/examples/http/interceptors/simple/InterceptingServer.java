@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.http.interceptors.simple;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.http.interceptors.transformation.TransformingInterceptorsServer;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerInterceptorChain;
@@ -33,11 +33,13 @@ import static rx.Observable.*;
  *
  * This server sends a response with "Hello World" as the content for any request that it receives.
  */
-public class InterceptingServer extends AbstractServerExample {
+public class InterceptingServer {
 
     public static final String INTERCEPTOR_HEADER_NAME = "X-from-interceptor";
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(InterceptingServer.class);
 
         HttpServer<ByteBuf, ByteBuf> server;
 
@@ -49,13 +51,13 @@ public class InterceptingServer extends AbstractServerExample {
                            );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 
     private static Interceptor<ByteBuf, ByteBuf> addHeader() {

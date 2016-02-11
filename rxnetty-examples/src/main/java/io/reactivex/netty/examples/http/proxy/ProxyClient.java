@@ -17,12 +17,11 @@
 
 package io.reactivex.netty.examples.http.proxy;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.http.helloworld.HelloWorldClient;
 import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.slf4j.Logger;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -31,9 +30,12 @@ import java.nio.charset.Charset;
  * A client to test {@link ProxyServer}. This client is provided here only for completeness of the example,
  * otherwise, it is exactly the same as {@link HelloWorldClient}.
  */
-public class ProxyClient extends AbstractClientExample {
+public class ProxyClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(ProxyClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -43,24 +45,16 @@ public class ProxyClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(ProxyServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(ProxyServer.class, args);
 
-        /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
                   .enableWireLogging(LogLevel.DEBUG)
-                  /*Creates a GET request with URI "/hello"*/
                   .createGet("/hello")
-                  /*Prints the response headers*/
                   .doOnNext(resp -> logger.info(resp.toString()))
-                  /*Since, we are only interested in the content, now, convert the stream to the content stream*/
-                  .flatMap((HttpClientResponse<ByteBuf> resp) ->
-                                   resp.getContent()
-                                     /*Convert ByteBuf to string for each content chunk*/
-                                           .map(bb -> bb.toString(Charset.defaultCharset()))
+                  .flatMap(resp -> resp.getContent()
+                                       .map(bb -> bb.toString(Charset.defaultCharset()))
                   )
-                  /*Block till the response comes to avoid JVM exit.*/
                   .toBlocking()
-                  /*Print each content chunk*/
                   .forEach(logger::info);
     }
 }

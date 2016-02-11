@@ -23,25 +23,22 @@ import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
-import io.reactivex.netty.examples.ExamplesEnvironment;
-import io.reactivex.netty.examples.http.helloworld.HelloWorldClient;
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import io.reactivex.netty.protocol.http.internal.HttpMessageFormatter;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class ProxyTest extends ExamplesEnvironment {
+public class ProxyTest {
 
     @Test(timeout = 60000)
     public void testProxy() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Queue<String> output = setupClientLogger(HelloWorldClient.class);
 
-        ProxyClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(ProxyClient.class);
 
         HttpResponse expectedHeader = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         expectedHeader.headers().add((CharSequence)"X-Proxied-By", "RxNetty");

@@ -21,11 +21,12 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.AllocatingTransformer;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.TransformingInterceptor;
 import io.reactivex.netty.protocol.http.util.HttpContentStringLineDecoder;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -69,9 +70,12 @@ import java.util.List;
  *
  * @see TransformingInterceptorsServer Default server for this client.
  */
-public class InterceptingClient extends AbstractClientExample {
+public class InterceptingClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(InterceptingClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -81,7 +85,7 @@ public class InterceptingClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(TransformingInterceptorsServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(TransformingInterceptorsServer.class, args);
 
         HttpClient.newClient(serverAddress)
                 .<ByteBuf, String>addChannelHandlerLast("line-decoder", HttpContentStringLineDecoder::new)

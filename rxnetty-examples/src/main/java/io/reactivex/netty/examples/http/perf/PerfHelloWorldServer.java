@@ -19,8 +19,7 @@ package io.reactivex.netty.examples.http.perf;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
-import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.http.helloworld.HelloWorldServer;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
@@ -38,7 +37,7 @@ import static rx.Observable.*;
  * the content-length header and storing the response content stream, etc. These optimizations reduce the overheads that
  * are usually not significant for applications that do any "real work".
  */
-public final class PerfHelloWorldServer extends AbstractServerExample {
+public final class PerfHelloWorldServer {
 
     private static final ByteBuf WELCOME_MSG_BUFFER = Unpooled.buffer().writeBytes("Welcome!!".getBytes());
 
@@ -53,33 +52,28 @@ public final class PerfHelloWorldServer extends AbstractServerExample {
 
     public static void main(final String[] args) {
 
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(PerfHelloWorldServer.class);
+
         /*Reduce overhead of event publishing*/
-        //RxNetty.disableEventPublishing();
+        //RxNetty.disableEventPublishing(); // Uncomment when running load test
 
         HttpServer<ByteBuf, ByteBuf> server;
 
-        /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
-                           /*Starts the server with a request handler.*/
                            .start((req, resp) ->
-                                          /*Set content length*/
                                           resp.setHeader(CONTENT_LENGTH, CONTENT_LENGTH_HEADER_VAL)
-                                              /*Do not flush on every response write to enable gathering write for pipelined
-                                               * requests, which is usually the case for most load testing clients.*/
-                                                  .flushOnlyOnReadComplete()
-                                              /*Write the response content.*/
-                                                  .write(RESPONSE_CONTENT)
+                                              .flushOnlyOnReadComplete()
+                                              .write(RESPONSE_CONTENT)
                            );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
          the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

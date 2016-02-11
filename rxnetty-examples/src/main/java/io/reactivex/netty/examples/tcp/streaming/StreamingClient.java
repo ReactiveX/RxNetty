@@ -20,9 +20,10 @@ package io.reactivex.netty.examples.tcp.streaming;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.util.StringLineDecoder;
+import org.slf4j.Logger;
 
 import java.net.SocketAddress;
 
@@ -63,9 +64,12 @@ import java.net.SocketAddress;
  *
  * @see StreamingServer Default server for this client.
  */
-public final class StreamingClient extends AbstractClientExample {
+public final class StreamingClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(StreamingClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -75,23 +79,16 @@ public final class StreamingClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(StreamingServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(StreamingServer.class, args);
 
         /*Create a new client for the server address*/
-        TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
+        TcpClient.newClient(serverAddress)
                  .enableWireLogging(LogLevel.DEBUG)
-                /* Add a decoder that reads the input and splits it on new line, this makes the output predictable, as
-                 * opposed to reading raw bytes*/
                 .<ByteBuf, String>addChannelHandlerLast("string-decoder", StringLineDecoder::new)
-                /*Create a new connection request, each subscription creates a new connection*/
-                 .createConnectionRequest()
-                /*on successful connection, start reading the input*/
-                 .flatMap(Connection::getInput)
-                /*Take 10 strings*/
-                 .take(10)
-                /*Block till the response comes to avoid JVM exit.*/
-                 .toBlocking()
-                /*Print each content chunk*/
-                 .forEach(logger::info);
+                .createConnectionRequest()
+                .flatMap(Connection::getInput)
+                .take(10)
+                .toBlocking()
+                .forEach(logger::info);
     }
 }

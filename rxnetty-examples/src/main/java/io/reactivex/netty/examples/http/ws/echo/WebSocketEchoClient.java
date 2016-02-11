@@ -21,9 +21,10 @@ import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.TextWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketResponse;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -61,10 +62,11 @@ import java.nio.charset.Charset;
  *
  * In all the above usages, this client will print the response received from the server.
  */
-public class WebSocketEchoClient extends AbstractClientExample {
+public class WebSocketEchoClient {
 
     public static void main(String[] args) {
 
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(WebSocketEchoClient.class);
         /*
          * Retrieves the server address, using the following algorithm:
          * <ul>
@@ -73,38 +75,24 @@ public class WebSocketEchoClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress socketAddress = getServerAddress(WebSocketEchoServer.class, args);
+        SocketAddress socketAddress = env.getServerAddress(WebSocketEchoServer.class, args);
+        Logger logger = env.getLogger();
 
-        /*Create a new client for the server address*/
         HttpClient.newClient(socketAddress)
                   .enableWireLogging(LogLevel.DEBUG)
-                  /*Creates a GET request with URI "/ws"*/
                   .createGet("/ws")
-                  /*Requests an upgrade to WebSocket, in case the server rejects, this upgrade, an error will be
-                  generated*/
                   .requestWebSocketUpgrade()
-                  /*Prints the response headers*/
                   .doOnNext(resp -> logger.info(resp.toString()))
-                  /*For successful upgrades, convert the response to a WebSocket connection*/
                   .flatMap(WebSocketResponse::getWebSocketConnection)
-                  /*Write 10 WebSocket frames on the connection and read the input stream of the connection*/
-                  .flatMap(conn ->
-                           /*Write a 10 websocket frames on the connection.*/
-                                   conn.write(Observable.range(1, 10)
+                  .flatMap(conn -> conn.write(Observable.range(1, 10)
                                                         .map(anInt -> new TextWebSocketFrame("Interval " + anInt))
                                                         .cast(WebSocketFrame.class)
                                                         .concatWith(Observable.just(new CloseWebSocketFrame())))
-                                           .cast(WebSocketFrame.class)
-                                       /*Merge with the connection input, since the write returns a Void, this is
-                                       * only merging error from the write.*/
-                                           .mergeWith(conn.getInput())
-                                   )
-                 /*Since, we sent 10 frames we expect 10 echo responses.*/
-                                           .take(10)
-                 /*Block till the response comes to avoid JVM exit.*/
-                                           .toBlocking()
-                 /*Print each WebSocket frame content as a string*/
-                                           .forEach(frame -> logger
-                                                   .info(frame.content().toString(Charset.defaultCharset())));
+                                       .cast(WebSocketFrame.class)
+                                       .mergeWith(conn.getInput())
+                  )
+                  .take(10)
+                  .toBlocking()
+                  .forEach(frame -> logger.info(frame.content().toString(Charset.defaultCharset())));
     }
 }

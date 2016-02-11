@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.tcp.interceptors.simple;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.tcp.interceptors.transformation.TransformingInterceptorsServer;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -41,26 +41,27 @@ import java.nio.charset.Charset;
  * In order to define such boundaries, one would typically add a {@link ChannelHandler} that converts the read raw
  * {@code ByteBuffer} to a structured message.
  */
-public final class InterceptingServer extends AbstractServerExample {
+public final class InterceptingServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(InterceptingServer.class);
 
         TcpServer<ByteBuf, ByteBuf> server;
 
         /*Starts a new TCP server on an ephemeral port.*/
         server = TcpServer.newServer(0)
-                          /*Starts the server with a connection handler.*/
                           .start(TcpServerInterceptorChain.startRaw(sendHello())
                                                           .end(echoHandler()));
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 
     /**

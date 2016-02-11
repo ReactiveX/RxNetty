@@ -19,23 +19,21 @@ package io.reactivex.netty.examples.http.ws.messaging;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import io.reactivex.netty.examples.ExamplesEnvironment;
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class MessagingTest extends ExamplesEnvironment {
+public class MessagingTest {
 
     @Test(timeout = 60000)
     public void testMessaging() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Queue<String> output = setupClientLogger(MessagingClient.class);
 
-        MessagingClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(MessagingClient.class);
 
         String[] content = new String[10];
         for (int i = 0; i < 10; i++) {

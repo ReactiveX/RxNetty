@@ -15,61 +15,19 @@
  */
 package io.reactivex.netty.examples;
 
-import org.mockito.Mockito;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
-import org.slf4j.Logger;
-
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
-
-import static org.mockito.Matchers.*;
 
 public final class ExamplesTestUtil {
 
     private ExamplesTestUtil() {
     }
 
-    public static Queue<String> setupServerLogger(Class<? extends AbstractServerExample> mainClass)
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        return _setupLogger(mainClass);
-    }
-
-    public static Queue<String> setupClientLogger(Class<? extends AbstractClientExample> mainClass)
-            throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
-        return _setupLogger(mainClass);
-    }
-
-    private static Queue<String> _setupLogger(Class<?> mainClass)
-            throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        Logger loggerMock = Mockito.mock(Logger.class);
-        final Queue<String> output = new ConcurrentLinkedQueue<>();
-
-        Mockito.doAnswer(new TeeLogsAnswer(output)).when(loggerMock).error(anyString());
-        Mockito.doAnswer(new TeeLogsAnswer(output)).when(loggerMock).debug(anyString());
-        Mockito.doAnswer(new TeeLogsAnswer(output)).when(loggerMock).info(anyString());
-        Mockito.doAnswer(new TeeLogsAnswer(output)).when(loggerMock).warn(anyString());
-
-        final Method mockLoggerMethod = mainClass.getMethod("mockLogger", Logger.class);
-        mockLoggerMethod.invoke(null, loggerMock);
+    public static Queue<String> runClientInMockedEnvironment(Class<?> exampleClass) {
+        ExamplesMockLogger mockLogger = new ExamplesMockLogger(exampleClass);
+        Queue<String> output = mockLogger.getLogMessages();
+        ExamplesEnvironment.overrideEnvironment(exampleClass,
+                                                new ExamplesEnvironment(exampleClass, mockLogger.getMock()));
+        ExamplesEnvironment.invokeExample(exampleClass, new String[0]);
         return output;
-    }
-
-    private static class TeeLogsAnswer implements Answer<Void> {
-        private final Queue<String> output;
-
-        public TeeLogsAnswer(Queue<String> output) {
-            this.output = output;
-        }
-
-        @Override
-        public Void answer(InvocationOnMock invocation) throws Throwable {
-            String logged = (String) invocation.getArguments()[0];
-            System.out.println(logged);
-            output.add(logged);
-            return null;
-        }
     }
 }

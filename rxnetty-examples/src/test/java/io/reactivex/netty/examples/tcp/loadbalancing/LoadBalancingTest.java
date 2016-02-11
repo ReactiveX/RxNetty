@@ -17,13 +17,13 @@
 
 package io.reactivex.netty.examples.tcp.loadbalancing;
 
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -31,9 +31,7 @@ public class LoadBalancingTest {
 
     @Test(timeout = 60000)
     public void testLoadBalancing() throws Exception {
-        final Queue<String> output = setupClientLogger(TcpLoadBalancingClient.class);
-
-        TcpLoadBalancingClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(TcpLoadBalancingClient.class);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(10));
 

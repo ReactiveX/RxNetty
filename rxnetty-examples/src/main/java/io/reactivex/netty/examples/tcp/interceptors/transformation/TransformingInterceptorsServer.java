@@ -20,7 +20,7 @@ package io.reactivex.netty.examples.tcp.interceptors.transformation;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.reactivex.netty.channel.AllocatingTransformer;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.tcp.interceptors.simple.InterceptingServer;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -42,10 +42,11 @@ import java.util.List;
  * This example demonstrates the usage of server side interceptors which do data transformations.
  * For interceptors requiring no data transformation see {@link InterceptingServer}
  */
-public final class TransformingInterceptorsServer extends AbstractServerExample {
+public final class TransformingInterceptorsServer {
 
     public static void main(final String[] args) {
 
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(TransformingInterceptorsServer.class);
         TcpServer<String, ByteBuf> server;
 
         /*Starts a new TCP server on an ephemeral port.*/
@@ -57,13 +58,13 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
                                                           .end(numberIncrementingHandler()));
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 
     /**

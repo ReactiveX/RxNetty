@@ -13,6 +13,17 @@ This example constitutes of an [Hello Client](src/main/java/io/reactivex/netty/e
 and an [Hello Server](src/main/java/io/reactivex/netty/examples/http/secure/SecureHelloWorldServer.java)
 
 
+- __Simple Interception__: A example that demonstrates how to write basic interceptors for HTTP server and client.
+This example constitutes of an [Intercepting Client](src/main/java/io/reactivex/netty/examples/http/interceptors/simple/InterceptingClient.java)
+and an [Intercepting Server](src/main/java/io/reactivex/netty/examples/http/interceptors/simple/InterceptingServer.java)
+
+
+- __Transformation Interception__: A example that demonstrates how to write interceptors that modify the types of request
+and response for HTTP server and client.
+This example constitutes of an [Intercepting Client](src/main/java/io/reactivex/netty/examples/http/interceptors/transformation/InterceptingClient.java)
+and an [Intercepting Server](src/main/java/io/reactivex/netty/examples/http/interceptors/transformation/TransformingInterceptorsServer.java)
+
+
 - __Performance benchmark hello world__: This example is specifically made for many "Hello World" benchmarks that are done
 to evaluate framework overheads. As these benchmarks tend to be testing the performance when the server is I/O bound, 
  this example essentially contains all the micro-optimizations that remove application level overheads.

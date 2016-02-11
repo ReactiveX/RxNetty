@@ -17,11 +17,10 @@
 
 package io.reactivex.netty.examples.http.helloworld;
 
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.slf4j.Logger;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -57,9 +56,12 @@ import java.nio.charset.Charset;
  *
  * @see HelloWorldServer Default server for this client.
  */
-public class HelloWorldClient extends AbstractClientExample {
+public class HelloWorldClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(HelloWorldClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -69,24 +71,15 @@ public class HelloWorldClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(HelloWorldServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(HelloWorldServer.class, args);
 
-        /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
                   .enableWireLogging(LogLevel.DEBUG)
-                  /*Creates a GET request with URI "/hello"*/
                   .createGet("/hello")
-                  /*Prints the response headers*/
                   .doOnNext(resp -> logger.info(resp.toString()))
-                  /*Since, we are only interested in the content, now, convert the stream to the content stream*/
-                  .flatMap((HttpClientResponse<ByteBuf> resp) ->
-                                     resp.getContent()
-                                     /*Convert ByteBuf to string for each content chunk*/
-                                     .map(bb -> bb.toString(Charset.defaultCharset()))
-                  )
-                  /*Block till the response comes to avoid JVM exit.*/
+                  .flatMap(resp -> resp.getContent()
+                                       .map(bb -> bb.toString(Charset.defaultCharset())))
                   .toBlocking()
-                  /*Print each content chunk*/
                   .forEach(logger::info);
     }
 }

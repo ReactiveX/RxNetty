@@ -19,9 +19,10 @@ package io.reactivex.netty.examples.tcp.proxy;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.tcp.echo.EchoClient;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -31,9 +32,12 @@ import java.nio.charset.Charset;
  * A client to test {@link ProxyServer}. This client is provided here only for completeness of the example,
  * otherwise, it is exactly the same as {@link EchoClient}.
  */
-public final class ProxyClient extends AbstractClientExample {
+public final class ProxyClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(ProxyClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -43,30 +47,20 @@ public final class ProxyClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(ProxyServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(ProxyServer.class, args);
 
         /*Create a new client for the server address*/
-        TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
-                .enableWireLogging(LogLevel.DEBUG)
-                /*Create a new connection request, each subscription creates a new connection*/
-                .createConnectionRequest()
-                /*Upon successful connection, write "Hello World" and listen to input*/
-                .flatMap(connection ->
-                                  /*Write the message*/
-                                 connection.writeString(Observable.just("Hello World!"))
-                                          /*Since, write returns a Void stream, cast it to ByteBuf to be able to merge
-                                          with the input*/
-                                         .cast(ByteBuf.class)
-                                          /*Upon successful completion of the write, subscribe to the connection input*/
-                                         .concatWith(connection.getInput())
-                )
-                /*Since, we only wrote a single message, we expect a single echo message back*/
-                .take(1)
-                /*Convert each ByteBuf to a string*/
-                .map(bb -> bb.toString(Charset.defaultCharset()))
-                /*Block till the response comes to avoid JVM exit.*/
-                .toBlocking()
-                /*Print each content chunk*/
-                .forEach(logger::info);
+        TcpClient.newClient(serverAddress)
+                 .enableWireLogging(LogLevel.DEBUG)
+                 .createConnectionRequest()
+                 .flatMap(connection ->
+                                  connection.writeString(Observable.just("Hello World!"))
+                                            .cast(ByteBuf.class)
+                                            .concatWith(connection.getInput())
+                 )
+                 .take(1)
+                 .map(bb -> bb.toString(Charset.defaultCharset()))
+                 .toBlocking()
+                 .forEach(logger::info);
     }
 }
