@@ -92,7 +92,7 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
      * @return The new instance of {@link UnicastContentSubject}
      */
     public static <T> UnicastContentSubject<T> createWithoutNoSubscriptionTimeout(Action0 onUnsubscribe) {
-        State<T> state = new State<T>(onUnsubscribe);
+        State<T> state = new State<T>(onUnsubscribe, null);
         return new UnicastContentSubject<T>(state);
     }
 
@@ -125,7 +125,13 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
 
     public static <T> UnicastContentSubject<T> create(long noSubscriptionTimeout, TimeUnit timeUnit,
                                                       Scheduler timeoutScheduler, Action0 onUnsubscribe) {
-        State<T> state = new State<T>(onUnsubscribe);
+        return create(noSubscriptionTimeout, timeUnit, timeoutScheduler, onUnsubscribe, null);
+    }
+
+    public static <T> UnicastContentSubject<T> create(long noSubscriptionTimeout, TimeUnit timeUnit,
+                                                      Scheduler timeoutScheduler, Action0 onUnsubscribe,
+                                                      Action1<T> onDispose) {
+        State<T> state = new State<T>(onUnsubscribe, onDispose);
         return new UnicastContentSubject<T>(state, noSubscriptionTimeout, timeUnit, timeoutScheduler);
     }
 
@@ -140,7 +146,8 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
      */
     public boolean disposeIfNotSubscribed() {
         if (state.casState(State.STATES.UNSUBSCRIBED, State.STATES.DISPOSED)) {
-            state.bufferedObservable.subscribe(Subscribers.empty()); // Drain all items so that ByteBuf gets released.
+            Subscriber<T> sub = null == state.onDispose ? Subscribers.<T>empty() : Subscribers.create(state.onDispose);
+            state.bufferedObservable.subscribe(sub); // Drain all items so that ByteBuf gets released.
             return true;
         }
         return false;
@@ -156,10 +163,12 @@ public final class UnicastContentSubject<T> extends Subject<T, T> {
     private static final class State<T> {
 
         private final Action0 onUnsubscribe;
+        private final Action1<T> onDispose;
         private volatile Subscription releaseSubscription;
 
-        private State(Action0 onUnsubscribe) {
+        private State(Action0 onUnsubscribe, Action1<T> onDispose) {
             this.onUnsubscribe = onUnsubscribe;
+            this.onDispose = onDispose;
             final BufferUntilSubscriber<T> bufferedSubject = BufferUntilSubscriber.create();
             bufferedObservable = bufferedSubject.lift(new AutoReleaseByteBufOperator<T>()); // Always auto-release
             bufferedObserver = bufferedSubject;
