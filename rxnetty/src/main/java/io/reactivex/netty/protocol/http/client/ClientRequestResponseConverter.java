@@ -52,6 +52,8 @@ import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
 import rx.functions.Action0;
+import rx.functions.Action1;
+import rx.schedulers.Schedulers;
 
 /**
  * A channel handler for {@link HttpClient} to convert netty's http request/response objects to {@link HttpClient}'s
@@ -371,7 +373,15 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
             };
 
             if (subscriptionTimeout > 0) {
-                contentSubject = UnicastContentSubject.create(subscriptionTimeout, subscriptionTimeoutUnit, onUnsubscribe);
+                contentSubject = UnicastContentSubject.create(subscriptionTimeout, subscriptionTimeoutUnit,
+                                                              Schedulers.computation(), onUnsubscribe, new Action1() {
+                            @Override
+                            public void call(Object o) {
+                                if (!autoReleaseBuffers) {
+                                    ReferenceCountUtil.release(o);
+                                }
+                            }
+                        });
             } else {
                 contentSubject = UnicastContentSubject.createWithoutNoSubscriptionTimeout(onUnsubscribe);
             }

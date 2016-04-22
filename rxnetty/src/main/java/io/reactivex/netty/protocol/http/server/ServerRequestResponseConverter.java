@@ -42,6 +42,10 @@ import io.reactivex.netty.protocol.http.UnicastContentSubject;
 import io.reactivex.netty.server.ServerMetricsEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import rx.functions.Action0;
+import rx.functions.Action1;
+import rx.functions.Actions;
+import rx.schedulers.Schedulers;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -217,7 +221,16 @@ public class ServerRequestResponseConverter extends ChannelDuplexHandler {
 
         @SuppressWarnings({"rawtypes", "unchecked"})
         private void createRxRequest(ChannelHandlerContext ctx, HttpRequest httpRequest) {
-            contentSubject = UnicastContentSubject.create(requestContentSubscriptionTimeoutMs, TimeUnit.MILLISECONDS);
+            contentSubject = UnicastContentSubject.create(requestContentSubscriptionTimeoutMs, TimeUnit.MILLISECONDS,
+                                                          Schedulers.computation(), Actions.empty(), new Action1() {
+                        @Override
+                        public void call(Object o) {
+                            if (!autoReleaseBuffers) {
+                                ReferenceCountUtil.release(o);
+                            }
+
+                        }
+                    });
             rxRequest = new HttpServerRequest(ctx.channel(), httpRequest, contentSubject);
         }
 
