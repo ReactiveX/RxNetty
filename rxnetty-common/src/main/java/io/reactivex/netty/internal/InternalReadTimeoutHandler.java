@@ -168,7 +168,6 @@ public class InternalReadTimeoutHandler extends ChannelDuplexHandler {
         case Created:
             break;
         case Active:
-            logger.warn("Not scheduling next read timeout task as it is already active.");
             return;
         case Paused:
             break;
