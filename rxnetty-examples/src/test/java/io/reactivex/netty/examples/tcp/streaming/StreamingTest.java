@@ -16,11 +16,11 @@
 
 package io.reactivex.netty.examples.tcp.streaming;
 
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -28,9 +28,8 @@ public class StreamingTest {
 
     @Test(timeout = 60000)
     public void testStreaming() throws Exception {
-        final Queue<String> output = setupClientLogger(StreamingClient.class);
 
-        StreamingClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(StreamingClient.class);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(10));
 

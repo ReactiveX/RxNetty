@@ -16,11 +16,11 @@
 
 package io.reactivex.netty.examples.tcp.secure;
 
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -28,9 +28,8 @@ public class SecureEchoTest {
 
     @Test(timeout = 60000)
     public void testSecureEcho() throws Exception {
-        final Queue<String> output = setupClientLogger(SecureEchoClient.class);
 
-        SecureEchoClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(SecureEchoClient.class);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(1));
         assertThat("Unexpected number of messages echoed", output, contains("echo => Hello World!"));

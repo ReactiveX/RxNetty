@@ -22,7 +22,7 @@ import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
 
@@ -32,16 +32,16 @@ import rx.Observable;
  *
  * All messages follow the format as specified by {@link MessageFrame}.
  */
-public final class MessagingServer extends AbstractServerExample {
+public final class MessagingServer {
 
     public static void main(final String[] args) {
 
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(MessagingServer.class);
         HttpServer<ByteBuf, ByteBuf> server;
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
                            .enableWireLogging(LogLevel.DEBUG)
-                           /*Starts the server with a request handler.*/
                            .start((req, resp) -> {
                                /*If WebSocket upgrade is requested, then accept the request with an echo handler.*/
                                if (req.isWebSocketUpgradeRequested()) {
@@ -51,7 +51,6 @@ public final class MessagingServer extends AbstractServerExample {
                                                                              .cast(BinaryWebSocketFrame.class)
                                                                              .map(f -> {
                                                                                  ByteBuf data = f.content();
-                                                                                 /*Convert to ack*/
                                                                                  data.setByte(data.readerIndex(), 1);
                                                                                  return new MessageFrame(data);
                                                                              });
@@ -64,12 +63,12 @@ public final class MessagingServer extends AbstractServerExample {
                            });
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.http.secure;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 
 import static rx.Observable.*;
@@ -29,30 +29,28 @@ import static rx.Observable.*;
  *
  * This server only accepts HTTPs requests and sends a response with "Hello World" as the content for all requests.
  */
-public final class SecureHelloWorldServer extends AbstractServerExample {
+public final class SecureHelloWorldServer {
 
     public static void main(final String[] args) {
 
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(SecureHelloWorldServer.class);
         HttpServer<ByteBuf, ByteBuf> server;
 
-        /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
                            .enableWireLogging(LogLevel.DEBUG)
                            /*Enable HTTPS for demo purpose only, for real apps, use secure() methods instead.*/
                            .unsafeSecure()
-                           /*Starts the server with a request handler.*/
                            .start((req, resp) ->
-                               /*Write a single content chunk as string "Hello World!"*/
                                resp.writeString(just("Hello World!"))
                            );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

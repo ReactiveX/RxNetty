@@ -16,12 +16,11 @@
 
 package io.reactivex.netty.examples.tcp.proxy;
 
-import io.reactivex.netty.examples.tcp.echo.EchoClient;
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -29,9 +28,8 @@ public class ProxyTest {
 
     @Test(timeout = 60000)
     public void testProxy() throws Exception {
-        final Queue<String> output = setupClientLogger(EchoClient.class);
 
-        ProxyClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(ProxyClient.class);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(1));
         assertThat("Unexpected number of messages echoed", output, contains("proxy => echo => Hello World!"));

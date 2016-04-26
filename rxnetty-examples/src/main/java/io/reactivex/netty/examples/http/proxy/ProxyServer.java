@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.http.proxy;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.server.HttpServer;
@@ -43,9 +43,11 @@ import static rx.Observable.*;
  * adds an additional response header "X-Proxied-By" with a value "RxNetty" to demonstrate that the response is a
  * proxied response.
  */
-public final class ProxyServer extends AbstractServerExample {
+public final class ProxyServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(ProxyServer.class);
 
         /*Starts an embedded target server using an ephemeral port.*/
         int targetServerPort = startTargetServer();
@@ -58,7 +60,6 @@ public final class ProxyServer extends AbstractServerExample {
         /*Starts a new HTTP server on an ephemeral port which acts as a proxy to the target server started above.*/
         server = HttpServer.newServer()
                            .enableWireLogging(LogLevel.DEBUG)
-                           /*Starts the server with the proxy request handler.*/
                            .start((serverReq, serverResp) -> {
                                       /*
                                        * Create a new HTTP request for the target server, using the method and URI from
@@ -71,42 +72,40 @@ public final class ProxyServer extends AbstractServerExample {
                                       Iterator<Entry<CharSequence, CharSequence>> serverReqHeaders = serverReq.headerIterator();
                                       while (serverReqHeaders.hasNext()) {
                                           Entry<CharSequence, CharSequence> next = serverReqHeaders.next();
-                                          /*Since, the client request is copied for each mutation, use the latest instance*/
+                                          /*Since, the client request is copied for each mutation,
+                                          use the latest instance*/
                                           clientReq = clientReq.setHeader(next.getKey(), next.getValue());
                                       }
 
-                                      /*Write the content that sends the request*/
                                       return clientReq.writeContent(serverReq.getContent())
-                                                      /*Handle the response by copying it to server response.*/
                                               .flatMap(clientResp -> {
-
-                                                          /*Iterator for the client response headers.*/
+                                                  /*Iterator for the client response headers.*/
                                                   Iterator<Entry<CharSequence, CharSequence>> clientRespHeaders =
                                                           clientResp.headerIterator();
 
-                                                          /*Copy all client response headers to the server response.*/
+                                                  /*Copy all client response headers to the server response.*/
                                                   while (clientRespHeaders.hasNext()) {
                                                       Entry<CharSequence, CharSequence> next = clientRespHeaders.next();
                                                       serverResp.setHeader(next.getKey(), next.getValue());
                                                   }
 
-                                                          /*Add a demo header to indicate proxied response!*/
+                                                  /*Add a demo header to indicate proxied response!*/
                                                   serverResp.setHeader("X-Proxied-By", "RxNetty");
 
-                                                          /*Write the client response content to server response.*/
+                                                  /*Write the client response content to server response.*/
                                                   return serverResp.write(clientResp.getContent());
                                               });
                                   }
                            );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 
     private static int startTargetServer() {

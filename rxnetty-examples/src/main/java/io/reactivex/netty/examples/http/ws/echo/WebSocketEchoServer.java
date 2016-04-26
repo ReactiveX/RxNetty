@@ -20,7 +20,7 @@ package io.reactivex.netty.examples.http.ws.echo;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import rx.Observable;
 
@@ -31,23 +31,21 @@ import rx.Observable;
  * If a request to WebSockets is requested, then this server echoes all received frames, else if the request is a
  * "/hello" request it sends a "Hello World!" response.
  */
-public final class WebSocketEchoServer extends AbstractServerExample {
+public final class WebSocketEchoServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(WebSocketEchoServer.class);
 
         HttpServer<ByteBuf, ByteBuf> server;
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
                            .enableWireLogging(LogLevel.DEBUG)
-                           /*Starts the server with a request handler.*/
                            .start((req, resp) -> {
                                /*If WebSocket upgrade is requested, then accept the request with an echo handler.*/
                                if (req.isWebSocketUpgradeRequested()) {
-                                   return resp.acceptWebSocketUpgrade(wsConn ->
-                                           /*Write each frame back and flush on each item as it is an infinite stream*/
-                                                                              wsConn.writeAndFlushOnEach(
-                                                                                      wsConn.getInput()));
+                                   return resp.acceptWebSocketUpgrade(wsConn -> wsConn.writeAndFlushOnEach(wsConn.getInput()));
                                } else if (req.getUri().startsWith("/hello")) {
                                    /*If upgrade is not requested and the URI is "hello" then send an "Hello World"
                                    response*/
@@ -59,12 +57,12 @@ public final class WebSocketEchoServer extends AbstractServerExample {
                            });
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

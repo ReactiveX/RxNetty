@@ -15,11 +15,11 @@
  */
 package io.reactivex.netty.examples.http.loadbalancing;
 
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -27,17 +27,20 @@ public class LoadBalancingTest {
 
     @Test(timeout = 60000)
     public void testLoadBalancing() throws Exception {
-        final Queue<String> output = setupClientLogger(HttpLoadBalancingClient.class);
-
-        HttpLoadBalancingClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(HttpLoadBalancingClient.class);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(5));
 
-        assertThat("Unexpected status.", output.poll(), containsString("HTTP/1.1 200 OK"));
-        assertThat("Unexpected status.", output.poll(), containsString("HTTP/1.1 200 OK"));
-        assertThat("Unexpected status.", output.poll(), containsString("HTTP/1.1 503 Service Unavailable"));
-        assertThat("Unexpected status.", output.poll(), containsString("HTTP/1.1 200 OK"));
-        assertThat("Unexpected status.", output.poll(), containsString("HTTP/1.1 200 OK"));
+        assertThat("Unexpected status.", output.poll(), anyOf(containsString("HTTP/1.1 200 OK"),
+                                                              containsString("HTTP/1.1 503 Service Unavailable")));
+        assertThat("Unexpected status.", output.poll(), anyOf(containsString("HTTP/1.1 200 OK"),
+                                                              containsString("HTTP/1.1 503 Service Unavailable")));
+        assertThat("Unexpected status.", output.poll(), anyOf(containsString("HTTP/1.1 200 OK"),
+                                                              containsString("HTTP/1.1 503 Service Unavailable")));
+        assertThat("Unexpected status.", output.poll(), anyOf(containsString("HTTP/1.1 200 OK"),
+                                                              containsString("HTTP/1.1 503 Service Unavailable")));
+        assertThat("Unexpected status.", output.poll(), anyOf(containsString("HTTP/1.1 200 OK"),
+                                                              containsString("HTTP/1.1 503 Service Unavailable")));
 
     }
 }

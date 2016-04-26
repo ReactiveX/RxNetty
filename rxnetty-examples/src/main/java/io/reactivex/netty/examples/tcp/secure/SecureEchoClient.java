@@ -19,9 +19,10 @@ package io.reactivex.netty.examples.tcp.secure;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.tcp.echo.EchoServer;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -61,9 +62,11 @@ import java.nio.charset.Charset;
  *
  * @see EchoServer Default server for this client.
  */
-public final class SecureEchoClient extends AbstractClientExample {
+public final class SecureEchoClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(SecureEchoClient.class);
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -73,32 +76,22 @@ public final class SecureEchoClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(SecureEchoServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(SecureEchoServer.class, args);
+        Logger logger = env.getLogger();
 
         /*Create a new client for the server address*/
-        TcpClient.<ByteBuf, ByteBuf>newClient(serverAddress)
+        TcpClient.newClient(serverAddress)
                  .enableWireLogging(LogLevel.DEBUG)
-                /*Enable TLS for demo purpose only, for real apps, use secure() methods instead.*/
                  .unsafeSecure()
-                /*Create a new connection request, each subscription creates a new connection*/
                  .createConnectionRequest()
-                /*Upon successful connection, write "Hello World" and listen to input*/
                  .flatMap(connection ->
-                                  /*Write the message*/
                                   connection.writeString(Observable.just("Hello World!"))
-                                          /*Since, write returns a Void stream, cast it to ByteBuf to be able to merge
-                                          with the input*/
                                           .cast(ByteBuf.class)
-                                          /*Upon successful completion of the write, subscribe to the connection input*/
                                           .concatWith(connection.getInput())
                  )
-                /*Since, we only wrote a single message, we expect a single echo message back*/
                 .take(1)
-                /*Convert each ByteBuf to a string*/
                 .map(bb -> bb.toString(Charset.defaultCharset()))
-                /*Block till the response comes to avoid JVM exit.*/
                 .toBlocking()
-                /*Print each content chunk*/
                 .forEach(logger::info);
     }
 }

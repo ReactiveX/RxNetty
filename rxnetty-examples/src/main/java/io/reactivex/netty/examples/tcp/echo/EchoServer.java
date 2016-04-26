@@ -20,8 +20,9 @@ package io.reactivex.netty.examples.tcp.echo;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import org.slf4j.Logger;
 
 import java.nio.charset.Charset;
 
@@ -34,33 +35,31 @@ import java.nio.charset.Charset;
  * In order to define such boundaries, one would typically add a {@link ChannelHandler} that converts the read raw
  * {@code ByteBuffer} to a structured message.
  */
-public final class EchoServer extends AbstractServerExample {
+public final class EchoServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(EchoServer.class);
+        Logger logger = env.getLogger();
 
         TcpServer<ByteBuf, ByteBuf> server;
 
         /*Starts a new TCP server on an ephemeral port.*/
         server = TcpServer.newServer(0)
                           .enableWireLogging(LogLevel.DEBUG)
-                          /*Starts the server with a connection handler.*/
                           .start(connection -> connection
-                                  /*Write the connection input to the output (echo) after prepending "echo => to it.*/
                                   .writeStringAndFlushOnEach(connection.getInput()
-                                          /*Convert the byte buffer to a string, so that it can be printed*/
-                                                                     .map(bb -> bb.toString(Charset.defaultCharset()))
-                                          /*Log each byte buffer recieved*/
-                                                                     .doOnNext(logger::info)
-                                          /*Prepend echo to the received string.*/
-                                                                     .map(msg -> "echo => " + msg)));
+                                                                       .map(bb -> bb.toString(Charset.defaultCharset()))
+                                                                       .doOnNext(logger::info)
+                                                                       .map(msg -> "echo => " + msg)));
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

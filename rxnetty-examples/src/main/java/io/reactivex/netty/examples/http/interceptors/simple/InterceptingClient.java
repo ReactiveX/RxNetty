@@ -19,9 +19,10 @@ package io.reactivex.netty.examples.http.interceptors.simple;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.slf4j.Logger;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -65,9 +66,12 @@ import static io.reactivex.netty.examples.http.interceptors.simple.InterceptingS
  *
  * @see InterceptingServer Default server for this client.
  */
-public class InterceptingClient extends AbstractClientExample {
+public class InterceptingClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(InterceptingClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -77,7 +81,7 @@ public class InterceptingClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(InterceptingServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(InterceptingServer.class, args);
 
         HttpClient.newClient(serverAddress)
                   .enableWireLogging(LogLevel.DEBUG)

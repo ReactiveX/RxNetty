@@ -18,24 +18,21 @@ package io.reactivex.netty.examples.http.ws.echo;
 
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
-import io.reactivex.netty.examples.ExamplesEnvironment;
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
-public class WebSocketEchoTest extends ExamplesEnvironment {
+public class WebSocketEchoTest {
 
     @Test(timeout = 60000)
     public void testWebSocketHello() throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
-        final Queue<String> output = setupClientLogger(WebSocketEchoClient.class);
 
-        WebSocketEchoClient.main(null);
-
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(WebSocketEchoClient.class);
         String[] content = new String[10];
         for (int i = 0; i < 10; i++) {
             content[i] = "Interval " + (i + 1);

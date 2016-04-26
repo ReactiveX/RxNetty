@@ -19,9 +19,10 @@ package io.reactivex.netty.examples.http.streaming;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.slf4j.Logger;
 
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
@@ -63,9 +64,12 @@ import java.nio.charset.Charset;
  *
  * @see StreamingServer Default server for this client.
  */
-public class StreamingClient extends AbstractClientExample {
+public class StreamingClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(StreamingClient.class);
+        Logger logger = env.getLogger();
 
         /*
          * Retrieves the server address, using the following algorithm:
@@ -75,7 +79,7 @@ public class StreamingClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress serverAddress = getServerAddress(StreamingServer.class, args);
+        SocketAddress serverAddress = env.getServerAddress(StreamingServer.class, args);
 
         /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)

@@ -21,7 +21,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.channel.AllocatingTransformer;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.examples.http.interceptors.simple.InterceptingServer;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 import io.reactivex.netty.protocol.http.server.HttpServerInterceptorChain;
@@ -44,9 +44,11 @@ import static rx.Observable.*;
  * For interceptors requiring no data transformation see {@link InterceptingServer}
  *
  */
-public final class TransformingInterceptorsServer extends AbstractServerExample {
+public final class TransformingInterceptorsServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(TransformingInterceptorsServer.class);
 
         HttpServer<String, ByteBuf> server;
 
@@ -58,13 +60,13 @@ public final class TransformingInterceptorsServer extends AbstractServerExample 
                                           .end(numberIncrementingHandler()));
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 
     private static RequestHandler<Integer, Integer> numberIncrementingHandler() {

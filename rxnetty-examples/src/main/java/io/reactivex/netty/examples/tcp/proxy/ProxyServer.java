@@ -20,7 +20,7 @@ package io.reactivex.netty.examples.tcp.proxy;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.client.ConnectionRequest;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import rx.Observable;
@@ -41,9 +41,11 @@ import static java.nio.charset.Charset.*;
  * messages received from the target server are sent back to the caller, after prepending "proxy =>" to every message,
  * to demonstrate that the data is proxied.
  */
-public final class ProxyServer extends AbstractServerExample {
+public final class ProxyServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(ProxyServer.class);
 
         /*Start an embedded target server and a TCP client pointing to that.*/
         final TcpClient<ByteBuf, ByteBuf> targetClient = TcpClient.newClient(startTargetServer());
@@ -55,26 +57,17 @@ public final class ProxyServer extends AbstractServerExample {
         /*Starts a new HTTP server on an ephemeral port which acts as a proxy to the target server started above.*/
         server = TcpServer.newServer()
                           .enableWireLogging(LogLevel.DEBUG)
-                /*Starts the server with the proxy connection handler.*/
                           .start(serverConn ->
-                             /*Create a new client connection, write the data recieved on the server connection and
-                             * write the data received on the client connection back to the server connection*/
                                          serverConn.writeStringAndFlushOnEach(
                                                  connReq.flatMap(clientConn -> {
                                                                      Observable<String> clientOutput =
                                                                              clientConn.getInput()
-                                                                         /*Convert the byte buffer to string*/
-                                                                                     .map(bb -> bb.toString(
-                                                                                             defaultCharset()))
-                                                                         /*Prepend the string to demo proxying*/
-                                                                                     .map(msg -> "proxy => " + msg);
-                                                         /*Write the data received on the server connection to the
-                                                         * client connection*/
+                                                                                       .map(bb -> bb.toString(
+                                                                                               defaultCharset()))
+                                                                                       .map(msg -> "proxy => " + msg);
                                                                      return clientConn
                                                                              .writeAndFlushOnEach(serverConn.getInput())
                                                                              .cast(String.class)
-                                                         /*Merge the data received from the client so that it is
-                                                         written back to the server connection.*/
                                                                              .mergeWith(clientOutput);
                                                                  }
                                                  )
@@ -82,13 +75,13 @@ public final class ProxyServer extends AbstractServerExample {
                           );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 
     private static SocketAddress startTargetServer() {
@@ -97,7 +90,6 @@ public final class ProxyServer extends AbstractServerExample {
                 /*Starts the server with the echo connection handler.*/
                         .start(c -> c.writeStringAndFlushOnEach(c.getInput()
                                                                  .map(bb -> bb.toString(defaultCharset()))
-                                                                 .doOnNext(logger::info)
                                                                  .map(msg -> "echo => " + msg)
                                )
                         )

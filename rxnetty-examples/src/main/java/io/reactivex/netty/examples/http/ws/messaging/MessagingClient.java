@@ -19,9 +19,10 @@ package io.reactivex.netty.examples.http.ws.messaging;
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame;
 import io.netty.handler.codec.http.websocketx.WebSocketFrame;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.ws.client.WebSocketResponse;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.io.IOException;
@@ -72,10 +73,11 @@ import java.util.concurrent.TimeUnit;
  * Since, message production is asynchronous, if this client can not connect to the server, it will buffer the messages
  * in memory and wait for the server to come up.
  */
-public class MessagingClient extends AbstractClientExample {
+public class MessagingClient {
 
     public static void main(String[] args) {
 
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(MessagingClient.class);
         /*
          * Retrieves the server address, using the following algorithm:
          * <ul>
@@ -84,45 +86,35 @@ public class MessagingClient extends AbstractClientExample {
              <li>Otherwise, start the passed server class and use that address.</li>
          </ul>
          */
-        SocketAddress socketAddress = getServerAddress(MessagingServer.class, args);
+        SocketAddress socketAddress = env.getServerAddress(MessagingServer.class, args);
+        Logger logger = env.getLogger();
 
         /*Sends 10 messages each at an interval of 10 seconds to show asynchronous message creation*/
         MessageProducer producer = new MessageProducer(10, 1, TimeUnit.SECONDS);
 
         /*Create a new client for the server address*/
         HttpClient.newClient(socketAddress)
-                .enableWireLogging(LogLevel.DEBUG)
-                  /*Creates a GET request with URI "/ws"*/
-                .createGet("/ws")
-                  /*Requests an upgrade to WebSocket, in case the server rejects, this upgrade, an error will be
-                  generated*/
-                .requestWebSocketUpgrade()
-                  /*Prints the response headers*/
-                .doOnNext(resp -> logger.info(resp.toString()))
-                  /*For successful upgrades, convert the response to a WebSocket connection*/
-                .flatMap(WebSocketResponse::getWebSocketConnection)
-                .flatMap(conn ->
-                                 /*Write a 10 websocket frames on the connection.*/
-                                 conn.writeAndFlushOnEach(producer.getMessageStream())
-                                         .cast(WebSocketFrame.class)
-                                       /*Merge with the connection input, since the write returns a Void, this is
-                                       * only merging error from the write.*/
-                                         .mergeWith(conn.getInput())
-                )
-                .retryWhen(errStream -> errStream.flatMap(err -> {
-                    if (err instanceof IOException) {
-                        return Observable.timer(1, TimeUnit.SECONDS);
-                    }
-                    return Observable.error(err);
-                }))
-                .filter(AcceptOnlyBinaryFramesFilter.INSTANCE)
-                .cast(BinaryWebSocketFrame.class)
-                .map(producer::acceptAcknowledgment)
-                 /*Since, we sent 10 frames we expect 10 echo responses.*/
-                .take(10)
-                 /*Block till the response comes to avoid JVM exit.*/
-                .toBlocking()
-                 /*Prints the ID of the acknowledgment*/
-                .forEach(msgId -> logger.info("Received acknowledgment for message id => " + msgId.toString()));
+                  .enableWireLogging(LogLevel.DEBUG)
+                  .createGet("/ws")
+                  .requestWebSocketUpgrade()
+                  .doOnNext(resp -> logger.info(resp.toString()))
+                  .flatMap(WebSocketResponse::getWebSocketConnection)
+                  .flatMap(conn ->
+                                   conn.writeAndFlushOnEach(producer.getMessageStream())
+                                       .cast(WebSocketFrame.class)
+                                       .mergeWith(conn.getInput())
+                  )
+                  .retryWhen(errStream -> errStream.flatMap(err -> {
+                      if (err instanceof IOException) {
+                          return Observable.timer(1, TimeUnit.SECONDS);
+                      }
+                      return Observable.error(err);
+                  }))
+                  .filter(AcceptOnlyBinaryFramesFilter.INSTANCE)
+                  .cast(BinaryWebSocketFrame.class)
+                  .map(producer::acceptAcknowledgment)
+                  .take(10)
+                  .toBlocking()
+                  .forEach(msgId -> logger.info("Received acknowledgment for message id => " + msgId.toString()));
     }
 }

@@ -19,7 +19,7 @@ package io.reactivex.netty.examples.tcp.streaming;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import rx.Observable;
 
@@ -28,9 +28,11 @@ import java.util.concurrent.TimeUnit;
 /**
  * A TCP server that sends an infinite stream of new-line separated strings to all accepted connections.
  */
-public final class StreamingServer extends AbstractServerExample {
+public final class StreamingServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(StreamingServer.class);
 
         TcpServer<ByteBuf, ByteBuf> server;
 
@@ -40,15 +42,15 @@ public final class StreamingServer extends AbstractServerExample {
                                          connection.writeStringAndFlushOnEach(
                                                  Observable.interval(10, TimeUnit.MILLISECONDS)
                                                            .onBackpressureBuffer()
-                                                           .map(aLong -> "Interval =>" + aLong + '\n')/*Convert the number to a string.*/
+                                                           .map(aLong -> "Interval =>" + aLong + '\n')
                                          )
                           );
 
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             /*When testing the args are set, to avoid blocking till shutdown*/
             server.awaitShutdown();
         }
 
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

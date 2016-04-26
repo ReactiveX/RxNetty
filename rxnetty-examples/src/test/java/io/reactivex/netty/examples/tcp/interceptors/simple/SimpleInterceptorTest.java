@@ -17,11 +17,11 @@
 
 package io.reactivex.netty.examples.tcp.interceptors.simple;
 
+import io.reactivex.netty.examples.ExamplesTestUtil;
 import org.junit.Test;
 
 import java.util.Queue;
 
-import static io.reactivex.netty.examples.ExamplesTestUtil.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -30,9 +30,7 @@ public class SimpleInterceptorTest {
     @Test(timeout = 60000)
     public void testSimpleInterceptor() throws Exception {
 
-        final Queue<String> output = setupClientLogger(InterceptingClient.class);
-
-        InterceptingClient.main(null);
+        Queue<String> output = ExamplesTestUtil.runClientInMockedEnvironment(InterceptingClient.class);
 
         assertThat("Unexpected number of messages echoed", output, hasSize(1));
         assertThat("Unexpected number of messages echoed", output, contains("echo => Hello World!"));

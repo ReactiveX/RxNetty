@@ -18,8 +18,7 @@
 package io.reactivex.netty.examples.http.helloworld;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.handler.logging.LogLevel;
-import io.reactivex.netty.examples.AbstractServerExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.server.HttpServer;
 
 import static rx.Observable.*;
@@ -29,25 +28,26 @@ import static rx.Observable.*;
  *
  * This server sends a response with "Hello World" as the content for any request that it recieves.
  */
-public final class HelloWorldServer extends AbstractServerExample {
+public final class HelloWorldServer {
 
     public static void main(final String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(HelloWorldServer.class);
 
         HttpServer<ByteBuf, ByteBuf> server;
 
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
                            .start((req, resp) ->
-                             resp.writeString(just("Hello World!"))
-        );
+                                          resp.writeString(just("Hello World!"))
+                           );
 
         /*Wait for shutdown if not called from the client (passed an arg)*/
-        if (shouldWaitForShutdown(args)) {
+        if (env.shouldWaitForShutdown(args)) {
             server.awaitShutdown();
         }
 
         /*If not waiting for shutdown, assign the ephemeral port used to a field so that it can be read and used by
         the caller, if any.*/
-        setServerPort(server.getServerPort());
+        env.registerServerAddress(server.getServerAddress());
     }
 }

@@ -13,6 +13,17 @@ and an [Echo Server](src/main/java/io/reactivex/netty/examples/tcp/echo/EchoServ
 and a [Secure Echo Server](src/main/java/io/reactivex/netty/examples/tcp/secure/SecureEchoServer.java)
 
 
+- __Simple Interception__: A example that demonstrates how to write basic interceptors for TCP server and client.
+This example constitutes of an [Intercepting Client](src/main/java/io/reactivex/netty/examples/tcp/interceptors/simple/InterceptingClient.java)
+and an [Intercepting Server](src/main/java/io/reactivex/netty/examples/tcp/interceptors/simple/InterceptingServer.java)
+
+
+- __Transformation Interception__: A example that demonstrates how to write interceptors that modify the types of content
+for HTTP server and client.
+This example constitutes of an [Intercepting Client](src/main/java/io/reactivex/netty/examples/tcp/interceptors/transformation/InterceptingClient.java)
+and an [Intercepting Server](src/main/java/io/reactivex/netty/examples/tcp/interceptors/transformation/TransformingInterceptorsServer.java)
+
+
 - __Streaming__: A TCP streaming example where the server sends an infinite stream of data and the client taps to this 
 infinite stream to get as many messages as desired. This example constitutes of a 
 [Streaming Client](src/main/java/io/reactivex/netty/examples/tcp/streaming/StreamingClient.java)

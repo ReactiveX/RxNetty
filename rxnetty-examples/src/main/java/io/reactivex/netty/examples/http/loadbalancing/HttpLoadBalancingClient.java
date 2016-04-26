@@ -23,11 +23,12 @@ import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.client.ConnectionProvider;
 import io.reactivex.netty.client.Host;
 import io.reactivex.netty.client.loadbalancer.LoadBalancerFactory;
-import io.reactivex.netty.examples.AbstractClientExample;
+import io.reactivex.netty.examples.ExamplesEnvironment;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.http.client.loadbalancer.EWMABasedP2CStrategy;
 import io.reactivex.netty.protocol.http.server.HttpServer;
+import org.slf4j.Logger;
 import rx.Observable;
 
 import java.net.SocketAddress;
@@ -51,9 +52,12 @@ import static io.netty.handler.codec.http.HttpResponseStatus.*;
  * @see ConnectionProvider Low level abstraction to create varied load balancing schemes.
  * @see HttpLoadBalancer An example of load balancer used by this example.
  */
-public final class HttpLoadBalancingClient extends AbstractClientExample {
+public final class HttpLoadBalancingClient {
 
     public static void main(String[] args) {
+
+        ExamplesEnvironment env = ExamplesEnvironment.newEnvironment(HttpLoadBalancingClient.class);
+        Logger logger = env.getLogger();
 
         /*Start 3 embedded servers, two healthy and one unhealthy to demo failure detection*/
         final Observable<Host> hosts = Observable.just(startNewServer(OK), startNewServer(OK),
@@ -61,15 +65,15 @@ public final class HttpLoadBalancingClient extends AbstractClientExample {
                                                  .map(Host::new);
 
         HttpClient.newClient(LoadBalancerFactory.create(new EWMABasedP2CStrategy<>()), hosts)
-                .enableWireLogging(LogLevel.DEBUG)
-                .createGet("/hello")
-                .doOnNext(resp -> logger.info(resp.toString()))
-                .flatMap((HttpClientResponse<ByteBuf> resp) ->
-                                 resp.getContent().map(bb -> bb.toString(Charset.defaultCharset()))
-                )
-                .repeat(5)
-                .toBlocking()
-                .forEach(logger::info);
+                  .enableWireLogging(LogLevel.DEBUG)
+                  .createGet("/hello")
+                  .doOnNext(resp -> logger.info(resp.toString()))
+                  .flatMap((HttpClientResponse<ByteBuf> resp) ->
+                                   resp.getContent().map(bb -> bb.toString(Charset.defaultCharset()))
+                  )
+                  .repeat(5)
+                  .toBlocking()
+                  .forEach(logger::info);
     }
 
     private static SocketAddress startNewServer(HttpResponseStatus cannedStatus) {
