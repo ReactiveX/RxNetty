@@ -22,14 +22,13 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.channel.ChannelPromise;
+import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpContent;
 import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpHeaderValues;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpRequest;
-import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.websocketx.WebSocket13FrameDecoder;
 import io.netty.handler.codec.http.websocketx.WebSocket13FrameEncoder;
@@ -59,7 +58,7 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
         if (msg instanceof HttpRequest) {
             final HttpRequest request = (HttpRequest) msg;
-            if (request.headers().contains(UPGRADE, HttpHeaderValues.WEBSOCKET, false)) {
+            if (request.headers().contains(UPGRADE, WEBSOCKET, false)) {
                 /*
                  * We can safely modify the request here as this request is exclusively for WS upgrades and the following
                  * headers are added for ALL upgrade requests. Since, the handler is single-threaded, these updates do not
@@ -76,19 +75,22 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
                 if (null != hostHeader) {
                     request.headers().set(SEC_WEBSOCKET_ORIGIN, "http://" + hostHeader);
                 }
-                final ChannelHandlerContext httpRequestEncoderCtx = ctx.pipeline().context(HttpRequestEncoder.class);
-                if (null == httpRequestEncoderCtx) {
+                final ChannelHandlerContext clientCodecCtx = ctx.pipeline().context(HttpClientCodec.getName());
+                if (null == clientCodecCtx) {
                     promise.tryFailure(new IllegalStateException(
-                            "Http Request encoder not found, can not upgrade to WebSockets."));
+                            "Http client codec not found, can not upgrade to WebSockets."));
                     return;
                 }
+
+                final HttpClientCodec codec =  (HttpClientCodec) clientCodecCtx.handler();
 
                 promise.addListener(new ChannelFutureListener() {
                     @Override
                     public void operationComplete(ChannelFuture future) throws Exception {
                         if (future.isSuccess()) {
                             ChannelPipeline p = future.channel().pipeline();
-                            p.addAfter(httpRequestEncoderCtx.name(), WsClientEncoder.getName(),
+                            // Remove the encoder part of the codec as the user may start writing frames after this method returns.
+                            p.addAfter(clientCodecCtx.name(), WsClientEncoder.getName(),
                                        new WebSocket13FrameEncoder(true/*Clients must set this to true*/));
                         }
                     }
@@ -110,21 +112,16 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
             }
 
             final ChannelPipeline pipeline = ctx.pipeline();
-            ChannelHandlerContext httpDecoderCtx = pipeline.context(HttpResponseDecoder.class);
-            ChannelHandlerContext httpEncoderCtx = pipeline.context(HttpRequestEncoder.class);
+            ChannelHandlerContext codecCtx = pipeline.context(HttpClientCodec.getName());
 
-            if (null == httpEncoderCtx) {
-                throw new IllegalStateException("Http encoder not found, can not upgrade to WebSocket.");
+            if (null == codecCtx) {
+                throw new IllegalStateException("Http codec not found, can not upgrade to WebSocket.");
             }
 
-            if (null == httpDecoderCtx) {
-                throw new IllegalStateException("Http decoder not found, can not upgrade to WebSocket.");
-            }
-
-            pipeline.replace(httpDecoderCtx.name(), WsClientDecoder.getName(),
+            pipeline.addAfter(codecCtx.name(), WsClientDecoder.getName(),
                              new WebSocket13FrameDecoder(false/*Clients must set this to false*/, false,
                                                          65555));//TODO: Fix me
-            pipeline.remove(HttpRequestEncoder.class);
+            pipeline.remove(HttpClientCodec.class);
             upgraded = true;
         }
 
@@ -138,13 +135,13 @@ public class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
         super.channelRead(ctx, msg);
     }
 
-    private boolean isUpgradeResponse(Object msg) {
+    private static boolean isUpgradeResponse(Object msg) {
         if (msg instanceof HttpResponse) {
             HttpResponse response = (HttpResponse) msg;
             HttpHeaders headers = response.headers();
             return response.status().equals(HttpResponseStatus.SWITCHING_PROTOCOLS)
                    && headers.contains(CONNECTION, HttpHeaderValues.UPGRADE, true)
-                   && headers.contains(HttpHeaderNames.UPGRADE, WEBSOCKET, true)
+                   && headers.contains(UPGRADE, WEBSOCKET, true)
                    && headers.contains(SEC_WEBSOCKET_ACCEPT);
         }
         return false;

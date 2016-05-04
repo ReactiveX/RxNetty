@@ -78,8 +78,8 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     }
 
     private HttpClientResponseImpl(HttpClientResponseImpl<?> toCopy, ContentSource<T> newSource) {
-        this.nettyResponse = toCopy.nettyResponse;
-        this.connection = toCopy.connection;
+        nettyResponse = toCopy.nettyResponse;
+        connection = toCopy.connection;
         cookiesHolder = toCopy.cookiesHolder;
         contentSource = newSource;
     }
@@ -257,7 +257,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
     public ContentSource<ServerSentEvent> getContentAsServerSentEvents() {
         if (containsHeader(CONTENT_TYPE, "text/event-stream", false)) {
             ChannelPipeline pipeline = unsafeNettyChannel().pipeline();
-            ChannelHandlerContext decoderCtx = pipeline.context(HttpResponseDecoder.class);
+            ChannelHandlerContext decoderCtx = pipeline.context(HttpHandlerNames.HttpClientCodec.getName());
             if (null != decoderCtx) {
                 pipeline.addAfter(decoderCtx.name(), HttpHandlerNames.SseClientCodec.getName(),
                                   new ServerSentEventDecoder());

@@ -21,6 +21,7 @@ import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
+import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor;
 import io.reactivex.netty.channel.BackpressureManagingHandler.RequestReadIfRequiredEvent;
@@ -54,7 +55,7 @@ public class BackpressureManagingHandlerTest {
         final String msg2 = "hello2";
         handlerRule.feedMessagesForRead(msg1, msg2); /*Exact supply*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(2); /*Send all msgs in one iteration*/
+        handlerRule.setMaxMessagesPerRead(2); /*Send all msgs in one iteration*/
         handlerRule.requestMessages(2); /*Exact demand*/
 
         assertThat("Unexpected read requested count.", handlerRule.getReadRequestedCount(), is(1));
@@ -72,7 +73,7 @@ public class BackpressureManagingHandlerTest {
         final String msg2 = "hello2";
         handlerRule.feedMessagesForRead(msg1, msg2); /*Exact supply*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(2); /*Send all msgs in one iteration*/
+        handlerRule.setMaxMessagesPerRead(2); /*Send all msgs in one iteration*/
         handlerRule.requestMessages(2); /*Exact demand*/
 
         assertThat("Unexpected read requested count.", handlerRule.getReadRequestedCount(), is(1));
@@ -111,7 +112,7 @@ public class BackpressureManagingHandlerTest {
         final String msg2 = "hello2";
         handlerRule.feedMessagesForRead(msg1, msg2); /*less supply*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(2); /*Send all msgs in one iteration*/
+        handlerRule.setMaxMessagesPerRead(2); /*Send all msgs in one iteration*/
         handlerRule.requestMessages(4); /*More demand*/
 
         /*One read for start and one when the supply completed but demand exists.*/
@@ -131,7 +132,7 @@ public class BackpressureManagingHandlerTest {
         final String msg3 = "hello3";
         handlerRule.feedMessagesForRead(msg1, msg2, msg3); /*more supply*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(3); /*Send all msgs in one iteration*/
+        handlerRule.setMaxMessagesPerRead(3); /*Send all msgs in one iteration*/
         handlerRule.requestMessages(2); /*less demand*/
 
         /*One read for start.*/
@@ -154,7 +155,7 @@ public class BackpressureManagingHandlerTest {
         final String msg3 = "hello3";
         handlerRule.feedMessagesForRead(msg1, msg2, msg3); /*more supply*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(3); /*Send all msgs in one iteration & cause buffer*/
+        handlerRule.setMaxMessagesPerRead(3); /*Send all msgs in one iteration & cause buffer*/
         handlerRule.requestMessages(2); /*less demand*/
 
         /*One read for start.*/
@@ -194,7 +195,7 @@ public class BackpressureManagingHandlerTest {
         final String msg4 = "hello4";
         handlerRule.feedMessagesForRead(msg1, msg2, msg3, msg4); /*more supply*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(4); /*Send all msgs in one iteration & cause buffer*/
+        handlerRule.setMaxMessagesPerRead(4); /*Send all msgs in one iteration & cause buffer*/
         handlerRule.requestMessages(2); /*less demand*/
 
         /*One read for start.*/
@@ -251,7 +252,7 @@ public class BackpressureManagingHandlerTest {
         final String msg3 = "hello3";
         handlerRule.feedMessagesForRead(msg1, msg2, msg3); /*more supply*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(3); /*Send all msgs in one iteration & cause buffer*/
+        handlerRule.setMaxMessagesPerRead(3); /*Send all msgs in one iteration & cause buffer*/
         handlerRule.requestMessages(2); /*less demand*/
 
         /*One read for start.*/
@@ -289,7 +290,7 @@ public class BackpressureManagingHandlerTest {
         final ByteBuf msg2 = Unpooled.buffer().writeBytes("hello2".getBytes());
         handlerRule.feedMessagesForRead(msg1, msg2); /*More supply then demand*/
 
-        handlerRule.channel.config().setMaxMessagesPerRead(2); /*Send all msgs in one iteration and cause buffer*/
+        handlerRule.setMaxMessagesPerRead(2); /*Send all msgs in one iteration and cause buffer*/
         handlerRule.requestMessages(1); /*Less demand*/
 
         assertThat("Unexpected read requested count.", handlerRule.getReadRequestedCount(), is(1));
@@ -349,6 +350,7 @@ public class BackpressureManagingHandlerTest {
         private MockBackpressureManagingHandler handler;
         private EmbeddedChannel channel;
         private InboundRequestFeeder inboundRequestFeeder;
+        private FixedRecvByteBufAllocator recvByteBufAllocator;
 
         @Override
         public Statement apply(final Statement base, Description description) {
@@ -363,9 +365,15 @@ public class BackpressureManagingHandlerTest {
                     channel.pipeline().addBefore(bpName, "primitive-converter", new WriteTransformer());
                     channel.pipeline().addFirst(inboundRequestFeeder);
                     channel.config().setAutoRead(false);
+                    recvByteBufAllocator = new FixedRecvByteBufAllocator(1024);
+                    channel.config().setRecvByteBufAllocator(recvByteBufAllocator);
                     base.evaluate();
                 }
             };
+        }
+
+        public void setMaxMessagesPerRead(int maxMessagesPerRead) {
+            recvByteBufAllocator.maxMessagesPerRead(maxMessagesPerRead);
         }
 
         public void assertMessagesReceived(Object... expected) {

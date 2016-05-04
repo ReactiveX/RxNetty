@@ -58,8 +58,7 @@ public class WriteTransformations {
     }
 
     public boolean acceptMessage(Object msg) {
-        return msg instanceof String || msg instanceof byte[] ||
-               (null != transformers && transformers.acceptMessage(msg));
+        return msg instanceof String || msg instanceof byte[] || null != transformers && transformers.acceptMessage(msg);
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})
@@ -73,6 +72,7 @@ public class WriteTransformations {
             this.next = next;
         }
 
+        @Override
         public List transform(Object toTransform, ByteBufAllocator allocator) {
             if (null == next) {
                 return start.transform(toTransform, allocator);

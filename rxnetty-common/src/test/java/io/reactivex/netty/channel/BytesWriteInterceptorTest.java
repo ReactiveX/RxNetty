@@ -16,6 +16,7 @@
  */
 package io.reactivex.netty.channel;
 
+import io.netty.channel.WriteBufferWaterMark;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor;
 import io.reactivex.netty.channel.BackpressureManagingHandler.WriteStreamSubscriber;
@@ -82,8 +83,7 @@ public class BytesWriteInterceptorTest {
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), hasSize(1));
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), contains(sub1));
 
-        inspectorRule.channel.config().setWriteBufferLowWaterMark(1);
-        inspectorRule.channel.config().setWriteBufferHighWaterMark(2); /*Make sure that the channel is not writable on writing.*/
+        inspectorRule.channel.config().setWriteBufferWaterMark(new WriteBufferWaterMark(1, 2)); /*Make sure that the channel is not writable on writing.*/
 
         String msg = "Hello";
         inspectorRule.channel.write(msg);

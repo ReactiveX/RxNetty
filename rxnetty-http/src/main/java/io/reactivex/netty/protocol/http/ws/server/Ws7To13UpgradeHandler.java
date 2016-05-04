@@ -88,6 +88,7 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
                                public void call() {
                                    /*We are no more talking HTTP*/
                                    pipeline.remove(HttpServerEncoder.getName());
+                                   pipeline.remove(HttpServerDecoder.getName());
                                    pipeline.channel().attr(AbstractHttpConnectionBridge.CONNECTION_UPGRADED).set(true);
                                }
                            })
@@ -139,7 +140,7 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
         WebSocketFrameEncoder wsEncoder = new WebSocket13FrameEncoder(false /*servers should set this to false.*/);
         WebSocketFrameDecoder wsDecoder = new WebSocket13FrameDecoder(true/*servers should set this to true.*/,
                                                                       state.isAllowExtensions(),
-                                                                      state.getMaxFramePayloadLength());
+                                                                      state.getMaxFramePayloadLength(), true);
 
         final HttpServerResponse<?> upgradeResponse = state.getUpgradeResponse();
         final MarkAwarePipeline pipeline = upgradeResponse.unsafeConnection().getResettableChannelPipeline();
@@ -152,7 +153,7 @@ public final class Ws7To13UpgradeHandler extends ChannelDuplexHandler {
             return "No HTTP encoder found, can not upgrade to WebSocket.";
         }
 
-        pipeline.replace(httpDecoderCtx.name(), WsServerDecoder.getName(), wsDecoder);
+        pipeline.addAfter(httpDecoderCtx.name(), WsServerDecoder.getName(), wsDecoder);
         pipeline.addBefore(httpEncoderCtx.name(), WsServerEncoder.getName(), wsEncoder);
 
         updateHandshakeHeaders(state, acceptGuid, upgradeResponse);
