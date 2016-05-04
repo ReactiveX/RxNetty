@@ -19,6 +19,7 @@ package io.reactivex.netty.protocol.http.server;
 import io.netty.handler.codec.http.DefaultLastHttpContent;
 import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpUtil;
+import io.netty.handler.codec.http.LastHttpContent;
 import io.reactivex.netty.channel.ChannelOperations;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.FlushSelectorOperator;
@@ -209,7 +210,7 @@ final class ContentWriterImpl<C> extends ResponseContentWriter<C> {
         }
 
         if (appendTrailer) {
-            httpStream = httpStream.concatWith(Observable.just(new DefaultLastHttpContent()));
+            httpStream = httpStream.concatWith(Observable.just(LastHttpContent.EMPTY_LAST_CONTENT));
         }
 
         return httpStream;
