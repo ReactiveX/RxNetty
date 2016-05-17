@@ -21,6 +21,8 @@ import io.netty.buffer.ByteBufAllocator;
 import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
@@ -31,8 +33,8 @@ import io.netty.handler.logging.LogLevel;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
-import io.reactivex.netty.HandlerNames;
 import io.reactivex.netty.RxNetty;
+import io.reactivex.netty.channel.ChannelSubscriberEvent;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.WriteTransformer;
 import io.reactivex.netty.client.events.ClientEventListener;
@@ -51,6 +53,8 @@ import javax.net.ssl.SSLEngine;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import static io.reactivex.netty.HandlerNames.*;
 
 
 /**
@@ -199,7 +203,7 @@ public class ClientState<W, R> {
     }
 
     public ClientState<W, R> enableWireLogging(final LogLevel wireLoggingLevel) {
-        return addChannelHandlerFirst(HandlerNames.WireLogging.getName(),
+        return addChannelHandlerFirst(WireLogging.getName(),
                                       LoggingHandlerFactory.getFactory(wireLoggingLevel));
     }
 
@@ -224,7 +228,7 @@ public class ClientState<W, R> {
 
     private static DetachedChannelPipeline newChannelPipeline(TailHandlerFactory thf) {
         return new DetachedChannelPipeline(thf)
-                .addLast(HandlerNames.WriteTransformer.getName(), new Func0<ChannelHandler>() {
+                .addLast(WriteTransformer.getName(), new Func0<ChannelHandler>() {
                     @Override
                     public ChannelHandler call() {
                         return new WriteTransformer();
@@ -247,9 +251,10 @@ public class ClientState<W, R> {
         nettyBootstrap.handler(new ChannelInitializer<Channel>() {
             @Override
             protected void initChannel(Channel ch) throws Exception {
-                // No op, pipeline is set using ChannelProvider.
+                ch.pipeline().addLast(ClientChannelActiveBufferingHandler.getName(),
+                                      new ChannelActivityBufferingHandler());
             }
-        });
+                });
         return nettyBootstrap;
     }
 
@@ -335,5 +340,100 @@ public class ClientState<W, R> {
 
     protected static Class<? extends AbstractChannel> defaultSocketChannelClass() {
         return RxNetty.isUsingNativeTransport() ? EpollSocketChannel.class : NioSocketChannel.class;
+    }
+
+    /**
+     * Clients construct the pipeline, outside of the {@link ChannelInitializer} through {@link ChannelProvider}.
+     * Thus channel registration and activation events may be lost due to a race condition when the channel is active
+     * before the pipeline is configured.
+     * This handler buffers, the channel events till the time, a subscriber appears for channel establishment.
+     */
+    private static class ChannelActivityBufferingHandler extends ChannelInboundHandlerAdapter {
+
+        private enum State {
+            Initialized,
+            Registered,
+            Active,
+            Inactive,
+            ChannelSubscribed
+        }
+
+        private State state = State.Initialized;
+
+        /**
+         * Unregistered state will hide the active/inactive state, hence this is a different flag.
+         */
+        private boolean unregistered;
+
+        @Override
+        public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+            if (State.ChannelSubscribed == state) {
+                super.channelRegistered(ctx);
+            } else {
+                state = State.Registered;
+            }
+        }
+
+        @Override
+        public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+            if (State.ChannelSubscribed == state) {
+                super.channelUnregistered(ctx);
+            } else {
+                unregistered = true;
+            }
+        }
+
+        @Override
+        public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            if (State.ChannelSubscribed == state) {
+                super.channelActive(ctx);
+            } else {
+                state = State.Active;
+            }
+        }
+
+        @Override
+        public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+            if (State.ChannelSubscribed == state) {
+                super.channelInactive(ctx);
+            } else {
+                state = State.Inactive;
+            }
+        }
+
+        @Override
+        public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+            if (evt instanceof ChannelSubscriberEvent) {
+                final State existingState = state;
+                state = State.ChannelSubscribed;
+                super.userEventTriggered(ctx, evt);
+                final ChannelPipeline pipeline = ctx.channel().pipeline();
+                switch (existingState) {
+                case Initialized:
+                    break;
+                case Registered:
+                    pipeline.fireChannelRegistered();
+                    break;
+                case Active:
+                    pipeline.fireChannelRegistered();
+                    pipeline.fireChannelActive();
+                    break;
+                case Inactive:
+                    pipeline.fireChannelRegistered();
+                    pipeline.fireChannelActive();
+                    pipeline.fireChannelInactive();
+                    break;
+                case ChannelSubscribed:
+                    // Duplicate event, ignore.
+                    break;
+                }
+
+                if (unregistered) {
+                    pipeline.fireChannelUnregistered();
+                }
+            } else {
+                super.userEventTriggered(ctx, evt);
+            }
+        }
     }
 }
