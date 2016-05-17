@@ -31,7 +31,7 @@ public class TcpChannelProvider implements ChannelProvider {
     private final DetachedChannelPipeline channelPipeline;
     private final ChannelProvider delegate;
     private final EventPublisher publisher;
-    private ClientEventListener hostEventPublisher;
+    private final ClientEventListener hostEventPublisher;
 
     public TcpChannelProvider(DetachedChannelPipeline channelPipeline, ChannelProvider delegate,
                               EventPublisher publisher, ClientEventListener hostEventPublisher) {

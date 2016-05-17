@@ -232,7 +232,7 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
         private final ChannelProviderFactory channelProviderFactory;
         private final TcpClientEventPublisher clientEventPublisher;
-        private ClientState<W, R> state;
+        private final ClientState<W, R> state;
 
         public HostConnectorFactory(ClientState<W, R> state, TcpClientEventPublisher clientEventPublisher) {
             this.state = state;
@@ -243,7 +243,7 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
         @Override
         public HostConnector<W, R> call(final Host host) {
             TcpClientEventPublisher hostEventPublisher = new TcpClientEventPublisher();
-            @SuppressWarnings("unchecked")
+            @SuppressWarnings({"unchecked", "rawtypes"})
             EventSource eventSource = hostEventPublisher;
             hostEventPublisher.subscribe(clientEventPublisher);
             @SuppressWarnings("unchecked")
@@ -258,7 +258,7 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
         private final Host host;
         private final Bootstrap bootstrap;
-        private ChannelProvider channelProvider;
+        private final ChannelProvider channelProvider;
 
         public TerminalConnectionProvider(Host host, ChannelProvider channelProvider, ClientState<W, R> state) {
             this.host = host;
