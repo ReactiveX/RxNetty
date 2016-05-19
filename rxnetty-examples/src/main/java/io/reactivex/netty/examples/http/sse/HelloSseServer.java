@@ -45,7 +45,7 @@ public final class HelloSseServer {
                            .start((req, resp) ->
                                           resp.transformToServerSentEvents()
                                               .writeAndFlushOnEach(Observable.interval(10, TimeUnit.MILLISECONDS)
-                                                                             .onBackpressureDrop()
+                                                                             .onBackpressureBuffer(10)
                                                                              .map(aLong -> withData(
                                                                                      "Interval => " + aLong)))
                            );
