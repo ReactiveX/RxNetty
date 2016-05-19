@@ -243,7 +243,7 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
         @Override
         public HostConnector<W, R> call(final Host host) {
             TcpClientEventPublisher hostEventPublisher = new TcpClientEventPublisher();
-            @SuppressWarnings("unchecked")
+            @SuppressWarnings({"unchecked", "rawtypes"})
             EventSource eventSource = hostEventPublisher;
             hostEventPublisher.subscribe(clientEventPublisher);
             @SuppressWarnings("unchecked")
@@ -258,7 +258,7 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
         private final Host host;
         private final Bootstrap bootstrap;
-        private ChannelProvider channelProvider;
+        private final ChannelProvider channelProvider;
 
         public TerminalConnectionProvider(Host host, ChannelProvider channelProvider, ClientState<W, R> state) {
             this.host = host;
@@ -295,13 +295,42 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
             })).switchMap(new Func1<Channel, Observable<Channel>>() {
                 @Override
                 public Observable<Channel> call(final Channel channel) {
-                    return Observable.create(new OnSubscribe<Channel>() {
-                        @Override
-                        public void call(Subscriber<? super Channel> subscriber) {
-                            final ChannelSubscriberEvent<R, W> evt = new ChannelSubscriberEvent<>(subscriber);
-                            channel.pipeline().fireUserEventTriggered(evt);
+
+                    /*
+                     * If channel is unregistered, all handlers are removed and hence the event will not flow through
+                     * to the handler for the subscriber to be notified.
+                      * So, here the channel is directly passed through the chain if the channel isn't registered.
+                     */
+                    if (channel.eventLoop().inEventLoop()) {
+                        if (channel.isRegistered()) {
+                            return Observable.create(new OnSubscribe<Channel>() {
+                                @Override
+                                public void call(Subscriber<? super Channel> subscriber) {
+                                    channel.pipeline().fireUserEventTriggered(new ChannelSubscriberEvent<>(subscriber));
+                                }
+                            });
+                        } else {
+                            return Observable.just(channel);
                         }
-                    });
+                    } else {
+                        return Observable.create(new OnSubscribe<Channel>() {
+                            @Override
+                            public void call(final Subscriber<? super Channel> subscriber) {
+                                channel.eventLoop().execute(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        if (channel.isRegistered()) {
+                                            channel.pipeline()
+                                                   .fireUserEventTriggered(new ChannelSubscriberEvent<>(subscriber));
+                                        } else {
+                                            subscriber.onNext(channel);
+                                            subscriber.onCompleted();
+                                        }
+                                    }
+                                });
+                            }
+                        });
+                    }
                 }
             }).map(new Func1<Channel, Connection<R, W>>() {
                 @Override
