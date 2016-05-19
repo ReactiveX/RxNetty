@@ -41,7 +41,7 @@ public final class StreamingServer {
                            .start((req, resp) ->
                                           resp.writeStringAndFlushOnEach(
                                                   Observable.interval(10, TimeUnit.MILLISECONDS)
-                                                            .onBackpressureDrop()
+                                                            .onBackpressureBuffer(10)
                                                             .map(aLong -> "Interval =>" + aLong)
                                           )
                            );
