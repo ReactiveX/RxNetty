@@ -28,8 +28,10 @@ import io.netty.util.internal.RecyclableArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
+import rx.Scheduler;
 import rx.Subscriber;
 import rx.functions.Action0;
+import rx.schedulers.Schedulers;
 import rx.subscriptions.Subscriptions;
 
 import java.util.ArrayList;
@@ -411,6 +413,9 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
         private final ChannelPromise overarchingWritePromise;
         private final Object guard = new Object();
         private boolean isDone; /*Guarded by guard*/
+        private Scheduler.Worker writeWorker; /*Guarded by guard*/
+        private boolean atleastOneWriteEnqueued; /*Guarded by guard*/
+
         private boolean isPromiseCompletedOnWriteComplete; /*Guarded by guard. Only transition should be false->true*/
 
         private int listeningTo;
@@ -445,8 +450,23 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
         @Override
         public void onNext(Object nextItem) {
+            final boolean enqueue;
+            boolean inEL = ctx.channel().eventLoop().inEventLoop();
 
-            final ChannelFuture channelFuture = ctx.write(nextItem);
+            synchronized (guard) {
+                if (null == writeWorker) {
+                    if (!inEL) {
+                        atleastOneWriteEnqueued = true;
+                    } else if (atleastOneWriteEnqueued) {
+                        writeWorker = Schedulers.computation().createWorker();
+                    }
+                }
+
+                enqueue = null != writeWorker && inEL;
+            }
+
+            final ChannelFuture channelFuture = enqueue ? enqueueWrite(nextItem) : ctx.write(nextItem);
+
             synchronized (guard) {
                 listeningTo++;
             }
@@ -514,9 +534,21 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
             });
         }
 
+        private ChannelFuture enqueueWrite(final Object nextItem) {
+            final ChannelPromise toReturn = ctx.channel().newPromise();
+            writeWorker.schedule(new Action0() {
+                @Override
+                public void call() {
+                    ctx.write(nextItem, toReturn);
+                }
+            });
+            return toReturn;
+        }
+
         private void onTermination(Throwable throwableIfAny) {
             int _listeningTo;
             boolean _shouldCompletePromise;
+            final boolean flush;
 
             /**
              * The intent here is to NOT give listener callbacks via promise completion within the sync block.
@@ -529,6 +561,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
              * This co-oridantion is done via the flag isPromiseCompletedOnWriteComplete
              */
             synchronized (guard) {
+                flush = atleastOneWriteEnqueued;
                 isDone = true;
                 _listeningTo = listeningTo;
                 /**
@@ -536,6 +569,15 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                  * overarchingWritePromise
                  */
                 _shouldCompletePromise = 0 == _listeningTo && !isPromiseCompletedOnWriteComplete;
+            }
+
+            if (flush) {
+                writeWorker.schedule(new Action0() {
+                    @Override
+                    public void call() {
+                        ctx.flush();
+                    }
+                });
             }
 
             if (null != throwableIfAny) {

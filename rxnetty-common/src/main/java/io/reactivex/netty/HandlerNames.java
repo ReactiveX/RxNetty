@@ -26,6 +26,7 @@ public enum HandlerNames {
     WireLogging("wire-logging-handler"),
     WriteTransformer("write-transformer"),
     ClientReadTimeoutHandler("client-read-timeout-handler"),
+    ClientChannelActiveBufferingHandler("client-channel-active-buffer-handler"),
     ;
 
     private final String name;

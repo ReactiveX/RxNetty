@@ -45,7 +45,7 @@ public class HttpContentStringLineDecoder extends MessageToMessageDecoder<HttpCo
     protected void decode(ChannelHandlerContext ctx, HttpContent msg, List<Object> out) throws Exception {
         if (msg instanceof LastHttpContent) {
             reader.decodeLast(msg.content(), out, ctx.alloc());
-            out.add(DefaultLastHttpContent.EMPTY_LAST_CONTENT);
+            out.add(LastHttpContent.EMPTY_LAST_CONTENT);
         } else {
             reader.decode(msg.content(), out, ctx.alloc());
         }

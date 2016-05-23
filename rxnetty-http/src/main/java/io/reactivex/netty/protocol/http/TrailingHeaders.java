@@ -31,7 +31,7 @@ public class TrailingHeaders {
     private final LastHttpContent lastHttpContent;
 
     public TrailingHeaders() {
-        lastHttpContent = new DefaultLastHttpContent();
+        lastHttpContent = LastHttpContent.EMPTY_LAST_CONTENT;
     }
 
     public TrailingHeaders(LastHttpContent lastHttpContent) {

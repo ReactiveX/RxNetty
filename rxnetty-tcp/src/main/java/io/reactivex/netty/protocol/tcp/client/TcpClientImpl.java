@@ -232,7 +232,7 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
 
         private final ChannelProviderFactory channelProviderFactory;
         private final TcpClientEventPublisher clientEventPublisher;
-        private ClientState<W, R> state;
+        private final ClientState<W, R> state;
 
         public HostConnectorFactory(ClientState<W, R> state, TcpClientEventPublisher clientEventPublisher) {
             this.state = state;
