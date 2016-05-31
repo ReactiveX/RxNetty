@@ -268,7 +268,6 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             onContentReceived();
             ByteBuf content = ((ByteBufHolder) nextItem).content();
             if (nextItem instanceof LastHttpContent) {
-                state.contentComplete();
                 /*
                  * Since, LastHttpContent is always received, even if the pipeline does not emit ByteBuf, if
                  * ByteBuf with the LastHttpContent is empty, only trailing headers are emitted. Otherwise,
@@ -280,7 +279,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
                     /*Since, the content buffer, was not sent, release it*/
                     ReferenceCountUtil.release(content);
                 }
-
+                state.contentComplete();
                 connectionInputSubscriber.contentComplete();
                 onContentReceiveComplete(state.headerReceivedTimeNanos);
             } else {
@@ -548,7 +547,7 @@ public abstract class AbstractHttpConnectionBridge<C> extends ChannelDuplexHandl
             if (channel.eventLoop().inEventLoop()) {
                 run();
             } else {
-                channel.eventLoop().execute(ConnectionInputSubscriber.this);
+                channel.eventLoop().execute(this);
             }
         }
 

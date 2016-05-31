@@ -30,6 +30,8 @@ import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.protocol.http.internal.AbstractHttpConnectionBridge;
 import io.reactivex.netty.protocol.http.internal.HttpContentSubscriberEvent;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventPublisher;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import rx.functions.Action0;
 import rx.subscriptions.Subscriptions;
 
@@ -39,6 +41,8 @@ import java.util.Queue;
 import static java.util.concurrent.TimeUnit.*;
 
 public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridge<C> {
+
+    private static final Logger logger = LoggerFactory.getLogger(HttpServerToConnectionBridge.class);
 
     private volatile boolean activeContentSubscriberExists;
 
@@ -99,7 +103,7 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
 
                     activeContentSubscriberExists = null != nextSub;
                     if (null != nextSub) {
-                        ctx.fireUserEventTriggered(nextSub);
+                        fireContentSubscriberEvent(ctx, nextSub);
                     }
                 }
             }));
@@ -159,6 +163,18 @@ public class HttpServerToConnectionBridge<C> extends AbstractHttpConnectionBridg
         Boolean shouldFlush = ctx.channel().attr(ChannelOperations.FLUSH_ONLY_ON_READ_COMPLETE).get();
         if (null != shouldFlush && shouldFlush) {
             ctx.flush(); /*This is a no-op if there is nothing to flush but supports HttpServerResponse.flushOnlyOnReadComplete()*/
+        }
+    }
+
+    private void fireContentSubscriberEvent(ChannelHandlerContext ctx, HttpContentSubscriberEvent<?> event) {
+        try {
+            super.userEventTriggered(ctx, event);
+        } catch (Exception e) {
+            try {
+                exceptionCaught(ctx, e);
+            } catch (Exception e1) {
+                logger.error("Exception while handling error in handler.", e1);
+            }
         }
     }
 }
