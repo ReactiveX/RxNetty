@@ -254,7 +254,8 @@ public class AbstractHttpConnectionBridgeTest {
         assertThat("No error to header subscriber on close.", handlerRule.headerSub.getOnErrorEvents(), hasSize(1));
         assertThat("No error to content subscriber on close.", contentSub.getOnErrorEvents(), hasSize(1));
 
-        assertThat("Close before complete did not get invoked.", handlerRule.handler.closedBeforeReceive, is(true));
+        assertThat("Close before complete did not get invoked.",
+                   ((AbstractHttpConnectionBridgeMock)handlerRule.handler).closedBeforeReceive, is(true));
     }
 
     @Test(timeout = 60000)
@@ -348,7 +349,7 @@ public class AbstractHttpConnectionBridgeTest {
 
         private Connection<String, String> connMock;
         private EmbeddedChannel channel;
-        private AbstractHttpConnectionBridgeMock handler;
+        private AbstractHttpConnectionBridge<String> handler;
         private EventCatcher eventCatcher;
         private ConnectionInputSubscriber connInSub;
         private Producer connInputProducerMock;
@@ -359,7 +360,7 @@ public class AbstractHttpConnectionBridgeTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    handler = new AbstractHttpConnectionBridgeMock(HttpRequest.class);
+                    handler = newAbstractHttpConnectionBridgeMock();
                     eventCatcher = new EventCatcher();
                     channel = new EmbeddedChannel(handler, eventCatcher);
                     @SuppressWarnings("unchecked")
@@ -372,11 +373,19 @@ public class AbstractHttpConnectionBridgeTest {
             };
         }
 
+        protected AbstractHttpConnectionBridge<String> newAbstractHttpConnectionBridgeMock() {
+            return new AbstractHttpConnectionBridgeMock(HttpRequest.class);
+        }
+
+        public EmbeddedChannel getChannel() {
+            return channel;
+        }
+
         public void simulateHeaderReceive() {
             connInSub.getState().headerReceived();
         }
 
-        protected void setupAndAssertConnectionInputSub() {
+        public void setupAndAssertConnectionInputSub() {
             headerSub = new ProducerAwareSubscriber<>();
 
             @SuppressWarnings({"rawtypes", "unchecked"})
