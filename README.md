@@ -9,6 +9,7 @@ Motivations
 Motivations and detailed status of the breaking changes in 0.5.x can be found [here](https://github.com/ReactiveX/RxNetty/wiki/0.5.x-FAQs)
 RxNetty
 =======
+[ ![Download](https://api.bintray.com/packages/reactivex/RxJava/RxNetty/images/download.svg) ](https://bintray.com/reactivex/RxJava/RxNetty/_latestVersion)
 <a href='https://travis-ci.org/ReactiveX/RxNetty/builds'><img src='https://travis-ci.org/ReactiveX/RxNetty.svg?branch=0.5.x'></a>
 [![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Average time to resolve an issue")
 [![Percentage of issues still open](http://isitmaintained.com/badge/open/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Percentage of issues still open")
@@ -25,16 +26,26 @@ and the corresponding HTTP client is [here] (rxnetty-examples/src/main/java/io/r
 
 ## Binaries
 
-The binaries for 0.5.x are only available as snapshots at [jfrog artifactory](https://oss.jfrog.org/webapp/search/artifact/?1&q=RxNetty), the following snippet can be used to refer to these artifacts with gradle:
+Binaries and dependency information for Maven, Ivy, Gradle and others can be found at [http://search.maven.org](http://search.maven.org/#search|ga|1|io.reactivex.rxnetty).
+
+Example for Maven:
+
+```xml
+<dependency>
+    <groupId>io.reactivex</groupId>
+    <artifactId>rxnetty-http</artifactId>
+    <version>x.y.z</version>
+</dependency>
+```
+and for Ivy:
+
+```xml
+<dependency org="io.reactivex" name="rxnetty-http" rev="x.y.z" />
+```
+and for Gradle:
 
 ```groovy
-repositories {
-    maven { url 'https://oss.jfrog.org/libs-snapshot' }
-}
-```
-##### For HTTP
-```groovy
-compile 'io.reactivex:rxnetty-http:0.5.2-SNAPSHOT'
+compile 'io.reactivex:rxnetty-http:x.y.z'
 ```
 ###### Unintentional release artifacts
 
