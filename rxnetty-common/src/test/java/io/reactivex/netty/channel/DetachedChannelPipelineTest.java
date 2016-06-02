@@ -18,9 +18,7 @@ package io.reactivex.netty.channel;
 
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerInvoker;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.DefaultChannelHandlerInvoker;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.reactivex.netty.channel.DetachedChannelPipeline.HandlerHolder;
@@ -37,8 +35,6 @@ import static org.hamcrest.Matchers.*;
 
 public class DetachedChannelPipelineTest {
 
-    private static final ChannelHandlerInvoker MULTI_INVOKER =
-            new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next());
     private static final EventLoopGroup MULTI_GRP = new NioEventLoopGroup();
 
     public static final Func0<ChannelHandler> HANDLER_FACTORY = new Func0<ChannelHandler>() {
@@ -50,27 +46,17 @@ public class DetachedChannelPipelineTest {
     private static final HandlerHolder HANDLER_1_NO_NAME = new HandlerHolder(HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1 = new HandlerHolder("handler-1", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_1_GRP =
-            new HandlerHolder(new NioEventLoopGroup(), "handler-1", HANDLER_FACTORY);
+            new HandlerHolder("handler-1", HANDLER_FACTORY, new NioEventLoopGroup());
     private static final HandlerHolder HANDLER_1_GRP_NO_NAME =
-            new HandlerHolder(MULTI_GRP, null, HANDLER_FACTORY);
-    private static final HandlerHolder HANDLER_1_INVOKER =
-            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next()),
-                              "handler-1", HANDLER_FACTORY);
-    private static final HandlerHolder HANDLER_1_INVOKER_NO_NAME =
-            new HandlerHolder(MULTI_INVOKER,
-                              null, HANDLER_FACTORY);
+            new HandlerHolder(null, HANDLER_FACTORY, MULTI_GRP);
 
     private static final HandlerHolder HANDLER_2_NO_NAME = new HandlerHolder(HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2 = new HandlerHolder("handler-2", HANDLER_FACTORY);
     private static final HandlerHolder HANDLER_2_GRP =
-            new HandlerHolder(new NioEventLoopGroup(), "handler-2", HANDLER_FACTORY);
-    private static final HandlerHolder HANDLER_2_INVOKER =
-            new HandlerHolder(new DefaultChannelHandlerInvoker(new NioEventLoopGroup().next()),
-                              "handler-2", HANDLER_FACTORY);
+            new HandlerHolder("handler-2", HANDLER_FACTORY, new NioEventLoopGroup());
     private static final HandlerHolder HANDLER_2_GRP_NO_NAME =
-            new HandlerHolder(MULTI_GRP, null, HANDLER_FACTORY);
-    private static final HandlerHolder HANDLER_2_INVOKER_NO_NAME =
-            new HandlerHolder(MULTI_INVOKER, null, HANDLER_FACTORY);
+            new HandlerHolder(null, HANDLER_FACTORY, MULTI_GRP);
+
     @Rule
     public final PipelineRule pipelineRule = new PipelineRule();
 
@@ -110,20 +96,6 @@ public class DetachedChannelPipelineTest {
     }
 
     @Test(timeout = 60000)
-    public void testAddFirstWithInvoker() throws Exception {
-        pipelineRule.pipeline.addFirst(HANDLER_1_INVOKER.getInvokerIfConfigured(),
-                                       HANDLER_1_INVOKER.getNameIfConfigured(),
-                                       HANDLER_1_INVOKER.getHandlerFactoryIfConfigured());
-        pipelineRule.pipeline.addFirst(HANDLER_2_INVOKER.getInvokerIfConfigured(),
-                                       HANDLER_2_INVOKER.getNameIfConfigured(),
-                                       HANDLER_2_INVOKER.getHandlerFactoryIfConfigured());
-
-        assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
-        assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
-                   contains(HANDLER_2_INVOKER, HANDLER_1_INVOKER));
-    }
-
-    @Test(timeout = 60000)
     public void testAddLast() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1.getNameIfConfigured(), HANDLER_1.getHandlerFactoryIfConfigured());
         pipelineRule.pipeline.addLast(HANDLER_2.getNameIfConfigured(), HANDLER_2.getHandlerFactoryIfConfigured());
@@ -143,20 +115,6 @@ public class DetachedChannelPipelineTest {
         assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
         assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
                    contains(HANDLER_1_GRP, HANDLER_2_GRP));
-    }
-
-    @Test(timeout = 60000)
-    public void testAddLastWithInvoker() throws Exception {
-        pipelineRule.pipeline.addLast(HANDLER_1_INVOKER.getInvokerIfConfigured(),
-                                      HANDLER_1_INVOKER.getNameIfConfigured(), HANDLER_1_INVOKER.getHandlerFactoryIfConfigured());
-        pipelineRule.pipeline.addLast(HANDLER_2_INVOKER.getInvokerIfConfigured(),
-                                      HANDLER_2_INVOKER.getNameIfConfigured(),
-                                      HANDLER_2_INVOKER.getHandlerFactoryIfConfigured());
-
-        assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
-        assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
-                   contains(HANDLER_1_INVOKER, HANDLER_2_INVOKER));
-
     }
 
     @Test(timeout = 60000)
@@ -187,20 +145,6 @@ public class DetachedChannelPipelineTest {
     }
 
     @Test(timeout = 60000)
-    public void testAddBeforeWithInvoker() throws Exception {
-        pipelineRule.pipeline.addLast(HANDLER_1_INVOKER.getInvokerIfConfigured(),
-                                      HANDLER_1_INVOKER.getNameIfConfigured(), HANDLER_1_INVOKER.getHandlerFactoryIfConfigured());
-        pipelineRule.pipeline.addBefore(HANDLER_2_INVOKER.getInvokerIfConfigured(),
-                                        HANDLER_1_INVOKER.getNameIfConfigured(),
-                                        HANDLER_2_INVOKER.getNameIfConfigured(),
-                                        HANDLER_2_INVOKER.getHandlerFactoryIfConfigured());
-
-        assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
-        assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
-                   contains(HANDLER_2_INVOKER, HANDLER_1_INVOKER));
-    }
-
-    @Test(timeout = 60000)
     public void testAddAfter() throws Exception {
         pipelineRule.pipeline.addLast(HANDLER_1.getGroupIfConfigured(),
                                       HANDLER_1.getNameIfConfigured(), HANDLER_1.getHandlerFactoryIfConfigured());
@@ -227,20 +171,6 @@ public class DetachedChannelPipelineTest {
     }
 
     @Test(timeout = 60000)
-    public void testAddAfterWithInvoker() throws Exception {
-        pipelineRule.pipeline.addLast(HANDLER_1_INVOKER.getInvokerIfConfigured(),
-                                      HANDLER_1_INVOKER.getNameIfConfigured(), HANDLER_1_INVOKER.getHandlerFactoryIfConfigured());
-        pipelineRule.pipeline.addAfter(HANDLER_2_INVOKER.getInvokerIfConfigured(),
-                                       HANDLER_1_INVOKER.getNameIfConfigured(),
-                                       HANDLER_2_INVOKER.getNameIfConfigured(),
-                                       HANDLER_2_INVOKER.getHandlerFactoryIfConfigured());
-
-        assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
-        assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
-                   contains(HANDLER_1_INVOKER, HANDLER_2_INVOKER));
-    }
-
-    @Test(timeout = 60000)
     public void testAddFirstMulti() throws Exception {
         pipelineRule.pipeline.addFirst(HANDLER_1_NO_NAME.getHandlerFactoryIfConfigured(), HANDLER_2_NO_NAME.getHandlerFactoryIfConfigured());
 
@@ -257,16 +187,6 @@ public class DetachedChannelPipelineTest {
         assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
         assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
                    contains(HANDLER_1_GRP_NO_NAME, HANDLER_2_GRP_NO_NAME));
-    }
-
-    @Test(timeout = 60000)
-    public void testAddFirstMultiWithInvoker() throws Exception {
-        pipelineRule.pipeline.addFirst(MULTI_INVOKER, HANDLER_1_INVOKER_NO_NAME.getHandlerFactoryIfConfigured(),
-                                       HANDLER_2_INVOKER_NO_NAME.getHandlerFactoryIfConfigured());
-
-        assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
-        assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
-                   contains(HANDLER_1_INVOKER_NO_NAME, HANDLER_2_INVOKER_NO_NAME));
     }
 
     @Test(timeout = 60000)
@@ -287,16 +207,6 @@ public class DetachedChannelPipelineTest {
         assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
         assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
                    contains(HANDLER_1_GRP_NO_NAME, HANDLER_2_GRP_NO_NAME));
-    }
-
-    @Test(timeout = 60000)
-    public void testAddLastMultiWithInvoker() throws Exception {
-        pipelineRule.pipeline.addLast(MULTI_INVOKER, HANDLER_1_INVOKER_NO_NAME.getHandlerFactoryIfConfigured(),
-                                      HANDLER_2_INVOKER_NO_NAME.getHandlerFactoryIfConfigured());
-
-        assertThat("Unexpected handlers count.", pipelineRule.pipeline.getHoldersInOrder(), hasSize(2));
-        assertThat("Unexpected handlers.", pipelineRule.pipeline.getHoldersInOrder(),
-                   contains(HANDLER_1_INVOKER_NO_NAME, HANDLER_2_INVOKER_NO_NAME));
     }
 
     public static class PipelineRule extends ExternalResource {

@@ -22,6 +22,7 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.codec.http.DefaultHttpRequest;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpVersion;
+import io.netty.handler.logging.LoggingHandler;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -56,8 +57,8 @@ public class HttpServerRequestUriTest {
         List<String> qp2Got = qpsGot.get(qp2Name);
         Assert.assertNotNull("Got no query parameters with name: " + qp2Name, qp2Got);
         Assert.assertEquals("Unexpected number of query parameters with name: " + qp2Name, 2, qp2Got.size());
-        Assert.assertEquals("Unexpected query parameter value with name: " + qp2Name, qp2Got.get(0), qp2Val);
-        Assert.assertEquals("Unexpected query parameter second value with name: " + qp2Name, qp2Got.get(1), qp2Val2);
+        Assert.assertEquals("Unexpected query parameter value with name: " + qp2Name, qp2Val, qp2Got.get(0));
+        Assert.assertEquals("Unexpected query parameter second value with name: " + qp2Name, qp2Val2, qp2Got.get(1));
     }
 
     @Test(timeout = 60000)
@@ -80,7 +81,7 @@ public class HttpServerRequestUriTest {
     }
 
     protected HttpServerRequest<ByteBuf> newServerRequest(DefaultHttpRequest nettyRequest) {
-        EmbeddedChannel channel = new EmbeddedChannel();
+        EmbeddedChannel channel = new EmbeddedChannel(new LoggingHandler());
         return new HttpServerRequestImpl<>(nettyRequest, channel);
     }
 }

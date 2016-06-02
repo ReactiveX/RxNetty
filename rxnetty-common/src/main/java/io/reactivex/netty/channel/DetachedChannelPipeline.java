@@ -18,7 +18,6 @@ package io.reactivex.netty.channel;
 
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerInvoker;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelPipeline;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -100,11 +99,7 @@ public class DetachedChannelPipeline {
 
     public DetachedChannelPipeline addFirst(EventExecutorGroup group,
                                     String name, Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddFirst(new HandlerHolder(group, name, handlerFactory));
-    }
-
-    public DetachedChannelPipeline addFirst(ChannelHandlerInvoker invoker, String name, Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddFirst(new HandlerHolder(invoker, name, handlerFactory));
+        return _guardedAddFirst(new HandlerHolder(name, handlerFactory, group));
     }
 
     public DetachedChannelPipeline addLast(String name, Func0<ChannelHandler> handlerFactory) {
@@ -112,11 +107,7 @@ public class DetachedChannelPipeline {
     }
 
     public DetachedChannelPipeline addLast(EventExecutorGroup group, String name, Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddLast(new HandlerHolder(group, name, handlerFactory));
-    }
-
-    public DetachedChannelPipeline addLast(ChannelHandlerInvoker invoker, String name, Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddLast(new HandlerHolder(invoker, name, handlerFactory));
+        return _guardedAddLast(new HandlerHolder(name, handlerFactory, group));
     }
 
     public DetachedChannelPipeline addBefore(String baseName, String name, Func0<ChannelHandler> handlerFactory) {
@@ -124,12 +115,7 @@ public class DetachedChannelPipeline {
     }
 
     public DetachedChannelPipeline addBefore(EventExecutorGroup group, String baseName, String name, Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddBefore(baseName, new HandlerHolder(group, name, handlerFactory));
-    }
-
-    public DetachedChannelPipeline addBefore(ChannelHandlerInvoker invoker, String baseName, String name,
-                                     Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddBefore(baseName, new HandlerHolder(invoker, name, handlerFactory));
+        return _guardedAddBefore(baseName, new HandlerHolder(name, handlerFactory, group));
     }
 
     public DetachedChannelPipeline addAfter(String baseName, String name, Func0<ChannelHandler> handlerFactory) {
@@ -137,12 +123,7 @@ public class DetachedChannelPipeline {
     }
 
     public DetachedChannelPipeline addAfter(EventExecutorGroup group, String baseName, String name, Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddAfter(baseName, new HandlerHolder(group, name, handlerFactory));
-    }
-
-    public DetachedChannelPipeline addAfter(ChannelHandlerInvoker invoker, String baseName, String name,
-                                    Func0<ChannelHandler> handlerFactory) {
-        return _guardedAddAfter(baseName, new HandlerHolder(invoker, name, handlerFactory));
+        return _guardedAddAfter(baseName, new HandlerHolder(name, handlerFactory, group));
     }
 
     @SafeVarargs
@@ -161,19 +142,7 @@ public class DetachedChannelPipeline {
         synchronized (holdersInOrder) {
             for (int i = handlerFactories.length - 1; i >= 0; i--) {
                 Func0<ChannelHandler> handlerFactory = handlerFactories[i];
-                holdersInOrder.addFirst(new HandlerHolder(group, null, handlerFactory));
-            }
-        }
-        return this;
-    }
-
-    @SafeVarargs
-    public final DetachedChannelPipeline addFirst(ChannelHandlerInvoker invoker,
-                                                  Func0<ChannelHandler>... handlerFactories) {
-        synchronized (holdersInOrder) {
-            for (int i = handlerFactories.length - 1; i >= 0; i--) {
-                Func0<ChannelHandler> handlerFactory = handlerFactories[i];
-                holdersInOrder.addFirst(new HandlerHolder(invoker, null, handlerFactory));
+                holdersInOrder.addFirst(new HandlerHolder(null, handlerFactory, group));
             }
         }
         return this;
@@ -190,16 +159,7 @@ public class DetachedChannelPipeline {
     @SafeVarargs
     public final DetachedChannelPipeline addLast(EventExecutorGroup group, Func0<ChannelHandler>... handlerFactories) {
         for (Func0<ChannelHandler> handlerFactory : handlerFactories) {
-            _guardedAddLast(new HandlerHolder(group, null, handlerFactory));
-        }
-        return this;
-    }
-
-    @SafeVarargs
-    public final DetachedChannelPipeline addLast(ChannelHandlerInvoker invoker,
-                                                 Func0<ChannelHandler>... handlerFactories) {
-        for (Func0<ChannelHandler> handlerFactory : handlerFactories) {
-            _guardedAddLast(new HandlerHolder(invoker, null, handlerFactory));
+            _guardedAddLast(new HandlerHolder(null, handlerFactory, group));
         }
         return this;
     }
@@ -232,13 +192,6 @@ public class DetachedChannelPipeline {
                                      holder.getHandlerFactoryIfConfigured().call());
                 } else {
                     pipeline.addLast(holder.getGroupIfConfigured(), holder.getHandlerFactoryIfConfigured().call());
-                }
-            } else if (holder.hasInvoker()) {
-                if (holder.hasName()) {
-                    pipeline.addLast(holder.getInvokerIfConfigured(), holder.getNameIfConfigured(),
-                                     holder.getHandlerFactoryIfConfigured().call());
-                } else {
-                    pipeline.addLast(holder.getInvokerIfConfigured(), holder.getHandlerFactoryIfConfigured().call());
                 }
             } else if (holder.hasName()) {
                 pipeline.addLast(holder.getNameIfConfigured(), holder.getHandlerFactoryIfConfigured().call());
@@ -331,14 +284,12 @@ public class DetachedChannelPipeline {
         private final String nameIfConfigured;
         private final Func0<ChannelHandler> handlerFactoryIfConfigured;
         private final Action1<ChannelPipeline> pipelineConfigurator;
-        private final ChannelHandlerInvoker invokerIfConfigured;
         private final EventExecutorGroup groupIfConfigured;
 
         HandlerHolder(Action1<ChannelPipeline> pipelineConfigurator) {
             this.pipelineConfigurator = pipelineConfigurator;
             nameIfConfigured = null;
             handlerFactoryIfConfigured = null;
-            invokerIfConfigured = null;
             groupIfConfigured = null;
         }
 
@@ -347,22 +298,12 @@ public class DetachedChannelPipeline {
         }
 
         HandlerHolder(String name, Func0<ChannelHandler> handlerFactory) {
-            this(name, handlerFactory, null, null);
+            this(name, handlerFactory, null);
         }
 
-        HandlerHolder(ChannelHandlerInvoker invoker, String name, Func0<ChannelHandler> handlerFactory) {
-            this(name, handlerFactory, invoker, null);
-        }
-
-        HandlerHolder(EventExecutorGroup group, String name, Func0<ChannelHandler> handlerFactory) {
-            this(name, handlerFactory, null, group);
-        }
-
-        HandlerHolder(String name, Func0<ChannelHandler> handlerFactory, ChannelHandlerInvoker invoker,
-                      EventExecutorGroup group) {
+        HandlerHolder(String name, Func0<ChannelHandler> handlerFactory, EventExecutorGroup group) {
             nameIfConfigured = name;
             handlerFactoryIfConfigured = handlerFactory;
-            invokerIfConfigured = invoker;
             groupIfConfigured = group;
             pipelineConfigurator = null;
         }
@@ -377,14 +318,6 @@ public class DetachedChannelPipeline {
 
         public Func0<ChannelHandler> getHandlerFactoryIfConfigured() {
             return handlerFactoryIfConfigured;
-        }
-
-        public ChannelHandlerInvoker getInvokerIfConfigured() {
-            return invokerIfConfigured;
-        }
-
-        public boolean hasInvoker() {
-            return null != invokerIfConfigured;
         }
 
         public EventExecutorGroup getGroupIfConfigured() {
@@ -423,10 +356,6 @@ public class DetachedChannelPipeline {
                     that.handlerFactoryIfConfigured != null) {
                 return false;
             }
-            if (invokerIfConfigured != null? !invokerIfConfigured.equals(that.invokerIfConfigured) :
-                    that.invokerIfConfigured != null) {
-                return false;
-            }
             if (nameIfConfigured != null? !nameIfConfigured.equals(that.nameIfConfigured) :
                     that.nameIfConfigured != null) {
                 return false;
@@ -444,7 +373,6 @@ public class DetachedChannelPipeline {
             int result = nameIfConfigured != null? nameIfConfigured.hashCode() : 0;
             result = 31 * result + (handlerFactoryIfConfigured != null? handlerFactoryIfConfigured.hashCode() : 0);
             result = 31 * result + (pipelineConfigurator != null? pipelineConfigurator.hashCode() : 0);
-            result = 31 * result + (invokerIfConfigured != null? invokerIfConfigured.hashCode() : 0);
             result = 31 * result + (groupIfConfigured != null? groupIfConfigured.hashCode() : 0);
             return result;
         }
@@ -452,8 +380,8 @@ public class DetachedChannelPipeline {
         @Override
         public String toString() {
             return "HandlerHolder{" + "nameIfConfigured='" + nameIfConfigured + '\'' + ", handlerFactoryIfConfigured=" +
-                   handlerFactoryIfConfigured + ", pipelineConfigurator=" + pipelineConfigurator +
-                   ", invokerIfConfigured=" + invokerIfConfigured + ", groupIfConfigured=" + groupIfConfigured + '}';
+                   handlerFactoryIfConfigured + ", pipelineConfigurator=" + pipelineConfigurator
+                   + ", groupIfConfigured=" + groupIfConfigured + '}';
         }
     }
 }

@@ -32,8 +32,7 @@ public class PreferCurrentEventLoopGroupTest {
     @Test(timeout = 60000)
     public void testNextInEventloop() throws Exception {
         final PreferCurrentEventLoopGroup group = new PreferCurrentEventLoopGroup(new NioEventLoopGroup(4));
-        Set<EventExecutor> children = group.children();
-        for (EventExecutor child : children) {
+        for (EventExecutor child : group) {
             Future<Boolean> future = child.submit(new Callable<Boolean>() {
                 @Override
                 public Boolean call() throws Exception {

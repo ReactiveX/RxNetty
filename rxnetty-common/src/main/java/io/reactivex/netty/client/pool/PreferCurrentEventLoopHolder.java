@@ -17,6 +17,7 @@
 package io.reactivex.netty.client.pool;
 
 import io.netty.channel.EventLoop;
+import io.netty.util.concurrent.EventExecutor;
 import io.netty.util.concurrent.FastThreadLocal;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge;
 import io.reactivex.netty.threads.PreferCurrentEventLoopGroup;
@@ -29,7 +30,7 @@ import rx.functions.Action1;
 import rx.functions.Actions;
 import rx.functions.Func0;
 
-import java.util.Set;
+import java.util.ArrayList;
 
 /**
  * An {@link IdleConnectionsHolder} implementation that can identify if the calling thread is an {@link EventLoop} in
@@ -50,7 +51,7 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
     private static final Logger logger = LoggerFactory.getLogger(PreferCurrentEventLoopHolder.class);
 
     private final FastThreadLocal<IdleConnectionsHolder<W, R>> perElHolder = new FastThreadLocal<>();
-    private final IdleConnectionsHolder<W, R>[] allElHolders;
+    private final ArrayList<IdleConnectionsHolder<W, R>> allElHolders;
     private final Observable<PooledConnection<R, W>> pollObservable;
     private final Observable<PooledConnection<R, W>> peekObservable;
 
@@ -60,15 +61,11 @@ public class PreferCurrentEventLoopHolder<W, R> extends IdleConnectionsHolder<W,
 
     PreferCurrentEventLoopHolder(PreferCurrentEventLoopGroup eventLoopGroup,
                                  final IdleConnectionsHolderFactory<W, R> holderFactory) {
-        Set<EventLoop> children = eventLoopGroup.children();
-        @SuppressWarnings("unchecked")
-        final
-        IdleConnectionsHolder<W, R>[] _allElHolders = new IdleConnectionsHolder[children.size()];
+        final ArrayList<IdleConnectionsHolder<W, R>> _allElHolders = new ArrayList<>();
         allElHolders = _allElHolders;
-        int count = 0;
-        for (final EventLoop child : children) {
+        for (final EventExecutor child : eventLoopGroup) {
             final IdleConnectionsHolder<W, R> newHolder = holderFactory.call();
-            allElHolders[count++] = newHolder;
+            allElHolders.add(newHolder);
             child.submit(new Runnable() {
                 @Override
                 public void run() {

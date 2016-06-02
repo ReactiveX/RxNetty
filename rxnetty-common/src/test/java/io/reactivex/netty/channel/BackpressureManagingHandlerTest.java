@@ -23,6 +23,7 @@ import io.netty.channel.ChannelOutboundHandlerAdapter;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.FixedRecvByteBufAllocator;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor;
 import io.reactivex.netty.channel.BackpressureManagingHandler.RequestReadIfRequiredEvent;
 import io.reactivex.netty.channel.BackpressureManagingHandler.State;
@@ -358,7 +359,7 @@ public class BackpressureManagingHandlerTest {
                 @Override
                 public void evaluate() throws Throwable {
                     inboundRequestFeeder = new InboundRequestFeeder();
-                    channel = new EmbeddedChannel();
+                    channel = new EmbeddedChannel(new LoggingHandler());
                     String bpName = "backpressure-manager";
                     channel.pipeline().addFirst(bpName,
                                                 handler = new MockBackpressureManagingHandler(bpName));

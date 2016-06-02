@@ -20,8 +20,8 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelHandlerInvoker;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -70,13 +70,6 @@ class EmbeddedChannelPipelineDelegate implements ChannelPipeline {
     }
 
     @Override
-    public ChannelPipeline addFirst(ChannelHandlerInvoker invoker,
-                                    String name, ChannelHandler handler) {
-        pipeline.addFirst(invoker, name, handler);
-        return this;
-    }
-
-    @Override
     public ChannelPipeline addLast(String name, ChannelHandler handler) {
         if (null != lastHandlerName) {
             pipeline.addBefore(lastHandlerName, name, handler);
@@ -98,17 +91,6 @@ class EmbeddedChannelPipelineDelegate implements ChannelPipeline {
     }
 
     @Override
-    public ChannelPipeline addLast(ChannelHandlerInvoker invoker,
-                                   String name, ChannelHandler handler) {
-        if (null != lastHandlerName) {
-            pipeline.addBefore(invoker, lastHandlerName, name, handler);
-        } else {
-            pipeline.addLast(invoker, name, handler);
-        }
-        return this;
-    }
-
-    @Override
     public ChannelPipeline addBefore(String baseName, String name,
                                      ChannelHandler handler) {
         pipeline.addBefore(baseName, name, handler);
@@ -120,14 +102,6 @@ class EmbeddedChannelPipelineDelegate implements ChannelPipeline {
                                      String baseName, String name,
                                      ChannelHandler handler) {
         pipeline.addBefore(group, baseName, name, handler);
-        return this;
-    }
-
-    @Override
-    public ChannelPipeline addBefore(ChannelHandlerInvoker invoker,
-                                     String baseName, String name,
-                                     ChannelHandler handler) {
-        pipeline.addBefore(invoker, baseName, name, handler);
         return this;
     }
 
@@ -147,14 +121,6 @@ class EmbeddedChannelPipelineDelegate implements ChannelPipeline {
     }
 
     @Override
-    public ChannelPipeline addAfter(ChannelHandlerInvoker invoker,
-                                    String baseName, String name,
-                                    ChannelHandler handler) {
-        pipeline.addAfter(invoker, baseName, name, handler);
-        return this;
-    }
-
-    @Override
     public ChannelPipeline addFirst(ChannelHandler... handlers) {
         pipeline.addFirst(handlers);
         return this;
@@ -164,13 +130,6 @@ class EmbeddedChannelPipelineDelegate implements ChannelPipeline {
     public ChannelPipeline addFirst(EventExecutorGroup group,
                                     ChannelHandler... handlers) {
         pipeline.addFirst(group, handlers);
-        return this;
-    }
-
-    @Override
-    public ChannelPipeline addFirst(ChannelHandlerInvoker invoker,
-                                    ChannelHandler... handlers) {
-        pipeline.addFirst(invoker, handlers);
         return this;
     }
 
@@ -195,19 +154,6 @@ class EmbeddedChannelPipelineDelegate implements ChannelPipeline {
             }
         } else {
             pipeline.addLast(group, handlers);
-        }
-        return this;
-    }
-
-    @Override
-    public ChannelPipeline addLast(ChannelHandlerInvoker invoker,
-                                   ChannelHandler... handlers) {
-        if (null != lastHandlerName) {
-            for (ChannelHandler handler : handlers) {
-                pipeline.addBefore(invoker, lastHandlerName, generateUniqueName(), handler);
-            }
-        } else {
-            pipeline.addLast(invoker, handlers);
         }
         return this;
     }
@@ -457,6 +403,31 @@ class EmbeddedChannelPipelineDelegate implements ChannelPipeline {
 
     @Override
     public ChannelFuture writeAndFlush(Object msg) {
+        throw new UnsupportedOperationException("Only pipeline modification operations are allowed");
+    }
+
+    @Override
+    public ChannelPromise newPromise() {
+        throw new UnsupportedOperationException("Only pipeline modification operations are allowed");
+    }
+
+    @Override
+    public ChannelProgressivePromise newProgressivePromise() {
+        throw new UnsupportedOperationException("Only pipeline modification operations are allowed");
+    }
+
+    @Override
+    public ChannelFuture newSucceededFuture() {
+        throw new UnsupportedOperationException("Only pipeline modification operations are allowed");
+    }
+
+    @Override
+    public ChannelFuture newFailedFuture(Throwable cause) {
+        throw new UnsupportedOperationException("Only pipeline modification operations are allowed");
+    }
+
+    @Override
+    public ChannelPromise voidPromise() {
         throw new UnsupportedOperationException("Only pipeline modification operations are allowed");
     }
 

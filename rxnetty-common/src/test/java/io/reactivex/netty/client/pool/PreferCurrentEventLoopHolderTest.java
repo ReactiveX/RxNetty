@@ -17,6 +17,7 @@
 package io.reactivex.netty.client.pool;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.Future;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
@@ -157,7 +158,7 @@ public class PreferCurrentEventLoopHolderTest {
                 @Override
                 public void evaluate() throws Throwable {
                     eventLoopThread = Executors.newFixedThreadPool(1);
-                    channel = new EmbeddedChannel();
+                    channel = new EmbeddedChannel(new LoggingHandler());
                     PreferCurrentEventLoopGroup eventLoopGroup = new PreferCurrentEventLoopGroup(channel.eventLoop());
                     eventPublisher = DisabledEventPublisher.DISABLED_EVENT_PUBLISHER;
                     channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(eventPublisher);
