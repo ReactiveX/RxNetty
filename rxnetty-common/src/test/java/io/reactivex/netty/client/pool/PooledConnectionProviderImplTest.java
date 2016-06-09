@@ -17,6 +17,7 @@
 package io.reactivex.netty.client.pool;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.client.ClientConnectionToChannelBridge;
@@ -27,7 +28,6 @@ import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.test.util.DisabledEventPublisher;
 import io.reactivex.netty.test.util.TrackableMetricEventsListener;
-import io.reactivex.netty.test.util.embedded.EmbeddedChannelTmp;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -365,7 +365,7 @@ public class PooledConnectionProviderImplTest {
             return Observable.create(new OnSubscribe<Connection<String, String>>() {
                 @Override
                 public void call(Subscriber<? super Connection<String, String>> s) {
-                    EmbeddedChannel c = new EmbeddedChannelTmp();
+                    EmbeddedChannel c = new EmbeddedChannel(new LoggingHandler());
                     c.attr(EventAttributeKeys.EVENT_PUBLISHER).set(publisher);
                     ClientConnectionToChannelBridge.addToPipeline(c.pipeline(), false);
                     s.onNext(ConnectionImpl.<String, String>fromChannel(c));

@@ -20,8 +20,9 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelHandlerInvoker;
+import io.netty.channel.ChannelOutboundInvoker;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelProgressivePromise;
 import io.netty.channel.ChannelPromise;
 import io.netty.util.concurrent.EventExecutorGroup;
 
@@ -117,13 +118,6 @@ public final class MarkAwarePipeline implements ChannelPipeline {
     }
 
     @Override
-    public ChannelPipeline addFirst(ChannelHandlerInvoker invoker,
-                                    String name, ChannelHandler handler) {
-        delegate.addFirst(invoker, name, handler);
-        return this;
-    }
-
-    @Override
     public ChannelPipeline addLast(String name, ChannelHandler handler) {
         delegate.addLast(name, handler);
         return this;
@@ -133,13 +127,6 @@ public final class MarkAwarePipeline implements ChannelPipeline {
     public ChannelPipeline addLast(EventExecutorGroup group,
                                    String name, ChannelHandler handler) {
         delegate.addLast(group, name, handler);
-        return this;
-    }
-
-    @Override
-    public ChannelPipeline addLast(ChannelHandlerInvoker invoker,
-                                   String name, ChannelHandler handler) {
-        delegate.addLast(invoker, name, handler);
         return this;
     }
 
@@ -154,14 +141,6 @@ public final class MarkAwarePipeline implements ChannelPipeline {
                                      String baseName, String name,
                                      ChannelHandler handler) {
         delegate.addBefore(group, baseName, name, handler);
-        return this;
-    }
-
-    @Override
-    public ChannelPipeline addBefore(ChannelHandlerInvoker invoker,
-                                     String baseName, String name,
-                                     ChannelHandler handler) {
-        delegate.addBefore(invoker, baseName, name, handler);
         return this;
     }
 
@@ -181,14 +160,6 @@ public final class MarkAwarePipeline implements ChannelPipeline {
     }
 
     @Override
-    public ChannelPipeline addAfter(ChannelHandlerInvoker invoker,
-                                    String baseName, String name,
-                                    ChannelHandler handler) {
-        delegate.addAfter(invoker, baseName, name, handler);
-        return this;
-    }
-
-    @Override
     public ChannelPipeline addFirst(ChannelHandler... handlers) {
         delegate.addFirst(handlers);
         return this;
@@ -202,13 +173,6 @@ public final class MarkAwarePipeline implements ChannelPipeline {
     }
 
     @Override
-    public ChannelPipeline addFirst(ChannelHandlerInvoker invoker,
-                                    ChannelHandler... handlers) {
-        delegate.addFirst(invoker, handlers);
-        return this;
-    }
-
-    @Override
     public ChannelPipeline addLast(ChannelHandler... handlers) {
         delegate.addLast(handlers);
         return this;
@@ -218,13 +182,6 @@ public final class MarkAwarePipeline implements ChannelPipeline {
     public ChannelPipeline addLast(EventExecutorGroup group,
                                    ChannelHandler... handlers) {
         delegate.addLast(group, handlers);
-        return this;
-    }
-
-    @Override
-    public ChannelPipeline addLast(ChannelHandlerInvoker invoker,
-                                   ChannelHandler... handlers) {
-        delegate.addLast(invoker, handlers);
         return this;
     }
 
@@ -453,7 +410,7 @@ public final class MarkAwarePipeline implements ChannelPipeline {
     }
 
     @Override
-    public ChannelPipeline read() {
+    public ChannelOutboundInvoker read() {
         return delegate.read();
     }
 
@@ -480,6 +437,31 @@ public final class MarkAwarePipeline implements ChannelPipeline {
     @Override
     public ChannelFuture writeAndFlush(Object msg) {
         return delegate.writeAndFlush(msg);
+    }
+
+    @Override
+    public ChannelPromise newPromise() {
+        return delegate.newPromise();
+    }
+
+    @Override
+    public ChannelProgressivePromise newProgressivePromise() {
+        return delegate.newProgressivePromise();
+    }
+
+    @Override
+    public ChannelFuture newSucceededFuture() {
+        return delegate.newSucceededFuture();
+    }
+
+    @Override
+    public ChannelFuture newFailedFuture(Throwable cause) {
+        return delegate.newFailedFuture(cause);
+    }
+
+    @Override
+    public ChannelPromise voidPromise() {
+        return delegate.voidPromise();
     }
 
     @Override

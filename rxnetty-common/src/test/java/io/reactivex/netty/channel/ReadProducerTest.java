@@ -17,6 +17,7 @@
 package io.reactivex.netty.channel;
 
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.channel.AbstractConnectionToChannelBridge.ReadProducer;
 import org.junit.Rule;
 import org.junit.Test;
@@ -137,7 +138,7 @@ public class ReadProducerTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    channel = new EmbeddedChannel();
+                    channel = new EmbeddedChannel(new LoggingHandler());
                     subscriber = Subscribers.empty();
                     producer = new ReadProducer<>(subscriber, channel);
                     base.evaluate();

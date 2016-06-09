@@ -29,7 +29,6 @@ import io.netty.util.concurrent.ScheduledFuture;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -55,12 +54,13 @@ public class PreferCurrentEventLoopGroup implements EventLoopGroup {
 
     public PreferCurrentEventLoopGroup(EventLoopGroup delegate) {
         this.delegate = delegate;
-        Set<EventLoop> children = delegate.children();
-        for (final EventLoop child : children) {
+        for (final EventExecutor child : delegate) {
             child.submit(new Runnable() {
                 @Override
                 public void run() {
-                    self.set(child);
+                    if (child instanceof EventLoop) {
+                        self.set((EventLoop) child);
+                    }
                 }
             }); // Since this is an optimization, there is no need for us to wait for this task to finish.
         }
@@ -77,6 +77,12 @@ public class PreferCurrentEventLoopGroup implements EventLoopGroup {
         return next().register(channel);
     }
 
+    @Override
+    public ChannelFuture register(ChannelPromise promise) {
+        return next().register(promise);
+    }
+
+    @Deprecated
     @Override
     public ChannelFuture register(Channel channel,
                                   ChannelPromise promise) {
@@ -120,11 +126,6 @@ public class PreferCurrentEventLoopGroup implements EventLoopGroup {
     @Deprecated
     public Iterator<EventExecutor> iterator() {
         return delegate.iterator();
-    }
-
-    @Override
-    public <E extends EventExecutor> Set<E> children() {
-        return delegate.children();
     }
 
     @Override

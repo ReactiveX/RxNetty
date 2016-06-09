@@ -31,6 +31,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.ClientCookieEncoder;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
@@ -215,7 +216,7 @@ public class HttpClientRequestImplTest {
         final String headerVal = "bar";
 
         HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, headerVal);
+                requestRule.request.addHeader(headerName, headerVal);
 
         requestRule.assertCopy(newReq);
 
@@ -225,8 +226,7 @@ public class HttpClientRequestImplTest {
     @Test(timeout = 60000)
     public void testAddCookie() throws Exception {
         DefaultCookie cookie = new DefaultCookie("cookie", "cook");
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addCookie(cookie);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addCookie(cookie);
 
         requestRule.assertCopy(newReq);
 
@@ -238,8 +238,7 @@ public class HttpClientRequestImplTest {
         String headerName = "date";
         Date date = new Date();
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addDateHeader(headerName, date);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addDateHeader(headerName, date);
 
         requestRule.assertCopy(newReq);
 
@@ -252,9 +251,8 @@ public class HttpClientRequestImplTest {
         Date date1 = new Date();
         Date date2 = new Date();
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addDateHeader(headerName,
-                                                                                           Arrays.asList(date1, date2));
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addDateHeader(headerName,
+                                                                                          Arrays.asList(date1, date2));
 
         requestRule.assertCopy(newReq);
 
@@ -267,15 +265,13 @@ public class HttpClientRequestImplTest {
         Date date1 = new Date();
         Date date2 = new Date();
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, date1);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addHeader(headerName, date1);
 
         requestRule.assertCopy(newReq);
 
         requestRule.assertHeaderAdded(newReq, headerName, date1);
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq2 =
-                (HttpClientRequestImpl<Object, ByteBuf>) newReq.addHeader(headerName, date2);
+        HttpClientRequestImpl<Object, ByteBuf> newReq2 = newReq.addHeader(headerName, date2);
 
         requestRule.assertCopy(newReq, newReq2);
 
@@ -289,8 +285,7 @@ public class HttpClientRequestImplTest {
         String val2 = "val2";
 
         HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
-                                                    .addHeaderValues(headerName, Arrays.<Object>asList(val1, val2));
+                requestRule.request.addHeaderValues(headerName, Arrays.<Object>asList(val1, val2));
 
         requestRule.assertCopy(newReq);
 
@@ -304,14 +299,13 @@ public class HttpClientRequestImplTest {
         String val2 = "val2";
 
         HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, val1);
+                requestRule.request.addHeader(headerName, val1);
 
         requestRule.assertCopy(newReq);
 
         requestRule.assertHeaderAdded(newReq, headerName, val1);
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq2 =
-                (HttpClientRequestImpl<Object, ByteBuf>) newReq.addHeader(headerName, val2);
+        HttpClientRequestImpl<Object, ByteBuf> newReq2 = newReq.addHeader(headerName, val2);
 
         requestRule.assertCopy(newReq, newReq2);
 
@@ -323,16 +317,14 @@ public class HttpClientRequestImplTest {
         String headerName = "date";
         Date date1 = new Date();
 
-        HttpClientRequestImpl<Object, ByteBuf> addReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addDateHeader(headerName, date1);
+        HttpClientRequestImpl<Object, ByteBuf> addReq = requestRule.request.addDateHeader(headerName, date1);
 
         requestRule.assertCopy(addReq);
 
         requestRule.assertHeaderAdded(addReq, headerName, date1);
 
         Date date2 = new Date(100);
-        HttpClientRequestImpl<Object, ByteBuf> setReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setDateHeader(headerName, date2);
+        HttpClientRequestImpl<Object, ByteBuf> setReq = requestRule.request.setDateHeader(headerName, date2);
 
         requestRule.assertCopy(setReq);
 
@@ -344,16 +336,14 @@ public class HttpClientRequestImplTest {
         String headerName = "foo";
         String val1 = "bar";
 
-        HttpClientRequestImpl<Object, ByteBuf> addReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, val1);
+        HttpClientRequestImpl<Object, ByteBuf> addReq = requestRule.request.addHeader(headerName, val1);
 
         requestRule.assertCopy(addReq);
 
         requestRule.assertHeaderAdded(addReq, headerName, val1);
 
         String val2 = "bar2";
-        HttpClientRequestImpl<Object, ByteBuf> setReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setHeader(headerName, val2);
+        HttpClientRequestImpl<Object, ByteBuf> setReq = requestRule.request.setHeader(headerName, val2);
 
         requestRule.assertCopy(setReq);
 
@@ -365,8 +355,7 @@ public class HttpClientRequestImplTest {
         String headerName = "date";
         Date date1 = new Date();
 
-        HttpClientRequestImpl<Object, ByteBuf> addReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addDateHeader(headerName, date1);
+        HttpClientRequestImpl<Object, ByteBuf> addReq = requestRule.request.addDateHeader(headerName, date1);
 
         requestRule.assertCopy(addReq);
 
@@ -375,9 +364,8 @@ public class HttpClientRequestImplTest {
         Date date2 = new Date(100);
         Date date3 = new Date(500);
 
-        HttpClientRequestImpl<Object, ByteBuf> setReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
-                        .setDateHeader(headerName, Arrays.asList(date2, date3));
+        HttpClientRequestImpl<Object, ByteBuf> setReq = requestRule.request.setDateHeader(headerName,
+                                                                                          Arrays.asList(date2, date3));
 
         requestRule.assertCopy(setReq);
 
@@ -389,8 +377,7 @@ public class HttpClientRequestImplTest {
         String headerName = "date";
         Date date1 = new Date();
 
-        HttpClientRequestImpl<Object, ByteBuf> addReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addDateHeader(headerName, date1);
+        HttpClientRequestImpl<Object, ByteBuf> addReq = requestRule.request.addDateHeader(headerName, date1);
 
         requestRule.assertCopy(addReq);
 
@@ -399,9 +386,8 @@ public class HttpClientRequestImplTest {
         String val2 = "bar2";
         String val3 = "bar3";
 
-        HttpClientRequestImpl<Object, ByteBuf> setReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
-                        .setHeaderValues(headerName, Arrays.<Object>asList(val2, val3));
+        HttpClientRequestImpl<Object, ByteBuf> setReq = requestRule.request.setHeaderValues(headerName,
+                                                                                            Arrays.<Object>asList(val2, val3));
 
         requestRule.assertCopy(setReq);
 
@@ -413,15 +399,13 @@ public class HttpClientRequestImplTest {
         final String headerName = "Foo";
         final String headerVal = "bar";
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, headerVal);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addHeader(headerName, headerVal);
 
         requestRule.assertCopy(newReq);
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal);
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq2 =
-                (HttpClientRequestImpl<Object, ByteBuf>) newReq.removeHeader(headerName);
+        HttpClientRequestImpl<Object, ByteBuf> newReq2 = newReq.removeHeader(headerName);
 
         requestRule.assertCopy(newReq2, newReq);
 
@@ -435,16 +419,14 @@ public class HttpClientRequestImplTest {
 
     @Test(timeout = 60000)
     public void testSetKeepAlive() throws Exception {
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setKeepAlive(false);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.setKeepAlive(false);
 
         requestRule.assertHeaderAdded(newReq, CONNECTION.toString(), CLOSE.toString());
     }
 
     @Test(timeout = 60000)
     public void testSetTransferEncodingChunked() throws Exception {
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.setTransferEncodingChunked();
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.setTransferEncodingChunked();
 
         requestRule.assertHeaderAdded(newReq, TRANSFER_ENCODING.toString(), CHUNKED.toString());
 
@@ -455,8 +437,7 @@ public class HttpClientRequestImplTest {
         final String headerName = "Foo";
         final String headerVal = "bar";
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, headerVal);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addHeader(headerName, headerVal);
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal);
 
@@ -469,8 +450,7 @@ public class HttpClientRequestImplTest {
         final String headerVal1 = "bar";
         final String headerVal2 = "bar2";
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request
                         .addHeaderValues(headerName, Arrays.<Object>asList(headerVal1, headerVal2));
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal1, headerVal2);
@@ -484,8 +464,7 @@ public class HttpClientRequestImplTest {
         final String headerName = "Foo";
         final String headerVal = "bar";
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, headerVal);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addHeader(headerName, headerVal);
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal);
 
@@ -498,8 +477,7 @@ public class HttpClientRequestImplTest {
         final String headerName = "Foo";
         final String headerVal = "bar";
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request.addHeader(headerName, headerVal);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addHeader(headerName, headerVal);
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal);
 
@@ -512,8 +490,7 @@ public class HttpClientRequestImplTest {
         final String headerVal1 = "bar";
         final String headerVal2 = "bar2";
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request
                         .addHeaderValues(headerName, Arrays.<Object>asList(headerVal1, headerVal2));
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal1, headerVal2);
@@ -546,8 +523,7 @@ public class HttpClientRequestImplTest {
         final String headerVal1 = "bar";
 
         HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
-                        .addHeader(headerName, headerVal1);
+                requestRule.request.addHeader(headerName, headerVal1);
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal1);
 
@@ -568,9 +544,7 @@ public class HttpClientRequestImplTest {
         final String headerName = "Foo";
         final String headerVal1 = "bar";
 
-        HttpClientRequestImpl<Object, ByteBuf> newReq =
-                (HttpClientRequestImpl<Object, ByteBuf>) requestRule.request
-                        .addHeader(headerName, headerVal1);
+        HttpClientRequestImpl<Object, ByteBuf> newReq = requestRule.request.addHeader(headerName, headerVal1);
 
         requestRule.assertHeaderAdded(newReq, headerName, headerVal1);
 
@@ -737,9 +711,9 @@ public class HttpClientRequestImplTest {
 
                     RequestRule.this.clientMock = clientMock;
 
-                    request = (HttpClientRequestImpl<Object, ByteBuf>) HttpClientRequestImpl.create(HttpVersion.HTTP_1_1,
-                                                                                                    HttpMethod.GET, "/",
-                                                                                                    RequestRule.this.clientMock
+                    request = HttpClientRequestImpl.create(HttpVersion.HTTP_1_1,
+                                                           HttpMethod.GET, "/",
+                                                           RequestRule.this.clientMock
                     );
                     base.evaluate();
                 }
@@ -838,7 +812,7 @@ public class HttpClientRequestImplTest {
             RawRequest<Object, ByteBuf> rawReq = getRawRequest(newReq);
 
             final AtomicInteger flushCount = new AtomicInteger();
-            EmbeddedChannel channel = new EmbeddedChannel() {
+            EmbeddedChannel channel = new EmbeddedChannel(new LoggingHandler()) {
                 @Override
                 public Channel flush() {
                     flushCount.incrementAndGet();

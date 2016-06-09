@@ -18,6 +18,7 @@
 package io.reactivex.netty.test.util.embedded;
 
 import io.netty.channel.Channel;
+import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.client.ChannelProvider;
 import io.reactivex.netty.client.ChannelProviderFactory;
 import io.reactivex.netty.client.Host;
@@ -57,7 +58,7 @@ public class EmbeddedChannelProvider implements ChannelProvider {
             @Override
             public Observable<Channel> call() {
                 InboundRequestFeeder feeder = new InboundRequestFeeder();
-                EmbeddedChannelTmp embeddedChannel = new EmbeddedChannelTmp(feeder);
+                EmbeddedChannel embeddedChannel = new EmbeddedChannel(feeder);
                 EmbeddedChannelWithFeeder ecwf = new EmbeddedChannelWithFeeder(embeddedChannel, feeder);
                 createdChannels.add(ecwf);
                 return Observable.<Channel>just(embeddedChannel);

@@ -28,6 +28,7 @@ import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.codec.http.cookie.Cookie;
 import io.netty.handler.codec.http.cookie.DefaultCookie;
 import io.netty.handler.codec.http.cookie.ServerCookieDecoder;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.ConnectionImpl;
 import io.reactivex.netty.events.EventAttributeKeys;
@@ -49,7 +50,7 @@ public class CookieTest {
                                + "; expires=Thu, 18-Feb-2016 07:47:08 GMT;";
         nettyRequest.headers().add(HttpHeaderNames.COOKIE, cookie1Header);
 
-        EmbeddedChannel channel = new EmbeddedChannel();
+        EmbeddedChannel channel = new EmbeddedChannel(new LoggingHandler());
         HttpServerRequest<ByteBuf> request = new HttpServerRequestImpl<>(nettyRequest, channel);
 
         Map<String,Set<Cookie>> cookies = request.getCookies();
@@ -64,7 +65,7 @@ public class CookieTest {
     @Test(timeout = 60000)
     public void testSetCookie() throws Exception {
         DefaultHttpResponse nettyResponse = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.NOT_FOUND);
-        EmbeddedChannel channel = new EmbeddedChannel();
+        EmbeddedChannel channel = new EmbeddedChannel(new LoggingHandler());
         channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(DisabledEventPublisher.DISABLED_EVENT_PUBLISHER);
         Connection<ByteBuf, ByteBuf> connection = ConnectionImpl.fromChannel(channel);
         HttpServerResponse<ByteBuf> response = HttpServerResponseImpl.create(null, connection, nettyResponse);

@@ -19,6 +19,7 @@ package io.reactivex.netty.channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.channel.BackpressureManagingHandler.WriteStreamSubscriber;
 import io.reactivex.netty.test.util.MockProducer;
 import org.junit.Rule;
@@ -156,7 +157,7 @@ public class WriteStreamSubscriberTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    channel = new EmbeddedChannel();
+                    channel = new EmbeddedChannel(new LoggingHandler());
                     channelPromise = channel.newPromise();
                     ChannelHandlerContext ctx = channel.pipeline().firstContext();
                     subscriber = new WriteStreamSubscriber(ctx, channelPromise);

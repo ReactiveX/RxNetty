@@ -19,6 +19,7 @@ package io.reactivex.netty.channel;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
+import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.test.util.FlushSelector;
 import org.junit.Rule;
 import org.junit.Test;
@@ -183,7 +184,7 @@ public class ConnectionImplTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    final EmbeddedChannel channel = new EmbeddedChannel();
+                    final EmbeddedChannel channel = new EmbeddedChannel(new LoggingHandler());
 
                     @SuppressWarnings("unchecked")
                     ChannelOperations<ByteBuf> channelOperations = Mockito.mock(ChannelOperations.class);

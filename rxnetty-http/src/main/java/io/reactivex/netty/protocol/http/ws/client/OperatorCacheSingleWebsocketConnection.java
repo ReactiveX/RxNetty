@@ -110,7 +110,7 @@ public class OperatorCacheSingleWebsocketConnection
                     public WebSocketConnection call(WebSocketConnection connection) {
                         Observable<Void> lifecycle = connection.closeListener();
                         lifecycle = lifecycle.onErrorResumeNext(Observable.<Void>empty())
-                                             .finallyDo(new Action0() {
+                                             .doAfterTerminate(new Action0() {
                                                  @Override
                                                  public void call() {
                                                      synchronized (OperatorCacheSingleWebsocketConnection.this) {
