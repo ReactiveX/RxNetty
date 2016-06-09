@@ -55,9 +55,4 @@ public class MockProducer implements Producer {
             throw new AssertionError("Backpressure disabled " + maxValReqCnt + " times.");
         }
     }
-
-    public void reset() {
-        requested.set(0);
-        negativeRequestCount.set(0);
-    }
 }

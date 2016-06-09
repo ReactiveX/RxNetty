@@ -20,6 +20,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.logging.LoggingHandler;
+import io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor;
 import io.reactivex.netty.channel.BackpressureManagingHandler.WriteStreamSubscriber;
 import io.reactivex.netty.test.util.MockProducer;
 import org.junit.Rule;
@@ -45,7 +46,8 @@ public class WriteStreamSubscriberTest {
         subscriberRule.start();
         assertThat("Unexpected promise completion state.", subscriberRule.channelPromise.isDone(), is(false));
 
-        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(), is(1L));
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(subscriberRule.defaultRequestN()));
     }
 
     @Test(timeout = 60000)
@@ -134,15 +136,77 @@ public class WriteStreamSubscriberTest {
     public void testStreamError() throws Exception {
         subscriberRule.start();
 
-        String msg1 = "msg1";
-        subscriberRule.writeAndFlushMessages(msg1);
-        assertThat("Unexpected promise completion state.", subscriberRule.channelPromise.isDone(), is(false));
-        subscriberRule.assertMessagesWritten(msg1);
+        subscriberRule.sendMessagesAndAssert(1);
 
         subscriberRule.subscriber.onError(new IOException());
 
         assertThat("Unexpected promise completion state.", subscriberRule.channelPromise.isDone(), is(true));
         assertThat("Unexpected promise result.", subscriberRule.channelPromise.isSuccess(), is(false));
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestMoreNotRequired() throws Exception {
+        subscriberRule.init(4);
+        subscriberRule.start();
+
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(subscriberRule.defaultRequestN()));
+
+        subscriberRule.sendMessagesAndAssert(2); // Pending: 4 - 2 : low water mark: 4/2
+        subscriberRule.subscriber.requestMoreIfNeeded(subscriberRule.defaultRequestN);
+
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(subscriberRule.defaultRequestN()));
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestMoreRequired() throws Exception {
+        subscriberRule.init(4);
+        subscriberRule.start();
+
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(subscriberRule.defaultRequestN()));
+
+        subscriberRule.sendMessagesAndAssert(3); // Pending: 4 - 3 : low water mark: 4/2
+        subscriberRule.subscriber.requestMoreIfNeeded(subscriberRule.defaultRequestN);
+
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(7L));// request: 4 + 4 - (4 - 3)
+    }
+
+    @Test(timeout = 60000)
+    public void testLowerMaxBufferSize() throws Exception {
+        subscriberRule.init(4);
+        subscriberRule.start();
+
+        subscriberRule.subscriber.requestMoreIfNeeded(2);
+
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(subscriberRule.defaultRequestN()));
+    }
+
+    @Test(timeout = 60000)
+    public void testLowerMaxBufferSizeAndThenMore() throws Exception {
+        subscriberRule.init(8);
+        subscriberRule.start();
+
+        subscriberRule.subscriber.requestMoreIfNeeded(6);
+        subscriberRule.sendMessagesAndAssert(6); // Pending: 8 - 6 : low water mark: 6/2
+        subscriberRule.subscriber.requestMoreIfNeeded(6);
+
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(12L)); // requestN: 8 + 6 - (8 - 6)
+    }
+
+    @Test(timeout = 60000)
+    public void testHigherMaxBufferSize() throws Exception {
+        subscriberRule.init(4);
+        subscriberRule.start();
+
+        subscriberRule.subscriber.requestMoreIfNeeded(6);
+
+        assertThat("Unexpected request made to the producer.", subscriberRule.mockProducer.getRequested(),
+                   is(6L)); // requestN: 4 + 6 - 4
     }
 
     public static class SubscriberRule extends ExternalResource {
@@ -151,20 +215,26 @@ public class WriteStreamSubscriberTest {
         private ChannelPromise channelPromise;
         private EmbeddedChannel channel;
         private MockProducer mockProducer;
+        private int defaultRequestN;
 
         @Override
         public Statement apply(final Statement base, Description description) {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    channel = new EmbeddedChannel(new LoggingHandler());
-                    channelPromise = channel.newPromise();
-                    ChannelHandlerContext ctx = channel.pipeline().firstContext();
-                    subscriber = new WriteStreamSubscriber(ctx, channelPromise);
-                    mockProducer = new MockProducer();
+                    init(BytesWriteInterceptor.MAX_PER_SUBSCRIBER_REQUEST);
                     base.evaluate();
                 }
             };
+        }
+
+        protected void init(int defaultRequestN) {
+            this.defaultRequestN = defaultRequestN;
+            channel = new EmbeddedChannel(new LoggingHandler());
+            channelPromise = channel.newPromise();
+            ChannelHandlerContext ctx = channel.pipeline().firstContext();
+            subscriber = new WriteStreamSubscriber(ctx, channelPromise, defaultRequestN().intValue());
+            mockProducer = new MockProducer();
         }
 
         public void start() {
@@ -196,6 +266,20 @@ public class WriteStreamSubscriberTest {
 
             assertThat("Unexpected number of messages written on the channel.", outboundMessages, hasSize(msgs.length));
             assertThat("Unexpected messages written on the channel.", outboundMessages, contains(msgs));
+        }
+
+        protected void sendMessagesAndAssert(int count) {
+            String[] msgs = new String[count];
+            for (int i = 0; i < count; i++) {
+                msgs[i] = "msg" + i;
+            }
+            writeAndFlushMessages(msgs);
+            assertThat("Unexpected promise completion state.", channelPromise.isDone(), is(false));
+            assertMessagesWritten(msgs);
+        }
+
+        public Long defaultRequestN() {
+            return Long.valueOf(defaultRequestN);
         }
     }
 }
