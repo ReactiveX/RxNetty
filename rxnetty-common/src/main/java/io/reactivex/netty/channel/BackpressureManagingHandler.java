@@ -235,8 +235,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
         if (msg instanceof Observable) {
             @SuppressWarnings("rawtypes")
             Observable observable = (Observable) msg; /*One can write heterogeneous objects on a channel.*/
-            final WriteStreamSubscriber subscriber = new WriteStreamSubscriber(ctx, promise);
-            bytesWriteInterceptor.addSubscriber(subscriber);
+            final WriteStreamSubscriber subscriber = bytesWriteInterceptor.newSubscriber(ctx, promise);
             subscriber.subscribeTo(observable);
         } else {
             ctx.write(msg, promise);
@@ -332,9 +331,10 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
      * keep adding the writes to the eventloop queue and not on the channel buffer. This would mean that the channel
      * writability would not truly indicate the buffer.
      */
-    /*Visible for testing*/ static final class BytesWriteInterceptor extends ChannelDuplexHandler {
+    /*Visible for testing*/ static final class BytesWriteInterceptor extends ChannelDuplexHandler implements Runnable {
 
         /*Visible for testing*/ static final String WRITE_INSPECTOR_HANDLER_NAME = "write-inspector";
+        /*Visible for testing*/ static final int MAX_PER_SUBSCRIBER_REQUEST = 64;
 
         /*
          * Since, unsubscribes can happen on a different thread, this has to be thread-safe.
@@ -342,9 +342,22 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
         private final ConcurrentLinkedQueue<WriteStreamSubscriber> subscribers = new ConcurrentLinkedQueue<>();
         private final String parentHandlerName;
 
-        /* This should always be access from the eventloop and can be used to manage state befor and after a write to see
-         * if a write started from {@link WriteInspector} made it to this handler.*/
+        /* This should always be access from the eventloop and can be used to manage state before and after a write to
+         * see if a write started from {@link WriteInspector} made it to this handler.
+         */
         private boolean messageReceived;
+
+        /**
+         * The intent here is to equally divide the request to all subscribers but do not put a hard-bound on whether
+         * the subscribers are actually adhering to the limit (by not throwing MissingBackpressureException). This keeps
+         * the request distribution simple and still give opprotunities for subscribers to optimize (increase the limit)
+         * if there is a signal that the consumption is slower than the producer.
+         *
+         * Worst case of this scheme is request-1 per subscriber which happens when there are as many subscribers as
+         * the max limit.
+         */
+        private int perSubscriberMaxRequest = MAX_PER_SUBSCRIBER_REQUEST;
+        private Channel channel;
 
         BytesWriteInterceptor(String parentHandlerName) {
             this.parentHandlerName = parentHandlerName;
@@ -359,6 +372,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
         @Override
         public void handlerAdded(ChannelHandlerContext ctx) throws Exception {
+            channel = ctx.channel();
             WriteInspector writeInspector = new WriteInspector(this);
             ChannelHandler parent = ctx.pipeline().get(parentHandlerName);
             if (null != parent) {
@@ -374,16 +388,22 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
             super.channelWritabilityChanged(ctx);
         }
 
-        public void addSubscriber(final WriteStreamSubscriber streamSubscriber) {
-            streamSubscriber.add(Subscriptions.create(new Action0() {
+        public WriteStreamSubscriber newSubscriber(final ChannelHandlerContext ctx, ChannelPromise promise) {
+
+            recalculateMaxPerSubscriber();
+
+            final WriteStreamSubscriber sub = new WriteStreamSubscriber(ctx, promise, perSubscriberMaxRequest);
+            sub.add(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {
                     /*Remove the subscriber on unsubscribe.*/
-                    subscribers.remove(streamSubscriber);
+                    subscribers.remove(sub);
+                    ctx.channel().eventLoop().execute(BytesWriteInterceptor.this);
                 }
             }));
 
-            subscribers.add(streamSubscriber);
+            subscribers.add(sub);
+            return sub;
         }
 
         /*Visible for testing*/List<WriteStreamSubscriber> getSubscribers() {
@@ -391,15 +411,32 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
         }
 
         private void requestMoreIfWritable(Channel channel) {
-            /**
-             * Predicting which subscriber is going to give the next item isn't possible, so all subscribers are
-             * requested an item. This means that we buffer a max of one item per subscriber.
-             */
+            assert channel.eventLoop().inEventLoop();
+
             for (WriteStreamSubscriber subscriber: subscribers) {
                 if (!subscriber.isUnsubscribed() && channel.isWritable()) {
-                    subscriber.requestMore(1);
+                    subscriber.requestMoreIfNeeded(perSubscriberMaxRequest);
                 }
             }
+        }
+
+        @Override
+        public void run() {
+            recalculateMaxPerSubscriber();
+        }
+
+        /**
+         * Called from within the eventloop, whenever the subscriber queue is modified. This modifies the per subscriber
+         * request limit by equally distributing the demand. Minimum demand to any subscriber is 1.
+         */
+        private void recalculateMaxPerSubscriber() {
+            assert channel.eventLoop().inEventLoop();
+
+            int subCount = subscribers.size();
+            perSubscriberMaxRequest = 0 == subCount ? perSubscriberMaxRequest
+                                                    : perSubscriberMaxRequest * subCount / (subCount + 1);
+
+            perSubscriberMaxRequest = Math.max(1, perSubscriberMaxRequest);
         }
     }
 
@@ -411,6 +448,12 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
         private final ChannelHandlerContext ctx;
         private final ChannelPromise overarchingWritePromise;
+
+        private final int initialRequest;
+        private long maxBufferSize;
+        private long pending; /*Guarded by guard*/
+        private long lowWaterMark;
+
         private final Object guard = new Object();
         private boolean isDone; /*Guarded by guard*/
         private Scheduler.Worker writeWorker; /*Guarded by guard*/
@@ -420,9 +463,11 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
         private int listeningTo;
 
-        /*Visible for testing*/ WriteStreamSubscriber(ChannelHandlerContext ctx, ChannelPromise promise) {
+        /*Visible for testing*/ WriteStreamSubscriber(ChannelHandlerContext ctx, ChannelPromise promise,
+                                                      int initialRequest) {
             this.ctx = ctx;
             overarchingWritePromise = promise;
+            this.initialRequest = initialRequest;
             promise.addListener(new ChannelFutureListener() {
                 @Override
                 public void operationComplete(ChannelFuture future) throws Exception {
@@ -435,7 +480,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
         @Override
         public void onStart() {
-            request(1); /*Only request one item at a time. Every write, requests one more, if channel is writable.*/
+            requestMoreIfNeeded(initialRequest);
         }
 
         @Override
@@ -454,6 +499,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
             boolean inEL = ctx.channel().eventLoop().inEventLoop();
 
             synchronized (guard) {
+                pending--;
                 if (null == writeWorker) {
                     if (!inEL) {
                         atleastOneWriteEnqueued = true;
@@ -589,8 +635,36 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
             }
         }
 
-        private void requestMore(long more) {
-            request(more);
+        /**
+         * Signals this subscriber to request more data from upstream, optionally modifying the max buffer size or max
+         * requests upstream. This will request more either if the new buffer size is greater than existing or pending
+         * items from upstream are less than the low water mark (which is half the max size).
+         *
+         * @param newMaxBufferSize New max buffer size, ignored if it is the same as existing.
+         */
+        /*Visible for testing*/void requestMoreIfNeeded(long newMaxBufferSize) {
+            long toRequest = 0;
+
+            synchronized (guard) {
+                if (newMaxBufferSize > maxBufferSize) {
+                    // Applicable only when request up is not triggered by pending < lowWaterMark.
+                    toRequest = newMaxBufferSize - maxBufferSize;
+                }
+
+                maxBufferSize = newMaxBufferSize;
+                lowWaterMark = maxBufferSize / 2;
+
+                if (pending < lowWaterMark) {
+                    // Intentionally overwrites the existing toRequest as this includes all required changes.
+                    toRequest = maxBufferSize - pending;
+                }
+
+                pending += toRequest;
+            }
+
+            if (toRequest > 0) {
+                request(toRequest);
+            }
         }
 
         @SuppressWarnings({"rawtypes", "unchecked"})

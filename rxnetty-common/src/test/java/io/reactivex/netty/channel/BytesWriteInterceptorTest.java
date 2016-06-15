@@ -21,12 +21,15 @@ import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor;
 import io.reactivex.netty.channel.BackpressureManagingHandler.WriteStreamSubscriber;
 import io.reactivex.netty.test.util.MockProducer;
+import org.hamcrest.Matcher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 
+import static io.reactivex.netty.channel.BackpressureManagingHandler.BytesWriteInterceptor.MAX_PER_SUBSCRIBER_REQUEST;
+import static io.reactivex.netty.channel.BytesWriteInterceptorTest.InspectorRule.defaultRequestN;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -38,7 +41,6 @@ public class BytesWriteInterceptorTest {
     @Test(timeout = 60000)
     public void testAddSubscriber() throws Exception {
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
-        inspectorRule.interceptor.addSubscriber(sub1);
 
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), hasSize(1));
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), contains(sub1));
@@ -54,10 +56,7 @@ public class BytesWriteInterceptorTest {
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
         MockProducer mockProducer = InspectorRule.setupSubscriber(sub1);
 
-        assertThat("Unexpected items requested from producer.", mockProducer.getRequested(), is(1L));
-        mockProducer.reset();
-
-        inspectorRule.interceptor.addSubscriber(sub1);
+        assertThat("Unexpected items requested from producer.", mockProducer.getRequested(), is(defaultRequestN()));
 
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), hasSize(1));
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), contains(sub1));
@@ -66,7 +65,7 @@ public class BytesWriteInterceptorTest {
         inspectorRule.channel.writeAndFlush(msg);
 
         assertThat("Channel not writable post write.", inspectorRule.channel.isWritable(), is(true));
-        assertThat("Unexpected items requested.", mockProducer.getRequested(), is(1L));
+        assertThat("Unexpected items requested.", mockProducer.getRequested(), is(defaultRequestN()));
     }
 
     @Test(timeout = 60000)
@@ -75,10 +74,7 @@ public class BytesWriteInterceptorTest {
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
         MockProducer mockProducer = InspectorRule.setupSubscriber(sub1);
 
-        assertThat("Unexpected items requested from producer.", mockProducer.getRequested(), is(1L));
-        mockProducer.reset();
-
-        inspectorRule.interceptor.addSubscriber(sub1);
+        assertThat("Unexpected items requested from producer.", mockProducer.getRequested(), is(defaultRequestN()));
 
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), hasSize(1));
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), contains(sub1));
@@ -89,12 +85,13 @@ public class BytesWriteInterceptorTest {
         inspectorRule.channel.write(msg);
 
         assertThat("Channel still writable.", inspectorRule.channel.isWritable(), is(false));
-        assertThat("More items requested when channel is not writable.", mockProducer.getRequested(), is(0L));
+        assertThat("More items requested when channel is not writable.", mockProducer.getRequested(),
+                   is(defaultRequestN()));
 
         inspectorRule.channel.flush();
 
         assertThat("Channel not writable post flush.", inspectorRule.channel.isWritable(), is(true));
-        assertThat("Unexpected items requested.", mockProducer.getRequested(), is(1L));
+        assertThat("Unexpected items requested.", mockProducer.getRequested(), is(defaultRequestN()));
     }
 
     @Test(timeout = 60000)
@@ -102,27 +99,23 @@ public class BytesWriteInterceptorTest {
         WriteStreamSubscriber sub1 = inspectorRule.newSubscriber();
         MockProducer producer1 = InspectorRule.setupSubscriber(sub1);
 
-        inspectorRule.interceptor.addSubscriber(sub1);
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), hasSize(1));
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), contains(sub1));
 
         WriteStreamSubscriber sub2 = inspectorRule.newSubscriber();
         MockProducer producer2 = InspectorRule.setupSubscriber(sub2);
 
-        inspectorRule.interceptor.addSubscriber(sub2);
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), hasSize(2));
         assertThat("Subscriber not added.", inspectorRule.interceptor.getSubscribers(), contains(sub1, sub2));
-
-        /*Reset before write*/
-        producer1.reset();
-        producer2.reset();
 
         String msg = "Hello";
         inspectorRule.channel.writeAndFlush(msg);
 
         assertThat("Channel not writable post write.", inspectorRule.channel.isWritable(), is(true));
-        assertThat("Unexpected items requested from first subscriber.", producer1.getRequested(), is(1L));
-        assertThat("Unexpected items requested from second subscriber.", producer2.getRequested(), is(1L));
+        assertThat("Unexpected items requested from first subscriber.", producer1.getRequested(),
+                   is(defaultRequestN()));
+        assertThat("Unexpected items requested from second subscriber.", producer2.getRequested(),
+                   is(defaultRequestN() / 2));
     }
 
     public static class InspectorRule extends ExternalResource {
@@ -143,7 +136,7 @@ public class BytesWriteInterceptorTest {
         }
 
         WriteStreamSubscriber newSubscriber() {
-            return new WriteStreamSubscriber(channel.pipeline().firstContext(), channel.newPromise());
+            return interceptor.newSubscriber(channel.pipeline().firstContext(), channel.newPromise());
         }
 
         private static MockProducer setupSubscriber(WriteStreamSubscriber sub1) {
@@ -151,6 +144,10 @@ public class BytesWriteInterceptorTest {
             MockProducer mockProducer = new MockProducer();
             sub1.setProducer(mockProducer);
             return mockProducer;
+        }
+
+        public static Long defaultRequestN() {
+            return Long.valueOf(MAX_PER_SUBSCRIBER_REQUEST);
         }
     }
 }
