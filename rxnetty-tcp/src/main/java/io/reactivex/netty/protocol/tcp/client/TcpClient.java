@@ -18,9 +18,11 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslHandler;
@@ -328,6 +330,20 @@ public abstract class TcpClient<W, R> extends InterceptingTcpClient<W,R> {
      */
     public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress serverAddress) {
         return TcpClientImpl.create(serverAddress);
+    }
+
+    /**
+     * Creates a new TCP client instance with the passed address of the target server.
+     *
+     * @param serverAddress Socket address for the target server.
+     * @param eventLoopGroup Eventloop group for the client.
+     * @param channelClass Channel class for the client.
+     *
+     * @return A new {@code TcpClient} instance.
+     */
+    public static TcpClient<ByteBuf, ByteBuf> newClient(SocketAddress serverAddress, EventLoopGroup eventLoopGroup,
+                                                        Class<? extends Channel> channelClass) {
+        return TcpClientImpl.create(serverAddress, eventLoopGroup, channelClass);
     }
 
     /**

@@ -217,6 +217,14 @@ public class ClientState<W, R> {
         return create(newChannelPipeline(new TailHandlerFactory(false)), factory, hostStream);
     }
 
+    public static <WW, RR> ClientState<WW, RR> create(ConnectionProviderFactory<WW, RR> factory,
+                                                      Observable<Host> hostStream,
+                                                      EventLoopGroup eventLoopGroup,
+                                                      Class<? extends Channel> channelClass) {
+        return new ClientState<>(hostStream, factory, newChannelPipeline(new TailHandlerFactory(false)), eventLoopGroup,
+                                 channelClass);
+    }
+
     public static <WW, RR> ClientState<WW, RR> create(DetachedChannelPipeline detachedPipeline,
                                                       ConnectionProviderFactory<WW, RR> factory,
                                                       Observable<Host> hostStream) {
@@ -339,11 +347,11 @@ public class ClientState<W, R> {
         }
     }
 
-    protected static EventLoopGroup defaultEventloopGroup() {
+    public static EventLoopGroup defaultEventloopGroup() {
         return RxNetty.getRxEventLoopProvider().globalClientEventLoop(true);
     }
 
-    protected static Class<? extends AbstractChannel> defaultSocketChannelClass() {
+    public static Class<? extends Channel> defaultSocketChannelClass() {
         return RxNetty.isUsingNativeTransport() ? EpollSocketChannel.class : NioSocketChannel.class;
     }
 

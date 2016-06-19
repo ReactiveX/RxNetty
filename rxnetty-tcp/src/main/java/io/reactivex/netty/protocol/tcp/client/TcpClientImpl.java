@@ -24,6 +24,7 @@ import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
 import io.netty.handler.logging.LogLevel;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.HandlerNames;
@@ -196,13 +197,22 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     public static <W, R> TcpClientImpl<W, R> create(SocketAddress socketAddress) {
+        return create(socketAddress, ClientState.defaultEventloopGroup(), ClientState.defaultSocketChannelClass());
+    }
+
+    public static <W, R> TcpClientImpl<W, R> create(SocketAddress socketAddress, EventLoopGroup eventLoopGroup,
+                                                    Class<? extends Channel> channelClass) {
         final Host host = new Host(socketAddress);
-        return create(new ConnectionProviderFactory<W, R>() {
+        ConnectionProviderFactory<W, R> factory = new ConnectionProviderFactory<W, R>() {
             @Override
             public ConnectionProvider<W, R> newProvider(Observable<HostConnector<W, R>> hosts) {
                 return new SingleHostConnectionProvider<>(hosts);
             }
-        }, Observable.just(host));
+        };
+        Observable<Host> hostStream = Observable.just(host);
+        ClientState<W, R> state = ClientState.create(factory, hostStream, eventLoopGroup, channelClass);
+        final TcpClientEventPublisher eventPublisher = new TcpClientEventPublisher();
+        return _create(state, eventPublisher);
     }
 
     public static <W, R> TcpClientImpl<W, R> create(ConnectionProviderFactory<W, R> factory,
