@@ -56,7 +56,7 @@ import java.nio.charset.Charset;
  *
  * @see HelloWorldServer Default server for this client.
  */
-public class HelloWorldClient {
+public final class HelloWorldClient {
 
     public static void main(String[] args) {
 
@@ -74,7 +74,7 @@ public class HelloWorldClient {
         SocketAddress serverAddress = env.getServerAddress(HelloWorldServer.class, args);
 
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("hello-client", LogLevel.DEBUG)
                   .createGet("/hello")
                   .doOnNext(resp -> logger.info(resp.toString()))
                   .flatMap(resp -> resp.getContent()

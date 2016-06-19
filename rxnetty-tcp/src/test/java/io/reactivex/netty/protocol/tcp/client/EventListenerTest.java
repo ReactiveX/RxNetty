@@ -49,7 +49,7 @@ public class EventListenerTest {
     @Test(timeout = 60000)
     public void testEventListenerPostCopy() throws Exception {
         TcpClient<ByteBuf, ByteBuf> client = TcpClient.newClient(rule.serverAddress)
-                                                      .enableWireLogging(LogLevel.ERROR);
+                                                      .enableWireLogging("test", LogLevel.ERROR);
 
         assertListenerCalled(client);
     }
@@ -60,18 +60,18 @@ public class EventListenerTest {
 
         MockTcpClientEventListener listener = subscribe(client);
 
-        client = client.enableWireLogging(LogLevel.DEBUG);
+        client = client.enableWireLogging("test", LogLevel.DEBUG);
 
         connectAndAssertListenerInvocation(client, listener);
     }
 
-    private void assertListenerCalled(TcpClient<ByteBuf, ByteBuf> client) {
+    private static void assertListenerCalled(TcpClient<ByteBuf, ByteBuf> client) {
         MockTcpClientEventListener listener = subscribe(client);
         connectAndAssertListenerInvocation(client, listener);
     }
 
-    private void connectAndAssertListenerInvocation(TcpClient<ByteBuf, ByteBuf> client,
-                                                    MockTcpClientEventListener listener) {
+    private static void connectAndAssertListenerInvocation(TcpClient<ByteBuf, ByteBuf> client,
+                                                           MockTcpClientEventListener listener) {
         TestSubscriber<ByteBuf> subscriber = new TestSubscriber<>();
         client.createConnectionRequest().flatMap(new Func1<Connection<ByteBuf, ByteBuf>, Observable<ByteBuf>>() {
             @Override
@@ -86,7 +86,7 @@ public class EventListenerTest {
         listener.assertMethodsCalled(Event.BytesRead);
     }
 
-    private MockTcpClientEventListener subscribe(TcpClient<ByteBuf, ByteBuf> client) {
+    private static MockTcpClientEventListener subscribe(TcpClient<ByteBuf, ByteBuf> client) {
         MockTcpClientEventListener listener = new MockTcpClientEventListener();
         client.subscribe(listener);
         return listener;

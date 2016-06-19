@@ -148,8 +148,14 @@ public class TcpServerImpl<R, W> extends TcpServer<R, W> {
     }
 
     @Override
+    @Deprecated
     public TcpServer<R, W> enableWireLogging(LogLevel wireLoggingLevel) {
         return copy(state.<W, R>enableWireLogging(wireLoggingLevel));
+    }
+
+    @Override
+    public TcpServer<R, W> enableWireLogging(String name, LogLevel wireLoggingLevel) {
+        return copy(state.<W, R>enableWireLogging(name, wireLoggingLevel));
     }
 
     @Override

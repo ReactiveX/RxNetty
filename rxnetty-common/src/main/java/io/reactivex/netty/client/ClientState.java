@@ -30,6 +30,7 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.logging.LogLevel;
+import io.netty.handler.logging.LoggingHandler;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
@@ -203,8 +204,12 @@ public class ClientState<W, R> {
     }
 
     public ClientState<W, R> enableWireLogging(final LogLevel wireLoggingLevel) {
+        return enableWireLogging(LoggingHandler.class.getName(), wireLoggingLevel);
+    }
+
+    public ClientState<W, R> enableWireLogging(String name, final LogLevel wireLoggingLevel) {
         return addChannelHandlerFirst(WireLogging.getName(),
-                                      LoggingHandlerFactory.getFactory(wireLoggingLevel));
+                                      LoggingHandlerFactory.getFactory(name, wireLoggingLevel));
     }
 
     public static <WW, RR> ClientState<WW, RR> create(ConnectionProviderFactory<WW, RR> factory,
@@ -254,7 +259,7 @@ public class ClientState<W, R> {
                 ch.pipeline().addLast(ClientChannelActiveBufferingHandler.getName(),
                                       new ChannelActivityBufferingHandler());
             }
-                });
+        });
         return nettyBootstrap;
     }
 

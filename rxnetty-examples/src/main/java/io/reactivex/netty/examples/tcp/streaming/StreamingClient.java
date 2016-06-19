@@ -83,7 +83,7 @@ public final class StreamingClient {
 
         /*Create a new client for the server address*/
         TcpClient.newClient(serverAddress)
-                 .enableWireLogging(LogLevel.DEBUG)
+                 .enableWireLogging("streaming-client", LogLevel.DEBUG)
                 .<ByteBuf, String>addChannelHandlerLast("string-decoder", StringLineDecoder::new)
                 .createConnectionRequest()
                 .flatMap(Connection::getInput)

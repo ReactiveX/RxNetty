@@ -59,7 +59,7 @@ public class HttpClientRule extends ExternalResource {
             public void evaluate() throws Throwable {
                 channelProvider = new EmbeddedChannelProvider();
                 httpClient = HttpClient.newClient(new InetSocketAddress(0))
-                                       .enableWireLogging(LogLevel.ERROR)
+                                       .enableWireLogging("test", LogLevel.ERROR)
                                        .channelProvider(channelProvider.asFactory());
                 base.evaluate();
             }
@@ -205,7 +205,7 @@ public class HttpClientRule extends ExternalResource {
 
         boolean found = false;
         Object outbound;
-        final String expectedFirstLineStart = method.name().toUpperCase() + " " + uri;
+        final String expectedFirstLineStart = method.name().toUpperCase() + ' ' + uri;
         String data = null;
 
         while ((outbound = getLastCreatedChannel().readOutbound()) != null) {

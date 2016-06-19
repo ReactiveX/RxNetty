@@ -278,8 +278,23 @@ public abstract class TcpServer<R, W> implements EventSource<TcpServerEventListe
      *                         logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
      *
      * @return A new {@link TcpServer} instance.
+     *
+     * @deprecated Use {@link #enableWireLogging(String, LogLevel)} instead.
      */
+    @Deprecated
     public abstract TcpServer<R, W> enableWireLogging(LogLevel wireLoggingLevel);
+
+    /**
+     * Creates a new server instances, inheriting all configurations from this server and enabling wire logging at the
+     * passed level for the newly created server instance.
+     *
+     * @param name Name of the logger that can be used to control the logging dynamically.
+     * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
+     *                         logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
+     *
+     * @return A new {@link TcpServer} instance.
+     */
+    public abstract TcpServer<R, W> enableWireLogging(String name, LogLevel wireLoggingLevel);
 
     /**
      * Returns the port at which this server is running.

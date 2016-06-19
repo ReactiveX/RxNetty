@@ -277,8 +277,23 @@ public abstract class HttpClient<I, O> extends InterceptingHttpClient<I,O> {
      *                        logging is enabled at this level for {@link LoggingHandler}
      *
      * @return A new {@link HttpClient} instance.
+     *
+     * @deprecated Use {@link #enableWireLogging(String, LogLevel)} instead.
      */
+    @Deprecated
     public abstract HttpClient<I, O> enableWireLogging(LogLevel wireLoggingLevel);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
+     * passed level for the newly created client instance.
+     *
+     * @param name Name of the logger that can be used to control the logging dynamically.
+     * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done if
+     *                        logging is enabled at this level for {@link LoggingHandler}
+     *
+     * @return A new {@link HttpClient} instance.
+     */
+    public abstract HttpClient<I, O> enableWireLogging(String name, LogLevel wireLoggingLevel);
 
     /**
      * Creates a new client instance, inheriting all configurations from this client and using the passed

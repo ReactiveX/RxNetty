@@ -37,7 +37,7 @@ public final class StreamingServer {
         TcpServer<ByteBuf, ByteBuf> server;
 
         server = TcpServer.newServer()
-                          .enableWireLogging(LogLevel.DEBUG)
+                          .enableWireLogging("streaming-server", LogLevel.DEBUG)
                           .start(connection ->
                                          connection.writeStringAndFlushOnEach(
                                                  Observable.interval(10, TimeUnit.MILLISECONDS)

@@ -37,7 +37,7 @@ public final class StreamingServer {
         HttpServer<ByteBuf, ByteBuf> server;
 
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
+                           .enableWireLogging("streaming-server", LogLevel.DEBUG)
                            .start((req, resp) ->
                                           resp.writeStringAndFlushOnEach(
                                                   Observable.interval(10, TimeUnit.MILLISECONDS)

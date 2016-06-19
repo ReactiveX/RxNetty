@@ -37,7 +37,7 @@ public final class SecureHelloWorldServer {
         HttpServer<ByteBuf, ByteBuf> server;
 
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
+                           .enableWireLogging("hello-server", LogLevel.DEBUG)
                            /*Enable HTTPS for demo purpose only, for real apps, use secure() methods instead.*/
                            .unsafeSecure()
                            .start((req, resp) ->

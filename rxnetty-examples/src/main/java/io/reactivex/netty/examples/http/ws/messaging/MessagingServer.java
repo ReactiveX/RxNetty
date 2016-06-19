@@ -41,7 +41,7 @@ public final class MessagingServer {
 
         /*Starts a new HTTP server on an ephemeral port.*/
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
+                           .enableWireLogging("msg-server", LogLevel.DEBUG)
                            .start((req, resp) -> {
                                /*If WebSocket upgrade is requested, then accept the request with an echo handler.*/
                                if (req.isWebSocketUpgradeRequested()) {

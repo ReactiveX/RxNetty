@@ -272,8 +272,23 @@ public abstract class HttpServer<I, O> implements EventSource<HttpServerEventsLi
      * if logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
      *
      * @return A new {@link HttpServer} instance.
+     *
+     * @deprecated Use {@link #enableWireLogging(String, LogLevel)} instead.
      */
+    @Deprecated
     public abstract HttpServer<I, O> enableWireLogging(LogLevel wireLoggingLevel);
+
+    /**
+     * Creates a new client instances, inheriting all configurations from this client and enabling wire logging at the
+     * passed level for the newly created client instance.
+     *
+     * @param name Name of the logger that can be used to control the logging dynamically.
+     * @param wireLoggingLevel Logging level at which the wire logs will be logged. The wire logging will only be done
+     * if logging is enabled at this level for {@link io.netty.handler.logging.LoggingHandler}
+     *
+     * @return A new {@link HttpServer} instance.
+     */
+    public abstract HttpServer<I, O> enableWireLogging(String name, LogLevel wireLoggingLevel);
 
     /**
      * According to the <a href="http://tools.ietf.org/html/rfc2145#section-2.3">specification</a>, an HTTP server must

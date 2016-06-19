@@ -79,7 +79,7 @@ public final class EchoClient {
 
         /*Create a new client for the server address*/
         TcpClient.newClient(serverAddress)
-                 .enableWireLogging(LogLevel.DEBUG)
+                 .enableWireLogging("echo-client", LogLevel.DEBUG)
                  .createConnectionRequest()
                  .flatMap(connection ->
                                   connection.writeString(Observable.just("Hello World!"))

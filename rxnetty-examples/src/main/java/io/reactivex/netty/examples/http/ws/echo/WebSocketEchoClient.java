@@ -62,7 +62,7 @@ import java.nio.charset.Charset;
  *
  * In all the above usages, this client will print the response received from the server.
  */
-public class WebSocketEchoClient {
+public final class WebSocketEchoClient {
 
     public static void main(String[] args) {
 
@@ -79,7 +79,7 @@ public class WebSocketEchoClient {
         Logger logger = env.getLogger();
 
         HttpClient.newClient(socketAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("ws-echo-client", LogLevel.DEBUG)
                   .createGet("/ws")
                   .requestWebSocketUpgrade()
                   .doOnNext(resp -> logger.info(resp.toString()))

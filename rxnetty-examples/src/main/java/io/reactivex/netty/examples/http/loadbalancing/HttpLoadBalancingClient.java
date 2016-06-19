@@ -65,7 +65,7 @@ public final class HttpLoadBalancingClient {
                                                  .map(Host::new);
 
         HttpClient.newClient(LoadBalancerFactory.create(new EWMABasedP2CStrategy<>()), hosts)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("lb-client", LogLevel.DEBUG)
                   .createGet("/hello")
                   .doOnNext(resp -> logger.info(resp.toString()))
                   .flatMap((HttpClientResponse<ByteBuf> resp) ->

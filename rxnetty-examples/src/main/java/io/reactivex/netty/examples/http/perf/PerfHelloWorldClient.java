@@ -30,7 +30,7 @@ import java.nio.charset.Charset;
  * A client to test {@link PerfHelloWorldServer}. This client is provided here only for completeness of the example,
  * otherwise, it is exactly the same as {@link HelloWorldClient}.
  */
-public class PerfHelloWorldClient {
+public final class PerfHelloWorldClient {
 
     public static void main(String[] args) {
 
@@ -48,7 +48,7 @@ public class PerfHelloWorldClient {
         SocketAddress serverAddress = env.getServerAddress(PerfHelloWorldServer.class, args);
 
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("perf-client", LogLevel.DEBUG)
                   .createGet("/hello")
                   .doOnNext(resp -> logger.info(resp.toString()))
                   .flatMap(resp -> resp.getContent()

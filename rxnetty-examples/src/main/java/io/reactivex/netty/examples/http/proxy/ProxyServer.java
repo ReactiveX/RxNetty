@@ -59,7 +59,7 @@ public final class ProxyServer {
 
         /*Starts a new HTTP server on an ephemeral port which acts as a proxy to the target server started above.*/
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
+                           .enableWireLogging("proxy-server", LogLevel.DEBUG)
                            .start((serverReq, serverResp) -> {
                                       /*
                                        * Create a new HTTP request for the target server, using the method and URI from

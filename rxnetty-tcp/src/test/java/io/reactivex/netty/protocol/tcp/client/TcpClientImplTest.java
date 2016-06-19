@@ -192,11 +192,11 @@ public class TcpClientImplTest {
         TcpClientImpl<String, String> client = TcpClientImpl._create(state, new TcpClientEventPublisher());
         ClientState<String, String> state = client.getClientState();
         TcpClientImpl<String, String> newClient =
-                (TcpClientImpl<String, String>) client.enableWireLogging(LogLevel.DEBUG);
+                (TcpClientImpl<String, String>) client.enableWireLogging("test", LogLevel.DEBUG);
 
         assertDeepClientCopy(client, newClient);
 
-        verify(state).enableWireLogging(LogLevel.DEBUG);
+        verify(state).enableWireLogging("test", LogLevel.DEBUG);
     }
 
     private static void assertDeepClientCopy(TcpClientImpl<String, String> client,

@@ -149,8 +149,14 @@ public final class HttpServerImpl<I, O> extends HttpServer<I, O> {
     }
 
     @Override
+    @Deprecated
     public HttpServer<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
         return _copy(server.enableWireLogging(wireLoggingLevel), eventPublisher);
+    }
+
+    @Override
+    public HttpServer<I, O> enableWireLogging(String name, LogLevel wireLoggingLevel) {
+        return _copy(server.enableWireLogging(name, wireLoggingLevel), eventPublisher);
     }
 
     @Override

@@ -33,7 +33,7 @@ import static rx.Observable.*;
  *
  * This server sends a response with "Hello World" as the content for any request that it receives.
  */
-public class InterceptingServer {
+public final class InterceptingServer {
 
     public static final String INTERCEPTOR_HEADER_NAME = "X-from-interceptor";
 
@@ -44,7 +44,7 @@ public class InterceptingServer {
         HttpServer<ByteBuf, ByteBuf> server;
 
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
+                           .enableWireLogging("inter-server", LogLevel.DEBUG)
                            .start(HttpServerInterceptorChain.startRaw()
                                                             .next(addHeader())
                                                             .end((req, resp) -> resp.writeString(just("Hello World!")))

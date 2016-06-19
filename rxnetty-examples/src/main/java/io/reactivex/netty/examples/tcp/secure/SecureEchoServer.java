@@ -43,7 +43,7 @@ public final class SecureEchoServer {
 
         /*Starts a new TCP server on an ephemeral port.*/
         TcpServer<ByteBuf, ByteBuf> server = TcpServer.newServer()
-                                                      .enableWireLogging(LogLevel.DEBUG)
+                                                      .enableWireLogging("echo-server", LogLevel.DEBUG)
                                                       .unsafeSecure()
                                                       .start(connection ->
                                                                      connection.writeStringAndFlushOnEach(

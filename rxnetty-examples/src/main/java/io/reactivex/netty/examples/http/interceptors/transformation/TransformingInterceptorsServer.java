@@ -54,7 +54,7 @@ public final class TransformingInterceptorsServer {
 
         server = HttpServer.newServer()
                            .<String, ByteBuf>addChannelHandlerLast("line-decoder", HttpContentStringLineDecoder::new)
-                           .enableWireLogging(LogLevel.DEBUG)
+                           .enableWireLogging("inter-server", LogLevel.DEBUG)
                            .start(HttpServerInterceptorChain.<String, ByteBuf>start()
                                           .<Integer, Integer>nextWithTransform(readWriteInts())
                                           .end(numberIncrementingHandler()));
@@ -80,7 +80,7 @@ public final class TransformingInterceptorsServer {
                                   response.transformContent(new AllocatingTransformer<Integer, ByteBuf>() {
                                       @Override
                                       public List<ByteBuf> transform(Integer toTransform, ByteBufAllocator allocator) {
-                                          String msg = toTransform.toString() + "\n";
+                                          String msg = toTransform.toString() + '\n';
                                           return singletonList(allocator.buffer()
                                                                         .writeBytes(msg.getBytes())
                                           );
