@@ -81,7 +81,7 @@ public final class HelloSseClient {
 
         /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("inter-client", LogLevel.DEBUG)
                   .createGet("/sse")
                   .doOnNext(resp -> logger.info(resp.toString()))
                   .flatMap(HttpClientResponse::getContentAsServerSentEvents)

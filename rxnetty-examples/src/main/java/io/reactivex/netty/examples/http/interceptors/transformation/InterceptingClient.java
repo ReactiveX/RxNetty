@@ -70,7 +70,7 @@ import java.util.List;
  *
  * @see TransformingInterceptorsServer Default server for this client.
  */
-public class InterceptingClient {
+public final class InterceptingClient {
 
     public static void main(String[] args) {
 
@@ -89,7 +89,7 @@ public class InterceptingClient {
 
         HttpClient.newClient(serverAddress)
                 .<ByteBuf, String>addChannelHandlerLast("line-decoder", HttpContentStringLineDecoder::new)
-                .enableWireLogging(LogLevel.DEBUG)
+                .enableWireLogging("inter-client", LogLevel.DEBUG)
                 .intercept()
                 .<Integer, Integer>nextWithTransform(readWriteInts())
                 .finish()

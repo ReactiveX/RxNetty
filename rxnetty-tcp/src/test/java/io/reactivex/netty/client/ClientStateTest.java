@@ -84,7 +84,7 @@ public class ClientStateTest {
                     mockPipeline = Mockito.mock(DetachedChannelPipeline.class, Mockito.RETURNS_MOCKS);
 
                     mockServer = TcpServer.newServer(0)
-                                          .enableWireLogging(LogLevel.ERROR)
+                                          .enableWireLogging("test", LogLevel.ERROR)
                                           .start(new ConnectionHandler<ByteBuf, ByteBuf>() {
                                               @Override
                                               public Observable<Void> handle(

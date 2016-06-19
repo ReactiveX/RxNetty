@@ -81,7 +81,7 @@ public final class SecureEchoClient {
 
         /*Create a new client for the server address*/
         TcpClient.newClient(serverAddress)
-                 .enableWireLogging(LogLevel.DEBUG)
+                 .enableWireLogging("secure-client", LogLevel.DEBUG)
                  .unsafeSecure()
                  .createConnectionRequest()
                  .flatMap(connection ->

@@ -41,7 +41,7 @@ public final class HelloSseServer {
         HttpServer<ByteBuf, ByteBuf> server;
 
         server = HttpServer.newServer()
-                           .enableWireLogging(LogLevel.DEBUG)
+                           .enableWireLogging("sse-server", LogLevel.DEBUG)
                            .start((req, resp) ->
                                           resp.transformToServerSentEvents()
                                               .writeAndFlushOnEach(Observable.interval(10, TimeUnit.MILLISECONDS)

@@ -64,7 +64,7 @@ import java.nio.charset.Charset;
  *
  * @see StreamingServer Default server for this client.
  */
-public class StreamingClient {
+public final class StreamingClient {
 
     public static void main(String[] args) {
 
@@ -83,7 +83,7 @@ public class StreamingClient {
 
         /*Create a new client for the server address*/
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("streaming-client", LogLevel.DEBUG)
                   /*Creates a GET request with URI "/stream"*/
                   .createGet("/stream")
                   /*Prints the response headers*/

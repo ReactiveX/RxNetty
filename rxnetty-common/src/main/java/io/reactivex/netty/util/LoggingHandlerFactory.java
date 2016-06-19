@@ -22,6 +22,8 @@ import io.netty.handler.logging.LoggingHandler;
 import rx.functions.Func0;
 
 import java.util.EnumMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * {@link LoggingHandler} is a shaerable handler and hence need not be created for all channels. This factory
@@ -30,31 +32,41 @@ import java.util.EnumMap;
  */
 public class LoggingHandlerFactory implements Func0<ChannelHandler> {
 
-    private static final EnumMap<LogLevel, LoggingHandlerFactory> factories =
-            new EnumMap<>(LogLevel.class);
-
-    static {
-        for (LogLevel logLevel : LogLevel.values()) {
-            factories.put(logLevel, new LoggingHandlerFactory(logLevel));
-        }
-    }
+    private static final ConcurrentMap<String, EnumMap<LogLevel, LoggingHandlerFactory>> factories =
+            new ConcurrentHashMap<>();
 
     private final LoggingHandler loggingHandler;
 
-    public LoggingHandlerFactory(LogLevel wireLogginLevel) {
-        loggingHandler = new LoggingHandler(wireLogginLevel);
+    private LoggingHandlerFactory(String name, LogLevel wireLoggingLevel) {
+        loggingHandler = new LoggingHandler(name, wireLoggingLevel);
     }
 
-    public static LoggingHandler get(LogLevel logLevel) {
-        return factories.get(logLevel).loggingHandler;
+    public static LoggingHandler get(String name, LogLevel logLevel) {
+        return getFactory(name, logLevel).loggingHandler;
     }
 
-    public static LoggingHandlerFactory getFactory(LogLevel logLevel) {
-        return factories.get(logLevel);
+    public static LoggingHandlerFactory getFactory(String name, LogLevel logLevel) {
+        EnumMap<LogLevel, LoggingHandlerFactory> f = factories.get(name);
+        if (null == f) {
+            f = newEnumMap(name);
+            EnumMap<LogLevel, LoggingHandlerFactory> existing = factories.putIfAbsent(name, f);
+            if (null != existing) {
+                f = existing;
+            }
+        }
+        return f.get(logLevel);
     }
 
     @Override
     public ChannelHandler call() {
         return loggingHandler;/*logging handler is shareable.*/
+    }
+
+    private static EnumMap<LogLevel, LoggingHandlerFactory> newEnumMap(String name) {
+        EnumMap<LogLevel, LoggingHandlerFactory> toReturn = new EnumMap<>(LogLevel.class);
+        for (LogLevel logLevel : LogLevel.values()) {
+            toReturn.put(logLevel, new LoggingHandlerFactory(name, logLevel));
+        }
+        return toReturn;
     }
 }

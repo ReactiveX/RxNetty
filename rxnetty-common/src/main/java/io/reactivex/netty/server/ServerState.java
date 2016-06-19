@@ -157,10 +157,14 @@ public abstract class ServerState<R, W> {
     }
 
     public ServerState<R, W> enableWireLogging(final LogLevel wireLoggingLevel) {
+        return enableWireLogging(LoggingHandler.class.getName(), wireLoggingLevel);
+    }
+
+    public ServerState<R, W> enableWireLogging(final String name, final LogLevel wireLoggingLevel) {
         return addChannelHandlerFirst(HandlerNames.WireLogging.getName(), new Func0<ChannelHandler>() {
             @Override
             public ChannelHandler call() {
-                return new LoggingHandler(wireLoggingLevel);
+                return new LoggingHandler(name, wireLoggingLevel);
             }
         });
     }

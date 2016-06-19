@@ -93,7 +93,7 @@ public class UnexpectedConnectionHandlerErrorsTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    server = TcpServer.newServer(0).enableWireLogging(LogLevel.ERROR);
+                    server = TcpServer.newServer(0).enableWireLogging("test", LogLevel.ERROR);
                     base.evaluate();
                 }
             };
@@ -104,7 +104,7 @@ public class UnexpectedConnectionHandlerErrorsTest {
 
             TcpClient.newClient("127.0.0.1", server.getServerPort())
                      .channelOption(ChannelOption.AUTO_READ, true) /*Else nothing is read from the channel even close*/
-                     .enableWireLogging(LogLevel.ERROR)
+                     .enableWireLogging("test", LogLevel.ERROR)
                      .createConnectionRequest()
                      .subscribe(subscriber);
 

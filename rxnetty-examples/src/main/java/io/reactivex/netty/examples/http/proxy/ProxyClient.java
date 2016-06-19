@@ -30,7 +30,7 @@ import java.nio.charset.Charset;
  * A client to test {@link ProxyServer}. This client is provided here only for completeness of the example,
  * otherwise, it is exactly the same as {@link HelloWorldClient}.
  */
-public class ProxyClient {
+public final class ProxyClient {
 
     public static void main(String[] args) {
 
@@ -48,7 +48,7 @@ public class ProxyClient {
         SocketAddress serverAddress = env.getServerAddress(ProxyServer.class, args);
 
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("proxy-client", LogLevel.DEBUG)
                   .createGet("/hello")
                   .doOnNext(resp -> logger.info(resp.toString()))
                   .flatMap(resp -> resp.getContent()

@@ -56,7 +56,7 @@ import java.nio.charset.Charset;
  *
  * @see SecureHelloWorldServer Default server for this client.
  */
-public class SecureHelloWorldClient {
+public final class SecureHelloWorldClient {
 
     public static void main(String[] args) {
 
@@ -74,7 +74,7 @@ public class SecureHelloWorldClient {
         SocketAddress serverAddress = env.getServerAddress(SecureHelloWorldServer.class, args);
 
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("inter-client", LogLevel.DEBUG)
                   .unsafeSecure()
                   .createGet("/hello")
                   .doOnNext(resp -> logger.info(resp.toString()))

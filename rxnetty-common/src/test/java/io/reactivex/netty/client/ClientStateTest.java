@@ -246,7 +246,7 @@ public class ClientStateTest {
 
     @Test(timeout = 60000)
     public void testEnableWireLogging() throws Exception {
-        ClientState<String, String> newState = clientStateRule.clientState.enableWireLogging(LogLevel.ERROR);
+        ClientState<String, String> newState = clientStateRule.clientState.enableWireLogging("", LogLevel.ERROR);
 
         clientStateRule.verifyMockPipelineAccessPostCopy();
         assertThat("Client state not copied.", clientStateRule.clientState, is(not(newState)));
@@ -255,8 +255,8 @@ public class ClientStateTest {
         assertThat("Detached pipeline not copied.", clientStateRule.clientState.unsafeDetachedPipeline(),
                    is(not(newState.unsafeDetachedPipeline())));
 
-        Mockito.verify(newState.unsafeDetachedPipeline()).addFirst(HandlerNames.WireLogging.getName(),
-                                                                   LoggingHandlerFactory.getFactory(LogLevel.ERROR));
+        Mockito.verify(newState.unsafeDetachedPipeline())
+               .addFirst(HandlerNames.WireLogging.getName(), LoggingHandlerFactory.getFactory("", LogLevel.ERROR));
 
         Mockito.verifyNoMoreInteractions(newState.unsafeDetachedPipeline());
         Mockito.verifyNoMoreInteractions(clientStateRule.mockPipeline);

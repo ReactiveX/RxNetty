@@ -46,7 +46,7 @@ public final class EchoServer {
 
         /*Starts a new TCP server on an ephemeral port.*/
         server = TcpServer.newServer(0)
-                          .enableWireLogging(LogLevel.DEBUG)
+                          .enableWireLogging("echo-server", LogLevel.DEBUG)
                           .start(connection -> connection
                                   .writeStringAndFlushOnEach(connection.getInput()
                                                                        .map(bb -> bb.toString(Charset.defaultCharset()))

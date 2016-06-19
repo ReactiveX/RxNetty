@@ -706,7 +706,7 @@ public class HttpClientRequestImplTest {
                     Mockito.when(clientMock.pipelineConfigurator(Matchers.<Action1<ChannelPipeline>>anyObject()))
                                            .thenAnswer(returnThisMock);
 
-                    Mockito.when(clientMock.enableWireLogging(Matchers.<LogLevel>anyObject()))
+                    Mockito.when(clientMock.enableWireLogging(anyString(), Matchers.<LogLevel>anyObject()))
                                            .thenAnswer(returnThisMock);
 
                     RequestRule.this.clientMock = clientMock;

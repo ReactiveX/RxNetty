@@ -66,7 +66,7 @@ import static io.reactivex.netty.examples.http.interceptors.simple.InterceptingS
  *
  * @see InterceptingServer Default server for this client.
  */
-public class InterceptingClient {
+public final class InterceptingClient {
 
     public static void main(String[] args) {
 
@@ -84,7 +84,7 @@ public class InterceptingClient {
         SocketAddress serverAddress = env.getServerAddress(InterceptingServer.class, args);
 
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("inter-client", LogLevel.DEBUG)
                   .intercept()
                   .next(provider -> (version, method, uri) -> provider.createRequest(version, method, uri)
                                                                       .addHeader(INTERCEPTOR_HEADER_NAME, "client"))

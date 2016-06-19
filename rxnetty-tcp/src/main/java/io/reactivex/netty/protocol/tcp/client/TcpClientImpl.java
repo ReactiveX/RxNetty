@@ -146,8 +146,14 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
     }
 
     @Override
+    @Deprecated
     public TcpClient<W, R> enableWireLogging(LogLevel wireLoggingLevel) {
         return copy(state.enableWireLogging(wireLoggingLevel), eventPublisher);
+    }
+
+    @Override
+    public TcpClient<W, R> enableWireLogging(String name, LogLevel wireLoggingLevel) {
+        return copy(state.enableWireLogging(name, wireLoggingLevel), eventPublisher);
     }
 
     @Override

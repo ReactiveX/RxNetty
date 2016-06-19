@@ -73,7 +73,7 @@ import java.util.concurrent.TimeUnit;
  * Since, message production is asynchronous, if this client can not connect to the server, it will buffer the messages
  * in memory and wait for the server to come up.
  */
-public class MessagingClient {
+public final class MessagingClient {
 
     public static void main(String[] args) {
 
@@ -94,7 +94,7 @@ public class MessagingClient {
 
         /*Create a new client for the server address*/
         HttpClient.newClient(socketAddress)
-                  .enableWireLogging(LogLevel.DEBUG)
+                  .enableWireLogging("msging-client", LogLevel.DEBUG)
                   .createGet("/ws")
                   .requestWebSocketUpgrade()
                   .doOnNext(resp -> logger.info(resp.toString()))

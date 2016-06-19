@@ -237,8 +237,14 @@ public final class HttpClientImpl<I, O> extends HttpClient<I, O> {
     }
 
     @Override
+    @Deprecated
     public HttpClientImpl<I, O> enableWireLogging(LogLevel wireLoggingLevel) {
         return _copy(client.enableWireLogging(wireLoggingLevel), maxRedirects);
+    }
+
+    @Override
+    public HttpClient<I, O> enableWireLogging(String name, LogLevel wireLoggingLevel) {
+        return _copy(client.enableWireLogging(name, wireLoggingLevel), maxRedirects);
     }
 
     @Override

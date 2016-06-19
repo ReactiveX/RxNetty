@@ -54,7 +54,7 @@ public class EventListenerTest {
     @Test(timeout = 60000)
     public void testEventListenerPostCopy() throws Exception {
         HttpClient<ByteBuf, ByteBuf> client = HttpClient.newClient(rule.serverAddress)
-                                                        .enableWireLogging(LogLevel.ERROR);
+                                                        .enableWireLogging("test", LogLevel.ERROR);
 
         assertListenerCalled(client);
     }
@@ -65,18 +65,18 @@ public class EventListenerTest {
 
         MockHttpClientEventsListener listener = subscribe(client);
 
-        client = client.enableWireLogging(LogLevel.DEBUG);
+        client = client.enableWireLogging("test", LogLevel.DEBUG);
 
         connectAndAssertListenerInvocation(client, listener);
     }
 
-    private void assertListenerCalled(HttpClient<ByteBuf, ByteBuf> client) {
+    private static void assertListenerCalled(HttpClient<ByteBuf, ByteBuf> client) {
         MockHttpClientEventsListener listener = subscribe(client);
         connectAndAssertListenerInvocation(client, listener);
     }
 
-    private void connectAndAssertListenerInvocation(HttpClient<ByteBuf, ByteBuf> client,
-                                                    MockHttpClientEventsListener listener) {
+    private static void connectAndAssertListenerInvocation(HttpClient<ByteBuf, ByteBuf> client,
+                                                           MockHttpClientEventsListener listener) {
         TestSubscriber<ByteBuf> subscriber = new TestSubscriber<>();
         client.createGet("")
               .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<ByteBuf>>() {
@@ -95,7 +95,7 @@ public class EventListenerTest {
         assertThat("TCP methods not invoked on the listener.", listener.tcpListenerInvoked, is(true));
     }
 
-    private MockHttpClientEventsListener subscribe(HttpClient<ByteBuf, ByteBuf> client) {
+    private static MockHttpClientEventsListener subscribe(HttpClient<ByteBuf, ByteBuf> client) {
         MockHttpClientEventsListener listener = new MockHttpClientEventsListener();
         client.subscribe(listener);
         return listener;
@@ -110,7 +110,7 @@ public class EventListenerTest {
             return new Statement() {
                 @Override
                 public void evaluate() throws Throwable {
-                    serverAddress = HttpServer.newServer().enableWireLogging(LogLevel.ERROR)
+                    serverAddress = HttpServer.newServer().enableWireLogging("test", LogLevel.ERROR)
                                               .start(new RequestHandler<ByteBuf, ByteBuf>() {
                                                   @Override
                                                   public Observable<Void> handle(HttpServerRequest<ByteBuf> request,

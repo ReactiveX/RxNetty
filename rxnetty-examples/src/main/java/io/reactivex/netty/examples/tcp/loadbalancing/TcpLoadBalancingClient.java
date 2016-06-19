@@ -62,7 +62,7 @@ public final class TcpLoadBalancingClient {
                                                  .map(Host::new);
 
         TcpClient.<ByteBuf, ByteBuf>newClient(LoadBalancerFactory.create(new TcpLoadBalancer<>()), hosts)
-                 .enableWireLogging(LogLevel.DEBUG)
+                 .enableWireLogging("lb-client", LogLevel.DEBUG)
                  .createConnectionRequest()
                  .doOnNext(conn -> logger.info("Using host: " + conn.unsafeNettyChannel().remoteAddress()))
                  .flatMap(connection ->
