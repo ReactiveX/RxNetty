@@ -503,7 +503,8 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                 if (null == writeWorker) {
                     if (!inEL) {
                         atleastOneWriteEnqueued = true;
-                    } else if (atleastOneWriteEnqueued) {
+                    }
+                    if (atleastOneWriteEnqueued) {
                         writeWorker = Schedulers.computation().createWorker();
                     }
                 }
@@ -594,7 +595,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
         private void onTermination(Throwable throwableIfAny) {
             int _listeningTo;
             boolean _shouldCompletePromise;
-            final boolean flush;
+            final boolean enqueueFlush;
 
             /**
              * The intent here is to NOT give listener callbacks via promise completion within the sync block.
@@ -607,7 +608,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
              * This co-oridantion is done via the flag isPromiseCompletedOnWriteComplete
              */
             synchronized (guard) {
-                flush = atleastOneWriteEnqueued;
+                enqueueFlush = atleastOneWriteEnqueued;
                 isDone = true;
                 _listeningTo = listeningTo;
                 /**
@@ -617,7 +618,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                 _shouldCompletePromise = 0 == _listeningTo && !isPromiseCompletedOnWriteComplete;
             }
 
-            if (flush) {
+            if (enqueueFlush) {
                 writeWorker.schedule(new Action0() {
                     @Override
                     public void call() {
