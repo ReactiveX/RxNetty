@@ -17,8 +17,8 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.protocol.http.client.HttpClient;
-import io.reactivex.netty.protocol.http.client.HttpClientRequest;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
@@ -46,7 +46,7 @@ public class HttpServerRule extends ExternalResource {
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                server = HttpServer.newServer();
+                server = HttpServer.newServer().enableWireLogging("test", LogLevel.INFO);
                 base.evaluate();
             }
         };
@@ -74,7 +74,7 @@ public class HttpServerRule extends ExternalResource {
         this.client = client;
     }
 
-    public HttpClientResponse<ByteBuf> sendRequest(HttpClientRequest<ByteBuf, ByteBuf> request) {
+    public HttpClientResponse<ByteBuf> sendRequest(Observable<HttpClientResponse<ByteBuf>> request) {
         TestSubscriber<HttpClientResponse<ByteBuf>> subscriber = new TestSubscriber<>();
 
         request.subscribe(subscriber);
