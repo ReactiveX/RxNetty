@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponse;
@@ -39,6 +40,7 @@ import org.junit.Test;
 import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Func0;
+import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
 import java.net.SocketAddress;
@@ -270,6 +272,101 @@ public class HttpClientTest {
         assertThat("Unexpected exception.", contentSub.getOnErrorEvents().get(0),
                    is(instanceOf(ReadTimeoutException.class)));
 
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithNoContentLengthHeaderOrContentReturnsEmptyBody() {
+        serverRule.startServer();
+
+        serverRule.assertRequestEquals(
+            new Func1<HttpClient<ByteBuf, ByteBuf>, Observable<HttpClientResponse<ByteBuf>>>() {
+                @Override
+                public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
+                    return client.createGet("/");
+                }
+            },
+            "GET / HTTP/1.1\r\n" +
+                "content-length: 0\r\n" +
+                "host: " + serverRule.getServerAddress().toString().replaceFirst("^/", "") + "\r\n" +
+                "\r\n");
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithNoContentLengthHeaderAndContentReturnsContentChunkAndSingleEmptyChunk() {
+        serverRule.startServer();
+
+        serverRule.assertRequestEquals(
+            new Func1<HttpClient<ByteBuf, ByteBuf>, Observable<HttpClientResponse<ByteBuf>>>() {
+                @Override
+                public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
+                    return client.createGet("/")
+                            .writeStringContent(Observable.just("Hello"));
+                }
+            },
+            "GET / HTTP/1.1\r\n" +
+                "transfer-encoding: chunked\r\n" +
+                "host: " + serverRule.getServerAddress().toString().replaceFirst("^/", "") + "\r\n" +
+                "\r\n" +
+                "5\r\n" +
+                "Hello\r\n" +
+                "0\r\n" +
+                "\r\n");
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithContentLengthReturnsRawBody() {
+        serverRule.startServer();
+
+        serverRule.assertRequestEquals(
+            new Func1<HttpClient<ByteBuf, ByteBuf>, Observable<HttpClientResponse<ByteBuf>>>() {
+                @Override
+                public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
+                    return client.createGet("/")
+                            .setHeader(HttpHeaderNames.CONTENT_LENGTH, 5)
+                            .writeStringContent(Observable.just("Hello"));
+                }
+            },
+            "GET / HTTP/1.1\r\n" +
+                "content-length: 5\r\n" +
+                "host: " + serverRule.getServerAddress().toString().replaceFirst("^/", "") + "\r\n" +
+                "\r\n" +
+                "Hello");
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithZeroContentLengthReturnsEmptyBody() {
+        serverRule.startServer();
+
+        serverRule.assertRequestEquals(
+            new Func1<HttpClient<ByteBuf, ByteBuf>, Observable<HttpClientResponse<ByteBuf>>>() {
+                @Override
+                public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
+                    return client.createGet("/")
+                        .setHeader(HttpHeaderNames.CONTENT_LENGTH, 0);
+                }
+            },
+            "GET / HTTP/1.1\r\n" +
+            "content-length: 0\r\n" +
+            "host: " + serverRule.getServerAddress().toString().replaceFirst("^/", "") + "\r\n" +
+            "\r\n");
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithOnlyPositiveContentLengthReturnsEmptyBody() {
+        serverRule.startServer();
+
+        serverRule.assertRequestEquals(
+            new Func1<HttpClient<ByteBuf, ByteBuf>, Observable<HttpClientResponse<ByteBuf>>>() {
+                @Override
+                public Observable<HttpClientResponse<ByteBuf>> call(HttpClient<ByteBuf, ByteBuf> client) {
+                    return client.createGet("/")
+                        .setHeader(HttpHeaderNames.CONTENT_LENGTH, 5);
+                }
+            },
+            "GET / HTTP/1.1\r\n" +
+            "content-length: 0\r\n" +
+            "host: " + serverRule.getServerAddress().toString().replaceFirst("^/", "") + "\r\n" +
+            "\r\n");
     }
 
     protected void startServerThatNeverReplies() {

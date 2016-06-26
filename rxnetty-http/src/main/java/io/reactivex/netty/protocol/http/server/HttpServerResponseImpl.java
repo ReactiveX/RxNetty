@@ -52,7 +52,7 @@ public final class HttpServerResponseImpl<C> extends HttpServerResponse<C> {
         super(new OnSubscribe<Void>() {
             @Override
             public void call(Subscriber<? super Void> subscriber) {
-                state.sendHeaders().write(Observable.<C>empty()).unsafeSubscribe(subscriber);
+                state.sendHeaders().unsafeSubscribe(subscriber);
             }
         });
         this.state = state;
