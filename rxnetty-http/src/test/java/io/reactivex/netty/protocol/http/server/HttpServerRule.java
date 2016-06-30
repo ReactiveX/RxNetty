@@ -38,10 +38,12 @@ import rx.observers.TestSubscriber;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
+import java.util.regex.Pattern;
 
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 
 public class HttpServerRule extends ExternalResource {
 
@@ -50,12 +52,10 @@ public class HttpServerRule extends ExternalResource {
     private HttpServer<ByteBuf, ByteBuf> server;
     private HttpClient<ByteBuf, ByteBuf> client;
 
-    private String lastRequest = "";
     private String lastResponse = "";
 
     @Override
     public Statement apply(final Statement base, Description description) {
-        lastRequest = "";
         lastResponse = "";
         return new Statement() {
             @Override
@@ -67,13 +67,7 @@ public class HttpServerRule extends ExternalResource {
                             new Action1<ByteBuf>() {
                                 @Override
                                 public void call(ByteBuf byteBuf) {
-                                    lastRequest += byteBuf.toString(Charset.forName("UTF-8"));
-                                }
-                            },
-                            new Action1<ByteBuf>() {
-                                @Override
-                                public void call(ByteBuf byteBuf) {
-                                    lastResponse += byteBuf.toString(Charset.forName("UTF-8"));
+                                    lastResponse += byteBuf.toString(Charset.defaultCharset());
                                 }
                             }
                         )
@@ -130,38 +124,48 @@ public class HttpServerRule extends ExternalResource {
                    equalTo(WELCOME_SERVER_MSG));
     }
 
-    public void assertRequestEquals(Func1<HttpClient<ByteBuf, ByteBuf>, Observable<HttpClientResponse<ByteBuf>>> request, String expectedRequest) {
-        lastRequest = "";
-        TestSubscriber<Void> clientDrain = new TestSubscriber<>();
-        request.call(HttpClient.newClient(getServerAddress()).enableWireLogging("test-client", LogLevel.INFO))
-                .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
-                    @Override
-                    public Observable<Void> call(HttpClientResponse<ByteBuf> clientResponse) {
-                        return clientResponse.discardContent();
-                    }
-                })
-                .subscribe(clientDrain);
-        clientDrain.awaitTerminalEvent();
-        clientDrain.assertNoErrors();
-
-        Assert.assertEquals(expectedRequest, lastRequest);
+    public void assertEmptyBodyWithContentLengthZero() {
+        assertBodyWithContentLength(0, "");
     }
 
-    public void assertResponseEquals(String expectedResponse) {
-        lastResponse = "";
-        TestSubscriber<Void> clientDrain = new TestSubscriber<>();
-            client.createGet("/")
-                .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
-                    @Override
-                    public Observable<Void> call(HttpClientResponse<ByteBuf> clientResponse) {
-                        return clientResponse.discardContent();
-                    }
-                })
-                .subscribe(clientDrain);
-        clientDrain.awaitTerminalEvent();
-        clientDrain.assertNoErrors();
+    public void assertBodyWithContentLength(int contentLength, String body) {
+        getAndDrainClient();
+        Pattern headerBlock = Pattern.compile("^(.*?\r\n)*?\r\n", Pattern.MULTILINE);
 
-        Assert.assertEquals(expectedResponse, lastResponse);
+        if (!lastResponse.contains("content-length: " + contentLength + "\r\n")) {
+            Assert.fail("Missing header 'content-length: " + contentLength + "'");
+        }
+        if (lastResponse.contains("transfer-encoding: chunked\r\n")) {
+            Assert.fail("Unexpected header 'transfer-encoding: chunked'");
+        }
+        if (!headerBlock.matcher(lastResponse).replaceFirst("").equals(body)) {
+            Assert.fail("Unexpected body content '" + headerBlock.matcher(lastResponse).replaceFirst("") + "'");
+        }
+    }
+
+    public void assertEmptyBodyWithSingleChunk() {
+        assertChunks();
+    }
+
+    public void assertChunks(String... chunks) {
+        getAndDrainClient();
+        Pattern headerBlock = Pattern.compile("^(.*?\r\n)*?\r\n", Pattern.MULTILINE);
+
+        if (lastResponse.contains("content-length: 0\r\n")) {
+            Assert.fail("Unexpected header 'content-length: 0'");
+        }
+        if (!lastResponse.contains("transfer-encoding: chunked\r\n")) {
+            Assert.fail("Missing header 'transfer-encoding: chunked'");
+        }
+        String expectedChunkContent = "";
+        for (String c : chunks) {
+            expectedChunkContent += c.getBytes().length + "\r\n";
+            expectedChunkContent += c + "\r\n";
+        }
+        expectedChunkContent += "0\r\n\r\n";
+        if (!headerBlock.matcher(lastResponse).replaceFirst("").equals(expectedChunkContent)) {
+            Assert.fail("Unexpected body content '" + headerBlock.matcher(lastResponse).replaceFirst("") + "'");
+        }
     }
 
     public SocketAddress getServerAddress() {
@@ -180,29 +184,38 @@ public class HttpServerRule extends ExternalResource {
         return client;
     }
 
-    public static class RawMessageHandler extends ChannelDuplexHandler {
 
-        public static Func0<ChannelHandler> factory(final Action1<ByteBuf> onRead, final Action1<ByteBuf> onWrite) {
+    public void getAndDrainClient() {
+        lastResponse = "";
+        TestSubscriber<Void> clientDrain = new TestSubscriber<>();
+        client.createGet("/")
+                .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
+                    @Override
+                    public Observable<Void> call(HttpClientResponse<ByteBuf> clientResponse) {
+                        return clientResponse.discardContent();
+                    }
+                })
+                .subscribe(clientDrain);
+        clientDrain.awaitTerminalEvent();
+        clientDrain.assertNoErrors();
+    }
+
+
+    private static class RawMessageHandler extends ChannelDuplexHandler {
+
+        public static Func0<ChannelHandler> factory(final Action1<ByteBuf> onWrite) {
             return new Func0<ChannelHandler>() {
                 @Override
                 public ChannelHandler call() {
-                    return new RawMessageHandler(onRead, onWrite);
+                    return new RawMessageHandler(onWrite);
                 }
             };
         }
 
-        private final Action1<ByteBuf> onRead;
         private final Action1<ByteBuf> onWrite;
 
-        public RawMessageHandler(Action1<ByteBuf> onRead, Action1<ByteBuf> onWrite) {
-            this.onRead = onRead;
+        public RawMessageHandler(Action1<ByteBuf> onWrite) {
             this.onWrite = onWrite;
-        }
-
-        @Override
-        public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-            callback(msg, onRead);
-            super.channelRead(ctx, msg);
         }
 
         @Override

@@ -33,6 +33,7 @@ import io.reactivex.netty.client.pool.PoolConfig;
 import io.reactivex.netty.client.pool.SingleHostPoolingProviderFactory;
 import io.reactivex.netty.test.util.embedded.EmbeddedChannelProvider;
 import io.reactivex.netty.test.util.embedded.EmbeddedChannelWithFeeder;
+import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
@@ -43,6 +44,7 @@ import rx.observers.TestSubscriber;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -90,7 +92,7 @@ public class HttpClientRule extends ExternalResource {
         return channelProvider.getCreatedChannels();
     }
 
-    public TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(HttpClientRequest<ByteBuf, ByteBuf> request) {
+    public TestSubscriber<HttpClientResponse<ByteBuf>> sendRequest(Observable<HttpClientResponse<ByteBuf>> request) {
         TestSubscriber<HttpClientResponse<ByteBuf>> testSubscriber = new TestSubscriber<>();
         request.subscribe(testSubscriber);
         testSubscriber.assertNoErrors();
@@ -247,6 +249,66 @@ public class HttpClientRule extends ExternalResource {
 
         if (!found) {
             assertThat("Content not written.", outbound, is(notNullValue()));
+        }
+    }
+
+    public void assertEmptyBodyWithContentLengthZero() {
+        assertBodyWithContentLength(0, "");
+    }
+
+    public void assertBodyWithContentLength(int contentLength, String body) {
+        Pattern headerBlock = Pattern.compile("^(.*?\r\n)*?\r\n", Pattern.MULTILINE);
+        Object outbound;
+        String data = "";
+
+        while ((outbound = getLastCreatedChannel().readOutbound()) != null) {
+            if (outbound instanceof ByteBuf) {
+                ByteBuf bb = (ByteBuf) outbound;
+                data += bb.toString(Charset.defaultCharset());
+            }
+        }
+
+        if (!data.contains("content-length: " + contentLength + "\r\n")) {
+            Assert.fail("Missing header 'content-length: " + contentLength + "'");
+        }
+        if (data.contains("transfer-encoding: chunked\r\n")) {
+            Assert.fail("Unexpected header 'transfer-encoding: chunked'");
+        }
+        if (!headerBlock.matcher(data).replaceFirst("").equals(body)) {
+            Assert.fail("Unexpected body content '" + headerBlock.matcher(data).replaceFirst("") + "'");
+        }
+    }
+
+    public void assertEmptyBodyWithSingleChunk() {
+        assertChunks();
+    }
+
+    public void assertChunks(String... chunks) {
+        Pattern headerBlock = Pattern.compile("^(.*?\r\n)*?\r\n", Pattern.MULTILINE);
+        Object outbound;
+        String data = "";
+
+        while ((outbound = getLastCreatedChannel().readOutbound()) != null) {
+            if (outbound instanceof ByteBuf) {
+                ByteBuf bb = (ByteBuf) outbound;
+                data += bb.toString(Charset.defaultCharset());
+            }
+        }
+
+        if (data.contains("content-length: 0\r\n")) {
+            Assert.fail("Unexpected header 'content-length: 0'");
+        }
+        if (!data.contains("transfer-encoding: chunked\r\n")) {
+            Assert.fail("Missing header 'transfer-encoding: chunked'");
+        }
+        String expectedChunkContent = "";
+        for (String c : chunks) {
+            expectedChunkContent += c.getBytes().length + "\r\n";
+            expectedChunkContent += c + "\r\n";
+        }
+        expectedChunkContent += "0\r\n\r\n";
+        if (!headerBlock.matcher(data).replaceFirst("").equals(expectedChunkContent)) {
+            Assert.fail("Unexpected body content '" + headerBlock.matcher(data).replaceFirst("") + "'");
         }
     }
 }

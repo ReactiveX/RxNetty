@@ -37,10 +37,7 @@ public class HttpServerTest {
             }
         });
 
-        serverRule.assertResponseEquals(
-                "HTTP/1.1 400 Bad Request\r\n" +
-                "content-length: 0\r\n" +
-                "\r\n");
+        serverRule.assertEmptyBodyWithContentLengthZero();
     }
 
     @Test(timeout = 60000)
@@ -53,10 +50,7 @@ public class HttpServerTest {
             }
         });
 
-        serverRule.assertResponseEquals(
-                "HTTP/1.1 400 Bad Request\r\n" +
-                "content-length: 0\r\n" +
-                "\r\n");
+        serverRule.assertEmptyBodyWithContentLengthZero();
     }
 
     @Test(timeout = 60000)
@@ -69,14 +63,7 @@ public class HttpServerTest {
             }
         });
 
-        serverRule.assertResponseEquals(
-                "HTTP/1.1 200 OK\r\n" +
-                "transfer-encoding: chunked\r\n" +
-                "\r\n" +
-                "5\r\n" +
-                "Hello\r\n" +
-                "0\r\n" +
-                "\r\n");
+        serverRule.assertChunks("Hello");
     }
 
     @Test(timeout = 60000)
@@ -90,11 +77,7 @@ public class HttpServerTest {
             }
         });
 
-        serverRule.assertResponseEquals(
-                "HTTP/1.1 400 Bad Request\r\n" +
-                "content-length: 5\r\n" +
-                "\r\n" +
-                "Hello");
+        serverRule.assertBodyWithContentLength(5, "Hello");
     }
 
     @Test(timeout = 60000)
@@ -107,10 +90,7 @@ public class HttpServerTest {
             }
         });
 
-        serverRule.assertResponseEquals(
-                "HTTP/1.1 400 Bad Request\r\n" +
-                        "content-length: 0\r\n" +
-                        "\r\n");
+        serverRule.assertEmptyBodyWithContentLengthZero();
     }
 
     @Test(timeout = 60000)
@@ -123,9 +103,6 @@ public class HttpServerTest {
             }
         });
 
-        serverRule.assertResponseEquals(
-                "HTTP/1.1 400 Bad Request\r\n" +
-                "content-length: 0\r\n" +
-                "\r\n");
+        serverRule.assertEmptyBodyWithContentLengthZero();
     }
 }
