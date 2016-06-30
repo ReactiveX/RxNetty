@@ -251,6 +251,33 @@ public class ConnectionPoolTest {
     }
 
     @Test
+    public void testShutdownWithNonReturnedConnections() throws Exception{
+        serverConnHandler.closeNewConnectionsOnReceive(false);
+        strategy.incrementMaxConnections(2);
+
+        ObservableConnection<String, String> connection1 = pool.acquire().toBlocking().last();
+        ObservableConnection<String, String> connection2 = pool.acquire().toBlocking().last();
+        ObservableConnection<String, String> connection3 = pool.acquire().toBlocking().last();
+
+        connection1.close();
+        pool.shutdown();
+
+        Assert.assertEquals("Unexpected pool idle count.", 1, stats.getIdleCount());
+        Assert.assertEquals("Unexpected pool in-use count.", 2, stats.getInUseCount());
+        Assert.assertEquals("Unexpected pool total connections count.", 3, stats.getTotalConnectionCount());
+        //Pool shutdown request is sent so so it does immediately get discarded
+        connection2.close();
+
+        Assert.assertEquals("Unexpected pool idle count post shutdown.", 1, stats.getIdleCount());
+        Assert.assertEquals("Unexpected pool in-use count post shutdown.", 1, stats.getInUseCount());
+        Assert.assertEquals("Unexpected pool total connections count post shutdown.", 2, stats.getTotalConnectionCount());
+
+        connection3.close();
+
+        assertAllConnectionsReturned();
+    }
+
+    @Test
     public void testConnectFail() throws Exception {
         serverConnHandler.closeNewConnectionsOnReceive(false);
         RxClient.ServerInfo unavailableServer = new RxClient.ServerInfo("trampledunderfoot", 999);
