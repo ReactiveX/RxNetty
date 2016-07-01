@@ -29,6 +29,9 @@ import rx.functions.Func1;
 /**
  * An {@link Observable.Transformer} to collect a stream of {@link ByteBuf ByteBufs} into a single
  * ByteBuf.
+ * <p>
+ * This Transformer should not be used with {@link io.reactivex.netty.channel.ContentSource#autoRelease()}
+ * as this will release the underlying collected ByteBufs before the collection is complete.
  */
 public class CollectBytes implements Transformer<ByteBuf, ByteBuf> {
 
