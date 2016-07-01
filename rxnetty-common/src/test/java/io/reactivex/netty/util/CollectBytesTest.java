@@ -2,11 +2,11 @@ package io.reactivex.netty.util;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.util.ReferenceCountUtil;
 import io.reactivex.netty.util.CollectBytes.TooMuchDataException;
 import org.junit.Assert;
 import org.junit.Test;
 import rx.Observable;
-import rx.exceptions.OnErrorThrowable;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.observers.TestSubscriber;
@@ -32,74 +32,74 @@ public class CollectBytesTest {
     @Test
     public void testCollectSingleEvent() throws Exception {
         TestSubscriber<ByteBuf> t = new TestSubscriber<>();
-        Observable.just(Unpooled.copiedBuffer("test", Charset.forName("UTF-8")))
+        Observable.just(getByteBuf("test"))
                 .compose(CollectBytes.all())
                 .subscribe(t);
 
         t.assertNoErrors();
         t.assertCompleted();
-        t.assertValues(Unpooled.copiedBuffer("test", Charset.forName("UTF-8")));
+        t.assertValues(getByteBuf("test"));
     }
 
     @Test
     public void testCollectManyEvents() throws Exception {
         TestSubscriber<ByteBuf> t = new TestSubscriber<>();
         Observable.just(
-                    Unpooled.copiedBuffer("t", Charset.forName("UTF-8")),
-                    Unpooled.copiedBuffer("e", Charset.forName("UTF-8")),
-                    Unpooled.copiedBuffer("s", Charset.forName("UTF-8")),
-                    Unpooled.copiedBuffer("t", Charset.forName("UTF-8"))
+                    getByteBuf("t"),
+                    getByteBuf("e"),
+                    getByteBuf("s"),
+                    getByteBuf("t")
                 )
                 .compose(CollectBytes.all())
                 .subscribe(t);
 
         t.assertNoErrors();
         t.assertCompleted();
-        t.assertValues(Unpooled.copiedBuffer("test", Charset.forName("UTF-8")));
+        t.assertValues(getByteBuf("test"));
     }
 
     @Test
     public void testWithLimitEqualToBytes() throws Exception {
         TestSubscriber<ByteBuf> t = new TestSubscriber<>();
         Observable.just(
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("e", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("s", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8"))
+                getByteBuf("t"),
+                getByteBuf("e"),
+                getByteBuf("s"),
+                getByteBuf("t")
         )
                 .compose(CollectBytes.upTo(4))
                 .subscribe(t);
 
         t.assertNoErrors();
         t.assertCompleted();
-        t.assertValues(Unpooled.copiedBuffer("test", Charset.forName("UTF-8")));
+        t.assertValues(getByteBuf("test"));
     }
 
     @Test
     public void testWithLimitGreaterThanBytes() throws Exception {
         TestSubscriber<ByteBuf> t = new TestSubscriber<>();
         Observable.just(
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("e", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("s", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8"))
+                getByteBuf("t"),
+                getByteBuf("e"),
+                getByteBuf("s"),
+                getByteBuf("t")
         )
                 .compose(CollectBytes.upTo(5))
                 .subscribe(t);
 
         t.assertNoErrors();
         t.assertCompleted();
-        t.assertValues(Unpooled.copiedBuffer("test", Charset.forName("UTF-8")));
+        t.assertValues(getByteBuf("test"));
     }
 
     @Test
     public void testCollectWithLimitSmallerThanBytes() throws Exception {
         TestSubscriber<ByteBuf> t = new TestSubscriber<>();
         Observable.just(
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("e", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("s", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8"))
+                getByteBuf("t"),
+                getByteBuf("e"),
+                getByteBuf("s"),
+                getByteBuf("t")
         )
                 .compose(CollectBytes.upTo(2))
                 .subscribe(t);
@@ -110,30 +110,15 @@ public class CollectBytesTest {
     }
 
     @Test
-    public void testCollectWithLimitSmallerThanBytesWrapsTooMuchData() throws Exception {
-        TestSubscriber<ByteBuf> t = new TestSubscriber<>();
-        Observable.just(
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("e", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("s", Charset.forName("UTF-8")),
-                Unpooled.copiedBuffer("t", Charset.forName("UTF-8"))
-        )
-                .compose(CollectBytes.upTo(2))
-                .subscribe(t);
-
-        Assert.assertEquals(TooMuchDataException.class, t.getOnErrorEvents().get(0).getClass());
-        Assert.assertEquals(getByteBuf("te"), ((OnErrorThrowable.OnNextValue) t.getOnErrorEvents().get(0).getCause()).getValue());
-    }
-
-    @Test
     public void testReturnSingleEventWithMoreBytesThanMax() throws Exception {
         TestSubscriber<ByteBuf> t = new TestSubscriber<>();
         toByteBufObservable("test")
                 .compose(CollectBytes.upTo(0))
                 .subscribe(t);
 
-        Assert.assertEquals(TooMuchDataException.class, t.getOnErrorEvents().get(0).getClass());
-        Assert.assertEquals(Unpooled.EMPTY_BUFFER, ((OnErrorThrowable.OnNextValue) t.getOnErrorEvents().get(0).getCause()).getValue());
+        t.assertError(TooMuchDataException.class);
+        t.assertNotCompleted();
+        t.assertNoValues();
     }
 
     @Test
@@ -155,8 +140,9 @@ public class CollectBytesTest {
                 .compose(CollectBytes.upTo(4))
                 .subscribe(t);
 
-        Assert.assertEquals(TooMuchDataException.class, t.getOnErrorEvents().get(0).getClass());
-        Assert.assertEquals(getByteBuf("1234"), ((OnErrorThrowable.OnNextValue) t.getOnErrorEvents().get(0).getCause()).getValue());
+        t.assertError(TooMuchDataException.class);
+        t.assertNotCompleted();
+        t.assertNoValues();
     }
 
     @Test
@@ -166,25 +152,26 @@ public class CollectBytesTest {
                 .compose(CollectBytes.upTo(7))
                 .subscribe(t);
 
-        Assert.assertEquals(TooMuchDataException.class, t.getOnErrorEvents().get(0).getClass());
-        Assert.assertEquals(getByteBuf("first"), ((OnErrorThrowable.OnNextValue) t.getOnErrorEvents().get(0).getCause()).getValue());
+        t.assertError(TooMuchDataException.class);
+        t.assertNotCompleted();
+        t.assertNoValues();
     }
 
     @Test
     public void testUnsubscribeFromUpstream() throws Exception {
-        final List<ByteBuf> emittedBufs = new ArrayList<>();
+        final List<String> emittedBufs = new ArrayList<>();
 
         toByteBufObservable("first", "second", "third")
                 .doOnNext(new Action1<ByteBuf>() {
                     @Override
                     public void call(ByteBuf byteBuf) {
-                        emittedBufs.add(byteBuf);
+                        emittedBufs.add(byteBuf.toString(Charset.defaultCharset()));
                     }
                 })
                 .compose(CollectBytes.upTo(7))
                 .subscribe(new TestSubscriber<>());
 
-        Assert.assertEquals(Arrays.asList(getByteBufs("first", "second")), emittedBufs);
+        Assert.assertEquals(Arrays.asList("first", "second"), emittedBufs);
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -211,7 +198,7 @@ public class CollectBytesTest {
     }
 
     private ByteBuf getByteBuf(String s) {
-        return Unpooled.copiedBuffer(s, Charset.forName("UTF-8"));
+        return ReferenceCountUtil.releaseLater(Unpooled.copiedBuffer(s, Charset.defaultCharset()));
     }
 
     private ByteBuf[] getByteBufs(String... s) {

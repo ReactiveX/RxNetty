@@ -25,7 +25,6 @@ import rx.exceptions.OnErrorThrowable;
 import rx.functions.Action2;
 import rx.functions.Func0;
 import rx.functions.Func1;
-import rx.functions.Func2;
 
 /**
  * An {@link Observable.Transformer} to collect a stream of {@link ByteBuf ByteBufs} into a single
@@ -66,7 +65,7 @@ public class CollectBytes implements Transformer<ByteBuf, ByteBuf> {
 
     private CollectBytes(int maxBytes) {
         if (maxBytes < 0) {
-            throw new IllegalArgumentException("max Bytes must not be negative");
+            throw new IllegalArgumentException("maxBytes must not be negative");
         }
         this.maxBytes = maxBytes;
     }
@@ -74,24 +73,6 @@ public class CollectBytes implements Transformer<ByteBuf, ByteBuf> {
     @Override
     public Observable<ByteBuf> call(Observable<ByteBuf> upstream) {
         return upstream
-            .scan(
-                new CountAccumulator(0, Unpooled.EMPTY_BUFFER),
-                new Func2<CountAccumulator, ByteBuf, CountAccumulator>() {
-                    @Override
-                    public CountAccumulator call(CountAccumulator countAccumulator, ByteBuf byteBuf) {
-                        return new CountAccumulator(
-                                countAccumulator.count + byteBuf.readableBytes(),
-                                byteBuf);
-                    }
-                }
-            )
-            .skip(1)
-            .takeUntil(new Func1<CountAccumulator, Boolean>() {
-                @Override
-                public Boolean call(CountAccumulator countAccumulator) {
-                    return countAccumulator.count > maxBytes;
-                }
-            })
             .collect(
                 new Func0<CountingCollector>() {
                     @Override
@@ -99,26 +80,26 @@ public class CollectBytes implements Transformer<ByteBuf, ByteBuf> {
                         return new CountingCollector();
                     }
                 },
-                new Action2<CountingCollector, CountAccumulator>() {
+                new Action2<CountingCollector, ByteBuf>() {
                     @Override
-                    public void call(CountingCollector collector, CountAccumulator buf) {
-                        // only collect up to maxBytes, but keep counting so we can
-                        // produce the correct error in CollectBytes
-                        collector.count = buf.count;
-                        if (buf.count <= maxBytes) {
-                            int i = buf.lastBuf.readableBytes();
-                            collector.byteBuf.addComponent(buf.lastBuf);
+                    public void call(CountingCollector collector, ByteBuf buf) {
+                        collector.count += buf.readableBytes();
+                        if (collector.count <= maxBytes) {
+                            int i = buf.readableBytes();
+                            collector.byteBuf.addComponent(buf);
                             collector.byteBuf.writerIndex(collector.byteBuf.writerIndex() + i);
+                        } else {
+                            collector.byteBuf.release();
+                            buf.release();
+                            throw new TooMuchDataException();
                         }
                     }
                 }
             )
-            .flatMap(new Func1<CountingCollector, Observable<ByteBuf>>() {
+            .map(new Func1<CountingCollector, ByteBuf>() {
                 @Override
-                public Observable<ByteBuf> call(CountingCollector collector) {
-                    return collector.count > maxBytes ?
-                            Observable.<ByteBuf>error(OnErrorThrowable.addValueAsLastCause(new TooMuchDataException(), collector.byteBuf)) :
-                            Observable.<ByteBuf>just(collector.byteBuf);
+                public ByteBuf call(CountingCollector collector) {
+                    return collector.byteBuf;
                 }
             });
     }
@@ -126,16 +107,6 @@ public class CollectBytes implements Transformer<ByteBuf, ByteBuf> {
     public static class TooMuchDataException extends RuntimeException {
         public TooMuchDataException() {
             super();
-        }
-    }
-
-    private static class CountAccumulator {
-        private final long count;
-        private final ByteBuf lastBuf;
-
-        public CountAccumulator(long count, ByteBuf lastBuf) {
-            this.count = count;
-            this.lastBuf = lastBuf;
         }
     }
 
