@@ -21,6 +21,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.http.DefaultHttpResponse;
+import io.netty.handler.codec.http.HttpHeaderNames;
 import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpResponse;
@@ -39,6 +40,7 @@ import org.junit.Test;
 import rx.Observable;
 import rx.functions.Action0;
 import rx.functions.Func0;
+import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
 import java.net.SocketAddress;
@@ -270,6 +272,39 @@ public class HttpClientTest {
         assertThat("Unexpected exception.", contentSub.getOnErrorEvents().get(0),
                    is(instanceOf(ReadTimeoutException.class)));
 
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithNoContentLengthHeaderOrContentReturnsEmptyBody() {
+        clientRule.sendRequest(clientRule.getHttpClient().createGet("/"));
+        clientRule.assertEmptyBodyWithContentLengthZero();
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithNoContentLengthHeaderAndContentReturnsContentChunkAndSingleEmptyChunk() {
+        clientRule.sendRequest(clientRule.getHttpClient().createGet("/")
+                .writeStringContent(Observable.just("Hello")));
+        clientRule.assertChunks("Hello");
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithContentLengthReturnsRawBody() {
+        clientRule.sendRequest(clientRule.getHttpClient().createGet("/")
+                .setHeader(HttpHeaderNames.CONTENT_LENGTH, 5)
+                .writeStringContent(Observable.just("Hello")));
+        clientRule.assertBodyWithContentLength(5, "Hello");
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithZeroContentLengthReturnsEmptyBody() {
+        clientRule.sendRequest(clientRule.getHttpClient().createGet("/").setHeader(HttpHeaderNames.CONTENT_LENGTH, 0));
+        clientRule.assertEmptyBodyWithContentLengthZero();
+    }
+
+    @Test(timeout = 60000)
+    public void testRequestWithOnlyPositiveContentLengthReturnsEmptyBody() {
+        clientRule.sendRequest(clientRule.getHttpClient().createGet("/").setHeader(HttpHeaderNames.CONTENT_LENGTH, 5));
+        clientRule.assertEmptyBodyWithContentLengthZero();
     }
 
     protected void startServerThatNeverReplies() {

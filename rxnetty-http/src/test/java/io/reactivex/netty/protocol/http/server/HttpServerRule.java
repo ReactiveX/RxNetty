@@ -17,22 +17,33 @@
 package io.reactivex.netty.protocol.http.server;
 
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufHolder;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
 import io.netty.handler.logging.LogLevel;
 import io.reactivex.netty.protocol.http.client.HttpClient;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
+import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.Observable;
+import rx.functions.Action1;
+import rx.functions.Func0;
+import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.charset.Charset;
+import java.util.regex.Pattern;
 
-import static io.netty.handler.codec.http.HttpHeaderNames.*;
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
+import static io.netty.handler.codec.http.HttpHeaderNames.CONTENT_LENGTH;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.hasSize;
 
 public class HttpServerRule extends ExternalResource {
 
@@ -41,12 +52,26 @@ public class HttpServerRule extends ExternalResource {
     private HttpServer<ByteBuf, ByteBuf> server;
     private HttpClient<ByteBuf, ByteBuf> client;
 
+    private String lastResponse = "";
+
     @Override
     public Statement apply(final Statement base, Description description) {
+        lastResponse = "";
         return new Statement() {
             @Override
             public void evaluate() throws Throwable {
-                server = HttpServer.newServer().enableWireLogging("test", LogLevel.INFO);
+                server = HttpServer.newServer()
+                    .enableWireLogging("test", LogLevel.INFO)
+                    .addChannelHandlerFirst("raw-message-handler",
+                        RawMessageHandler.factory(
+                            new Action1<ByteBuf>() {
+                                @Override
+                                public void call(ByteBuf byteBuf) {
+                                    lastResponse += byteBuf.toString(Charset.defaultCharset());
+                                }
+                            }
+                        )
+                    );
                 base.evaluate();
             }
         };
@@ -99,6 +124,50 @@ public class HttpServerRule extends ExternalResource {
                    equalTo(WELCOME_SERVER_MSG));
     }
 
+    public void assertEmptyBodyWithContentLengthZero() {
+        assertBodyWithContentLength(0, "");
+    }
+
+    public void assertBodyWithContentLength(int contentLength, String body) {
+        getAndDrainClient();
+        Pattern headerBlock = Pattern.compile("^(.*?\r\n)*?\r\n", Pattern.MULTILINE);
+
+        if (!lastResponse.contains("content-length: " + contentLength + "\r\n")) {
+            Assert.fail("Missing header 'content-length: " + contentLength + "'");
+        }
+        if (lastResponse.contains("transfer-encoding: chunked\r\n")) {
+            Assert.fail("Unexpected header 'transfer-encoding: chunked'");
+        }
+        if (!headerBlock.matcher(lastResponse).replaceFirst("").equals(body)) {
+            Assert.fail("Unexpected body content '" + headerBlock.matcher(lastResponse).replaceFirst("") + "'");
+        }
+    }
+
+    public void assertEmptyBodyWithSingleChunk() {
+        assertChunks();
+    }
+
+    public void assertChunks(String... chunks) {
+        getAndDrainClient();
+        Pattern headerBlock = Pattern.compile("^(.*?\r\n)*?\r\n", Pattern.MULTILINE);
+
+        if (lastResponse.contains("content-length: 0\r\n")) {
+            Assert.fail("Unexpected header 'content-length: 0'");
+        }
+        if (!lastResponse.contains("transfer-encoding: chunked\r\n")) {
+            Assert.fail("Missing header 'transfer-encoding: chunked'");
+        }
+        String expectedChunkContent = "";
+        for (String c : chunks) {
+            expectedChunkContent += c.getBytes().length + "\r\n";
+            expectedChunkContent += c + "\r\n";
+        }
+        expectedChunkContent += "0\r\n\r\n";
+        if (!headerBlock.matcher(lastResponse).replaceFirst("").equals(expectedChunkContent)) {
+            Assert.fail("Unexpected body content '" + headerBlock.matcher(lastResponse).replaceFirst("") + "'");
+        }
+    }
+
     public SocketAddress getServerAddress() {
         return new InetSocketAddress("127.0.0.1", server.getServerPort());
     }
@@ -113,5 +182,56 @@ public class HttpServerRule extends ExternalResource {
 
     public HttpClient<ByteBuf, ByteBuf> getClient() {
         return client;
+    }
+
+
+    public void getAndDrainClient() {
+        lastResponse = "";
+        TestSubscriber<Void> clientDrain = new TestSubscriber<>();
+        client.createGet("/")
+                .flatMap(new Func1<HttpClientResponse<ByteBuf>, Observable<Void>>() {
+                    @Override
+                    public Observable<Void> call(HttpClientResponse<ByteBuf> clientResponse) {
+                        return clientResponse.discardContent();
+                    }
+                })
+                .subscribe(clientDrain);
+        clientDrain.awaitTerminalEvent();
+        clientDrain.assertNoErrors();
+    }
+
+
+    private static class RawMessageHandler extends ChannelDuplexHandler {
+
+        public static Func0<ChannelHandler> factory(final Action1<ByteBuf> onWrite) {
+            return new Func0<ChannelHandler>() {
+                @Override
+                public ChannelHandler call() {
+                    return new RawMessageHandler(onWrite);
+                }
+            };
+        }
+
+        private final Action1<ByteBuf> onWrite;
+
+        public RawMessageHandler(Action1<ByteBuf> onWrite) {
+            this.onWrite = onWrite;
+        }
+
+        @Override
+        public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+            callback(msg, onWrite);
+            super.write(ctx, msg, promise);
+        }
+
+        private void callback(Object msg, Action1<ByteBuf> a) {
+            if (msg instanceof ByteBuf) {
+                a.call((ByteBuf) msg);
+            } else if (msg instanceof ByteBufHolder) {
+                a.call(((ByteBufHolder) msg).content());
+            } else {
+                throw new RuntimeException("Unexpected msg type " + msg.getClass());
+            }
+        }
     }
 }

@@ -166,6 +166,12 @@ public final class RawRequest<I, O> {
 
     @SuppressWarnings({"rawtypes", "unchecked"})
     public Observable asObservable(Connection<?, ?> connection) {
+        HttpRequest headers = this.headers;
+        if (null == content) {
+            headers = _copyHeaders();
+            headers.headers().set(HttpHeaderNames.CONTENT_LENGTH, 0);
+        }
+
         Observable toReturn = Observable.just(headers);
 
         if (null != content) {
