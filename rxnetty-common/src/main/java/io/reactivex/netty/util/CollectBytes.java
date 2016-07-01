@@ -24,11 +24,11 @@ import rx.Observable.Transformer;
 import rx.exceptions.OnErrorThrowable;
 import rx.functions.Action2;
 import rx.functions.Func0;
-import rx.functions.Func1;
 
 /**
  * An {@link Observable.Transformer} to collect a stream of {@link ByteBuf ByteBufs} into a single
- * ByteBuf.
+ * ByteBuf. On success the receiver must release the returned ByteBuf.
+ * On failure this will release all received ByteBufs.
  * <p>
  * This Transformer should not be used with {@link io.reactivex.netty.channel.ContentSource#autoRelease()}
  * as this will release the underlying collected ByteBufs before the collection is complete.
@@ -77,49 +77,32 @@ public class CollectBytes implements Transformer<ByteBuf, ByteBuf> {
     public Observable<ByteBuf> call(Observable<ByteBuf> upstream) {
         return upstream
             .collect(
-                new Func0<CountingCollector>() {
+                new Func0<CompositeByteBuf>() {
                     @Override
-                    public CountingCollector call() {
-                        return new CountingCollector();
+                    public CompositeByteBuf call() {
+                        return Unpooled.compositeBuffer();
                     }
                 },
-                new Action2<CountingCollector, ByteBuf>() {
+                new Action2<CompositeByteBuf, ByteBuf>() {
                     @Override
-                    public void call(CountingCollector collector, ByteBuf buf) {
-                        collector.count += buf.readableBytes();
-                        if (collector.count <= maxBytes) {
-                            int i = buf.readableBytes();
-                            collector.byteBuf.addComponent(buf);
-                            collector.byteBuf.writerIndex(collector.byteBuf.writerIndex() + i);
+                    public void call(CompositeByteBuf collector, ByteBuf buf) {
+                        long newLength = collector.readableBytes() + buf.readableBytes();
+                        if (newLength <= maxBytes) {
+                            collector.addComponent(true, buf);
                         } else {
-                            collector.byteBuf.release();
+                            collector.release();
                             buf.release();
-                            throw new TooMuchDataException();
+                            throw new TooMuchDataException("More than " + maxBytes + "B received");
                         }
                     }
                 }
             )
-            .map(new Func1<CountingCollector, ByteBuf>() {
-                @Override
-                public ByteBuf call(CountingCollector collector) {
-                    return collector.byteBuf;
-                }
-            });
+            .cast(ByteBuf.class);
     }
 
     public static class TooMuchDataException extends RuntimeException {
-        public TooMuchDataException() {
-            super();
-        }
-    }
-
-    private static class CountingCollector {
-        private long count;
-        private CompositeByteBuf byteBuf;
-
-        public CountingCollector() {
-            this.count = 0;
-            this.byteBuf = Unpooled.compositeBuffer();
+        public TooMuchDataException(String message) {
+            super(message);
         }
     }
 }
