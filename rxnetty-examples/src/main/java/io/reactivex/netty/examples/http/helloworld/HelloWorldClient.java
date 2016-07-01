@@ -74,7 +74,7 @@ public final class HelloWorldClient {
         SocketAddress serverAddress = env.getServerAddress(HelloWorldServer.class, args);
 
         HttpClient.newClient(serverAddress)
-                  .enableWireLogging("hello-client", LogLevel.DEBUG)
+                  .enableWireLogging("hello-client", LogLevel.ERROR)
                   .createGet("/hello")
                   .doOnNext(resp -> logger.info(resp.toString()))
                   .flatMap(resp -> resp.getContent()

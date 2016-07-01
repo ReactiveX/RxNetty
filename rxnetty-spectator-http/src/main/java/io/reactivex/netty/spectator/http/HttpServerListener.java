@@ -18,14 +18,17 @@
 package io.reactivex.netty.spectator.http;
 
 import com.netflix.spectator.api.Counter;
+import com.netflix.spectator.api.Registry;
+import com.netflix.spectator.api.Spectator;
 import io.reactivex.netty.protocol.http.server.events.HttpServerEventsListener;
-import io.reactivex.netty.spectator.LatencyMetrics;
+import io.reactivex.netty.spectator.http.internal.ResponseCodesHolder;
+import io.reactivex.netty.spectator.internal.LatencyMetrics;
 import io.reactivex.netty.spectator.tcp.TcpServerListener;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.*;
+import static io.reactivex.netty.spectator.internal.SpectatorUtils.*;
 
 /**
  * HttpServerListener.
@@ -45,16 +48,20 @@ public class HttpServerListener extends HttpServerEventsListener {
     private final TcpServerListener tcpDelegate;
 
     public HttpServerListener(String monitorId) {
-        requestBacklog = newGauge("requestBacklog", monitorId, new AtomicInteger());
-        inflightRequests = newGauge("inflightRequests", monitorId, new AtomicInteger());
-        responseWriteTimes = new LatencyMetrics("responseWriteTimes", monitorId);
-        requestReadTimes = new LatencyMetrics("requestReadTimes", monitorId);
-        requestProcessingTimes = new LatencyMetrics("requestProcessingTimes", monitorId);
-        processedRequests = newCounter("processedRequests", monitorId);
-        failedRequests = newCounter("failedRequests", monitorId);
-        responseWriteFailed = newCounter("responseWriteFailed", monitorId);
-        responseCodesHolder = new ResponseCodesHolder(monitorId);
-        tcpDelegate = new TcpServerListener(monitorId);
+        this(Spectator.globalRegistry(), monitorId);
+    }
+
+    public HttpServerListener(Registry registry, String monitorId) {
+        requestBacklog = newGauge(registry, "requestBacklog", monitorId, new AtomicInteger());
+        inflightRequests = newGauge(registry, "inflightRequests", monitorId, new AtomicInteger());
+        responseWriteTimes = new LatencyMetrics("responseWriteTimes", monitorId, registry);
+        requestReadTimes = new LatencyMetrics("requestReadTimes", monitorId, registry);
+        requestProcessingTimes = new LatencyMetrics("requestProcessingTimes", monitorId, registry);
+        processedRequests = newCounter(registry, "processedRequests", monitorId);
+        failedRequests = newCounter(registry, "failedRequests", monitorId);
+        responseWriteFailed = newCounter(registry, "responseWriteFailed", monitorId);
+        responseCodesHolder = new ResponseCodesHolder(registry, monitorId);
+        tcpDelegate = new TcpServerListener(registry, monitorId);
     }
 
     public long getRequestBacklog() {

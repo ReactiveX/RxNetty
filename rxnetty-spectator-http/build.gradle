@@ -15,9 +15,13 @@
  *
  */
 
+// spectator requires java 8
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
 dependencies {
     compile project(':rxnetty-http')
     compile project(':rxnetty-spectator-tcp')
     compile project(':rxnetty-common')
-    compile 'com.netflix.spectator:spectator-api:0.14.2'
+    compile 'com.netflix.spectator:spectator-api:0.40.0'
 }

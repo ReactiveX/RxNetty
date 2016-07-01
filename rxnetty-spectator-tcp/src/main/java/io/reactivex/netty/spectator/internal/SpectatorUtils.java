@@ -14,43 +14,40 @@
  * limitations under the License.
  *
  */
-package io.reactivex.netty.spectator;
+package io.reactivex.netty.spectator.internal;
 
 import com.netflix.spectator.api.Counter;
-import com.netflix.spectator.api.ExtendedRegistry;
 import com.netflix.spectator.api.Id;
-import com.netflix.spectator.api.Spectator;
+import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Timer;
 
 public final class SpectatorUtils {
     private SpectatorUtils() {
     }
 
-    public static Counter newCounter(String name, String id) {
-        return Spectator.registry().counter(name, "id", id);
+    public static Counter newCounter(Registry registry, String name, String id) {
+        return registry.counter(name, "id", id);
     }
 
-    public static Counter newCounter(String name, String id, String... tags) {
+    public static Counter newCounter(Registry registry, String name, String id, String... tags) {
         String[] allTags = getTagsWithId(id, tags);
-        return Spectator.registry().counter(name, allTags);
+        return registry.counter(name, allTags);
     }
 
-    public static Timer newTimer(String name, String id) {
-        return Spectator.registry().timer(name, "id", id);
+    public static Timer newTimer(Registry registry, String name, String id) {
+        return registry.timer(name, "id", id);
     }
 
-    public static Timer newTimer(String name, String id, String... tags) {
-        return Spectator.registry().timer(name, getTagsWithId(id, tags));
+    public static Timer newTimer(Registry registry, String name, String id, String... tags) {
+        return registry.timer(name, getTagsWithId(id, tags));
     }
 
-    public static <T extends Number> T newGauge(String name, String id, T number) {
-        final ExtendedRegistry registry = Spectator.registry();
+    public static <T extends Number> T newGauge(Registry registry, String name, String id, T number) {
         Id gaugeId = registry.createId(name, "id", id);
         return registry.gauge(gaugeId, number);
     }
 
-    public static <T extends Number> T newGauge(String name, String id, T number, String... tags) {
-        final ExtendedRegistry registry = Spectator.registry();
+    public static <T extends Number> T newGauge(Registry registry, String name, String id, T number, String... tags) {
         Id gaugeId = registry.createId(name, getTagsWithId(id, tags));
         return registry.gauge(gaugeId, number);
     }
