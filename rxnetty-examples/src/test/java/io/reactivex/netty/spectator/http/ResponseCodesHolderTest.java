@@ -17,6 +17,9 @@
 
 package io.reactivex.netty.spectator.http;
 
+import com.netflix.spectator.api.DefaultRegistry;
+import com.netflix.spectator.api.Registry;
+import io.reactivex.netty.spectator.http.internal.ResponseCodesHolder;
 import org.junit.Test;
 
 import static org.hamcrest.Matchers.*;
@@ -27,7 +30,8 @@ public class ResponseCodesHolderTest {
     @Test(timeout = 60000)
     public void testGetResponse1xx() throws Exception {
         String monitorId = newMonitorId();
-        ResponseCodesHolder holder = new ResponseCodesHolder(monitorId);
+        Registry registry = new DefaultRegistry();
+        ResponseCodesHolder holder = new ResponseCodesHolder(registry, monitorId);
         holder.update(100);
 
         checkCodes(holder, 1, 0, 0, 0, 0);
@@ -40,7 +44,8 @@ public class ResponseCodesHolderTest {
     @Test(timeout = 60000)
     public void testGetResponse2xx() throws Exception {
         String monitorId = newMonitorId();
-        ResponseCodesHolder holder = new ResponseCodesHolder(monitorId);
+        Registry registry = new DefaultRegistry();
+        ResponseCodesHolder holder = new ResponseCodesHolder(registry, monitorId);
         holder.update(200);
 
         checkCodes(holder, 0, 1, 0, 0, 0);
@@ -53,7 +58,8 @@ public class ResponseCodesHolderTest {
     @Test(timeout = 60000)
     public void testGetResponse3xx() throws Exception {
         String monitorId = newMonitorId();
-        ResponseCodesHolder holder = new ResponseCodesHolder(monitorId);
+        Registry registry = new DefaultRegistry();
+        ResponseCodesHolder holder = new ResponseCodesHolder(registry, monitorId);
         holder.update(300);
 
         checkCodes(holder, 0, 0, 1, 0, 0);
@@ -66,7 +72,8 @@ public class ResponseCodesHolderTest {
     @Test(timeout = 60000)
     public void testGetResponse4xx() throws Exception {
         String monitorId = newMonitorId();
-        ResponseCodesHolder holder = new ResponseCodesHolder(monitorId);
+        Registry registry = new DefaultRegistry();
+        ResponseCodesHolder holder = new ResponseCodesHolder(registry, monitorId);
         holder.update(400);
 
         checkCodes(holder, 0, 0, 0, 1, 0);
@@ -79,7 +86,8 @@ public class ResponseCodesHolderTest {
     @Test(timeout = 60000)
     public void testGetResponse5xx() throws Exception {
         String monitorId = newMonitorId();
-        ResponseCodesHolder holder = new ResponseCodesHolder(monitorId);
+        Registry registry = new DefaultRegistry();
+        ResponseCodesHolder holder = new ResponseCodesHolder(registry, monitorId);
         holder.update(500);
 
         checkCodes(holder, 0, 0, 0, 0, 1);
@@ -89,7 +97,7 @@ public class ResponseCodesHolderTest {
         checkCodes(holder, 0, 0, 0, 0, 2);
     }
 
-    private void checkCodes(ResponseCodesHolder holder, long xx1, long xx2, long xx3, long xx4, long xx5) {
+    private static void checkCodes(ResponseCodesHolder holder, long xx1, long xx2, long xx3, long xx4, long xx5) {
         assertThat("Invalid 1xx count.", holder.getResponse1xx(), is(xx1));
         assertThat("Invalid 2xx count.", holder.getResponse2xx(), is(xx2));
         assertThat("Invalid 3xx count.", holder.getResponse3xx(), is(xx3));
@@ -97,7 +105,7 @@ public class ResponseCodesHolderTest {
         assertThat("Invalid 5xx count.", holder.getResponse5xx(), is(xx5));
     }
 
-    private String newMonitorId() {
+    private static String newMonitorId() {
         return "monitorId - " + Math.random();
     }
 }

@@ -18,13 +18,15 @@
 package io.reactivex.netty.spectator.tcp;
 
 import com.netflix.spectator.api.Counter;
+import com.netflix.spectator.api.Registry;
+import com.netflix.spectator.api.Spectator;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
-import io.reactivex.netty.spectator.LatencyMetrics;
+import io.reactivex.netty.spectator.internal.LatencyMetrics;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.*;
+import static io.reactivex.netty.spectator.internal.SpectatorUtils.*;
 
 /**
  * TcpClientListener
@@ -63,34 +65,38 @@ public class TcpClientListener extends TcpClientEventListener {
     private final Counter failedFlushes;
     private final LatencyMetrics flushTimes;
 
+    public TcpClientListener(Registry registry, String monitorId) {
+        liveConnections = newGauge(registry, "liveConnections", monitorId, new AtomicInteger());
+        connectionCount = newCounter(registry, "connectionCount", monitorId);
+        pendingConnects = newGauge(registry, "pendingConnects", monitorId, new AtomicInteger());
+        failedConnects = newCounter(registry, "failedConnects", monitorId);
+        connectionTimes = new LatencyMetrics("connectionTimes", monitorId, registry);
+        pendingConnectionClose = newGauge(registry, "pendingConnectionClose", monitorId, new AtomicInteger());
+        failedConnectionClose = newCounter(registry, "failedConnectionClose", monitorId);
+        pendingPoolAcquires = newGauge(registry, "pendingPoolAcquires", monitorId, new AtomicInteger());
+        poolAcquireTimes = new LatencyMetrics("poolAcquireTimes", monitorId, registry);
+        failedPoolAcquires = newCounter(registry, "failedPoolAcquires", monitorId);
+        pendingPoolReleases = newGauge(registry, "pendingPoolReleases", monitorId, new AtomicInteger());
+        poolReleaseTimes = new LatencyMetrics("poolReleaseTimes", monitorId, registry);
+        failedPoolReleases = newCounter(registry, "failedPoolReleases", monitorId);
+        poolAcquires = newCounter(registry, "poolAcquires", monitorId);
+        poolEvictions = newCounter(registry, "poolEvictions", monitorId);
+        poolReuse = newCounter(registry, "poolReuse", monitorId);
+        poolReleases = newCounter(registry, "poolReleases", monitorId);
+
+        pendingWrites = newGauge(registry, "pendingWrites", monitorId, new AtomicInteger());
+        pendingFlushes = newGauge(registry, "pendingFlushes", monitorId, new AtomicInteger());
+
+        bytesWritten = newCounter(registry, "bytesWritten", monitorId);
+        writeTimes = new LatencyMetrics("writeTimes", monitorId, registry);
+        bytesRead = newCounter(registry, "bytesRead", monitorId);
+        failedWrites = newCounter(registry, "failedWrites", monitorId);
+        failedFlushes = newCounter(registry, "failedFlushes", monitorId);
+        flushTimes = new LatencyMetrics("flushTimes", monitorId, registry);
+    }
+
     public TcpClientListener(String monitorId) {
-        liveConnections = newGauge("liveConnections", monitorId, new AtomicInteger());
-        connectionCount = newCounter("connectionCount", monitorId);
-        pendingConnects = newGauge("pendingConnects", monitorId, new AtomicInteger());
-        failedConnects = newCounter("failedConnects", monitorId);
-        connectionTimes = new LatencyMetrics("connectionTimes", monitorId);
-        pendingConnectionClose = newGauge("pendingConnectionClose", monitorId, new AtomicInteger());
-        failedConnectionClose = newCounter("failedConnectionClose", monitorId);
-        pendingPoolAcquires = newGauge("pendingPoolAcquires", monitorId, new AtomicInteger());
-        poolAcquireTimes = new LatencyMetrics("poolAcquireTimes", monitorId);
-        failedPoolAcquires = newCounter("failedPoolAcquires", monitorId);
-        pendingPoolReleases = newGauge("pendingPoolReleases", monitorId, new AtomicInteger());
-        poolReleaseTimes = new LatencyMetrics("poolReleaseTimes", monitorId);
-        failedPoolReleases = newCounter("failedPoolReleases", monitorId);
-        poolAcquires = newCounter("poolAcquires", monitorId);
-        poolEvictions = newCounter("poolEvictions", monitorId);
-        poolReuse = newCounter("poolReuse", monitorId);
-        poolReleases = newCounter("poolReleases", monitorId);
-
-        pendingWrites = newGauge("pendingWrites", monitorId, new AtomicInteger());
-        pendingFlushes = newGauge("pendingFlushes", monitorId, new AtomicInteger());
-
-        bytesWritten = newCounter("bytesWritten", monitorId);
-        writeTimes = new LatencyMetrics("writeTimes", monitorId);
-        bytesRead = newCounter("bytesRead", monitorId);
-        failedWrites = newCounter("failedWrites", monitorId);
-        failedFlushes = newCounter("failedFlushes", monitorId);
-        flushTimes = new LatencyMetrics("flushTimes", monitorId);
+        this(Spectator.globalRegistry(), monitorId);
     }
 
     @Override

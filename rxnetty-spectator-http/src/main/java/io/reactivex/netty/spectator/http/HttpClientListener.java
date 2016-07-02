@@ -18,14 +18,18 @@
 package io.reactivex.netty.spectator.http;
 
 import com.netflix.spectator.api.Counter;
+import com.netflix.spectator.api.Registry;
+import com.netflix.spectator.api.Spectator;
 import io.reactivex.netty.protocol.http.client.events.HttpClientEventsListener;
-import io.reactivex.netty.spectator.LatencyMetrics;
+import io.reactivex.netty.spectator.http.internal.ResponseCodesHolder;
+import io.reactivex.netty.spectator.internal.LatencyMetrics;
 import io.reactivex.netty.spectator.tcp.TcpClientListener;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.*;
+import static io.reactivex.netty.spectator.internal.SpectatorUtils.*;
+
 /**
  * HttpClientListener.
  */
@@ -42,17 +46,21 @@ public class HttpClientListener extends HttpClientEventsListener {
     private final LatencyMetrics requestProcessingTimes;
     private final TcpClientListener tcpDelegate;
 
+    public HttpClientListener(Registry registry, String monitorId) {
+        requestBacklog = newGauge(registry, "requestBacklog", monitorId, new AtomicInteger());
+        inflightRequests = newGauge(registry, "inflightRequests", monitorId, new AtomicInteger());
+        requestWriteTimes = new LatencyMetrics("requestWriteTimes", monitorId, registry);
+        responseReadTimes = new LatencyMetrics("responseReadTimes", monitorId, registry);
+        processedRequests = newCounter(registry, "processedRequests", monitorId);
+        requestWriteFailed = newCounter(registry, "requestWriteFailed", monitorId);
+        failedResponses = newCounter(registry, "failedResponses", monitorId);
+        requestProcessingTimes = new LatencyMetrics("requestProcessingTimes", monitorId, registry);
+        responseCodesHolder = new ResponseCodesHolder(registry, monitorId);
+        tcpDelegate = new TcpClientListener(registry, monitorId);
+    }
+
     public HttpClientListener(String monitorId) {
-        requestBacklog = newGauge("requestBacklog", monitorId, new AtomicInteger());
-        inflightRequests = newGauge("inflightRequests", monitorId, new AtomicInteger());
-        requestWriteTimes = new LatencyMetrics("requestWriteTimes", monitorId);
-        responseReadTimes = new LatencyMetrics("responseReadTimes", monitorId);
-        processedRequests = newCounter("processedRequests", monitorId);
-        requestWriteFailed = newCounter("requestWriteFailed", monitorId);
-        failedResponses = newCounter("failedResponses", monitorId);
-        requestProcessingTimes = new LatencyMetrics("requestProcessingTimes", monitorId);
-        responseCodesHolder = new ResponseCodesHolder(monitorId);
-        tcpDelegate = new TcpClientListener(monitorId);
+        this(Spectator.globalRegistry(), monitorId);
     }
 
     public long getRequestBacklog() {

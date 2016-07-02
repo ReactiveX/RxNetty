@@ -15,11 +15,12 @@
  *
  */
 
-package io.reactivex.netty.spectator.http;
+package io.reactivex.netty.spectator.http.internal;
 
 import com.netflix.spectator.api.Counter;
+import com.netflix.spectator.api.Registry;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.*;
+import static io.reactivex.netty.spectator.internal.SpectatorUtils.newCounter;
 
 public class ResponseCodesHolder {
 
@@ -29,12 +30,12 @@ public class ResponseCodesHolder {
     private final Counter response2xx;
     private final Counter response1xx;
 
-    public ResponseCodesHolder(String monitorId) {
-        response1xx = newCounter("responseCodes", monitorId, "code", "1xx");
-        response2xx = newCounter("responseCodes", monitorId, "code", "2xx");
-        response3xx = newCounter("responseCodes", monitorId, "code", "3xx");
-        response4xx = newCounter("responseCodes", monitorId, "code", "4xx");
-        response5xx = newCounter("responseCodes", monitorId, "code", "5xx");
+    public ResponseCodesHolder(Registry registry, String monitorId) {
+        response1xx = newCounter(registry, "responseCodes", monitorId, "code", "1xx");
+        response2xx = newCounter(registry, "responseCodes", monitorId, "code", "2xx");
+        response3xx = newCounter(registry, "responseCodes", monitorId, "code", "3xx");
+        response4xx = newCounter(registry, "responseCodes", monitorId, "code", "4xx");
+        response5xx = newCounter(registry, "responseCodes", monitorId, "code", "5xx");
     }
 
     public void update(int responseCode) {

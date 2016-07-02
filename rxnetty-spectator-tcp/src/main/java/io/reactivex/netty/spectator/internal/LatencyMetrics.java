@@ -15,14 +15,13 @@
  *
  */
 
-package io.reactivex.netty.spectator;
+package io.reactivex.netty.spectator.internal;
 
 import com.netflix.numerus.NumerusProperty;
 import com.netflix.numerus.NumerusRollingPercentile;
-import com.netflix.spectator.api.ExtendedRegistry;
 import com.netflix.spectator.api.Id;
+import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Spectator;
-import com.netflix.spectator.api.ValueFunction;
 
 import java.util.concurrent.TimeUnit;
 
@@ -33,6 +32,36 @@ import static com.netflix.numerus.NumerusProperty.Factory.*;
  */
 public class LatencyMetrics {
 
+    public enum Percentile {
+        P5(5.0, "5"),
+        P25(25.0, "25"),
+        P50(50.0, "50"),
+        P75(75.0, "75"),
+        P90(90.0, "90"),
+        P99(99.0, "99"),
+        P99_5(99.5, "99.5"),
+        MAX(100.0, "Max"),
+        Min(0.0, "Min"),
+        Mean(50.0, "Mean"),
+        ;
+
+        private final double v;
+        private final String tag;
+
+        Percentile(double v, String tag) {
+            this.v = v;
+            this.tag = tag;
+        }
+
+        public double getValue() {
+            return v;
+        }
+
+        public String getTag() {
+            return tag;
+        }
+    }
+
     private static final NumerusProperty<Integer> latency_timeInMilliseconds = asProperty(60000);
     private static final NumerusProperty<Integer> latency_numberOfBuckets = asProperty(12); // 12 buckets at 5000ms each
     private static final NumerusProperty<Integer> latency_bucketDataLength = asProperty(1000);
@@ -41,39 +70,29 @@ public class LatencyMetrics {
     private final NumerusRollingPercentile p;
 
     public LatencyMetrics(String metricName, String monitorId) {
+        this(metricName, monitorId, Spectator.globalRegistry());
+    }
+
+    public LatencyMetrics(String metricName, String monitorId, Registry registry) {
         p = new NumerusRollingPercentile(latency_timeInMilliseconds, latency_numberOfBuckets, latency_bucketDataLength,
                                          latency_enabled);
-        ExtendedRegistry registry = Spectator.registry();
 
-        registerPercentileGauge(metricName, monitorId, registry, 5.0, "5");
-        registerPercentileGauge(metricName, monitorId, registry, 25.0, "25");
-        registerPercentileGauge(metricName, monitorId, registry, 50.0, "50");
-        registerPercentileGauge(metricName, monitorId, registry, 75.0, "75");
-        registerPercentileGauge(metricName, monitorId, registry, 90.0, "90");
-        registerPercentileGauge(metricName, monitorId, registry, 99.0, "99");
-        registerPercentileGauge(metricName, monitorId, registry, 99.5, "99_5");
-        registerPercentileGauge(metricName, monitorId, registry, 100.0, "100");
-        Id meanId = registry.createId(metricName, "id", monitorId, "percentile", "mean");
-        registry.gauge(meanId, p, new ValueFunction() {
-            @Override
-            public double apply(Object ref) {
-                return ((NumerusRollingPercentile) ref).getMean();
-            }
-        });
+        for (Percentile percentile : Percentile.values()) {
+            registerPercentileGauge(metricName, monitorId, registry, percentile.v, percentile.getTag());
+        }
     }
 
     public void record(long duration, TimeUnit timeUnit) {
         p.addValue((int) TimeUnit.MILLISECONDS.convert(duration, timeUnit));
     }
 
-    private void registerPercentileGauge(String metricName, String monitorId, ExtendedRegistry registry,
+    /*Visible for testing*/NumerusRollingPercentile getPercentileHolder() {
+        return p;
+    }
+
+    private void registerPercentileGauge(String metricName, String monitorId, Registry registry,
                                          final double percentile, String percentileTagValue) {
         Id id = registry.createId(metricName, "id", monitorId, "percentile", percentileTagValue);
-        registry.gauge(id, p, new ValueFunction() {
-            @Override
-            public double apply(Object ref) {
-                return ((NumerusRollingPercentile) ref).getPercentile(percentile);
-            }
-        });
+        registry.gauge(id, p, value -> value.getPercentile(percentile));
     }
 }

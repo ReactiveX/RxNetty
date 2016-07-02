@@ -18,13 +18,15 @@
 package io.reactivex.netty.spectator.tcp;
 
 import com.netflix.spectator.api.Counter;
+import com.netflix.spectator.api.Registry;
+import com.netflix.spectator.api.Spectator;
 import io.reactivex.netty.protocol.tcp.server.events.TcpServerEventListener;
-import io.reactivex.netty.spectator.LatencyMetrics;
+import io.reactivex.netty.spectator.internal.LatencyMetrics;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static io.reactivex.netty.spectator.SpectatorUtils.*;
+import static io.reactivex.netty.spectator.internal.SpectatorUtils.*;
 
 /**
  * TcpServerListener.
@@ -49,24 +51,28 @@ public class TcpServerListener extends TcpServerEventListener {
     private final Counter failedFlushes;
     private final LatencyMetrics flushTimes;
 
+    public TcpServerListener(Registry registry, String monitorId) {
+        liveConnections = newGauge(registry, "liveConnections", monitorId, new AtomicInteger());
+        inflightConnections = newGauge(registry, "inflightConnections", monitorId, new AtomicInteger());
+        pendingConnectionClose = newGauge(registry, "pendingConnectionClose", monitorId, new AtomicInteger());
+        failedConnectionClose = newCounter(registry, "failedConnectionClose", monitorId);
+        failedConnections = newCounter(registry, "failedConnections", monitorId);
+        connectionProcessingTimes = new LatencyMetrics("connectionProcessingTimes", monitorId, registry);
+        connectionCloseTimes = new LatencyMetrics("connectionCloseTimes", monitorId, registry);
+
+        pendingWrites = newGauge(registry, "pendingWrites", monitorId, new AtomicInteger());
+        pendingFlushes = newGauge(registry, "pendingFlushes", monitorId, new AtomicInteger());
+
+        bytesWritten = newCounter(registry, "bytesWritten", monitorId);
+        writeTimes = new LatencyMetrics("writeTimes", monitorId, registry);
+        bytesRead = newCounter(registry, "bytesRead", monitorId);
+        failedWrites = newCounter(registry, "failedWrites", monitorId);
+        failedFlushes = newCounter(registry, "failedFlushes", monitorId);
+        flushTimes = new LatencyMetrics("flushTimes", monitorId, registry);
+    }
+
     public TcpServerListener(String monitorId) {
-        liveConnections = newGauge("liveConnections", monitorId, new AtomicInteger());
-        inflightConnections = newGauge("inflightConnections", monitorId, new AtomicInteger());
-        pendingConnectionClose = newGauge("pendingConnectionClose", monitorId, new AtomicInteger());
-        failedConnectionClose = newCounter("failedConnectionClose", monitorId);
-        failedConnections = newCounter("failedConnections", monitorId);
-        connectionProcessingTimes = new LatencyMetrics("connectionProcessingTimes", monitorId);
-        connectionCloseTimes = new LatencyMetrics("connectionCloseTimes", monitorId);
-
-        pendingWrites = newGauge("pendingWrites", monitorId, new AtomicInteger());
-        pendingFlushes = newGauge("pendingFlushes", monitorId, new AtomicInteger());
-
-        bytesWritten = newCounter("bytesWritten", monitorId);
-        writeTimes = new LatencyMetrics("writeTimes", monitorId);
-        bytesRead = newCounter("bytesRead", monitorId);
-        failedWrites = newCounter("failedWrites", monitorId);
-        failedFlushes = newCounter("failedFlushes", monitorId);
-        flushTimes = new LatencyMetrics("flushTimes", monitorId);
+        this(Spectator.globalRegistry(), monitorId);
     }
 
     @Override
