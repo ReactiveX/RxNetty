@@ -92,9 +92,9 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
                              idleConnCleanupSubscription.unsubscribe();
                          }
                      })
-                     .onErrorResumeNext(new Func1<Throwable, Observable<? extends Void>>() {
+                     .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
                          @Override
-                         public Observable<? extends Void> call(Throwable throwable) {
+                         public Observable<Void> call(Throwable throwable) {
                              logger.error("Error listening to Host close notifications. Shutting down the pool.",
                                           throwable);
                              return Observable.empty();
@@ -281,34 +281,39 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
 
         @Override
         public Subscriber<? super PooledConnection<R, W>> call(final Subscriber<? super Connection<R, W>> o) {
-            final long startTimeNanos = isEventPublishingEnabled() ? Clock.newStartTimeNanos() : -1;
-
-            if (isEventPublishingEnabled()) {
-                hostConnector.getClientPublisher().onPoolAcquireStart();
-            }
+            final long startTimeNanos = Clock.newStartTimeNanos();
 
             return new Subscriber<PooledConnection<R, W>>(o) {
+
+                private volatile boolean publishingEnabled;
+                private volatile ClientEventListener eventListener;
+
                 @Override
                 public void onCompleted() {
-                    if (isEventPublishingEnabled()) {
-                        hostConnector.getClientPublisher()
-                                     .onPoolAcquireSuccess(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
+                    if (publishingEnabled) {
+                        eventListener.onPoolAcquireStart();
+                        eventListener.onPoolAcquireSuccess(Clock.onEndNanos(startTimeNanos), NANOSECONDS);
                     }
                     o.onCompleted();
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    if (isEventPublishingEnabled()) {
+                    if (publishingEnabled) {
                         /*Error means no connection was received, as it always every gets at most one connection*/
-                        hostConnector.getClientPublisher()
-                                     .onPoolAcquireFailed(Clock.onEndNanos(startTimeNanos), NANOSECONDS, e);
+                        eventListener.onPoolAcquireStart();
+                        eventListener.onPoolAcquireFailed(Clock.onEndNanos(startTimeNanos), NANOSECONDS, e);
                     }
                     o.onError(e);
                 }
 
                 @Override
                 public void onNext(PooledConnection<R, W> c) {
+                    EventPublisher eventPublisher = c.unsafeNettyChannel().attr(EVENT_PUBLISHER).get();
+                    if (eventPublisher.publishingEnabled()) {
+                        publishingEnabled = true;
+                        eventListener = c.unsafeNettyChannel().attr(CLIENT_EVENT_LISTENER).get();
+                    }
                     o.onNext(c);
                 }
             };

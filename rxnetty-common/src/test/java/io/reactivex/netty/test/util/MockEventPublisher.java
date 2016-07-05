@@ -23,13 +23,32 @@ import io.reactivex.netty.events.EventSource;
 import rx.Subscription;
 import rx.subscriptions.Subscriptions;
 
-public class DisabledEventPublisher<T extends EventListener> implements EventPublisher, EventSource<T> {
+public class MockEventPublisher<T extends EventListener> implements EventPublisher, EventSource<T> {
 
-    public static final DisabledEventPublisher DISABLED_EVENT_PUBLISHER = new DisabledEventPublisher();
+    private static final MockEventPublisher<?> DISABLED_EVENT_PUBLISHER = new MockEventPublisher(true);
+    private static final MockEventPublisher<?> ENABLED_EVENT_PUBLISHER = new MockEventPublisher(false);
+
+    private final boolean disable;
+
+    private MockEventPublisher(boolean disable) {
+        this.disable = disable;
+    }
+
+    public static <T extends EventListener> MockEventPublisher<T> disabled() {
+        @SuppressWarnings("unchecked")
+        MockEventPublisher<T> t = (MockEventPublisher<T>) DISABLED_EVENT_PUBLISHER;
+        return t;
+    }
+
+    public static <T extends EventListener> MockEventPublisher<T> enabled() {
+        @SuppressWarnings("unchecked")
+        MockEventPublisher<T> t = (MockEventPublisher<T>) ENABLED_EVENT_PUBLISHER;
+        return t;
+    }
 
     @Override
     public boolean publishingEnabled() {
-        return false;
+        return !disable;
     }
 
     @Override

@@ -265,7 +265,8 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
             @SuppressWarnings("unchecked")
             ChannelProvider channelProvider = channelProviderFactory.newProvider(host, eventSource, hostEventPublisher,
                                                                                  hostEventPublisher);
-            return new HostConnector<>(host, new TerminalConnectionProvider<>(host, channelProvider, state),
+            return new HostConnector<>(host, new TerminalConnectionProvider<>(hostEventPublisher, host,
+                                                                              channelProvider, state),
                                        hostEventPublisher, hostEventPublisher, hostEventPublisher);
         }
     }
@@ -276,10 +277,11 @@ public final class TcpClientImpl<W, R> extends TcpClient<W, R> {
         private final Bootstrap bootstrap;
         private final ChannelProvider channelProvider;
 
-        public TerminalConnectionProvider(Host host, ChannelProvider channelProvider, ClientState<W, R> state) {
+        public TerminalConnectionProvider(TcpClientEventPublisher hostEventPublisher,
+                                          Host host, ChannelProvider channelProvider, ClientState<W, R> state) {
             this.host = host;
             this.channelProvider = channelProvider;
-            bootstrap = state.newBootstrap();
+            bootstrap = state.newBootstrap(hostEventPublisher, hostEventPublisher);
         }
 
         @Override

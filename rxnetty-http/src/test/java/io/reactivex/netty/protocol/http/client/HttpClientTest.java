@@ -18,7 +18,6 @@
 package io.reactivex.netty.protocol.http.client;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandler;
 import io.netty.handler.codec.http.DefaultHttpResponse;
 import io.netty.handler.codec.http.HttpHeaderNames;
@@ -28,7 +27,6 @@ import io.netty.handler.codec.http.HttpResponse;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.timeout.ReadTimeoutException;
-import io.reactivex.netty.client.ConnectionProviderFactory;
 import io.reactivex.netty.client.Host;
 import io.reactivex.netty.client.pool.SingleHostPoolingProviderFactory;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
@@ -38,12 +36,9 @@ import io.reactivex.netty.protocol.http.server.RequestHandler;
 import org.junit.Rule;
 import org.junit.Test;
 import rx.Observable;
-import rx.functions.Action0;
 import rx.functions.Func0;
-import rx.functions.Func1;
 import rx.observers.TestSubscriber;
 
-import java.net.SocketAddress;
 import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.*;
@@ -213,65 +208,6 @@ public class HttpClientTest {
         assertThat("Unexpected onError count.", testSubscriber.getOnErrorEvents(), hasSize(1));
         assertThat("Unexpected exception.", testSubscriber.getOnErrorEvents().get(0),
                    is(instanceOf(ReadTimeoutException.class)));
-    }
-
-    //@Test(timeout = 60000) // TODO: Fix me
-    public void testReadTimeoutWithPoolReuse() throws Exception {
-
-        serverRule.startServer(new RequestHandler<ByteBuf, ByteBuf>() {
-            @Override
-            public Observable<Void> handle(final HttpServerRequest<ByteBuf> request, final HttpServerResponse<ByteBuf> response) {
-                if (request.getUri().startsWith("/never")) {
-                    return response.write(Observable.<ByteBuf>empty()
-                                                    .doOnCompleted(new Action0() {
-                                                        @Override
-                                                        public void call() {
-                                                            // To flush the headers.
-                                                            response.unsafeNettyChannel().flush();
-                                                        }
-                                                    }))
-                                   .write(Observable.<ByteBuf>never());
-                } else {
-                    return response.write(Observable.<ByteBuf>empty());
-                }
-            }
-        });
-
-        SocketAddress serverAddress = serverRule.getServerAddress();
-        ConnectionProviderFactory<ByteBuf, ByteBuf> cpf = SingleHostPoolingProviderFactory.createUnbounded();
-
-        HttpClient<ByteBuf, ByteBuf> client = HttpClient.newClient(cpf, Observable.just(new Host(serverAddress)));
-
-        // Send a request that will create a connection to be reused later.
-        HttpClientRequest<ByteBuf, ByteBuf> request = client.createGet("/");
-        TestSubscriber<HttpClientResponse<ByteBuf>> testSubscriber = clientRule.sendRequest(request);
-        final Channel channel1 = clientRule.discardResponseContent(testSubscriber).unsafeNettyChannel();
-
-        // Send another request on the same client so that the pool can be reused.
-        HttpClientRequest<ByteBuf, ByteBuf> timeoutReq = client.createGet("/never").readTimeOut(5, TimeUnit.SECONDS);
-        TestSubscriber<HttpClientResponse<ByteBuf>> timeoutSub = clientRule.sendRequest(timeoutReq);
-
-        timeoutSub.awaitTerminalEvent();
-        timeoutSub.assertTerminalEvent();
-        timeoutSub.assertNoErrors();
-
-        assertThat("No response recieved.", timeoutSub.getOnNextEvents(), hasSize(1));
-
-        HttpClientResponse<ByteBuf> resp = timeoutSub.getOnNextEvents().get(0);
-        Channel channel2 = resp.unsafeNettyChannel();
-
-        assertThat("Connection was not reused", channel2, is(channel1));
-
-        TestSubscriber<ByteBuf> contentSub = new TestSubscriber<>();
-        resp.getContent().subscribe(contentSub);
-        contentSub.awaitTerminalEvent();
-        contentSub.assertTerminalEvent();
-
-        assertThat("On complete invoked, instead of error.", contentSub.getOnCompletedEvents(), is(empty()));
-        assertThat("Unexpected onError count.", contentSub.getOnErrorEvents(), hasSize(1));
-        assertThat("Unexpected exception.", contentSub.getOnErrorEvents().get(0),
-                   is(instanceOf(ReadTimeoutException.class)));
-
     }
 
     @Test(timeout = 60000)

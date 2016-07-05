@@ -26,7 +26,9 @@ import io.reactivex.netty.client.Host;
 import io.reactivex.netty.client.HostConnector;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.events.EventAttributeKeys;
-import io.reactivex.netty.test.util.DisabledEventPublisher;
+import io.reactivex.netty.events.EventPublisher;
+import io.reactivex.netty.events.EventSource;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import io.reactivex.netty.test.util.TrackableMetricEventsListener;
 import org.junit.Assert;
 import org.junit.Rule;
@@ -50,6 +52,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import static io.reactivex.netty.client.pool.MaxConnectionsBasedStrategy.*;
 import static java.lang.annotation.ElementType.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -145,9 +148,9 @@ public class PooledConnectionProviderImplTest {
         PoolConfig<String, String> config = new PoolConfig<>();
         config.idleConnectionsHolder(pooledFactoryRule.holder);
 
-        DisabledEventPublisher<ClientEventListener> publisher = new DisabledEventPublisher<>();
-        EmbeddedConnectionProvider connectionProvider = new EmbeddedConnectionProvider(publisher, true);
+        MockEventPublisher<ClientEventListener> publisher = MockEventPublisher.disabled();
         ClientEventListener listener = new ClientEventListener();
+        EmbeddedConnectionProvider connectionProvider = new EmbeddedConnectionProvider(publisher, true, listener);
         Host host = new Host(new InetSocketAddress("127.0.0.1", 0));
         HostConnector<String, String> connector = new HostConnector<>(host, connectionProvider,
                                                                       publisher, publisher, listener);
@@ -164,10 +167,12 @@ public class PooledConnectionProviderImplTest {
 
     }
 
-    //@Test(timeout = 60000) // TODO: Fix me
+    @Test(timeout = 60000)
     public void testMetricEventCallback() throws Throwable {
         TrackableMetricEventsListener eventsListener = new TrackableMetricEventsListener();
 
+        pooledFactoryRule.init(DEFAULT_MAX_CONNECTIONS, MockEventPublisher.<ClientEventListener>enabled(),
+                               MockEventPublisher.enabled(), eventsListener);
         final PooledConnection<String, String> connection = pooledFactoryRule.getAConnection();
 
         assertThat("Unexpected acquire attempted count.", eventsListener.getAcquireAttemptedCount(),
@@ -176,8 +181,6 @@ public class PooledConnectionProviderImplTest {
                    is(1L));
         assertThat("Unexpected acquire failed count.", eventsListener.getAcquireFailedCount(),
                    is(0L));
-        assertThat("Unexpected creation count.", eventsListener.getCreationCount(),
-                   is(1L));
 
         pooledFactoryRule.returnToIdle(connection);
 
@@ -186,7 +189,6 @@ public class PooledConnectionProviderImplTest {
         assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(),
                    is(1L));
         assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(), is(0L));
-        assertThat("Unexpected create connection count.", eventsListener.getCreationCount(), is(1L));
 
         final PooledConnection<String, String> reusedConn = pooledFactoryRule.getAConnection();
 
@@ -198,34 +200,20 @@ public class PooledConnectionProviderImplTest {
                    is(2L));
         assertThat("Unexpected acquire failed count.", eventsListener.getAcquireFailedCount(),
                    is(0L));
-        assertThat("Unexpected creation count.", eventsListener.getCreationCount(),
-                   is(1L));
-        assertThat("Unexpected reuse count.", eventsListener.getReuseCount(),
-                   is(1L));
+        assertThat("Unexpected reuse count.", eventsListener.getReuseCount(), is(1L));
 
         pooledFactoryRule.closeAndAwait(reusedConn);
 
-        assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(),
-                   is(2L));
-        assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(),
-                   is(2L));
-        assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(),
-                   is(0L));
-        assertThat("Unexpected create connection count.", eventsListener.getCreationCount(),
-                   is(1L));
+        assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(), is(2L));
+        assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(), is(2L));
+        assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(), is(0L));
 
         pooledFactoryRule.provider.discard(reusedConn).toBlocking().lastOrDefault(null);
 
-        assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(),
-                   is(2L));
-        assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(),
-                   is(2L));
-        assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(),
-                   is(0L));
-        assertThat("Unexpected create connection count.", eventsListener.getCreationCount(),
-                   is(1L));
-        assertThat("Unexpected create connection count.", eventsListener.getEvictionCount(),
-                   is(1L));
+        assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(), is(2L));
+        assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(), is(2L));
+        assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(), is(0L));
+        assertThat("Unexpected connection eviction count.", eventsListener.getEvictionCount(), is(1L));
     }
 
     private PooledConnection<String, String> _testRelease() throws Exception {
@@ -256,26 +244,30 @@ public class PooledConnectionProviderImplTest {
                 @Override
                 public void evaluate() throws Throwable {
                     MaxConnections maxConnections1 = description.getAnnotation(MaxConnections.class);
-                    int maxConnections = null == maxConnections1 ? MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS
-                                                                 : maxConnections1.value();
-
-                    testScheduler = Schedulers.test();
-                    Observable<Long> idleConnCleaner = Observable.timer(1, TimeUnit.MINUTES, testScheduler);
-                    holder = new FIFOIdleConnectionsHolder<>();
-                    PoolConfig<String, String> config = new PoolConfig<>();
-                    config.idleConnectionsCleanupTimer(idleConnCleaner)
-                          .maxConnections(maxConnections)
-                          .idleConnectionsHolder(holder);
                     ClientEventListener listener = new ClientEventListener();
-                    Host host = new Host(new InetSocketAddress("127.0.0.1", 0));
-                    final DisabledEventPublisher<ClientEventListener> publisher = new DisabledEventPublisher<>();
-                    ConnectionProvider<String, String> cp = new EmbeddedConnectionProvider(publisher);
-                    HostConnector<String, String> connector = new HostConnector<>(host, cp, publisher, publisher,
-                                                                                  listener);
-                    provider = new PooledConnectionProviderImpl<>(config, connector);
+                    final MockEventPublisher<ClientEventListener> publisher = MockEventPublisher.disabled();
+                    int maxConnections = null == maxConnections1? DEFAULT_MAX_CONNECTIONS
+                            : maxConnections1.value();
+                    init(maxConnections, publisher, publisher, listener);
                     base.evaluate();
                 }
             };
+        }
+
+        protected void init(int maxConnections, EventSource<? extends ClientEventListener> eventSource,
+                            EventPublisher publisher, ClientEventListener clientListener) {
+            testScheduler = Schedulers.test();
+            Observable<Long> idleConnCleaner = Observable.timer(1, TimeUnit.MINUTES, testScheduler);
+            holder = new FIFOIdleConnectionsHolder<>();
+            PoolConfig<String, String> config = new PoolConfig<>();
+            config.idleConnectionsCleanupTimer(idleConnCleaner)
+                  .maxConnections(maxConnections)
+                  .idleConnectionsHolder(holder);
+            Host host = new Host(new InetSocketAddress("127.0.0.1", 0));
+            ConnectionProvider<String, String> cp = new EmbeddedConnectionProvider(publisher, clientListener);
+            HostConnector<String, String> connector = new HostConnector<>(host, cp, eventSource, publisher,
+                                                                          clientListener);
+            provider = new PooledConnectionProviderImpl<>(config, connector);
         }
 
         public PooledConnectionProvider<String, String> getProvider() {
@@ -344,16 +336,19 @@ public class PooledConnectionProviderImplTest {
 
     private static class EmbeddedConnectionProvider implements ConnectionProvider<String, String> {
 
-        private final DisabledEventPublisher<ClientEventListener> publisher;
+        private final EventPublisher publisher;
         private final boolean failConnect;
+        private final ClientEventListener clientListener;
 
-        public EmbeddedConnectionProvider(DisabledEventPublisher<ClientEventListener> publisher, boolean failConnect) {
+        public EmbeddedConnectionProvider(EventPublisher publisher, boolean failConnect,
+                                          ClientEventListener clientListener) {
             this.publisher = publisher;
             this.failConnect = failConnect;
+            this.clientListener = clientListener;
         }
 
-        public EmbeddedConnectionProvider(DisabledEventPublisher<ClientEventListener> publisher) {
-            this(publisher, false);
+        public EmbeddedConnectionProvider(EventPublisher publisher, ClientEventListener clientListener) {
+            this(publisher, false, clientListener);
         }
 
         @Override
@@ -367,6 +362,10 @@ public class PooledConnectionProviderImplTest {
                 public void call(Subscriber<? super Connection<String, String>> s) {
                     EmbeddedChannel c = new EmbeddedChannel(new LoggingHandler());
                     c.attr(EventAttributeKeys.EVENT_PUBLISHER).set(publisher);
+                    if (publisher.publishingEnabled()) {
+                        c.attr(EventAttributeKeys.CLIENT_EVENT_LISTENER).set(clientListener);
+                        c.attr(EventAttributeKeys.CONNECTION_EVENT_LISTENER).set(clientListener);
+                    }
                     ClientConnectionToChannelBridge.addToPipeline(c.pipeline(), false);
                     s.onNext(ConnectionImpl.<String, String>fromChannel(c));
                     s.onCompleted();
@@ -378,6 +377,6 @@ public class PooledConnectionProviderImplTest {
     @Retention(RetentionPolicy.RUNTIME)
     @Target(METHOD)
     public @interface MaxConnections {
-        int value() default MaxConnectionsBasedStrategy.DEFAULT_MAX_CONNECTIONS;
+        int value() default DEFAULT_MAX_CONNECTIONS;
     }
 }

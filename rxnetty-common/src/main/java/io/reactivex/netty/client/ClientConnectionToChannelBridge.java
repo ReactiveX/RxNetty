@@ -17,21 +17,16 @@
 package io.reactivex.netty.client;
 
 import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
-import io.netty.channel.ChannelPromise;
 import io.netty.util.AttributeKey;
 import io.reactivex.netty.channel.AbstractConnectionToChannelBridge;
 import io.reactivex.netty.channel.ChannelSubscriberEvent;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.channel.ConnectionCreationFailedEvent;
 import io.reactivex.netty.channel.ConnectionInputSubscriberResetEvent;
 import io.reactivex.netty.channel.EmitConnectionEvent;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.client.pool.PooledConnection;
-import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.internal.ExecuteInEventloopAction;
@@ -40,10 +35,6 @@ import org.slf4j.LoggerFactory;
 import rx.Subscriber;
 import rx.observers.SafeSubscriber;
 import rx.subscriptions.Subscriptions;
-
-import java.net.SocketAddress;
-
-import static java.util.concurrent.TimeUnit.*;
 
 /**
  * An implementation of {@link AbstractConnectionToChannelBridge} for clients.
@@ -72,7 +63,6 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
     private EventPublisher eventPublisher;
     private ClientEventListener eventListener;
     private final boolean isSecure;
-    private long connectStartTimeNanos;
     private Channel channel;
 
     private ClientConnectionToChannelBridge(boolean isSecure) {
@@ -119,38 +109,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             ConnectionReuseEvent<R, W> event = (ConnectionReuseEvent<R, W>) evt;
 
             newConnectionReuseEvent(ctx.channel(), event);
-        } else if (evt instanceof ConnectionCreationFailedEvent) {
-            ConnectionCreationFailedEvent failedEvent = (ConnectionCreationFailedEvent) evt;
-            onConnectFailedEvent(failedEvent);
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    @Override
-    public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
-                        ChannelPromise promise) throws Exception {
-
-        connectStartTimeNanos = Clock.newStartTimeNanos();
-
-        if (eventPublisher.publishingEnabled()) {
-            eventListener.onConnectStart();
-            promise.addListener(new ChannelFutureListener() {
-                @SuppressWarnings("unchecked")
-                @Override
-                public void operationComplete(ChannelFuture future) throws Exception {
-                    if (eventPublisher.publishingEnabled()) {
-                        long endTimeNanos = Clock.onEndNanos(connectStartTimeNanos);
-                        if (!future.isSuccess()) {
-                            eventListener.onConnectFailed(endTimeNanos, NANOSECONDS, future.cause());
-                        } else {
-                            eventListener.onConnectSuccess(endTimeNanos, NANOSECONDS);
-                        }
-                    }
-                }
-            });
-        }
-
-        super.connect(ctx, remoteAddress, localAddress, promise);
     }
 
     @Override
@@ -164,7 +123,7 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             @Override
             public void run() {
                 if (!connectionInputSubscriberExists(channel)) {
-                    Connection connection = channel.attr(Connection.CONNECTION_ATTRIBUTE_KEY).get();
+                    Connection<?, ?> connection = channel.attr(Connection.CONNECTION_ATTRIBUTE_KEY).get();
                     if (null != connection) {
                         connection.closeNow();
                     }
@@ -180,13 +139,6 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             checkEagerSubscriptionIfConfigured(channel);
         } else {
             event.getPooledConnection().close(false); // If pooled connection not sent to the subscriber, release to the pool.
-        }
-    }
-
-    @SuppressWarnings("unchecked")
-    private void onConnectFailedEvent(ConnectionCreationFailedEvent event) {
-        if (eventPublisher.publishingEnabled()) {
-            eventListener.onConnectFailed(connectStartTimeNanos, NANOSECONDS, event.getThrowable());
         }
     }
 

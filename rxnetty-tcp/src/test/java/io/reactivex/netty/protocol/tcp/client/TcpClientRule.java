@@ -24,6 +24,7 @@ import io.reactivex.netty.client.Host;
 import io.reactivex.netty.client.HostConnector;
 import io.reactivex.netty.client.pool.PooledConnection;
 import io.reactivex.netty.client.pool.PooledConnectionProvider;
+import io.reactivex.netty.client.pool.SingleHostPoolingProviderFactory;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
 import org.junit.rules.ExternalResource;
@@ -84,14 +85,8 @@ public class TcpClientRule extends ExternalResource {
 
     private void createClient(final int maxConnections) {
         InetSocketAddress serverAddr = new InetSocketAddress("127.0.0.1", server.getServerPort());
-        ConnectionProviderFactory<ByteBuf, ByteBuf> cpf = new ConnectionProviderFactory<ByteBuf, ByteBuf>() {
-            @Override
-            public ConnectionProvider<ByteBuf, ByteBuf> newProvider(final Observable<HostConnector<ByteBuf, ByteBuf>> hosts) {
-                final HostConnector<ByteBuf, ByteBuf> connector = hosts.take(1).toBlocking().first();
-                return PooledConnectionProvider.createBounded(maxConnections, connector);
-            }
-        };
-        client = TcpClient.newClient(cpf, Observable.just(new Host(serverAddr)));
+        client = TcpClient.newClient(SingleHostPoolingProviderFactory.<ByteBuf, ByteBuf>createBounded(maxConnections),
+                                     Observable.just(new Host(serverAddr)));
     }
 
     public TcpServer<ByteBuf, ByteBuf> getServer() {

@@ -184,8 +184,18 @@ public class MockClientEventListener extends ClientEventListener {
         delegate.onCompleted();
     }
 
+    public void assertMethodCalled(Event event) {
+        delegate.assertMethodCalled(event);
+    }
+
     public void assertMethodsCalled(Event... events) {
         delegate.assertMethodsCalled(events);
+    }
+
+    public void assertMethodCalled(ClientEvent event) {
+        if (!methodsCalled.contains(event)) {
+            throw new AssertionError("Method " + event + " not called. Methods called: " + methodsCalled);
+        }
     }
 
     public void assertMethodsCalled(ClientEvent... events) {
@@ -210,5 +220,16 @@ public class MockClientEventListener extends ClientEventListener {
 
     public Throwable getRecievedError() {
         return recievedError;
+    }
+
+    @Override
+    public String toString() {
+        return "MockClientEventListener{" +
+               "methodsCalled=" + methodsCalled +
+               ", duration=" + duration +
+               ", timeUnit=" + timeUnit +
+               ", recievedError=" + recievedError +
+               ", delegate=" + delegate +
+               '}';
     }
 }

@@ -18,14 +18,16 @@ package io.reactivex.netty.client;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBufAllocator;
-import io.netty.channel.AbstractChannel;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.ChannelPipeline;
+import io.netty.channel.ChannelPromise;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.epoll.EpollSocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -36,9 +38,11 @@ import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.util.concurrent.EventExecutorGroup;
 import io.reactivex.netty.RxNetty;
 import io.reactivex.netty.channel.ChannelSubscriberEvent;
+import io.reactivex.netty.channel.ConnectionCreationFailedEvent;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.channel.WriteTransformer;
 import io.reactivex.netty.client.events.ClientEventListener;
+import io.reactivex.netty.events.Clock;
 import io.reactivex.netty.events.EventPublisher;
 import io.reactivex.netty.events.EventSource;
 import io.reactivex.netty.ssl.DefaultSslCodec;
@@ -51,11 +55,13 @@ import rx.functions.Func0;
 import rx.functions.Func1;
 
 import javax.net.ssl.SSLEngine;
+import java.net.SocketAddress;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 
 import static io.reactivex.netty.HandlerNames.*;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
 
 /**
@@ -249,7 +255,7 @@ public class ClientState<W, R> {
                 });
     }
 
-    public Bootstrap newBootstrap() {
+    public Bootstrap newBootstrap(final EventPublisher eventPublisher, final ClientEventListener eventListener) {
         final Bootstrap nettyBootstrap = new Bootstrap().group(eventLoopGroup)
                                                         .channel(channelClass)
                                                         .option(ChannelOption.AUTO_READ, false);// by default do not read content unless asked.
@@ -265,7 +271,7 @@ public class ClientState<W, R> {
             @Override
             protected void initChannel(Channel ch) throws Exception {
                 ch.pipeline().addLast(ClientChannelActiveBufferingHandler.getName(),
-                                      new ChannelActivityBufferingHandler());
+                                      new ChannelActivityBufferingHandler(eventPublisher, eventListener));
             }
         });
         return nettyBootstrap;
@@ -361,7 +367,7 @@ public class ClientState<W, R> {
      * before the pipeline is configured.
      * This handler buffers, the channel events till the time, a subscriber appears for channel establishment.
      */
-    private static class ChannelActivityBufferingHandler extends ChannelInboundHandlerAdapter {
+    private static class ChannelActivityBufferingHandler extends ChannelDuplexHandler {
 
         private enum State {
             Initialized,
@@ -377,6 +383,42 @@ public class ClientState<W, R> {
          * Unregistered state will hide the active/inactive state, hence this is a different flag.
          */
         private boolean unregistered;
+        private long connectStartTimeNanos;
+        private final EventPublisher eventPublisher;
+        private final ClientEventListener eventListener;
+
+        private ChannelActivityBufferingHandler(EventPublisher eventPublisher, ClientEventListener eventListener) {
+            this.eventPublisher = eventPublisher;
+            this.eventListener = eventListener;
+        }
+
+        @SuppressWarnings("unchecked")
+        @Override
+        public void connect(ChannelHandlerContext ctx, SocketAddress remoteAddress, SocketAddress localAddress,
+                            ChannelPromise promise) throws Exception {
+
+            connectStartTimeNanos = Clock.newStartTimeNanos();
+
+            if (eventPublisher.publishingEnabled()) {
+                eventListener.onConnectStart();
+                promise.addListener(new ChannelFutureListener() {
+                    @SuppressWarnings("unchecked")
+                    @Override
+                    public void operationComplete(ChannelFuture future) throws Exception {
+                        if (eventPublisher.publishingEnabled()) {
+                            long endTimeNanos = Clock.onEndNanos(connectStartTimeNanos);
+                            if (!future.isSuccess()) {
+                                eventListener.onConnectFailed(endTimeNanos, NANOSECONDS, future.cause());
+                            } else {
+                                eventListener.onConnectSuccess(endTimeNanos, NANOSECONDS);
+                            }
+                        }
+                    }
+                });
+            }
+
+            super.connect(ctx, remoteAddress, localAddress, promise);
+        }
 
         @Override
         public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
@@ -444,8 +486,19 @@ public class ClientState<W, R> {
                 if (unregistered) {
                     pipeline.fireChannelUnregistered();
                 }
+            } else if (evt instanceof ConnectionCreationFailedEvent) {
+                ConnectionCreationFailedEvent failedEvent = (ConnectionCreationFailedEvent) evt;
+                onConnectFailedEvent(failedEvent);
+                super.userEventTriggered(ctx, evt);
             } else {
                 super.userEventTriggered(ctx, evt);
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private void onConnectFailedEvent(ConnectionCreationFailedEvent event) {
+            if (eventPublisher.publishingEnabled()) {
+                eventListener.onConnectFailed(connectStartTimeNanos, NANOSECONDS, event.getThrowable());
             }
         }
     }

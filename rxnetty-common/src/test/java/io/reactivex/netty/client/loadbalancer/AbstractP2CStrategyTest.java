@@ -24,7 +24,7 @@ import io.reactivex.netty.client.Host;
 import io.reactivex.netty.client.HostConnector;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.events.EventPublisher;
-import io.reactivex.netty.test.util.DisabledEventPublisher;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -126,7 +126,7 @@ public class AbstractP2CStrategyTest {
                     }
                 };
                 Host h = new Host(new InetSocketAddress(0));
-                EventPublisher publisher = DisabledEventPublisher.DISABLED_EVENT_PUBLISHER;
+                EventPublisher publisher = MockEventPublisher.disabled();
                 HostConnector<ByteBuf, ByteBuf> connector = new HostConnector<>(h, dummy, null, publisher, null);
                 toReturn.add(new HostHolder<>(connector, new ClientListenerImpl(weight)));
             }
@@ -174,7 +174,7 @@ public class AbstractP2CStrategyTest {
 
             @Override
             protected void newHostsList(int size) {
-                hostsInPool = hostsInPool + size;
+                hostsInPool += size;
             }
         }
     }

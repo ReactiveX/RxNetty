@@ -28,8 +28,16 @@ public class MockTcpClientEventListener extends TcpClientEventListener {
 
     private final MockClientEventListener mockDelegate = new MockClientEventListener();
 
+    public void assertMethodCalled(ClientEvent event) {
+        mockDelegate.assertMethodCalled(event);
+    }
+
     public void assertMethodsCalled(ClientEvent... events) {
         mockDelegate.assertMethodsCalled(events);
+    }
+
+    public void assertMethodCalled(Event event) {
+        mockDelegate.assertMethodCalled(event);
     }
 
     public void assertMethodsCalled(Event... events) {
