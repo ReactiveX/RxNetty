@@ -25,7 +25,7 @@ import io.reactivex.netty.client.pool.PooledConnection.Owner;
 import io.reactivex.netty.client.pool.PreferCurrentEventLoopHolder.IdleConnectionsHolderFactory;
 import io.reactivex.netty.events.EventAttributeKeys;
 import io.reactivex.netty.events.EventPublisher;
-import io.reactivex.netty.test.util.DisabledEventPublisher;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import io.reactivex.netty.threads.PreferCurrentEventLoopGroup;
 import org.junit.Rule;
 import org.junit.Test;
@@ -160,7 +160,7 @@ public class PreferCurrentEventLoopHolderTest {
                     eventLoopThread = Executors.newFixedThreadPool(1);
                     channel = new EmbeddedChannel(new LoggingHandler());
                     PreferCurrentEventLoopGroup eventLoopGroup = new PreferCurrentEventLoopGroup(channel.eventLoop());
-                    eventPublisher = DisabledEventPublisher.DISABLED_EVENT_PUBLISHER;
+                    eventPublisher = MockEventPublisher.disabled();
                     channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(eventPublisher);
                     holder = new PreferCurrentEventLoopHolder<>(eventLoopGroup,
                                                                 new IdleConnectionsHolderFactoryImpl());

@@ -22,6 +22,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.channel.BackpressureManagingHandler.RequestReadIfRequiredEvent;
 import io.reactivex.netty.channel.events.ConnectionEventListener;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -29,7 +30,7 @@ import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.observers.TestSubscriber;
 
-import static io.reactivex.netty.test.util.DisabledEventPublisher.*;
+import static io.reactivex.netty.test.util.MockEventPublisher.*;
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.*;
 
@@ -200,7 +201,7 @@ public class AbstractConnectionToChannelBridgeTest {
                     ctx = channel.pipeline().firstContext();
                     handler = new AbstractConnectionToChannelBridge<String, String>("foo",
                                                                                     new ConnectionEventListener() { },
-                                                                                    DISABLED_EVENT_PUBLISHER) { };
+                                                                                    disabled()) { };
                     base.evaluate();
                 }
             };

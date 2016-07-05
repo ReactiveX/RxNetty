@@ -139,6 +139,12 @@ public class MockConnectionEventListener extends ConnectionEventListener {
         methodsCalled.add(Event.Complete);
     }
 
+    public void assertMethodCalled(Event event) {
+        if (!methodsCalled.contains(event)) {
+            throw new AssertionError("Method " + event + " not called. Methods called: " + methodsCalled);
+        }
+    }
+
     public void assertMethodsCalled(Event... events) {
         if (methodsCalled.size() < events.length) {
             throw new AssertionError("Unexpected methods called count. Methods called: " + methodsCalled
@@ -177,5 +183,18 @@ public class MockConnectionEventListener extends ConnectionEventListener {
 
     public Object getCustomEvent() {
         return customeEvent;
+    }
+
+    @Override
+    public String toString() {
+        return "MockConnectionEventListener{" +
+               "methodsCalled=" + methodsCalled +
+               ", bytesRead=" + bytesRead +
+               ", duration=" + duration +
+               ", timeUnit=" + timeUnit +
+               ", bytesWritten=" + bytesWritten +
+               ", recievedError=" + recievedError +
+               ", customeEvent=" + customeEvent +
+               '}';
     }
 }

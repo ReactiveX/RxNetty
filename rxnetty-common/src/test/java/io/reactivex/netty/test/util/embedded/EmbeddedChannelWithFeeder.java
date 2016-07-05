@@ -19,7 +19,7 @@ package io.reactivex.netty.test.util.embedded;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.client.events.ClientEventListener;
 import io.reactivex.netty.events.EventSource;
-import io.reactivex.netty.test.util.DisabledEventPublisher;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import io.reactivex.netty.test.util.InboundRequestFeeder;
 
 public class EmbeddedChannelWithFeeder {
@@ -29,7 +29,7 @@ public class EmbeddedChannelWithFeeder {
     private final EventSource<? extends ClientEventListener> tcpEventSource;
 
     public EmbeddedChannelWithFeeder(EmbeddedChannel channel, InboundRequestFeeder feeder) {
-        this(channel, feeder, new DisabledEventPublisher<ClientEventListener>());
+        this(channel, feeder, MockEventPublisher.<ClientEventListener>disabled());
     }
 
     public EmbeddedChannelWithFeeder(EmbeddedChannel channel, InboundRequestFeeder feeder,

@@ -117,7 +117,7 @@ public class HttpClientPoolTest {
         clientRule.assertIdleConnections(0); // Since, the channel is closed
     }
 
-    @Test(/*timeout = 60000*/)
+    @Test(timeout = 60000)
     public void testReuse() throws Exception {
         clientRule.assertIdleConnections(0);
 

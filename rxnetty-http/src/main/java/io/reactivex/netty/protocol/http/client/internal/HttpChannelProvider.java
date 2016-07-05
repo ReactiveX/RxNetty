@@ -30,8 +30,8 @@ public class HttpChannelProvider implements ChannelProvider {
     public static final AttributeKey<HttpClientEventsListener> HTTP_CLIENT_EVENT_LISTENER =
             AttributeKey.valueOf("rxnetty_http_client_event_listener");
 
-    private HttpClientEventPublisher hostEventPublisher;
-    private ChannelProvider delegate;
+    private final HttpClientEventPublisher hostEventPublisher;
+    private final ChannelProvider delegate;
 
     public HttpChannelProvider(HttpClientEventPublisher hostEventPublisher, ChannelProvider delegate) {
         this.hostEventPublisher = hostEventPublisher;

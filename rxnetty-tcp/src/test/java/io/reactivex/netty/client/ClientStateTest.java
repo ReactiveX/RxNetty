@@ -27,6 +27,7 @@ import io.reactivex.netty.channel.Connection;
 import io.reactivex.netty.channel.DetachedChannelPipeline;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import io.reactivex.netty.test.util.embedded.EmbeddedConnectionProvider;
 import org.junit.Rule;
 import org.junit.Test;
@@ -107,7 +108,7 @@ public class ClientStateTest {
         public Channel connect(final ClientState<String, String> state) throws InterruptedException {
             TestSubscriber<Channel> subscriber = new TestSubscriber<>();
 
-            final ChannelFuture connect = state.newBootstrap()
+            final ChannelFuture connect = state.newBootstrap(MockEventPublisher.disabled(), null)
                                                .connect(new InetSocketAddress("127.0.0.1", mockServer.getServerPort()));
 
             Observable.create(new OnSubscribe<Channel>() {

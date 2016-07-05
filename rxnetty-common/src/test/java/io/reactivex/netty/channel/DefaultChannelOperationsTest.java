@@ -25,6 +25,7 @@ import io.netty.channel.DefaultFileRegion;
 import io.netty.channel.FileRegion;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.test.util.FlushSelector;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExternalResource;
@@ -39,7 +40,7 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
-import static io.reactivex.netty.test.util.DisabledEventPublisher.*;
+import static io.reactivex.netty.test.util.MockEventPublisher.*;
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
 
@@ -275,7 +276,7 @@ public class DefaultChannelOperationsTest {
                     writeObservableSubscribers = new ArrayList<>();
                     /*Since, the appropriate handler is not added to the pipeline that handles O<> writes.*/
                     channel = new EmbeddedChannel(new HandleObservableWrite(writeObservableSubscribers));
-                    channelOperations = new DefaultChannelOperations<>(channel, null, DISABLED_EVENT_PUBLISHER);
+                    channelOperations = new DefaultChannelOperations<>(channel, null, disabled());
                     base.evaluate();
                 }
             };

@@ -41,7 +41,7 @@ import io.reactivex.netty.protocol.http.TrailingHeaders;
 import io.reactivex.netty.protocol.http.client.HttpClientResponse;
 import io.reactivex.netty.protocol.tcp.client.TcpClient;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventPublisher;
-import io.reactivex.netty.test.util.DisabledEventPublisher;
+import io.reactivex.netty.test.util.MockEventPublisher;
 import io.reactivex.netty.test.util.FlushSelector;
 import io.reactivex.netty.test.util.TcpConnectionRequestMock;
 import org.junit.Rule;
@@ -820,7 +820,7 @@ public class HttpClientRequestImplTest {
                 }
             };
 
-            channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(DisabledEventPublisher.DISABLED_EVENT_PUBLISHER);
+            channel.attr(EventAttributeKeys.EVENT_PUBLISHER).set(MockEventPublisher.disabled());
             ConnectionImpl<Object, Object> conn = ConnectionImpl.fromChannel(channel);
 
             Observable<?> reqAsO = rawReq.asObservable(conn);

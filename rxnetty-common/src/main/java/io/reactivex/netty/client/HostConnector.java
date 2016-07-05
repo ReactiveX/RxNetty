@@ -42,10 +42,10 @@ public class HostConnector<W, R> implements EventSource<ClientEventListener> {
 
     public HostConnector(HostConnector<W, R> source, ConnectionProvider<W, R> connectionProvider) {
         this.connectionProvider = connectionProvider;
-        this.host = source.host;
-        this.eventSource = source.eventSource;
-        this.clientPublisher = source.clientPublisher;
-        this.publisher = source.publisher;
+        host = source.host;
+        eventSource = source.eventSource;
+        clientPublisher = source.clientPublisher;
+        publisher = source.publisher;
     }
 
     public Host getHost() {

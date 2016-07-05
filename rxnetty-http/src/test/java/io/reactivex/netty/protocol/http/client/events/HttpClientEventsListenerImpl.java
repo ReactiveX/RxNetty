@@ -259,4 +259,16 @@ public class HttpClientEventsListenerImpl extends HttpClientEventsListener {
     public MockClientEventListener getTcpDelegate() {
         return tcpDelegate;
     }
+
+    @Override
+    public String toString() {
+        return "HttpClientEventsListenerImpl{" +
+               "tcpDelegate=" + tcpDelegate +
+               ", responseCode=" + responseCode +
+               ", duration=" + duration +
+               ", timeUnit=" + timeUnit +
+               ", recievedError=" + recievedError +
+               ", methodsCalled=" + methodsCalled +
+               '}';
+    }
 }

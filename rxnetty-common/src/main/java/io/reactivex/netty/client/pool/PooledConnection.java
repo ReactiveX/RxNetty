@@ -101,12 +101,12 @@ public class PooledConnection<R, W> extends Connection<R, W> {
 
     private PooledConnection(PooledConnection<?, ?> toCopy, Connection<R, W> unpooledDelegate) {
         super(unpooledDelegate);
-        this.owner = toCopy.owner;
+        owner = toCopy.owner;
         this.unpooledDelegate = unpooledDelegate;
-        this.lastReturnToPoolTimeMillis = toCopy.lastReturnToPoolTimeMillis;
-        this.releasedAtLeastOnce = toCopy.releasedAtLeastOnce;
-        this.maxIdleTimeMillis = toCopy.maxIdleTimeMillis;
-        this.releaseObservable = toCopy.releaseObservable;
+        lastReturnToPoolTimeMillis = toCopy.lastReturnToPoolTimeMillis;
+        releasedAtLeastOnce = toCopy.releasedAtLeastOnce;
+        maxIdleTimeMillis = toCopy.maxIdleTimeMillis;
+        releaseObservable = toCopy.releaseObservable;
     }
 
     @Override
