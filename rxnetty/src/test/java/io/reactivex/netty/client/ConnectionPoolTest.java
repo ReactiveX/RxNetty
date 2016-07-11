@@ -108,7 +108,7 @@ public class ConnectionPoolTest {
         poolConfig = new PoolConfig(MAX_IDLE_TIME_MILLIS);
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
-        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, factory, eventsSubject);
+        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, Executors.newSingleThreadScheduledExecutor(), factory, eventsSubject);
         pool.subscribe(metricEventsListener);
         stats = new PoolStats();
         pool.subscribe(stats);

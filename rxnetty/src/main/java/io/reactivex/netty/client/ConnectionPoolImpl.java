@@ -20,7 +20,6 @@ import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -62,6 +61,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     private final PoolConfig poolConfig;
     private final ScheduledExecutorService cleanupScheduler;
     private final AtomicInteger aquiredConnectionsCounter = new AtomicInteger();
+    private final AtomicInteger connectionsInCreation = new AtomicInteger();
     //is needed to not accept any new connections that are aquired
     private final AtomicBoolean isShutdownRequested = new AtomicBoolean();
     //is needed to not perform the shutdown twice
@@ -148,7 +148,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     }
 
     private void performAquire(Subscriber<? super ObservableConnection<I, O>> subscriber) {
-
+        logger.trace("Started to aquire connection");
         long startTimeMillis = Clock.newStartTimeMillis();
         try {
             metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_START);
@@ -160,9 +160,12 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                 long endTime = Clock.onEndMillis(startTimeMillis);
                 metricEventsSubject.onEvent(ClientMetricsEvent.POOLED_CONNECTION_REUSE, endTime);
                 metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS, endTime);
+                logger.trace("Returned reused connection");
                 aquiredConnectionsCounter.incrementAndGet();
             } else if (limitDeterminationStrategy.acquireCreationPermit(startTimeMillis,
                     TimeUnit.MILLISECONDS)) { // Check if it is allowed to create another connection.
+                logger.trace("Start to create new connection");
+                connectionsInCreation.incrementAndGet();
                 /**
                  * Here we want to make sure that if the connection attempt failed, we should inform the strategy.
                  * Failure to do so, will leak the permits from the strategy. So, any code in this block MUST
@@ -196,23 +199,24 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
         // Its legal to release after shutdown as it is not under anyones control when the connection returns. Its
         // usually user initiated.
-
+        logger.trace("Start to release connection");
         if (null == connection) {
+
             return Observable.error(new IllegalArgumentException("Returned a null connection to the pool."));
         }
 
         long startTimeMillis = Clock.newStartTimeMillis();
-        aquiredConnectionsCounter.decrementAndGet();
-
         try {
             connection.getChannel().pipeline().fireUserEventTriggered(new PooledConnectionReleasedEvent(connection));
             metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_START);
             if (isShutdownRequested.get() || !connection.isUsable()) {
+                logger.trace("Discarding returned connection. Shutdown requested {}", isShutdownRequested.get());
                 discardConnection(connection);
                 metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(
                         startTimeMillis));
                 return Observable.empty();
             } else {
+                logger.trace("Returning idle connection");
                 idleConnections.add(connection);
                 metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(
                         startTimeMillis));
@@ -221,6 +225,8 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         } catch (Throwable throwable) {
             metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_FAILED, Clock.onEndMillis(startTimeMillis));
             return Observable.error(throwable);
+        } finally {
+            aquiredConnectionsCounter.decrementAndGet();
         }
     }
 
@@ -256,7 +262,7 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                     return new Thread(r, "rx-netty-shutdown-");
                 }
             });
-            executorService.scheduleWithFixedDelay(new ShutodwnTask(executorService), 100, 100, TimeUnit.MILLISECONDS);
+            executorService.scheduleWithFixedDelay(new ShutdownTask(executorService), 100, 100, TimeUnit.MILLISECONDS);
         }
     }
 
@@ -269,16 +275,19 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     private boolean performShutdownIfPossible() {
         if (aquiredConnectionsCounter.get() != 0) {
+            logger.trace("Try to shutdown but there are still connections aquired");
             return false;
         }
 
         Lock shutdownLock = this.shutdownLock.writeLock();
         boolean lockRetrieved = shutdownLock.tryLock();
         if (!lockRetrieved) {
+            logger.trace("Try to shutdown but lock not retrieved");
             return false;
         }
         try {
-            if (aquiredConnectionsCounter.get() == 0 && isShutdownPerformed.compareAndSet(false, true)) {
+            if (connectionsInCreation.get() == 0 && aquiredConnectionsCounter.get() == 0 && isShutdownPerformed.compareAndSet(false, true)) {
+                logger.trace("Start to perform shutdown");
                 performShutdown();
                 return true;
             }
@@ -293,10 +302,12 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         if (null != idleConnCleanupScheduleFuture) {
             idleConnCleanupScheduleFuture.cancel(true);
         }
-        PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
+
+        PooledConnection<I, O> idleConnection = getAnIdleConnection(false);
         while (null != idleConnection) {
+            logger.trace("Discarding idle connection due to shutdown");
             discardConnection(idleConnection);
-            idleConnection = getAnIdleConnection(true);
+            idleConnection = getAnIdleConnection(false);
         }
         metricEventsSubject.onCompleted();
     }
@@ -327,43 +338,34 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         return Subscribers.create(new Action1<ObservableConnection<I, O>>() {
                                       @Override
                                       public void call(ObservableConnection<I, O> connection) {
-                                          Lock readLock = shutdownLock.readLock();
-                                          if (readLock.tryLock()){
-                                              try{
-                                                  if (!isShutdownRequested.get()) {
-                                                      aquiredConnectionsCounter.incrementAndGet();
-                                                      metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS,
-                                                              Clock.onEndMillis(startTime));
-                                                      PooledConnection<I, O> pooledConnection = (PooledConnection<I, O>) connection;
-                                                      pooledConnection.setConnectionPool(ConnectionPoolImpl.this);
-                                                      /**
-                                                       * Issue: https://github.com/Netflix/RxNetty/issues/183
-                                                       * Pool configuration can be updated after creating the ClientConnectionFactory
-                                                       * in ConnectionPoolBuilder. It is pretty convoluted to update the pool config
-                                                       * in the connection factory as not all connection factories are pooled.
-                                                       * This does not deserve creating a separate interface for pooled factories.
-                                                       * Since, max idle timeout in itself is updatable, this is a better route to
-                                                       * control the final connection as opposed to the factory.
-                                                       */
-                                                      pooledConnection.updateMaxIdleTimeMillis(poolConfig.getMaxIdleTimeMillis());
-                                                      subscriber.onNext(connection);
-                                                      subscriber.onCompleted(); // This subscriber is for "A" connection, so it should be completed.
-                                                  } else {
-                                                      //Shutdown is requested. So we do not allow to use this connection
-                                                      poolAlreadyClosed((PooledConnection<I, O>) connection, startTime, subscriber);
-                                                  }
-                                              } finally {
-                                                  readLock.unlock();
-                                              }
-                                          } else {
-                                              poolAlreadyClosed((PooledConnection<I, O>) connection, startTime, subscriber);
-                                          }
+
+                                          aquiredConnectionsCounter.incrementAndGet();
+                                          connectionsInCreation.decrementAndGet();
+                                          metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS,
+                                                  Clock.onEndMillis(startTime));
+                                          PooledConnection<I, O> pooledConnection = (PooledConnection<I, O>) connection;
+                                          pooledConnection.setConnectionPool(ConnectionPoolImpl.this);
+                                          /**
+                                           * Issue: https://github.com/Netflix/RxNetty/issues/183
+                                           * Pool configuration can be updated after creating the ClientConnectionFactory
+                                           * in ConnectionPoolBuilder. It is pretty convoluted to update the pool config
+                                           * in the connection factory as not all connection factories are pooled.
+                                           * This does not deserve creating a separate interface for pooled factories.
+                                           * Since, max idle timeout in itself is updatable, this is a better route to
+                                           * control the final connection as opposed to the factory.
+                                           */
+                                          pooledConnection.updateMaxIdleTimeMillis(poolConfig.getMaxIdleTimeMillis());
+                                          subscriber.onNext(connection);
+                                          subscriber.onCompleted(); // This subscriber is for "A" connection, so it should be completed.
+                                          logger.trace("Returned new connection");
                                       }
                                   }, new Action1<Throwable>() {
                                       @Override
                                       public void call(Throwable throwable) {
+                                          logger.trace("Problem creating new connection", throwable);
                                           metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
                                                                       Clock.onEndMillis(startTime), throwable);
+                                          connectionsInCreation.decrementAndGet();
                                           subscriber.onError(throwable);
                                       }
                                   }
@@ -389,13 +391,24 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         @Override
         public void run() {
             try {
-                Iterator<PooledConnection<I,O>> iterator = idleConnections.iterator(); // Weakly consistent iterator
-                while (iterator.hasNext()) {
-                    PooledConnection<I, O> idleConnection = iterator.next();
-                    if (!idleConnection.isUsable() && idleConnection.claim()) {
-                        iterator.remove();
-                        discardConnection(idleConnection); // Don't use pool.discard() as that won't do anything if the
-                                                           // connection isn't there in the idle queue, which is the case here.
+                Lock lock = shutdownLock.readLock();
+                boolean lockAquired = lock.tryLock();
+                if (lockAquired) {
+                    try {
+                        Iterator<PooledConnection<I,O>> iterator = idleConnections.iterator(); // Weakly consistent iterator
+                        while (iterator.hasNext()) {
+                            PooledConnection<I, O> idleConnection = iterator.next();
+                            if (!idleConnection.isUsable() && idleConnection.claim()) {
+                                logger.trace("Will remove idle connection now from cleanup thread");
+                                iterator.remove();
+                                logger.trace("Discard idle connection from Cleanup thread");
+                                discardConnection(idleConnection); // Don't use pool.discard() as that won't do anything if the
+                                // connection isn't there in the idle queue, which is the case here.
+                                logger.trace("Discarded connection from cleanup thread");
+                            }
+                        }
+                    } finally {
+                        lock.unlock();
                     }
                 }
             } catch (Exception e) {
@@ -404,11 +417,11 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         }
     }
 
-    private class ShutodwnTask implements Runnable {
+    private class ShutdownTask implements Runnable {
 
         private final ScheduledExecutorService executorService;
 
-        public ShutodwnTask(ScheduledExecutorService executorService) {
+        public ShutdownTask(ScheduledExecutorService executorService) {
 
             this.executorService = executorService;
         }
