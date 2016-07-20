@@ -247,11 +247,11 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
 
         @Override
         public FullHttpResponse copy() {
-            return copy(content.copy());
+            return replace(content.copy());
         }
 
         @Override
-        public FullHttpResponse copy(ByteBuf newContent) {
+        public FullHttpResponse replace(ByteBuf newContent) {
             DefaultFullHttpResponse copy = new DefaultFullHttpResponse(getProtocolVersion(), getStatus(), newContent);
             copy.headers().set(headers());
             copy.trailingHeaders().set(trailingHeaders());
@@ -265,6 +265,11 @@ public class HttpServerResponse<T> extends DefaultChannelWriter<T> {
             dup.headers().set(headers());
             dup.trailingHeaders().set(trailingHeaders());
             return dup;
+        }
+
+        @Override
+        public FullHttpResponse retainedDuplicate() {
+            return duplicate().retain();
         }
 
         @Override
