@@ -1,6 +1,6 @@
 RxNetty
 =======
-[![Build Status](https://netflixoss.ci.cloudbees.com/job/RxNetty-master/badge/icon)](https://netflixoss.ci.cloudbees.com/job/RxNetty-master/)
+[![Build Status](https://api.travis-ci.org/ReactiveX/RxNetty.svg?branch=0.4.x)]
 
 Reactive Extension (Rx) Adaptor for Netty
 
