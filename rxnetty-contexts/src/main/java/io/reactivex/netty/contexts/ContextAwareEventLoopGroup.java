@@ -58,6 +58,11 @@ public class ContextAwareEventLoopGroup implements EventLoopGroup {
     }
 
     @Override
+    public ChannelFuture register(ChannelPromise promise) {
+        return delegate.register(promise);
+    }
+
+    @Override
     public ChannelFuture register(Channel channel, ChannelPromise promise) {
         return delegate.register(channel, promise);
     }
@@ -70,11 +75,6 @@ public class ContextAwareEventLoopGroup implements EventLoopGroup {
     @Override
     public Iterator<EventExecutor> iterator() {
         return delegate.iterator();
-    }
-
-    @Override
-    public <E extends EventExecutor> Set<E> children() {
-        return delegate.children();
     }
 
     @Override

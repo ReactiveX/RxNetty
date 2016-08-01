@@ -146,6 +146,16 @@ public class ServerSentEvent implements ByteBufHolder {
     }
 
     @Override
+    public ByteBufHolder retainedDuplicate() {
+        return duplicate().retain();
+    }
+
+    @Override
+    public ByteBufHolder replace(ByteBuf content) {
+        return new ServerSentEvent(content);
+    }
+
+    @Override
     public int refCnt() {
         return data.refCnt(); // Ref count is consistent across data, eventId and eventType
     }

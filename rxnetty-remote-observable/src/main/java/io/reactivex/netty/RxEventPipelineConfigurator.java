@@ -29,6 +29,7 @@ import java.io.ObjectInput;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
+import java.nio.charset.Charset;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -59,7 +60,9 @@ public class RxEventPipelineConfigurator implements PipelineConfigurator<RemoteR
                         String observableName = null; 
                         if (observableNameLength > 0){
                         	// read name
-                        	observableName = new String(byteBuf.readBytes(observableNameLength).array());
+													observableName = byteBuf
+															.readCharSequence(observableNameLength, Charset.forName("UTF-8"))
+													    .toString();
                         }
                         int operation = byteBuf.readByte();
                         RemoteRxEvent.Type type = null;
