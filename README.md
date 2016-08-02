@@ -1,6 +1,6 @@
 RxNetty
 =======
-![Build Status](https://api.travis-ci.org/ReactiveX/RxNetty.svg?branch=0.4.x)
+<a href='https://travis-ci.org/ReactiveX/RxNetty/builds?branch=0.4.x'><img src='https://travis-ci.org/ReactiveX/RxNetty.svg?branch=0.4.x'></a>
 
 Reactive Extension (Rx) Adaptor for Netty
 
