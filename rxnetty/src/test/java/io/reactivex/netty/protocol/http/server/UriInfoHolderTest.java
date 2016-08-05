@@ -25,7 +25,7 @@ public class UriInfoHolderTest {
     public void relativeUri() throws Exception {
         UriInfoHolder holder = new UriInfoHolder("/foo/%20bar");
         Assert.assertEquals("/foo/%20bar", holder.getRawUriString());
-        Assert.assertEquals("/foo/%20bar", holder.getPath());
+        Assert.assertEquals("/foo/ bar", holder.getPath());
         Assert.assertEquals("", holder.getQueryString());
     }
 
@@ -33,7 +33,7 @@ public class UriInfoHolderTest {
     public void relativeUriWithQuery() throws Exception {
         UriInfoHolder holder = new UriInfoHolder("/foo/%20bar?foo=bar%3D");
         Assert.assertEquals("/foo/%20bar?foo=bar%3D", holder.getRawUriString());
-        Assert.assertEquals("/foo/%20bar", holder.getPath());
+        Assert.assertEquals("/foo/ bar", holder.getPath());
         Assert.assertEquals("foo=bar%3D", holder.getQueryString());
     }
 
@@ -42,7 +42,7 @@ public class UriInfoHolderTest {
     public void relativeUriWithQueryUnescaped() throws Exception {
         UriInfoHolder holder = new UriInfoHolder("/foo/%20bar?foo=bar|||");
         Assert.assertEquals("/foo/%20bar?foo=bar|||", holder.getRawUriString());
-        Assert.assertEquals("/foo/%20bar", holder.getPath());
+        Assert.assertEquals("/foo/ bar", holder.getPath());
         Assert.assertEquals("foo=bar|||", holder.getQueryString());
     }
 
@@ -58,7 +58,7 @@ public class UriInfoHolderTest {
     public void absoluteUri() throws Exception {
         UriInfoHolder holder = new UriInfoHolder("http://www.foo.com/foo/%20bar");
         Assert.assertEquals("http://www.foo.com/foo/%20bar", holder.getRawUriString());
-        Assert.assertEquals("/foo/%20bar", holder.getPath());
+        Assert.assertEquals("/foo/ bar", holder.getPath());
         Assert.assertEquals("", holder.getQueryString());
     }
 
@@ -66,7 +66,7 @@ public class UriInfoHolderTest {
     public void absoluteUriWithQuery() throws Exception {
         UriInfoHolder holder = new UriInfoHolder("http://www.foo.com/foo/%20bar?foo=bar%3D");
         Assert.assertEquals("http://www.foo.com/foo/%20bar?foo=bar%3D", holder.getRawUriString());
-        Assert.assertEquals("/foo/%20bar", holder.getPath());
+        Assert.assertEquals("/foo/ bar", holder.getPath());
         Assert.assertEquals("foo=bar%3D", holder.getQueryString());
     }
 
