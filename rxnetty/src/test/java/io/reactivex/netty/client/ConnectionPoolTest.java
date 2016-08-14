@@ -251,7 +251,7 @@ public class ConnectionPoolTest {
         assertAllConnectionsReturned();
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = IllegalStateException.class, timeout = 20000)
     public void shouldThrowExceptionIfAcquireIsSubscribedToAfterShutdownOfPool() {
         serverConnHandler.closeNewConnectionsOnReceive(false);
         strategy.incrementMaxConnections(2);
@@ -262,7 +262,7 @@ public class ConnectionPoolTest {
 
     }
 
-    @Test
+    @Test(timeout = 20000)
     public void testShutdownWithNonReturnedConnections() throws Exception{
         serverConnHandler.closeNewConnectionsOnReceive(false);
         strategy.incrementMaxConnections(2);
