@@ -35,6 +35,7 @@ import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.protocol.http.server.HttpServerRequest;
 import io.reactivex.netty.protocol.http.server.HttpServerResponse;
 import io.reactivex.netty.server.RxServer;
+import org.junit.Ignore;
 import org.junit.Test;
 import rx.Notification;
 import rx.Observable;
@@ -113,6 +114,7 @@ public class WebSocketClientServerTest {
         assertEquals("Expected aggregated message", "0123456789ABCDEFGHIJ", asText(executor.getReceivedClientFrames().get(0)));
     }
 
+    @Ignore("flaky on travis")
     @Test
     public void testMessageAggregationOnClient() throws Exception {
         TestSequenceExecutor executor = new TestSequenceExecutor()
