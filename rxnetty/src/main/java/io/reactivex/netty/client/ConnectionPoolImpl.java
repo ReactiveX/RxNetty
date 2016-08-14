@@ -20,12 +20,6 @@ import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadFactory;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -40,6 +34,10 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
  * @author Nitesh Kant
@@ -249,13 +247,6 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         Observable.just(1L).subscribe(createShutdownAction());
     }
 
-    private void performShutdownIfRequested() {
-
-        if (isShutdownRequested.get()) {
-            performShutdownIfPossible();
-        }
-    }
-
     private Action1<Long> createShutdownAction() {
         return new Action1<Long>() {
             @Override
@@ -361,15 +352,6 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         );
     }
 
-    private void poolAlreadyClosed(PooledConnection<I, O> connection, long startTime, Subscriber<? super ObservableConnection<I, O>> subscriber) {
-
-        connection.closeUnderlyingChannel();
-        IllegalStateException exception = new IllegalStateException("Pool already shut down");
-        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
-                Clock.onEndMillis(startTime), exception);
-        subscriber.onError(exception);
-    }
-
     @Override
     public Subscription subscribe(MetricEventsListener<? extends ClientMetricsEvent<?>> listener) {
         return metricEventsSubject.subscribe(listener);
@@ -399,27 +381,6 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                 }
             } catch (Exception e) {
                 logger.error("Exception in the idle connection cleanup task. This does NOT stop the next schedule of the task. ", e);
-            }
-        }
-    }
-
-    private class ShutdownTask implements Runnable {
-
-        private final ScheduledExecutorService executorService;
-
-        public ShutdownTask(ScheduledExecutorService executorService) {
-
-            this.executorService = executorService;
-        }
-
-        @Override
-        public void run() {
-            if (isShutdownPerformed.get()) {
-                executorService.shutdown();
-            }
-            boolean shutdownIsDone = performShutdownIfPossible();
-            if (shutdownIsDone) {
-                executorService.shutdown();
             }
         }
     }
