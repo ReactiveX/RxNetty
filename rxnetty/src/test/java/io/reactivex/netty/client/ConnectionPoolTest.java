@@ -31,6 +31,7 @@ import io.reactivex.netty.pipeline.PipelineConfigurator;
 import io.reactivex.netty.pipeline.PipelineConfiguratorComposite;
 import io.reactivex.netty.pipeline.PipelineConfigurators;
 import io.reactivex.netty.server.RxServer;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -107,7 +108,7 @@ public class ConnectionPoolTest {
         poolConfig = new PoolConfig(MAX_IDLE_TIME_MILLIS);
         MetricEventsSubject<ClientMetricsEvent<?>> eventsSubject = new MetricEventsSubject<ClientMetricsEvent<?>>();
         factory = new ClientChannelFactoryImpl<String, String>(clientBootstrap, eventsSubject);
-        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, null, factory, eventsSubject);
+        pool = new ConnectionPoolImpl<String, String>(serverInfo, poolConfig, strategy, Executors.newSingleThreadScheduledExecutor(), factory, eventsSubject);
         pool.subscribe(metricEventsListener);
         stats = new PoolStats();
         pool.subscribe(stats);
@@ -247,6 +248,46 @@ public class ConnectionPoolTest {
 
         pool.shutdown();
 
+        assertAllConnectionsReturned();
+    }
+
+    @Test(expected = IllegalStateException.class)
+    public void shouldThrowExceptionIfAcquireIsSubscribedToAfterShutdownOfPool() {
+        serverConnHandler.closeNewConnectionsOnReceive(false);
+        strategy.incrementMaxConnections(2);
+
+        Observable<ObservableConnection<String, String>> connection1 = pool.acquire();
+        pool.shutdown();
+        connection1.toBlocking().last();
+
+    }
+
+    @Test
+    public void testShutdownWithNonReturnedConnections() throws Exception{
+        serverConnHandler.closeNewConnectionsOnReceive(false);
+        strategy.incrementMaxConnections(2);
+
+        ObservableConnection<String, String> connection1 = pool.acquire().toBlocking().last();
+        ObservableConnection<String, String> connection2 = pool.acquire().toBlocking().last();
+        ObservableConnection<String, String> connection3 = pool.acquire().toBlocking().last();
+
+        connection1.close();
+        pool.shutdown();
+        //Make sure that the cleanup task runs multiple times
+        Thread.sleep(150);
+        Assert.assertEquals("Unexpected pool idle count.", 1, stats.getIdleCount());
+        Assert.assertEquals("Unexpected pool in-use count.", 2, stats.getInUseCount());
+        Assert.assertEquals("Unexpected pool total connections count.", 3, stats.getTotalConnectionCount());
+        //Pool shutdown request is sent so so it does immediately get discarded
+        connection2.close();
+
+        Assert.assertEquals("Unexpected pool idle count post shutdown.", 1, stats.getIdleCount());
+        Assert.assertEquals("Unexpected pool in-use count post shutdown.", 1, stats.getInUseCount());
+        Assert.assertEquals("Unexpected pool total connections count post shutdown.", 2, stats.getTotalConnectionCount());
+
+        connection3.close();
+        //Wait for the shutdown to be completed
+        Thread.sleep(150);
         assertAllConnectionsReturned();
     }
 

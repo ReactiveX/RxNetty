@@ -20,6 +20,12 @@ import io.reactivex.netty.channel.ObservableConnection;
 import io.reactivex.netty.metrics.Clock;
 import io.reactivex.netty.metrics.MetricEventsListener;
 import io.reactivex.netty.metrics.MetricEventsSubject;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Observable;
@@ -54,7 +60,13 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     private final RxClient.ServerInfo serverInfo;
     private final PoolConfig poolConfig;
     private final ScheduledExecutorService cleanupScheduler;
-    private final AtomicBoolean isShutdown = new AtomicBoolean();
+    private final AtomicInteger aquiredConnectionsCounter = new AtomicInteger();
+    //is needed to not accept any new connections that are aquired
+    private final AtomicBoolean isShutdownRequested = new AtomicBoolean();
+    //is needed to not perform the shutdown twice
+    private final AtomicBoolean isShutdownPerformed = new AtomicBoolean();
+    //is needed to not perform shutdown during the aquire of a connection
+    private final ReadWriteLock shutdownLock = new ReentrantReadWriteLock();
     /*Nullable*/ private final ScheduledFuture<?> idleConnCleanupScheduleFuture;
 
     /**
@@ -110,70 +122,89 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
     @Override
     public Observable<ObservableConnection<I, O>> acquire() {
 
-        if (isShutdown.get()) {
-            return Observable.error(new IllegalStateException("Connection pool is already shutdown."));
-        }
 
         return Observable.create(new Observable.OnSubscribe<ObservableConnection<I, O>>() {
             @Override
             public void call(final Subscriber<? super ObservableConnection<I, O>> subscriber) {
-                long startTimeMillis = Clock.newStartTimeMillis();
-                try {
-                    metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_START);
-                    PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
 
-                    if (null != idleConnection) { // Found a usable connection
-                        idleConnection.beforeReuse();
-                        channelFactory.onNewConnection(idleConnection, subscriber);
-                        long endTime = Clock.onEndMillis(startTimeMillis);
-                        metricEventsSubject.onEvent(ClientMetricsEvent.POOLED_CONNECTION_REUSE, endTime);
-                        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS, endTime);
-                    } else if (limitDeterminationStrategy.acquireCreationPermit(startTimeMillis,
-                                                                                TimeUnit.MILLISECONDS)) { // Check if it is allowed to create another connection.
-                        /**
-                         * Here we want to make sure that if the connection attempt failed, we should inform the strategy.
-                         * Failure to do so, will leak the permits from the strategy. So, any code in this block MUST
-                         * ALWAYS use this new subscriber instead of the original subscriber to send any callbacks.
-                         */
-                        Subscriber<? super ObservableConnection<I, O>> newConnectionSubscriber =
-                                newConnectionSubscriber(subscriber, startTimeMillis);
-                        try {
-                            channelFactory.connect(newConnectionSubscriber, serverInfo,
-                                                   connectionFactory); // Manages the callbacks to the subscriber
-                        } catch (Throwable throwable) {
-                            newConnectionSubscriber.onError(throwable);
-                        }
-                    } else { // Pool Exhausted
-                        PoolExhaustedException e = new PoolExhaustedException();
-                        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
-                                                    Clock.onEndMillis(startTimeMillis), e);
-                        subscriber.onError(e);
+                Lock lock = shutdownLock.readLock();
+                boolean lockRetrieved = lock.tryLock();
+                if (!lockRetrieved) {
+                    subscriber.onError(new IllegalStateException("Connection pool is already shutdown."));
+                    return;
+                }
+                try {
+                    if (isShutdownRequested.get()) {
+                        subscriber.onError(new IllegalStateException("Connection pool is already shutdown."));
+                        return;
                     }
-                } catch (Throwable throwable) {
-                    metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
-                                                Clock.onEndMillis(startTimeMillis), throwable);
-                    subscriber.onError(throwable);
+                    performAquire(subscriber);
+                }   finally {
+                    lock.unlock();
                 }
             }
         });
     }
+
+    private void performAquire(Subscriber<? super ObservableConnection<I, O>> subscriber) {
+        long startTimeMillis = Clock.newStartTimeMillis();
+        try {
+            metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_START);
+            PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
+
+            if (null != idleConnection) { // Found a usable connection
+                idleConnection.beforeReuse();
+                channelFactory.onNewConnection(idleConnection, subscriber);
+                long endTime = Clock.onEndMillis(startTimeMillis);
+                metricEventsSubject.onEvent(ClientMetricsEvent.POOLED_CONNECTION_REUSE, endTime);
+                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS, endTime);
+                aquiredConnectionsCounter.incrementAndGet();
+            } else if (limitDeterminationStrategy.acquireCreationPermit(startTimeMillis,
+                    TimeUnit.MILLISECONDS)) { // Check if it is allowed to create another connection.
+                aquiredConnectionsCounter.incrementAndGet();
+                /**
+                 * Here we want to make sure that if the connection attempt failed, we should inform the strategy.
+                 * Failure to do so, will leak the permits from the strategy. So, any code in this block MUST
+                 * ALWAYS use this new subscriber instead of the original subscriber to send any callbacks.
+                 */
+                Subscriber<? super ObservableConnection<I, O>> newConnectionSubscriber =
+                        newConnectionSubscriber(subscriber, startTimeMillis);
+                try {
+                    channelFactory.connect(newConnectionSubscriber, serverInfo,
+                            connectionFactory); // Manages the callbacks to the subscriber
+                } catch (Throwable throwable) {
+                    newConnectionSubscriber.onError(throwable);
+                }
+            } else { // Pool Exhausted
+                PoolExhaustedException e = new PoolExhaustedException();
+                metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
+                        Clock.onEndMillis(startTimeMillis), e);
+                subscriber.onError(e);
+            }
+        } catch (Throwable throwable) {
+            metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
+                    Clock.onEndMillis(startTimeMillis), throwable);
+            subscriber.onError(throwable);
+        }
+    }
+
+
 
     @Override
     public Observable<Void> release(PooledConnection<I, O> connection) {
 
         // Its legal to release after shutdown as it is not under anyones control when the connection returns. Its
         // usually user initiated.
-
         if (null == connection) {
+
             return Observable.error(new IllegalArgumentException("Returned a null connection to the pool."));
         }
 
         long startTimeMillis = Clock.newStartTimeMillis();
-
         try {
             connection.getChannel().pipeline().fireUserEventTriggered(new PooledConnectionReleasedEvent(connection));
             metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_START);
-            if (isShutdown.get() || !connection.isUsable()) {
+            if (isShutdownRequested.get() || !connection.isUsable()) {
                 discardConnection(connection);
                 metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_SUCCESS, Clock.onEndMillis(
                         startTimeMillis));
@@ -187,6 +218,8 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         } catch (Throwable throwable) {
             metricEventsSubject.onEvent(ClientMetricsEvent.POOL_RELEASE_FAILED, Clock.onEndMillis(startTimeMillis));
             return Observable.error(throwable);
+        } finally {
+            aquiredConnectionsCounter.decrementAndGet();
         }
     }
 
@@ -210,17 +243,64 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
 
     @Override
     public void shutdown() {
-        if (!isShutdown.compareAndSet(false, true)) {
+        if (!isShutdownRequested.compareAndSet(false, true)) {
             return;
         }
+        Observable.just(1L).subscribe(createShutdownAction());
+    }
+
+    private void performShutdownIfRequested() {
+
+        if (isShutdownRequested.get()) {
+            performShutdownIfPossible();
+        }
+    }
+
+    private Action1<Long> createShutdownAction() {
+        return new Action1<Long>() {
+            @Override
+            public void call(Long aLong) {
+
+                boolean shutdown = performShutdownIfPossible();
+                if (!shutdown) {
+                    Observable<Long> timer = Observable.timer(200, TimeUnit.MILLISECONDS);
+                    timer.subscribe(createShutdownAction());
+                }
+            }
+        };
+    }
+
+    private boolean performShutdownIfPossible() {
+        if (aquiredConnectionsCounter.get() != 0) {
+            return false;
+        }
+
+        Lock shutdownLock = this.shutdownLock.writeLock();
+        boolean lockRetrieved = shutdownLock.tryLock();
+        if (!lockRetrieved) {
+            return false;
+        }
+        try {
+            if (aquiredConnectionsCounter.get() == 0 && isShutdownPerformed.compareAndSet(false, true)) {
+                performShutdown();
+                return true;
+            }
+        } finally {
+            shutdownLock.unlock();
+        }
+        return false;
+    }
+
+    private void performShutdown() {
 
         if (null != idleConnCleanupScheduleFuture) {
             idleConnCleanupScheduleFuture.cancel(true);
         }
-        PooledConnection<I, O> idleConnection = getAnIdleConnection(true);
+
+        PooledConnection<I, O> idleConnection = getAnIdleConnection(false);
         while (null != idleConnection) {
             discardConnection(idleConnection);
-            idleConnection = getAnIdleConnection(true);
+            idleConnection = getAnIdleConnection(false);
         }
         metricEventsSubject.onCompleted();
     }
@@ -251,8 +331,9 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         return Subscribers.create(new Action1<ObservableConnection<I, O>>() {
                                       @Override
                                       public void call(ObservableConnection<I, O> connection) {
+
                                           metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_SUCCESS,
-                                                                      Clock.onEndMillis(startTime));
+                                                  Clock.onEndMillis(startTime));
                                           PooledConnection<I, O> pooledConnection = (PooledConnection<I, O>) connection;
                                           pooledConnection.setConnectionPool(ConnectionPoolImpl.this);
                                           /**
@@ -273,10 +354,20 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
                                       public void call(Throwable throwable) {
                                           metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
                                                                       Clock.onEndMillis(startTime), throwable);
+                                          aquiredConnectionsCounter.decrementAndGet();
                                           subscriber.onError(throwable);
                                       }
                                   }
         );
+    }
+
+    private void poolAlreadyClosed(PooledConnection<I, O> connection, long startTime, Subscriber<? super ObservableConnection<I, O>> subscriber) {
+
+        connection.closeUnderlyingChannel();
+        IllegalStateException exception = new IllegalStateException("Pool already shut down");
+        metricEventsSubject.onEvent(ClientMetricsEvent.POOL_ACQUIRE_FAILED,
+                Clock.onEndMillis(startTime), exception);
+        subscriber.onError(exception);
     }
 
     @Override
@@ -289,17 +380,46 @@ public class ConnectionPoolImpl<I, O> implements ConnectionPool<I, O> {
         @Override
         public void run() {
             try {
-                Iterator<PooledConnection<I,O>> iterator = idleConnections.iterator(); // Weakly consistent iterator
-                while (iterator.hasNext()) {
-                    PooledConnection<I, O> idleConnection = iterator.next();
-                    if (!idleConnection.isUsable() && idleConnection.claim()) {
-                        iterator.remove();
-                        discardConnection(idleConnection); // Don't use pool.discard() as that won't do anything if the
-                                                           // connection isn't there in the idle queue, which is the case here.
+                Lock lock = shutdownLock.readLock();
+                boolean lockAquired = lock.tryLock();
+                if (lockAquired) {
+                    try {
+                        Iterator<PooledConnection<I,O>> iterator = idleConnections.iterator(); // Weakly consistent iterator
+                        while (iterator.hasNext()) {
+                            PooledConnection<I, O> idleConnection = iterator.next();
+                            if (!idleConnection.isUsable() && idleConnection.claim()) {
+                                iterator.remove();
+                                discardConnection(idleConnection); // Don't use pool.discard() as that won't do anything if the
+                                // connection isn't there in the idle queue, which is the case here.
+                            }
+                        }
+                    } finally {
+                        lock.unlock();
                     }
                 }
             } catch (Exception e) {
                 logger.error("Exception in the idle connection cleanup task. This does NOT stop the next schedule of the task. ", e);
+            }
+        }
+    }
+
+    private class ShutdownTask implements Runnable {
+
+        private final ScheduledExecutorService executorService;
+
+        public ShutdownTask(ScheduledExecutorService executorService) {
+
+            this.executorService = executorService;
+        }
+
+        @Override
+        public void run() {
+            if (isShutdownPerformed.get()) {
+                executorService.shutdown();
+            }
+            boolean shutdownIsDone = performShutdownIfPossible();
+            if (shutdownIsDone) {
+                executorService.shutdown();
             }
         }
     }
