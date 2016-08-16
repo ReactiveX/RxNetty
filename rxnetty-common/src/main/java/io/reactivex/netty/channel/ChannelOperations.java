@@ -83,7 +83,7 @@ public interface ChannelOperations<W> {
      *
      * @param msgs Message stream to write.
      * @param flushSelector A {@link Func1} which is invoked for every item emitted from {@code msgs}. Channel is
-     * flushed, iff this function returns, {@code true}.
+     * flushed, if this function returns, {@code true}.
      *
      * @return An {@link Observable} representing the result of this write. Every
      * subscription to this {@link Observable} will write the passed messages and flush all pending writes, when the
