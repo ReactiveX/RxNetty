@@ -393,9 +393,15 @@ public class ClientRequestResponseConverter extends ChannelDuplexHandler {
                                   Clock.onEndMillis(responseReceiveStartTimeMillis));
 
             contentSubject.onError(error);
-            connInputObsrvr.onError(error);
-            connection.close(); // Close before sending on complete results in more predictable behavior for clients
-                                // listening for response complete and expecting connection close.
+
+            if (connInputObsrvr != null) {
+                connInputObsrvr.onError(error);
+            }
+
+            if (connection != null) {
+                connection.close(); // Close before sending on complete results in more predictable behavior for clients
+                                    // listening for response complete and expecting connection close.
+            }
         }
 
         private void sendOnComplete() {
