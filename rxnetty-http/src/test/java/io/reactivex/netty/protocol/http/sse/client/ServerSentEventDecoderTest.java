@@ -21,6 +21,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.netty.handler.logging.LoggingHandler;
 import io.reactivex.netty.protocol.http.sse.ServerSentEvent;
+import io.reactivex.netty.protocol.http.sse.ServerSentEvent.Type;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -221,6 +222,24 @@ public class ServerSentEventDecoderTest {
         assertEquals("Unexpected number of decoded messages.", 0, out.size());
 
         doTest("\n", expected);
+    }
+
+    @Test(timeout = 10000)
+    public void testLeadingNewLineInFieldName() throws Exception {
+        List<Object> out = new ArrayList<>();
+        decoder.decode(ch, toHttpContent("\n data: ad\n"), out);
+        assertEquals("Unexpected number of decoded messages.", 1, out.size());
+    }
+
+    @Test(timeout = 10000)
+    public void testLeadingSpaceInFieldName() throws Exception {
+        List<Object> out = new ArrayList<>();
+        decoder.decode(ch, toHttpContent("              data: ad\n"), out);
+        assertEquals("Unexpected number of decoded messages.", 1, out.size());
+
+        ServerSentEvent event = (ServerSentEvent) out.get(0);
+        assertEquals("Unexpected event type.", Type.Data, event.getType());
+        assertEquals("Unexpected event type.", "ad", event.contentAsString());
     }
 
     private void doTest(String eventText, ServerSentEvent... expected) throws Exception {

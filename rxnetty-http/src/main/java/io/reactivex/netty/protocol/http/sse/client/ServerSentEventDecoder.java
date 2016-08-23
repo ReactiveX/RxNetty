@@ -226,7 +226,7 @@ public class ServerSentEventDecoder extends MessageToMessageDecoder<HttpContent>
                                 }
                                 break;
                         }
-                        /**
+                        /*
                          * Since all data is read, reset the incomplete data to null. Release of this buffer happens in
                          * the following ways
                          * 1) If this was a data buffer, it is released when ServerSentEvent is released.
@@ -250,11 +250,12 @@ public class ServerSentEventDecoder extends MessageToMessageDecoder<HttpContent>
     }
 
     private static ServerSentEvent.Type readCurrentFieldTypeFromBuffer(final ByteBuf fieldNameBuffer) {
-        /**
+        /*
          * This code tries to eliminate the need of creating a string from the ByteBuf as the field names are very
          * constrained. The algorithm is as follows:
          *
          * -- Scan the bytes in the buffer.
+         * -- Ignore an leading whitespaces
          * -- If the first byte matches the expected field names then use the matching field name char array to verify
          * the rest of the field name.
          * -- If the first byte does not match, reject the field name.
@@ -262,12 +263,13 @@ public class ServerSentEventDecoder extends MessageToMessageDecoder<HttpContent>
          * -- If the name does not exactly match the expected value, then reject the field name.
          */
         ServerSentEvent.Type toReturn = ServerSentEvent.Type.Data;
+        skipLineDelimiters(fieldNameBuffer);
         int readableBytes = fieldNameBuffer.readableBytes();
         final int readerIndexAtStart = fieldNameBuffer.readerIndex();
         char[] fieldNameToVerify = DATA_FIELD_NAME;
         boolean verified = false;
         int actualFieldNameIndexToCheck = 0; // Starts with 1 as the first char is validated by equality.
-        for (int i = readerIndexAtStart; i < readableBytes; i++) {
+        for (int i = readerIndexAtStart; i < readerIndexAtStart + readableBytes; i++) {
             final char charAtI = (char) fieldNameBuffer.getByte(i);
 
             if (i == readerIndexAtStart) {
