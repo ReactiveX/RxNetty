@@ -212,6 +212,26 @@ public class UnicastContentSubjectTest {
         Assert.assertTrue("Inner subscriber did not unsubscribe on inner completion.", innerUnsubscribe.get());
     }
 
+    @Test
+    public void testDispose() throws Exception {
+        TestScheduler scheduler = Schedulers.test();
+        UnicastContentSubject<ByteBuf> sub = UnicastContentSubject.create(1, TimeUnit.HOURS, scheduler, null,
+                                                                          new Action1<ByteBuf>() {
+                                                                              @Override
+                                                                              public void call(ByteBuf bb) {
+                                                                                  bb.release();
+                                                                              }
+                                                                          });
+        ByteBuf bb = Unpooled.buffer();
+        sub.onNext(bb);
+
+        Assert.assertEquals("Unexpected ref count for buffer before dispose.", 2, bb.refCnt());
+
+        scheduler.advanceTimeBy(1, TimeUnit.HOURS);
+
+        Assert.assertEquals("Unexpected ref count for buffer post dispose.", 0, bb.refCnt());
+    }
+
     private static class OnUnsubscribeAction implements Action0 {
 
         private volatile boolean called;
