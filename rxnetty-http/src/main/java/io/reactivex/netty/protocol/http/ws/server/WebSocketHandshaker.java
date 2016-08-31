@@ -73,7 +73,7 @@ public abstract class WebSocketHandshaker extends Observable<Void> {
             return null;
         }
 
-        String[] requestedSubprotocolArray = StringUtil.split(requestedSubprotocols, ',');
+        String[] requestedSubprotocolArray = requestedSubprotocols.split(",");
 
         for (String p: requestedSubprotocolArray) {
             String requestedSubprotocol = p.trim();
