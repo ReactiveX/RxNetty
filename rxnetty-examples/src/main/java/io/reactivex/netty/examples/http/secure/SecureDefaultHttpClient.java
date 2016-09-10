@@ -42,7 +42,7 @@ import java.security.NoSuchAlgorithmException;
  */
 public final class SecureDefaultHttpClient {
 
-    private final static String HOST = "www.netflix.com";
+    private final static String HOST = "github.com";
     private final static Integer PORT = 443;
 
     public static void main(String[] args) {
