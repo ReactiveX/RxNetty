@@ -12,6 +12,7 @@ and an [Hello Server](src/main/java/io/reactivex/netty/examples/http/helloworld/
 This example constitutes of an [Hello Client](src/main/java/io/reactivex/netty/examples/http/secure/SecureHelloWorldClient.java)
 and an [Hello Server](src/main/java/io/reactivex/netty/examples/http/secure/SecureHelloWorldServer.java)
 
+- __Secure Client Default SSLContext__: A very simple example that demonstrates one way of connecting a client securely to a public HTTPS server using the system defaults [SecureDefaultHttpClient](src/main/java/io/reactivex/netty/examples/http/secure/SecureDefaultHttpClient.java)
 
 - __Simple Interception__: A example that demonstrates how to write basic interceptors for HTTP server and client.
 This example constitutes of an [Intercepting Client](src/main/java/io/reactivex/netty/examples/http/interceptors/simple/InterceptingClient.java)
