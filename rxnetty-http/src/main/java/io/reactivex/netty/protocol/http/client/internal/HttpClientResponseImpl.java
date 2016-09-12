@@ -20,7 +20,6 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPipeline;
 import io.netty.handler.codec.http.HttpResponse;
-import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpResponseStatus;
 import io.netty.handler.codec.http.HttpUtil;
 import io.netty.handler.codec.http.HttpVersion;
@@ -255,7 +254,7 @@ public final class HttpClientResponseImpl<T> extends HttpClientResponse<T> {
 
     @Override
     public ContentSource<ServerSentEvent> getContentAsServerSentEvents() {
-        if (containsHeader(CONTENT_TYPE, "text/event-stream", false)) {
+        if (containsHeader(CONTENT_TYPE) && getHeader(CONTENT_TYPE).startsWith("text/event-stream")) {
             ChannelPipeline pipeline = unsafeNettyChannel().pipeline();
             ChannelHandlerContext decoderCtx = pipeline.context(HttpHandlerNames.HttpClientCodec.getName());
             if (null != decoderCtx) {
