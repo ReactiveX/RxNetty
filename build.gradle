@@ -28,7 +28,7 @@ configure(subprojects) {
   apply plugin: 'java'
 
   dependencies {
-    compile "io.reactivex:rxjava:1.0.+"
+    compile "io.reactivex:rxjava:1.2.+"
 
     testCompile 'junit:junit-dep:4.10'
   }
