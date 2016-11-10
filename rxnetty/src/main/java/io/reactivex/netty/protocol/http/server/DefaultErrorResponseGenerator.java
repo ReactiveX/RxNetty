@@ -27,6 +27,8 @@ import rx.Observable;
 
 import java.io.PrintStream;
 import java.nio.charset.Charset;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
 * @author Nitesh Kant
@@ -63,7 +65,7 @@ class DefaultErrorResponseGenerator<O> implements ErrorResponseGenerator<O> {
             printStream = new PrintStream(new ByteBufOutputStream(buffer));
             error.printStackTrace(printStream);
             String errorPage = ERROR_HTML_TEMPLATE.replace(STACKTRACE_TEMPLATE_VARIABLE,
-                                                           buffer.toString(Charset.defaultCharset()));
+                    escapeHtml(buffer.toString(Charset.defaultCharset())));
             response.writeString(errorPage);
         } finally {
             ReferenceCountUtil.release(buffer);
@@ -75,6 +77,41 @@ class DefaultErrorResponseGenerator<O> implements ErrorResponseGenerator<O> {
                     logger.error("Error closing stream for generating error response stacktrace. This is harmless.", e);
                 }
             }
+        }
+    }
+
+    private String escapeHtml(String src) {
+        Pattern compile = Pattern.compile("[<>\"&`{}']");
+        Matcher matcher = compile.matcher(src);
+        StringBuffer buffer = new StringBuffer();
+        while (matcher.find()) {
+            String rep = matcher.group();
+            matcher.appendReplacement(buffer, escapeChar(rep));
+        }
+        matcher.appendTail(buffer);
+        return buffer.toString();
+    }
+
+    private String escapeChar(String c) {
+        switch (c.charAt(0)) {
+            case '<':
+                return "&lt;";
+            case '>':
+                return "&gt;";
+            case '"':
+                return "&quot;";
+            case '&':
+                return "&amp;";
+            case '`':
+                return "&#96;";
+            case '{':
+                return "&#123;";
+            case '}':
+                return "&#125;";
+            case '\'':
+                return "&#39;";
+            default:
+                return c;
         }
     }
 
