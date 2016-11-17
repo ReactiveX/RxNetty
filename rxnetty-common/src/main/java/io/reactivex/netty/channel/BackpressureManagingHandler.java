@@ -36,6 +36,7 @@ import rx.subscriptions.Subscriptions;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -358,6 +359,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
          */
         private int perSubscriberMaxRequest = MAX_PER_SUBSCRIBER_REQUEST;
         private Channel channel;
+        private boolean removeTaskScheduled; // Guarded by this
 
         BytesWriteInterceptor(String parentHandlerName) {
             this.parentHandlerName = parentHandlerName;
@@ -389,16 +391,22 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
         }
 
         public WriteStreamSubscriber newSubscriber(final ChannelHandlerContext ctx, ChannelPromise promise) {
-
-            recalculateMaxPerSubscriber();
+            int currentSubCount = subscribers.size();
+            recalculateMaxPerSubscriber(currentSubCount, currentSubCount + 1);
 
             final WriteStreamSubscriber sub = new WriteStreamSubscriber(ctx, promise, perSubscriberMaxRequest);
             sub.add(Subscriptions.create(new Action0() {
                 @Override
                 public void call() {
-                    /*Remove the subscriber on unsubscribe.*/
-                    subscribers.remove(sub);
-                    ctx.channel().eventLoop().execute(BytesWriteInterceptor.this);
+                    boolean _schedule;
+                    /*Schedule the task once as the task runs through and removes all unsubscribed subscribers*/
+                    synchronized (BytesWriteInterceptor.this) {
+                        _schedule = !removeTaskScheduled;
+                        removeTaskScheduled = true;
+                    }
+                    if (_schedule) {
+                        ctx.channel().eventLoop().execute(BytesWriteInterceptor.this);
+                    }
                 }
             }));
 
@@ -422,21 +430,37 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
         @Override
         public void run() {
-            recalculateMaxPerSubscriber();
+            synchronized (this) {
+                removeTaskScheduled = false;
+            }
+            int oldSubCount = subscribers.size();
+            for (Iterator<WriteStreamSubscriber> iterator = subscribers.iterator(); iterator.hasNext(); ) {
+                WriteStreamSubscriber subscriber = iterator.next();
+                if (subscriber.isUnsubscribed()) {
+                    iterator.remove();
+                }
+            }
+            int newSubCount = subscribers.size();
+            recalculateMaxPerSubscriber(oldSubCount, newSubCount);
         }
 
         /**
          * Called from within the eventloop, whenever the subscriber queue is modified. This modifies the per subscriber
          * request limit by equally distributing the demand. Minimum demand to any subscriber is 1.
          */
-        private void recalculateMaxPerSubscriber() {
+        private void recalculateMaxPerSubscriber(int oldSubCount, int newSubCount) {
             assert channel.eventLoop().inEventLoop();
-
-            int subCount = subscribers.size();
-            perSubscriberMaxRequest = 0 == subCount ? perSubscriberMaxRequest
-                                                    : perSubscriberMaxRequest * subCount / (subCount + 1);
+            perSubscriberMaxRequest = newSubCount == 0 || oldSubCount == 0
+                                                     ? MAX_PER_SUBSCRIBER_REQUEST
+                                                     : perSubscriberMaxRequest * oldSubCount / newSubCount;
 
             perSubscriberMaxRequest = Math.max(1, perSubscriberMaxRequest);
+
+            if (logger.isDebugEnabled()) {
+                logger.debug("Channel {}. Modifying per subscriber max request. Old subscribers count {}, " +
+                             "new subscribers count {}. New Value {} ", channel, oldSubCount, newSubCount,
+                             perSubscriberMaxRequest);
+            }
         }
     }
 
@@ -540,7 +564,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
 
                     boolean _isPromiseCompletedOnWriteComplete;
 
-                    /**
+                    /*
                      * The intent here is to NOT give listener callbacks via promise completion within the sync block.
                      * So, a co-ordination b/w the thread sending Observable terminal event and thread sending write
                      * completion event is required.
@@ -553,7 +577,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                     synchronized (guard) {
                         listeningTo--;
                         if (0 == listeningTo && isDone) {
-                            /**
+                            /*
                              * If the listening count is 0 and no more items will arrive, this thread wins the race of
                              * completing the overarchingWritePromise
                              */
@@ -562,7 +586,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                         _isPromiseCompletedOnWriteComplete = isPromiseCompletedOnWriteComplete;
                     }
 
-                    /**
+                    /*
                      * Exceptions are not buffered but completion is only sent when there are no more items to be
                      * received for write.
                      */
@@ -597,7 +621,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
             boolean _shouldCompletePromise;
             final boolean enqueueFlush;
 
-            /**
+            /*
              * The intent here is to NOT give listener callbacks via promise completion within the sync block.
              * So, a co-ordination b/w the thread sending Observable terminal event and thread sending write
              * completion event is required.
@@ -611,7 +635,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                 enqueueFlush = atleastOneWriteEnqueued;
                 isDone = true;
                 _listeningTo = listeningTo;
-                /**
+                /*
                  * Flag to indicate whether the write complete thread won the race and will complete the
                  * overarchingWritePromise
                  */
