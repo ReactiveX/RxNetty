@@ -21,10 +21,9 @@ import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Spectator;
 import io.reactivex.netty.protocol.tcp.client.events.TcpClientEventListener;
-import io.reactivex.netty.spectator.internal.LatencyMetrics;
+import io.reactivex.netty.spectator.internal.EventMetric;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import static io.reactivex.netty.spectator.internal.SpectatorUtils.*;
 
@@ -33,66 +32,33 @@ import static io.reactivex.netty.spectator.internal.SpectatorUtils.*;
  */
 public class TcpClientListener extends TcpClientEventListener {
 
-    private final AtomicInteger liveConnections;
-    private final Counter connectionCount;
-    private final AtomicInteger pendingConnects;
-    private final Counter failedConnects;
-    private final LatencyMetrics connectionTimes;
-
-    private final AtomicInteger pendingConnectionClose;
-    private final Counter failedConnectionClose;
-
-    private final AtomicInteger pendingPoolAcquires;
-    private final Counter failedPoolAcquires;
-    private final LatencyMetrics poolAcquireTimes;
-
-    private final AtomicInteger pendingPoolReleases;
-    private final Counter failedPoolReleases;
-    private final LatencyMetrics poolReleaseTimes;
-
-    private final Counter poolAcquires;
+    private final EventMetric connection;
+    private final EventMetric connectionClose;
+    private final EventMetric poolAcquire;
+    private final EventMetric poolRelease;
     private final Counter poolEvictions;
     private final Counter poolReuse;
-    private final Counter poolReleases;
 
-    private final AtomicInteger pendingWrites;
-    private final AtomicInteger pendingFlushes;
+    private final EventMetric write;
+    private final EventMetric flush;
 
-    private final Counter bytesWritten;
-    private final LatencyMetrics writeTimes;
     private final Counter bytesRead;
-    private final Counter failedWrites;
-    private final Counter failedFlushes;
-    private final LatencyMetrics flushTimes;
+    private final Counter bytesWritten;
 
     public TcpClientListener(Registry registry, String monitorId) {
-        liveConnections = newGauge(registry, "liveConnections", monitorId, new AtomicInteger());
-        connectionCount = newCounter(registry, "connectionCount", monitorId);
-        pendingConnects = newGauge(registry, "pendingConnects", monitorId, new AtomicInteger());
-        failedConnects = newCounter(registry, "failedConnects", monitorId);
-        connectionTimes = new LatencyMetrics("connectionTimes", monitorId, registry);
-        pendingConnectionClose = newGauge(registry, "pendingConnectionClose", monitorId, new AtomicInteger());
-        failedConnectionClose = newCounter(registry, "failedConnectionClose", monitorId);
-        pendingPoolAcquires = newGauge(registry, "pendingPoolAcquires", monitorId, new AtomicInteger());
-        poolAcquireTimes = new LatencyMetrics("poolAcquireTimes", monitorId, registry);
-        failedPoolAcquires = newCounter(registry, "failedPoolAcquires", monitorId);
-        pendingPoolReleases = newGauge(registry, "pendingPoolReleases", monitorId, new AtomicInteger());
-        poolReleaseTimes = new LatencyMetrics("poolReleaseTimes", monitorId, registry);
-        failedPoolReleases = newCounter(registry, "failedPoolReleases", monitorId);
-        poolAcquires = newCounter(registry, "poolAcquires", monitorId);
-        poolEvictions = newCounter(registry, "poolEvictions", monitorId);
-        poolReuse = newCounter(registry, "poolReuse", monitorId);
-        poolReleases = newCounter(registry, "poolReleases", monitorId);
 
-        pendingWrites = newGauge(registry, "pendingWrites", monitorId, new AtomicInteger());
-        pendingFlushes = newGauge(registry, "pendingFlushes", monitorId, new AtomicInteger());
+        connection = new EventMetric(registry, "connection", monitorId, "action", "connect");
+        connectionClose = new EventMetric(registry, "connection", monitorId, "action", "handle");
+        poolAcquire = new EventMetric(registry, "connection.pool", monitorId, "action", "acquire");
+        poolRelease = new EventMetric(registry, "connection.pool", monitorId, "action", "release");
+        poolEvictions = newCounter(registry, "connection.pool", monitorId, "action", "evict");
+        poolReuse = newCounter(registry, "connection.pool", monitorId, "action", "reuse");
 
-        bytesWritten = newCounter(registry, "bytesWritten", monitorId);
-        writeTimes = new LatencyMetrics("writeTimes", monitorId, registry);
-        bytesRead = newCounter(registry, "bytesRead", monitorId);
-        failedWrites = newCounter(registry, "failedWrites", monitorId);
-        failedFlushes = newCounter(registry, "failedFlushes", monitorId);
-        flushTimes = new LatencyMetrics("flushTimes", monitorId, registry);
+        write = new EventMetric(registry, "writes", monitorId, "action", "write");
+        flush = new EventMetric(registry, "writes", monitorId, "action", "flush");
+
+        bytesWritten = newCounter(registry, "bytes", monitorId, "rtype", "count", "action", "write");
+        bytesRead = newCounter(registry, "bytes", monitorId, "rtype", "count", "action", "read");
     }
 
     public TcpClientListener(String monitorId) {
@@ -111,49 +77,42 @@ public class TcpClientListener extends TcpClientEventListener {
 
     @Override
     public void onFlushComplete(long duration, TimeUnit timeUnit) {
-        pendingFlushes.decrementAndGet();
-        flushTimes.record(duration, timeUnit);
+        flush.success(duration, timeUnit);
     }
 
     @Override
     public void onFlushStart() {
-        pendingFlushes.incrementAndGet();
+        flush.start();
     }
 
     @Override
     public void onWriteFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        pendingWrites.decrementAndGet();
-        failedWrites.increment();
+        write.failure(duration, timeUnit);
     }
 
     @Override
     public void onWriteSuccess(long duration, TimeUnit timeUnit) {
-        pendingWrites.decrementAndGet();
-        writeTimes.record(duration, timeUnit);
+        write.success(duration, timeUnit);
     }
 
     @Override
     public void onWriteStart() {
-        pendingWrites.incrementAndGet();
+        write.start();
     }
 
     @Override
     public void onPoolReleaseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        pendingPoolReleases.decrementAndGet();
-        poolReleases.increment();
-        failedPoolReleases.increment();
+        poolRelease.failure(duration, timeUnit);
     }
 
     @Override
     public void onPoolReleaseSuccess(long duration, TimeUnit timeUnit) {
-        pendingPoolReleases.decrementAndGet();
-        poolReleases.increment();
-        poolReleaseTimes.record(duration, timeUnit);
+        poolRelease.success(duration, timeUnit);
     }
 
     @Override
     public void onPoolReleaseStart() {
-        pendingPoolReleases.incrementAndGet();
+        poolRelease.start();
     }
 
     @Override
@@ -168,137 +127,46 @@ public class TcpClientListener extends TcpClientEventListener {
 
     @Override
     public void onPoolAcquireFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        pendingPoolAcquires.decrementAndGet();
-        poolAcquires.increment();
-        failedPoolAcquires.increment();
+        poolAcquire.failure(duration, timeUnit);
     }
 
     @Override
     public void onPoolAcquireSuccess(long duration, TimeUnit timeUnit) {
-        pendingPoolAcquires.decrementAndGet();
-        poolAcquires.increment();
-        poolAcquireTimes.record(duration, timeUnit);
+        poolAcquire.success(duration, timeUnit);
     }
 
     @Override
     public void onPoolAcquireStart() {
-        pendingPoolAcquires.incrementAndGet();
+        poolAcquire.start();
     }
 
     @Override
     public void onConnectionCloseFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        liveConnections.decrementAndGet(); // Even though the close failed, the connection isn't live.
-        pendingConnectionClose.decrementAndGet();
-        failedConnectionClose.increment();
+        connectionClose.failure(duration, timeUnit);
     }
 
     @Override
     public void onConnectionCloseSuccess(long duration, TimeUnit timeUnit) {
-        liveConnections.decrementAndGet();
-        pendingConnectionClose.decrementAndGet();
+        connectionClose.success(duration, timeUnit);
     }
 
     @Override
     public void onConnectionCloseStart() {
-        pendingConnectionClose.incrementAndGet();
+        connectionClose.start();
     }
 
     @Override
     public void onConnectFailed(long duration, TimeUnit timeUnit, Throwable throwable) {
-        pendingConnects.decrementAndGet();
-        failedConnects.increment();
+        connection.failure(duration, timeUnit);
     }
 
     @Override
     public void onConnectSuccess(long duration, TimeUnit timeUnit) {
-        pendingConnects.decrementAndGet();
-        liveConnections.incrementAndGet();
-        connectionCount.increment();
-        connectionTimes.record(duration, timeUnit);
+        connection.success(duration, timeUnit);
     }
 
     @Override
     public void onConnectStart() {
-        pendingConnects.incrementAndGet();
-    }
-
-    public long getLiveConnections() {
-        return liveConnections.get();
-    }
-
-    public long getConnectionCount() {
-        return connectionCount.count();
-    }
-
-    public long getPendingConnects() {
-        return pendingConnects.get();
-    }
-
-    public long getFailedConnects() {
-        return failedConnects.count();
-    }
-
-    public long getPendingConnectionClose() {
-        return pendingConnectionClose.get();
-    }
-
-    public long getFailedConnectionClose() {
-        return failedConnectionClose.count();
-    }
-
-    public long getPendingPoolAcquires() {
-        return pendingPoolAcquires.get();
-    }
-
-    public long getFailedPoolAcquires() {
-        return failedPoolAcquires.count();
-    }
-
-    public long getPendingPoolReleases() {
-        return pendingPoolReleases.get();
-    }
-
-    public long getFailedPoolReleases() {
-        return failedPoolReleases.count();
-    }
-
-    public long getPoolEvictions() {
-        return poolEvictions.count();
-    }
-
-    public long getPoolReuse() {
-        return poolReuse.count();
-    }
-
-    public long getPendingWrites() {
-        return pendingWrites.get();
-    }
-
-    public long getPendingFlushes() {
-        return pendingFlushes.get();
-    }
-
-    public long getBytesWritten() {
-        return bytesWritten.count();
-    }
-
-    public long getBytesRead() {
-        return bytesRead.count();
-    }
-
-    public long getFailedWrites() {
-        return failedWrites.count();
-    }
-
-    public long getFailedFlushes() {
-        return failedFlushes.count();
-    }
-
-    public long getPoolAcquires() {
-        return poolAcquires.count();
-    }
-
-    public long getPoolReleases() {
-        return poolReleases.count();
+        connection.start();
     }
 }

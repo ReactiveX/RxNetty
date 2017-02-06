@@ -20,6 +20,7 @@ import com.netflix.spectator.api.Counter;
 import com.netflix.spectator.api.Id;
 import com.netflix.spectator.api.Registry;
 import com.netflix.spectator.api.Timer;
+import com.netflix.spectator.api.histogram.PercentileTimer;
 
 public final class SpectatorUtils {
     private SpectatorUtils() {
@@ -50,6 +51,25 @@ public final class SpectatorUtils {
     public static <T extends Number> T newGauge(Registry registry, String name, String id, T number, String... tags) {
         Id gaugeId = registry.createId(name, getTagsWithId(id, tags));
         return registry.gauge(gaugeId, number);
+    }
+
+    public static PercentileTimer newPercentileTimer(Registry registry, String name, String id, String... tags) {
+        Id timerId = registry.createId(name, getTagsWithId(id, tags));
+        return PercentileTimer.get(registry, timerId);
+    }
+
+    public static String[] mergeTags(String[] tags1, String... tags2) {
+        if (tags1.length == 0) {
+            return tags2;
+        }
+        if (tags2.length == 0) {
+            return tags1;
+        }
+
+        String[] toReturn = new String[tags1.length + tags2.length];
+        System.arraycopy(tags1, 0, toReturn, 0, tags1.length);
+        System.arraycopy(tags2, 0, toReturn, tags1.length, tags2.length);
+        return toReturn;
     }
 
     private static String[] getTagsWithId(String id, String[] tags) {
