@@ -23,5 +23,4 @@ dependencies {
     compile project(':rxnetty-http')
     compile project(':rxnetty-spectator-tcp')
     compile project(':rxnetty-common')
-    compile 'com.netflix.spectator:spectator-api:0.40.0'
 }
