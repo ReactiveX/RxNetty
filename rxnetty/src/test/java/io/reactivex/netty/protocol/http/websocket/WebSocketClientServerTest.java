@@ -185,6 +185,9 @@ public class WebSocketClientServerTest {
                     put(Notification.<Throwable>createOnCompleted());
                 }
                 public void onError(Throwable cause) {
+                    if (!(cause instanceof WebSocketHandshakeException)) {
+                        cause.printStackTrace();
+                    }
                     put(Notification.createOnNext(cause));
                 }
             });
