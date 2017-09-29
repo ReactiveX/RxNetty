@@ -1,28 +1,75 @@
-Branch Status
-=======
-
-This is the current development branch for RxNetty and it is __not__ stable, if you are looking for a stable release, you should use the [latest 0.4.x artifacts](https://github.com/ReactiveX/RxNetty/releases).
-
-Motivations
-======
-
-Motivations and detailed status of the breaking changes in 0.5.x can be found [here](https://github.com/ReactiveX/RxNetty/wiki/0.5.x-FAQs)
 RxNetty
 =======
-[ ![Download](https://api.bintray.com/packages/reactivex/RxJava/RxNetty/images/download.svg) ](https://bintray.com/reactivex/RxJava/RxNetty/_latestVersion)
-<a href='https://travis-ci.org/ReactiveX/RxNetty/builds'><img src='https://travis-ci.org/ReactiveX/RxNetty.svg?branch=0.5.x'></a>
-[![Average time to resolve an issue](http://isitmaintained.com/badge/resolution/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Average time to resolve an issue")
-[![Percentage of issues still open](http://isitmaintained.com/badge/open/Netflix/Hystrix.svg)](http://isitmaintained.com/project/Reactivex/RxNetty "Percentage of issues still open")
+<a href='https://travis-ci.org/ReactiveX/RxNetty/builds?branch=0.6.x'><img src='https://travis-ci.org/ReactiveX/RxNetty.svg?branch=0.6.x'></a>
 
 Reactive Extension (Rx) Adaptor for Netty
 
-Getting Started
+Example
 ==========
 
-The best place to start exploring this library is to look at the [examples] (rxnetty-examples) for some common usecases addressed by RxNetty.
+```java
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.reactivex.Flowable;
+import io.reactivex.netty.http.client.HttpClient;
+import io.reactivex.netty.http.server.HttpServer;
 
-A very simple HTTP server example can be found [here] (rxnetty-examples/src/main/java/io/reactivex/netty/examples/http/helloworld/HelloWorldServer.java)
-and the corresponding HTTP client is [here] (rxnetty-examples/src/main/java/io/reactivex/netty/examples/http/helloworld/HelloWorldClient.java)
+import java.nio.charset.Charset;
+
+public final class RxNettyExample {
+
+  public static void main(String... args) throws InterruptedException {
+    NettyContext context = HttpServer.create(8080).newHandler((request, response) -> {
+      System.out.println("Server => Request: " + request.uri());
+      try {
+        if ("/error".equals(request.uri())) {
+          throw new RuntimeException("forced error");
+        }
+        response.status(HttpResponseStatus.OK);
+        return response.sendString(Flowable.just("Path Requested =>: " + request.uri() + '\n'));
+      } catch (Throwable e) {
+        System.err.println("Server => Error [" + request.uri() + "] => " + e);
+        response.status(HttpResponseStatus.BAD_REQUEST);
+        return response.sendString(Flowable.just("Error 500: Bad Request\n"));
+      }
+    }).blockingSingle();
+
+    HttpClient.create(8080)
+        .get("/")
+        .flatMapMaybe(response -> response.receive().aggregate())
+        .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
+        .blockingForEach(System.out::println);
+
+    HttpClient.create(8080)
+        .get("/error", request -> request.failOnClientError(false))
+        .flatMapMaybe(response -> response.receive().aggregate())
+        .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
+        .blockingForEach(System.out::println);
+
+    HttpClient.create(8080)
+        .get("/data")
+        .flatMapMaybe(response -> response.receive().aggregate())
+        .map(data -> "Client => " + data.toString(Charset.defaultCharset()))
+        .blockingForEach(System.out::println);
+
+    context.dispose();
+  }
+}
+```
+
+Outputs:
+
+```
+Server => Request: /
+Client => Path Requested =>: /
+
+Server => Request: /error
+Server => Error [/error] => java.lang.RuntimeException: forced error
+Client => Error 500: Bad Request
+
+Server => Request: /data
+Client => Path Requested =>: /data
+```
+
 
 ## Binaries
 
@@ -33,30 +80,27 @@ Example for Maven:
 ```xml
 <dependency>
     <groupId>io.reactivex</groupId>
-    <artifactId>rxnetty-http</artifactId>
+    <artifactId>rxnetty</artifactId>
     <version>x.y.z</version>
 </dependency>
 ```
 and for Ivy:
 
 ```xml
-<dependency org="io.reactivex" name="rxnetty-http" rev="x.y.z" />
+<dependency org="io.reactivex" name="rxnetty" rev="x.y.z" />
 ```
 and for Gradle:
 
 ```groovy
-compile 'io.reactivex:rxnetty-http:x.y.z'
+compile 'io.reactivex:rxnetty:x.y.z'
 ```
-###### Unintentional release artifacts
-
-There are two artifacts in maven central 0.5.0 and 0.5.1 which were unintentionally released from 0.4.x branch. Do not use them. [More details here](https://github.com/ReactiveX/RxNetty/issues/439)
 
 ## Build
 
 To build:
 
 ```
-$ git clone https://github.com/ReactiveX/RxNetty.git -b 0.5.x
+$ git clone https://github.com/ReactiveX/RxNetty.git -b 0.6.x
 $ cd RxNetty/
 $ ./gradlew build
 ```
@@ -66,10 +110,13 @@ $ ./gradlew build
 
 For bugs, questions and discussions please use the [Github Issues](https://github.com/ReactiveX/RxNetty/issues).
 
+## Current development branch
+
+[0.6.x](https://github.com/ReactiveX/RxNetty/tree/0.6.x) is the current development branch.
 
 ## LICENSE
 
-Copyright 2014 Netflix, Inc.
+Copyright (c) 2017 RxNetty Contributors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
