@@ -1,30 +1,175 @@
-/*
- * Copyright (c) 2017 RxNetty Contributors.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- *
- */
-plugins {
-    id 'java'
-    id 'ru.vyarus.animalsniffer' version '1.1.0'
-    id 'me.tatarka.retrolambda' version '3.7.0'
-    id 'nebula.rxjava-project' version '4.0.0'
+buildscript {
+    repositories {
+        jcenter()
+        mavenCentral()
+        maven {
+            url "https://plugins.gradle.org/m2/"
+        }
+    }
+    dependencies {
+        classpath "ru.vyarus:gradle-animalsniffer-plugin:1.4.2"
+        classpath 'me.tatarka:gradle-retrolambda:3.7.0'
+        classpath "com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3"
+        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.5.2"
+    }
+}
+
+group = "io.reactivex"
+ext.githubProjectName = "rxnetty"
+
+version = project.properties["release.version"]
+
+def releaseTag = System.getenv("TRAVIS_TAG");
+if (releaseTag != null && !releaseTag.isEmpty()) {
+    if (releaseTag.startsWith("v")) {
+        releaseTag = releaseTag.substring(1);
+    }
+    version = releaseTag;
+    project.properties.put("release.version", releaseTag);
+
+    println("Releasing with version " + version);
 }
 
 description = 'RxNetty: Reactive Extensions for Netty'
 
+apply plugin: "java"
+apply plugin: "ru.vyarus.animalsniffer"
+apply plugin: "me.tatarka.retrolambda"
+apply plugin: "maven"
+apply plugin: "osgi"
+apply plugin: "com.jfrog.bintray"
+apply plugin: "com.jfrog.artifactory"
+
 sourceCompatibility = JavaVersion.VERSION_1_8
 targetCompatibility = JavaVersion.VERSION_1_8
+
+// Dependency versions
+// ---------------------------------------
+
+def rxJavaVersion = "2.1.4"
+def nettyVersion = "4.1.15.Final"
+
+// --------------------------------------
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    signature "org.codehaus.mojo.signature:java16:1.1@signature"
+
+    compile "io.reactivex.rxjava2:rxjava:${rxJavaVersion}"
+
+    compile "io.netty:netty-handler:${nettyVersion}"
+    compile "io.netty:netty-handler-proxy:${nettyVersion}"
+    compile "io.netty:netty-codec-http:${nettyVersion}"
+    compile "io.netty:netty-transport-native-epoll:${nettyVersion}"
+
+    testCompile "junit:junit:4.12"
+    testCompile "org.hamcrest:hamcrest-library:1.3"
+    testCompile "org.assertj:assertj-core:3.6.1"
+    testCompile "com.fasterxml.jackson.core:jackson-databind:2.5.1"
+}
+
+javadoc {
+    failOnError = false
+    exclude "**/internal/**"
+    exclude "**/test/**"
+    exclude "**/perf/**"
+    exclude "**/jmh/**"
+    options {
+        windowTitle = "RxNetty Javadoc ${project.version}"
+    }
+    // Clear the following options to make the docs consistent with the old format
+    options.addStringOption("top").value = ""
+    options.addStringOption("doctitle").value = ""
+    options.addStringOption("header").value = ""
+
+    options.links("http://docs.oracle.com/javase/7/docs/api/")
+
+    if (JavaVersion.current().isJava7()) {
+        // "./gradle/stylesheet.css" only supports Java 7
+        options.addStringOption("stylesheetfile", rootProject.file("./gradle/stylesheet.css").toString())
+    }
+}
+
+animalsniffer {
+    sourceSets = [sourceSets.main]
+}
+
+retrolambda {
+    javaVersion JavaVersion.VERSION_1_6
+    defaultMethods true
+}
+
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = "sources"
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = "javadoc"
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+    archives javadocJar
+}
+
+jar {
+    manifest {
+        name = "rxnetty"
+        instruction "Bundle-Vendor", "RxNetty Contributors"
+        instruction "Bundle-DocURL", "https://github.com/ReactiveX/RxNetty"
+        instruction "Import-Package", "!org.junit,!junit.framework,!org.mockito.*,!org.testng.*,*"
+    }
+}
+
+apply plugin: "maven-publish"
+
+install {
+    repositories.mavenInstaller.pom.project {
+        name "RxNetty"
+        description "Reactive Extensions for Netty"
+        url "https://github.com/ReactiveX/RxNetty"
+        licenses {
+            license {
+                name "The Apache Software License, Version 2.0"
+                url "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                distribution "repo"
+            }
+        }
+        developers {
+            developer {
+                id "rdegnan"
+                name "Ryland Degnan"
+                email "ryland@netifi.io"
+            }
+        }
+        scm {
+            connection "scm:git:git@github.com:ReactiveX/RxNetty.git"
+            url "scm:git:git@github.com:ReactiveX/RxNetty.git"
+            developerConnection "scm:git:git@github.com:ReactiveX/RxNetty.git"
+        }
+        issueManagement {
+            system "github"
+            url "https://github.com/ReactiveX/RxNetty/issues"
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact (sourcesJar) {
+                classifier = "sources"
+            }
+        }
+    }
+}
 
 test {
     testLogging {
@@ -41,37 +186,65 @@ test {
     }
 }
 
-animalsniffer {
-    sourceSets = [sourceSets.main]
-}
+if (rootProject.hasProperty("releaseMode")) {
 
-retrolambda {
-    javaVersion JavaVersion.VERSION_1_6
-    defaultMethods true
-}
+    if ("branch".equals(rootProject.releaseMode)) {
+        // From https://github.com/ReactiveX/RxAndroid/blob/2.x/rxandroid/build.gradle#L94
 
-dependencies {
-    signature 'org.codehaus.mojo.signature:java16:1.1@signature'
+        println("ReleaseMode: " + rootProject.releaseMode);
+        artifactory {
+            contextUrl = "https://oss.jfrog.org"
 
-    compile "io.reactivex.rxjava2:rxjava:${rxjava_version}"
+            publish {
+                repository {
+                    repoKey = "oss-snapshot-local"
 
-	compile "io.netty:netty-handler:${netty_version}"
-	compile "io.netty:netty-handler-proxy:${netty_version}"
-	compile "io.netty:netty-codec-http:${netty_version}"
-	compile "io.netty:netty-transport-native-epoll:${netty_version}"
+                    username = rootProject.bintrayUser
+                    password = rootProject.bintrayKey
+                }
 
-    testCompile 'junit:junit:4.12'
-    testCompile 'org.hamcrest:hamcrest-library:1.3'
-    testCompile 'org.assertj:assertj-core:3.6.1'
-    testCompile 'com.fasterxml.jackson.core:jackson-databind:2.5.1'
-}
+                defaults {
+                    publishConfigs("archives")
+                }
+            }
+        }
 
-// support for snapshot/final releases with the various branches RxJava uses
-nebulaRelease {
-    addReleaseBranchPattern(/\d+\.\d+\.\d+/)
-    addReleaseBranchPattern('HEAD')
-}
+        build.finalizedBy(artifactoryPublish)
+    }
 
-if (project.hasProperty('release.useLastTag')) {
-    tasks.prepare.enabled = false
+    if ("full".equals(rootProject.releaseMode)) {
+        // based on https://github.com/bintray/gradle-bintray-plugin
+        def rver = version;
+
+        println("ReleaseMode: " + rootProject.releaseMode + " version " + rver);
+
+        bintray {
+            user = rootProject.bintrayUser
+            key = rootProject.bintrayKey
+            configurations = ["archives"]
+            publish = true
+            pkg {
+                repo = "RxNetty"
+                name = "RxNetty"
+                userOrg = "reactivex"
+                labels = ["rxnetty", "reactivex"]
+                licenses = ["Apache-2.0"]
+                vcsUrl = "https://github.com/ReactiveX/RxNetty.git"
+                version {
+                    name = rver
+                    gpg {
+                        sign = true
+                    }
+                    mavenCentralSync {
+                        sync = true
+                        user = rootProject.sonatypeUsername
+                        password = rootProject.sonatypePassword
+                        close = "1"
+                    }
+                }
+            }
+        }
+
+        build.finalizedBy(bintrayUpload)
+    }
 }
