@@ -1,7 +1,15 @@
+Project Status
+=======
+
+**2018-02-014** 
+* `1.0.x` will be the RxNetty-2 update. It is currently pending an RFC for API changes.
+* `0.5.x` is the current release branch. This is no longer under active development but will have major patches applied and will accept pull requests.
+* `0.4.x` is now considered legancy and will only have critical patches applied.
+
 Branch Status
 =======
 
-This is the current development branch for RxNetty and it is __not__ stable, if you are looking for a stable release, you should use the [latest 0.4.x artifacts](https://github.com/ReactiveX/RxNetty/releases).
+This is the current branch for RxNetty and is now API stable.
 
 Motivations
 ======
