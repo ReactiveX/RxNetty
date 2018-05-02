@@ -482,6 +482,7 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
         private boolean isDone; /*Guarded by guard*/
         private Scheduler.Worker writeWorker; /*Guarded by guard*/
         private boolean atleastOneWriteEnqueued; /*Guarded by guard*/
+        private int enqueued;  /*Guarded by guard*/
 
         private boolean isPromiseCompletedOnWriteComplete; /*Guarded by guard. Only transition should be false->true*/
 
@@ -533,7 +534,11 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                     }
                 }
 
-                enqueue = null != writeWorker && inEL;
+                enqueue = null != writeWorker && (inEL || enqueued > 0);
+
+                if (enqueue) {
+                    enqueued++;
+                }
             }
 
             final ChannelFuture channelFuture = enqueue ? enqueueWrite(nextItem) : ctx.write(nextItem);
@@ -611,6 +616,9 @@ public abstract class BackpressureManagingHandler extends ChannelDuplexHandler {
                 @Override
                 public void call() {
                     ctx.write(nextItem, toReturn);
+                    synchronized (guard) {
+                        enqueued--;
+                    }
                 }
             });
             return toReturn;
