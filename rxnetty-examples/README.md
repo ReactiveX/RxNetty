@@ -10,15 +10,15 @@ The catalog is categorized with protocol as well as the user level like Beginner
 to the correct example when using `RxNetty`. The following protocol based categorization links to the elaborate examples
 per protocol.
 
-###TCP
+### TCP
 
 [This catalog](TCP.md) contains all examples for TCP.
 
-###HTTP
+### HTTP
 
 [This catalog](HTTP.md) contains all examples for HTTP.
 
-###WebSockets
+### WebSockets
 
 [This catalog](WS.md) contains all examples for HTTP.
 
@@ -27,13 +27,13 @@ Using the examples
 
 All examples have a `Server` and `Client` class, both of which can be run independently from their `main` methods.
 
-#####Server
+### Server
 
 All servers use ephemeral ports and when started outputs the port it is using. The server code is usually useful when
 you are trying to understand how to write a server for that usecase. If you are only interested in the client, then you
 can safely ignore the server part as the client is standalone.
 
-#####Client
+### Client
 
 All clients can be executed in 3 different ways:
 
