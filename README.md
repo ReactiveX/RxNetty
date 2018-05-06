@@ -53,7 +53,7 @@ and for Ivy:
 and for Gradle:
 
 ```groovy
-compile 'io.reactivex:rxnetty-http:x.y.z'
+implementation 'io.reactivex:rxnetty-http:x.y.z'
 ```
 ###### Unintentional release artifacts
 
