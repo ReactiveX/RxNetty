@@ -138,7 +138,13 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             subscriber.onNext(event.getPooledConnection());
             checkEagerSubscriptionIfConfigured(channel);
         } else {
-            event.getPooledConnection().close(false); // If pooled connection not sent to the subscriber, release to the pool.
+            // If pooled connection not sent to the subscriber, release to the pool.
+            event.getPooledConnection().close(false).subscribe(Actions.empty(), new Action1<Throwable>() {
+                @Override
+                public void call(Throwable throwable) {
+                    logger.error("Error closing connection.", throwable);
+                }
+            });
         }
     }
 
