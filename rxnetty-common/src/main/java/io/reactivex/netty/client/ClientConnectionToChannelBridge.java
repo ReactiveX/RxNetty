@@ -33,6 +33,8 @@ import io.reactivex.netty.internal.ExecuteInEventloopAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscriber;
+import rx.functions.Action1;
+import rx.functions.Actions;
 import rx.observers.SafeSubscriber;
 import rx.subscriptions.Subscriptions;
 
