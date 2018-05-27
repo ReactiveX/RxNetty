@@ -33,6 +33,8 @@ import io.reactivex.netty.internal.ExecuteInEventloopAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import rx.Subscriber;
+import rx.functions.Action1;
+import rx.functions.Actions;
 import rx.observers.SafeSubscriber;
 import rx.subscriptions.Subscriptions;
 
@@ -138,7 +140,13 @@ public class ClientConnectionToChannelBridge<R, W> extends AbstractConnectionToC
             subscriber.onNext(event.getPooledConnection());
             checkEagerSubscriptionIfConfigured(channel);
         } else {
-            event.getPooledConnection().close(false); // If pooled connection not sent to the subscriber, release to the pool.
+            // If pooled connection not sent to the subscriber, release to the pool.
+            event.getPooledConnection().close(false).subscribe(Actions.empty(), new Action1<Throwable>() {
+                @Override
+                public void call(Throwable throwable) {
+                    logger.error("Error closing connection.", throwable);
+                }
+            });
         }
     }
 
