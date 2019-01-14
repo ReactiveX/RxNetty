@@ -27,13 +27,17 @@ import io.reactivex.netty.client.pool.PooledConnectionProvider;
 import io.reactivex.netty.client.pool.SingleHostPoolingProviderFactory;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
+import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
 import rx.Observable;
+import rx.Observer;
+import rx.functions.Func0;
 import rx.observers.TestSubscriber;
 
 import java.net.InetSocketAddress;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.hamcrest.MatcherAssert.*;
 import static org.hamcrest.Matchers.*;
@@ -73,6 +77,48 @@ public class TcpClientRule extends ExternalResource {
 
         TestSubscriber<Connection<ByteBuf, ByteBuf>> cSub = new TestSubscriber<>();
         client.createConnectionRequest().subscribe(cSub);
+
+        cSub.awaitTerminalEvent();
+
+        cSub.assertNoErrors();
+
+        assertThat("No connection received.", cSub.getOnNextEvents(), hasSize(1));
+
+        return  (PooledConnection<ByteBuf, ByteBuf>) cSub.getOnNextEvents().get(0);
+    }
+
+    public PooledConnection<ByteBuf, ByteBuf> connectWithCheck() {
+
+        final AtomicBoolean gotOnNext = new AtomicBoolean(false);
+
+        Observable<Connection<ByteBuf, ByteBuf>> got_no_connection = client.createConnectionRequest()
+            .doOnEach(new Observer<Connection<ByteBuf, ByteBuf>>() {
+                @Override
+                public void onCompleted() {
+                    if(!gotOnNext.get()) {
+                        //A PooledConnection could sometimes send onCompleted before the onNext event occurred.
+                        Assert.fail("Should not get onCompletedBefore onNext");
+                    }
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                }
+
+                @Override
+                public void onNext(Connection<ByteBuf, ByteBuf> byteBufByteBufConnection) {
+                    gotOnNext.set(true);
+                }
+            })
+            .switchIfEmpty(Observable.defer(new Func0<Observable<PooledConnection<ByteBuf, ByteBuf>>>() {
+                @Override
+                public Observable<PooledConnection<ByteBuf, ByteBuf>> call() {
+                    return Observable.empty();
+                }
+            }));
+
+        TestSubscriber<Connection<ByteBuf, ByteBuf>> cSub = new TestSubscriber<>();
+        got_no_connection.subscribe(cSub);
 
         cSub.awaitTerminalEvent();
 
