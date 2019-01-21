@@ -421,9 +421,9 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
                 onNextArrived = true;
                 _terminated = terminated;
                 _error = error;
+                delegate.onNext(conn);
             }
 
-            delegate.onNext(conn);
 
             if (_terminated) {
                 if (null != error) {
