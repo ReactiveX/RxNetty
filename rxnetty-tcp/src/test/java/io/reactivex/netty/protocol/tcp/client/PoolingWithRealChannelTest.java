@@ -20,9 +20,20 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.embedded.EmbeddedChannel;
 import io.reactivex.netty.client.pool.PooledConnection;
 import org.junit.Rule;
+import org.junit.Test;
+import rx.Observable;
+import rx.functions.Func0;
+import rx.functions.Func1;
+import rx.observers.AssertableSubscriber;
 
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.is;
+import static rx.Observable.fromCallable;
+import static rx.Observable.just;
 
 /**
  * This tests the code paths which are not invoked for {@link EmbeddedChannel} as it does not schedule any task
@@ -48,5 +59,84 @@ public class PoolingWithRealChannelTest {
         PooledConnection<ByteBuf, ByteBuf> connection2 = clientRule.connect();
 
         assertThat("Connection is not reused.", connection2, is(connection));
+    }
+
+    @Test
+    /**
+     *
+     * Load test to prove concurrency issues mainly seen on heavy load.
+     *
+     */
+    public void assertPermitsAreReleasedWhenMergingObservablesWithExceptions() {
+        clientRule.startServer(10, true);
+
+        MockTcpClientEventListener listener = new MockTcpClientEventListener();
+        clientRule.getClient().subscribe(listener);
+
+        int number_of_iterations = 1;
+        int  numberOfRequests = 3;
+
+        makeRequests(number_of_iterations, numberOfRequests);
+
+        sleep(clientRule.getPoolConfig().getMaxIdleTimeMillis());
+
+        assertThat("Permits should be 10", clientRule.getPoolConfig().getPoolLimitDeterminationStrategy().getAvailablePermits(), equalTo(10));
+    }
+
+    private void sleep(long i) {
+        try {
+            Thread.sleep(i);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void makeRequests(int number_of_iterations, int numberOfRequests) {
+        for (int j = 0; j < number_of_iterations; j++) {
+
+            //List<Observable<String>> results = new ArrayList<>();
+
+            sleep(100);
+
+            List<Observable<String>> results = new ArrayList<>();
+
+            //Just giving the client some time to recover
+            sleep(100);
+
+            for (int i = 0; i < numberOfRequests; i++) {
+                results.add(
+                    fromCallable(new Func0<PooledConnection<ByteBuf, ByteBuf>>() {
+                        @Override
+                        public PooledConnection<ByteBuf, ByteBuf> call() {
+                            return clientRule.connect();
+                        }
+                    })
+                        .flatMap(new Func1<PooledConnection<ByteBuf, ByteBuf>, Observable<String>>() {
+                            @Override
+                            public Observable<String> call(PooledConnection<ByteBuf, ByteBuf> connection) {
+                                return connection.writeStringAndFlushOnEach(just("Hello"))
+                                    .toCompletable()
+                                    .<ByteBuf>toObservable()
+                                    .concatWith(connection.getInput())
+                                    .take(1)
+                                    .single()
+                                    .map(new Func1<ByteBuf, String>() {
+                                        @Override
+                                        public String call(ByteBuf byteBuf) {
+                                            try {
+                                                byte[] bytes = new byte[byteBuf.readableBytes()];
+                                                byteBuf.readBytes(bytes);
+                                                return new String(bytes);
+                                            } finally {
+                                                byteBuf.release();
+                                            }
+                                        }
+                                    });
+                            }
+                        }));
+            }
+            AssertableSubscriber<String> test = Observable.merge(results).test();
+            test.awaitTerminalEvent();
+        }
     }
 }
