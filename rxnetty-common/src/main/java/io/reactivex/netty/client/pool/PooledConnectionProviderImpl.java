@@ -56,23 +56,32 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
 
     private static final Logger logger = LoggerFactory.getLogger(PooledConnectionProviderImpl.class);
 
-    private Subscription idleConnCleanupSubscription;
+    private final Subscription idleConnCleanupSubscription;
     private final IdleConnectionsHolder<W, R> idleConnectionsHolder;
 
     private final PoolLimitDeterminationStrategy limitDeterminationStrategy;
     private final long maxIdleTimeMillis;
-    private final PoolConfig<W, R>               poolConfig;
     private final HostConnector<W, R> hostConnector;
     private volatile boolean isShutdown;
 
     public PooledConnectionProviderImpl(PoolConfig<W, R> poolConfig, HostConnector<W, R> hostConnector) {
-        this.poolConfig = poolConfig;
         this.hostConnector = hostConnector;
         idleConnectionsHolder = poolConfig.getIdleConnectionsHolder();
         limitDeterminationStrategy = poolConfig.getPoolLimitDeterminationStrategy();
         maxIdleTimeMillis = poolConfig.getMaxIdleTimeMillis();
         // In case, there is no cleanup required, this observable should never give a tick.
-        idleConnCleanupSubscription = getIdleConnectionCleanUpSubscription(); // Errors are logged and ignored.
+        idleConnCleanupSubscription = poolConfig.getIdleConnCleanupTicker()
+            .doOnError(LogErrorAction.INSTANCE)
+            .retry() // Retry when there is an error in timer.
+            .concatMap(new IdleConnectionCleanupTask())
+            .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
+                @Override
+                public Observable<Void> call(Throwable throwable) {
+                    logger.error("Ignoring error cleaning up idle connections.",
+                        throwable);
+                    return Observable.empty();
+                }
+            }).subscribe();
 
         hostConnector.getHost()
                      .getCloseNotifier()
@@ -92,39 +101,6 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
                          }
                      })
                      .subscribe(Actions.empty());
-    }
-
-    /**
-     * Creates a cleanup subscription to clean up the idle connections
-     * @return
-     */
-    private Subscription getIdleConnectionCleanUpSubscription() {
-        return poolConfig.getIdleConnCleanupTicker()
-                .doOnError(LogErrorAction.INSTANCE)
-                .retry() // Retry when there is an error in timer.
-                .concatMap(new IdleConnectionCleanupTask())
-                .doOnUnsubscribe(new Action0() {
-
-                    /*
-                     * the idle connection ticker is for some reason unsubscribed and
-                     * To make the ticker work as expected by ticking every once in a while
-                     * we reinitiate the cleanUp subscription
-                     */
-                    @Override
-                    public void call() {
-                        if(!isShutdown) {
-                            idleConnCleanupSubscription = getIdleConnectionCleanUpSubscription();
-                        }
-                    }
-                })
-                .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
-                    @Override
-                    public Observable<Void> call(Throwable throwable) {
-                        logger.error("Ignoring error cleaning up idle connections.",
-                                     throwable);
-                        return Observable.empty();
-                    }
-                }).subscribe();
     }
 
     @Override
