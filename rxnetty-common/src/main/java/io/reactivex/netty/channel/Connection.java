@@ -317,7 +317,7 @@ public abstract class Connection<R, W> implements ChannelOperations<W> {
                     .addListener(new ChannelFutureListener() {
                         @Override
                         public void operationComplete(ChannelFuture future) throws Exception {
-                            close(false); // Close this connection when the channel is closed.
+                            closeNow(); // Close this connection when the channel is closed.
                         }
                     });
         nettyChannel.attr(CONNECTION_ATTRIBUTE_KEY).set(this);

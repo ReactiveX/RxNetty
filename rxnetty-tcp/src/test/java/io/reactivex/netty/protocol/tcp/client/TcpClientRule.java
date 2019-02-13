@@ -18,12 +18,9 @@ package io.reactivex.netty.protocol.tcp.client;
 
 import io.netty.buffer.ByteBuf;
 import io.reactivex.netty.channel.Connection;
-import io.reactivex.netty.client.ConnectionProvider;
-import io.reactivex.netty.client.ConnectionProviderFactory;
 import io.reactivex.netty.client.Host;
-import io.reactivex.netty.client.HostConnector;
+import io.reactivex.netty.client.pool.PoolConfig;
 import io.reactivex.netty.client.pool.PooledConnection;
-import io.reactivex.netty.client.pool.PooledConnectionProvider;
 import io.reactivex.netty.client.pool.SingleHostPoolingProviderFactory;
 import io.reactivex.netty.protocol.tcp.server.ConnectionHandler;
 import io.reactivex.netty.protocol.tcp.server.TcpServer;
@@ -39,13 +36,14 @@ import rx.observers.TestSubscriber;
 import java.net.InetSocketAddress;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.hamcrest.MatcherAssert.*;
-import static org.hamcrest.Matchers.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasSize;
 
 public class TcpClientRule extends ExternalResource {
 
-    private TcpServer<ByteBuf, ByteBuf> server;
-    private TcpClient<ByteBuf, ByteBuf> client;
+    private TcpServer<ByteBuf, ByteBuf>  server;
+    private TcpClient<ByteBuf, ByteBuf>  client;
+    private PoolConfig<ByteBuf, ByteBuf> poolConfig;
 
     @Override
     public Statement apply(final Statement base, Description description) {
@@ -59,10 +57,18 @@ public class TcpClientRule extends ExternalResource {
     }
 
     public void startServer(int maxConnections) {
+        startServer(maxConnections, false);
+    }
+
+    public void startServer(int maxConnections, final boolean failing) {
         server.start(new ConnectionHandler<ByteBuf, ByteBuf>() {
             @Override
             public Observable<Void> handle(Connection<ByteBuf, ByteBuf> newConnection) {
-                return newConnection.writeAndFlushOnEach(newConnection.getInput());
+                if(failing) {
+                    throw new RuntimeException("exception");
+                } else {
+                    return newConnection.writeAndFlushOnEach(newConnection.getInput());
+                }
             }
         });
         createClient(maxConnections);
@@ -131,8 +137,9 @@ public class TcpClientRule extends ExternalResource {
 
     private void createClient(final int maxConnections) {
         InetSocketAddress serverAddr = new InetSocketAddress("127.0.0.1", server.getServerPort());
-        client = TcpClient.newClient(SingleHostPoolingProviderFactory.<ByteBuf, ByteBuf>createBounded(maxConnections),
-                                     Observable.just(new Host(serverAddr)));
+        poolConfig = new PoolConfig<ByteBuf, ByteBuf>().maxConnections(maxConnections);
+        SingleHostPoolingProviderFactory<ByteBuf, ByteBuf> bounded = SingleHostPoolingProviderFactory.create(poolConfig);
+        client = TcpClient.newClient(bounded, Observable.just(new Host(serverAddr)));
     }
 
     public TcpServer<ByteBuf, ByteBuf> getServer() {
@@ -141,5 +148,9 @@ public class TcpClientRule extends ExternalResource {
 
     public TcpClient<ByteBuf, ByteBuf> getClient() {
         return client;
+    }
+
+    public PoolConfig<ByteBuf, ByteBuf> getPoolConfig() {
+        return poolConfig;
     }
 }

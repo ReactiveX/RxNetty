@@ -213,7 +213,7 @@ public class PooledConnectionProviderImplTest {
         assertThat("Unexpected release attempted count.", eventsListener.getReleaseAttemptedCount(), is(2L));
         assertThat("Unexpected release succeeded count.", eventsListener.getReleaseSucceededCount(), is(2L));
         assertThat("Unexpected release failed count.", eventsListener.getReleaseFailedCount(), is(0L));
-        assertThat("Unexpected connection eviction count.", eventsListener.getEvictionCount(), is(1L));
+        assertThat("Unexpected connection eviction count.", eventsListener.getEvictionCount(), is(2L));
     }
 
     private PooledConnection<String, String> _testRelease() throws Exception {
