@@ -74,14 +74,15 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
             .doOnError(LogErrorAction.INSTANCE)
             .retry() // Retry when there is an error in timer.
             .concatMap(new IdleConnectionCleanupTask())
-            .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
+            .doOnError(new Action1<Throwable>() {
                 @Override
-                public Observable<Void> call(Throwable throwable) {
+                public void call(Throwable throwable) {
                     logger.error("Ignoring error cleaning up idle connections.",
                         throwable);
-                    return Observable.empty();
                 }
-            }).subscribe();
+            })
+            .retry()
+            .subscribe();
 
         hostConnector.getHost()
                      .getCloseNotifier()
