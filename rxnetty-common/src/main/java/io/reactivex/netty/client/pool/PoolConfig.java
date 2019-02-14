@@ -37,7 +37,7 @@ public class PoolConfig<W, R> {
 
     public PoolConfig() {
         maxIdleTimeMillis = DEFAULT_MAX_IDLE_TIME_MILLIS;
-        idleConnCleanupTicker = Observable.interval(maxIdleTimeMillis, TimeUnit.MILLISECONDS);
+        idleConnCleanupTicker = Observable.interval(maxIdleTimeMillis, maxIdleTimeMillis, TimeUnit.MILLISECONDS);
         idleConnectionsHolder = new FIFOIdleConnectionsHolder<>();
         limitDeterminationStrategy = UnboundedPoolLimitDeterminationStrategy.INSTANCE;
     }
