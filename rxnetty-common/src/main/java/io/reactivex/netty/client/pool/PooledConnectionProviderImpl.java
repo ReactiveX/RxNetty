@@ -70,18 +70,19 @@ public final class PooledConnectionProviderImpl<W, R> extends PooledConnectionPr
         limitDeterminationStrategy = poolConfig.getPoolLimitDeterminationStrategy();
         maxIdleTimeMillis = poolConfig.getMaxIdleTimeMillis();
         // In case, there is no cleanup required, this observable should never give a tick.
-        idleConnCleanupSubscription = poolConfig.getIdleConnectionsCleanupTimer()
-                                                .doOnError(LogErrorAction.INSTANCE)
-                .retry() // Retry when there is an error in timer.
-                .concatMap(new IdleConnectionCleanupTask())
-                .onErrorResumeNext(new Func1<Throwable, Observable<Void>>() {
-                    @Override
-                    public Observable<Void> call(Throwable throwable) {
-                        logger.error("Ignoring error cleaning up idle connections.",
-                                     throwable);
-                        return Observable.empty();
-                    }
-                }).subscribe(Actions.empty()); // Errors are logged and ignored.
+        idleConnCleanupSubscription = poolConfig.getIdleConnCleanupTicker()
+            .doOnError(LogErrorAction.INSTANCE)
+            .retry() // Retry when there is an error in timer.
+            .concatMap(new IdleConnectionCleanupTask())
+            .doOnError(new Action1<Throwable>() {
+                @Override
+                public void call(Throwable throwable) {
+                    logger.error("Ignoring error cleaning up idle connections.",
+                        throwable);
+                }
+            })
+            .retry()
+            .subscribe();
 
         hostConnector.getHost()
                      .getCloseNotifier()
