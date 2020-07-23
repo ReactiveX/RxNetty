@@ -1,6 +1,11 @@
 language: java
 jdk:
-- oraclejdk8
+  - openjdk8
+# - oraclejdk8
+# addons:
+#   apt:
+#     packages:
+#       - oracle-java8-installer
 sudo: false
 script: gradle/buildViaTravis.sh
 env:
