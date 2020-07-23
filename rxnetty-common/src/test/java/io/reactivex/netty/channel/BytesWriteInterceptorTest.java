@@ -134,8 +134,8 @@ public class BytesWriteInterceptorTest {
         // Set the current thread to be the thread of the event loop
         inspectorRule.setEventLoopThread();
 
-        // Send 1000 messages from two different threads
-        int msgCount = 1000;
+        // Send 100 messages from two different threads
+        int msgCount = 100;
         Scheduler.Worker worker = Schedulers.computation().createWorker();
         for (int i = 1; i < msgCount; i+=2) {
             sub1.onNext(String.valueOf(i));
